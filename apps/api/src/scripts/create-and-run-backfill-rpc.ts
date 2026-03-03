@@ -75,12 +75,12 @@ $$ LANGUAGE plpgsql;
 
   // Try to call the function if it already exists
   console.log('Attempting to call backfill function (if it exists)...\n');
-  
+
   const { data, error } = await supabase.rpc('backfill_market_props_today', { batch_limit: 50000 });
 
   if (error) {
     console.error(`❌ Error: ${error.message}`);
-    console.log('\nThe function likely doesn\'t exist yet. Please create it manually.\n');
+    console.log("\nThe function likely doesn't exist yet. Please create it manually.\n");
     process.exit(1);
   }
 
@@ -101,4 +101,3 @@ createAndRunBackfill().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

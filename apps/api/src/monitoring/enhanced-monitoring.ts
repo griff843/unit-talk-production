@@ -18,25 +18,25 @@ export class EnhancedMonitoringSystem {
     this.setupMetricStream('model_accuracy', {
       component: SystemComponent.ML,
       alertLevel: AlertLevel.CRITICAL,
-      threshold: 0.85
+      threshold: 0.85,
     });
 
     this.setupMetricStream('system_latency', {
       component: SystemComponent.INFRASTRUCTURE,
       alertLevel: AlertLevel.CRITICAL,
-      threshold: 100 // ms
+      threshold: 100, // ms
     });
 
     this.setupMetricStream('data_quality', {
       component: SystemComponent.DATA,
       alertLevel: AlertLevel.CRITICAL,
-      threshold: 0.95
+      threshold: 0.95,
     });
 
     this.setupMetricStream('risk_exposure', {
       component: SystemComponent.RISK,
       alertLevel: AlertLevel.CRITICAL,
-      threshold: 0.02 // 2% max risk exposure
+      threshold: 0.02, // 2% max risk exposure
     });
   }
 
@@ -54,13 +54,17 @@ export class EnhancedMonitoringSystem {
     await this.updateMetricStream(metricName, value);
   }
 
-  private async handleThresholdBreach(metricName: string, value: number, threshold: number): Promise<void> {
+  private async handleThresholdBreach(
+    metricName: string,
+    value: number,
+    threshold: number
+  ): Promise<void> {
     const alert = {
       metric: metricName,
       value,
       threshold,
       timestamp: new Date().toISOString(),
-      severity: 'CRITICAL'
+      severity: 'CRITICAL',
     };
 
     // Log alert
@@ -74,7 +78,7 @@ export class EnhancedMonitoringSystem {
   }
 
   private async triggerRecoveryProcedure(metricName: string, value: number): Promise<void> {
-    switch(metricName) {
+    switch (metricName) {
       case 'model_accuracy':
         await this.handleModelAccuracyDrop(value);
         break;
@@ -92,7 +96,7 @@ export class EnhancedMonitoringSystem {
 
   private async handleModelAccuracyDrop(accuracy: number): Promise<void> {
     // Implement model failover logic
-    if (accuracy < 0.80) {
+    if (accuracy < 0.8) {
       await this.switchToBackupModel();
     }
     // Trigger model retraining
@@ -109,7 +113,7 @@ export class EnhancedMonitoringSystem {
 
   private async handleDataQualityIssue(quality: number): Promise<void> {
     // Implement data quality recovery
-    if (quality < 0.90) {
+    if (quality < 0.9) {
       await this.switchToBackupDataSource();
     }
     await this.validateDataPipeline();
@@ -164,7 +168,7 @@ export class EnhancedMonitoringSystem {
       threshold: config.threshold,
       values: [],
       timestamps: [],
-      maxSize: 100
+      maxSize: 100,
     });
     this.alertThresholds.set(metricName, config.threshold);
   }
@@ -178,7 +182,7 @@ export class EnhancedMonitoringSystem {
     if (stream) {
       stream.values.push(value);
       stream.timestamps.push(new Date().toISOString());
-      
+
       // Keep only last maxSize values
       if (stream.values.length > stream.maxSize) {
         stream.values.shift();
@@ -196,4 +200,4 @@ export class EnhancedMonitoringSystem {
     // Implementation for triggering alerts
     this.logger.warn(`Alert triggered: ${alertType}`, data);
   }
-} 
+}

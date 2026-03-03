@@ -46,21 +46,33 @@ export function addDays(date: Date | string | null | undefined, days: number): D
 /**
  * Safely format date to locale string
  */
-export function toLocaleString(date: Date | string | null | undefined, locale?: string, options?: Intl.DateTimeFormatOptions): string {
+export function toLocaleString(
+  date: Date | string | null | undefined,
+  locale?: string,
+  options?: Intl.DateTimeFormatOptions
+): string {
   return toDate(date).toLocaleString(locale, options);
 }
 
 /**
  * Safely format time to locale string
  */
-export function toLocaleTimeString(date: Date | string | null | undefined, locale?: string, options?: Intl.DateTimeFormatOptions): string {
+export function toLocaleTimeString(
+  date: Date | string | null | undefined,
+  locale?: string,
+  options?: Intl.DateTimeFormatOptions
+): string {
   return toDate(date).toLocaleTimeString(locale, options);
 }
 
 /**
  * Safely format date to locale date string
  */
-export function toLocaleDateString(date: Date | string | null | undefined, locale?: string, options?: Intl.DateTimeFormatOptions): string {
+export function toLocaleDateString(
+  date: Date | string | null | undefined,
+  locale?: string,
+  options?: Intl.DateTimeFormatOptions
+): string {
   return toDate(date).toLocaleDateString(locale, options);
 }
 
@@ -91,27 +103,39 @@ export function setDate(date: Date | string | null | undefined, day: number): Da
 /**
  * Check if date is before another date
  */
-export function isBefore(date1: Date | string | null | undefined, date2: Date | string | null | undefined): boolean {
+export function isBefore(
+  date1: Date | string | null | undefined,
+  date2: Date | string | null | undefined
+): boolean {
   return toDate(date1) < toDate(date2);
 }
 
 /**
  * Check if date is after another date
  */
-export function isAfter(date1: Date | string | null | undefined, date2: Date | string | null | undefined): boolean {
+export function isAfter(
+  date1: Date | string | null | undefined,
+  date2: Date | string | null | undefined
+): boolean {
   return toDate(date1) > toDate(date2);
 }
 
 /**
  * Get difference in milliseconds
  */
-export function diffInMs(date1: Date | string | null | undefined, date2: Date | string | null | undefined): number {
+export function diffInMs(
+  date1: Date | string | null | undefined,
+  date2: Date | string | null | undefined
+): number {
   return Math.abs(getTime(date1) - getTime(date2));
 }
 
 /**
  * Get difference in days
  */
-export function diffInDays(date1: Date | string | null | undefined, date2: Date | string | null | undefined): number {
+export function diffInDays(
+  date1: Date | string | null | undefined,
+  date2: Date | string | null | undefined
+): number {
   return Math.floor(diffInMs(date1, date2) / (1000 * 60 * 60 * 24));
 }

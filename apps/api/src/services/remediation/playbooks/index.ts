@@ -20,10 +20,11 @@ export { SLOEvaluatorStuckPlaybook } from './SLOEvaluatorStuckPlaybook';
 
 // Type imports for convenience
 import { IPlaybook, PlaybookId } from '../types';
-import { MVRefreshLagPlaybook } from './MVRefreshLagPlaybook';
-import { PipelineLagThrottlePlaybook } from './PipelineLagThrottlePlaybook';
+
 import { CreditBurnThrottlePlaybook } from './CreditBurnThrottlePlaybook';
 import { DiscordBacklogNudgePlaybook } from './DiscordBacklogNudgePlaybook';
+import { MVRefreshLagPlaybook } from './MVRefreshLagPlaybook';
+import { PipelineLagThrottlePlaybook } from './PipelineLagThrottlePlaybook';
 import { SLOEvaluatorStuckPlaybook } from './SLOEvaluatorStuckPlaybook';
 
 /**
@@ -44,9 +45,9 @@ export function createAllPlaybooks(): Map<PlaybookId, IPlaybook> {
 /**
  * Register all playbooks with the registry
  */
-export async function registerAllPlaybooks(
-  registry: { register: (playbook: IPlaybook) => void }
-): Promise<void> {
+export async function registerAllPlaybooks(registry: {
+  register: (playbook: IPlaybook) => void;
+}): Promise<void> {
   const playbooks = createAllPlaybooks();
 
   for (const [_id, playbook] of playbooks) {

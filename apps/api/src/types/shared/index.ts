@@ -63,12 +63,14 @@ export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 // --- Health Check Types ---
 export const HealthStatusSchema = z.object({
   status: z.enum(['healthy', 'degraded', 'unhealthy']),
-  components: z.record(z.object({
-    status: z.enum(['healthy', 'degraded', 'unhealthy']),
-    message: z.string().optional(),
-    lastCheck: z.string().datetime(),
-    metrics: z.record(z.unknown()).optional(),
-  })),
+  components: z.record(
+    z.object({
+      status: z.enum(['healthy', 'degraded', 'unhealthy']),
+      message: z.string().optional(),
+      lastCheck: z.string().datetime(),
+      metrics: z.record(z.unknown()).optional(),
+    })
+  ),
   timestamp: z.string().datetime(),
   version: z.string(),
 });
@@ -76,10 +78,7 @@ export const HealthStatusSchema = z.object({
 export type HealthStatus = z.infer<typeof HealthStatusSchema>;
 
 // --- Validation Helpers ---
-export function validateEvent<T extends z.ZodType>(
-  schema: T,
-  data: unknown
-): z.infer<T> {
+export function validateEvent<T extends z.ZodType>(schema: T, data: unknown): z.infer<T> {
   return schema.parse(data);
 }
 
@@ -89,4 +88,4 @@ export function validateConfig(config: unknown): AgentConfig {
 
 export function validateHealth(health: unknown): HealthStatus {
   return HealthStatusSchema.parse(health);
-} 
+}

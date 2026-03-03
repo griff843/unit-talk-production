@@ -47,6 +47,6 @@ export function createActivities(config: BaseAgentConfig, deps: BaseAgentDepende
     monitorGrading: impl.monitorGrading.bind(impl),
     initialize: impl.initialize.bind(impl),
     healthCheck: impl.healthCheck.bind(impl),
-    validateDependencies: impl.validateDependencies.bind(impl)
+    validateDependencies: impl.validateDependencies.bind(impl),
   };
 }

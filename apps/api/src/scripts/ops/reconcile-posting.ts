@@ -220,8 +220,8 @@ async function reconcilePosting(since: Date): Promise<ReconcileReport> {
 
   for (const [betSlipId, legs] of parlayGroups.entries()) {
     // Check consistency: all legs should have same state and same message_id
-    const states = new Set(legs.map((l) => l.state));
-    const messageIds = new Set(legs.map((l) => l.receipt_message_id).filter(Boolean));
+    const states = new Set(legs.map(l => l.state));
+    const messageIds = new Set(legs.map(l => l.receipt_message_id).filter(Boolean));
 
     let isConsistent = true;
     let issue = '';
@@ -299,7 +299,7 @@ async function main() {
       console.log('DRIFT DETAILS:');
 
       const driftEntries = report.entries.filter(
-        (e) => e.state === 'p1_drift' || e.state === 'p3_drift'
+        e => e.state === 'p1_drift' || e.state === 'p3_drift'
       );
 
       for (const entry of driftEntries.slice(0, 20)) {

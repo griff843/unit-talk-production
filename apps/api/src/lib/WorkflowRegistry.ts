@@ -13,8 +13,8 @@
  * - Reconciliation with Temporal for stale entries
  */
 
-import { createLogger } from '../utils/logger';
 import { supabase as supabaseClient } from '../services/supabaseClient';
+import { createLogger } from '../utils/logger';
 
 // ============================================================================
 // Types
@@ -81,7 +81,7 @@ export class WorkflowRegistry {
 
     this.logger.info('WorkflowRegistry initialized', {
       heartbeatIntervalMs: this.heartbeatIntervalMs,
-      staleThresholdMs: this.staleThresholdMs
+      staleThresholdMs: this.staleThresholdMs,
     });
   }
 
@@ -102,25 +102,28 @@ export class WorkflowRegistry {
       workflowId: registration.workflow_id,
       runId: registration.run_id,
       agentName: registration.agent_name,
-      workflowType: registration.workflow_type
+      workflowType: registration.workflow_type,
     });
 
     try {
       const { data, error } = await supabaseClient
         .from('workflow_registry')
-        .upsert({
-          workflow_id: registration.workflow_id,
-          run_id: registration.run_id,
-          agent_name: registration.agent_name,
-          workflow_type: registration.workflow_type,
-          task_queue: registration.task_queue,
-          status: 'running',
-          last_heartbeat: new Date().toISOString(),
-          started_at: new Date().toISOString(),
-          metadata: registration.metadata || {}
-        }, {
-          onConflict: 'workflow_id'
-        })
+        .upsert(
+          {
+            workflow_id: registration.workflow_id,
+            run_id: registration.run_id,
+            agent_name: registration.agent_name,
+            workflow_type: registration.workflow_type,
+            task_queue: registration.task_queue,
+            status: 'running',
+            last_heartbeat: new Date().toISOString(),
+            started_at: new Date().toISOString(),
+            metadata: registration.metadata || {},
+          },
+          {
+            onConflict: 'workflow_id',
+          }
+        )
         .select('id')
         .single();
 
@@ -134,13 +137,13 @@ export class WorkflowRegistry {
 
       this.logger.info('Workflow registered', {
         id: data?.id,
-        workflowId: registration.workflow_id
+        workflowId: registration.workflow_id,
       });
 
       return data?.id;
     } catch (error) {
       this.logger.error('Error registering workflow', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return undefined;
     }
@@ -155,20 +158,20 @@ export class WorkflowRegistry {
         .from('workflow_registry')
         .update({
           last_heartbeat: new Date().toISOString(),
-          status: 'running'
+          status: 'running',
         })
         .eq('workflow_id', workflowId);
 
       if (error) {
         this.logger.warn('Failed to update heartbeat', {
           workflowId,
-          error: error.message
+          error: error.message,
         });
       }
     } catch (error) {
       this.logger.warn('Error updating heartbeat', {
         workflowId,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -191,14 +194,14 @@ export class WorkflowRegistry {
         .update({
           status,
           stopped_at: new Date().toISOString(),
-          last_heartbeat: new Date().toISOString()
+          last_heartbeat: new Date().toISOString(),
         })
         .eq('workflow_id', workflowId);
 
       if (error) {
         this.logger.error('Failed to unregister workflow', {
           workflowId,
-          error: error.message
+          error: error.message,
         });
       } else {
         this.logger.info('Workflow unregistered', { workflowId, status });
@@ -206,7 +209,7 @@ export class WorkflowRegistry {
     } catch (error) {
       this.logger.error('Error unregistering workflow', {
         workflowId,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -222,7 +225,7 @@ export class WorkflowRegistry {
     try {
       const update: Record<string, unknown> = {
         status,
-        last_heartbeat: new Date().toISOString()
+        last_heartbeat: new Date().toISOString(),
       };
 
       if (metadata) {
@@ -243,13 +246,13 @@ export class WorkflowRegistry {
         this.logger.warn('Failed to update workflow status', {
           workflowId,
           status,
-          error: error.message
+          error: error.message,
         });
       }
     } catch (error) {
       this.logger.warn('Error updating workflow status', {
         workflowId,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -257,9 +260,10 @@ export class WorkflowRegistry {
   /**
    * Get all managed workflows
    */
-  public async getManagedWorkflows(
-    filters?: { agent_name?: string; status?: WorkflowStatus }
-  ): Promise<RegisteredWorkflow[]> {
+  public async getManagedWorkflows(filters?: {
+    agent_name?: string;
+    status?: WorkflowStatus;
+  }): Promise<RegisteredWorkflow[]> {
     try {
       let query = supabaseClient
         .from('workflow_registry')
@@ -284,7 +288,7 @@ export class WorkflowRegistry {
       return (data || []) as RegisteredWorkflow[];
     } catch (error) {
       this.logger.error('Error getting managed workflows', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return [];
     }
@@ -353,7 +357,7 @@ export class WorkflowRegistry {
         } else {
           this.logger.warn('Marked workflows as stale', {
             count: staleIds.length,
-            workflowIds: staleIds
+            workflowIds: staleIds,
           });
         }
       }
@@ -366,17 +370,17 @@ export class WorkflowRegistry {
 
       this.logger.info('Workflow registry reconciliation completed', {
         checkedCount: count || 0,
-        staleCount: staleIds.length
+        staleCount: staleIds.length,
       });
 
       return {
         checkedCount: count || 0,
         staleCount: staleIds.length,
-        staleWorkflows: staleIds
+        staleWorkflows: staleIds,
       };
     } catch (error) {
       this.logger.error('Error during reconciliation', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return { checkedCount: 0, staleCount: 0, staleWorkflows: [] };
     }
@@ -387,9 +391,7 @@ export class WorkflowRegistry {
    */
   public async getStats(): Promise<WorkflowStats> {
     try {
-      const { data, error } = await supabaseClient
-        .from('workflow_registry')
-        .select('status');
+      const { data, error } = await supabaseClient.from('workflow_registry').select('status');
 
       if (error) {
         this.logger.error('Failed to get workflow stats', { error: error.message });
@@ -402,7 +404,7 @@ export class WorkflowRegistry {
         paused: 0,
         completed: 0,
         failed: 0,
-        stale: 0
+        stale: 0,
       };
 
       for (const row of data || []) {
@@ -430,7 +432,7 @@ export class WorkflowRegistry {
       return stats;
     } catch (error) {
       this.logger.error('Error getting workflow stats', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return { total: 0, running: 0, paused: 0, completed: 0, failed: 0, stale: 0 };
     }

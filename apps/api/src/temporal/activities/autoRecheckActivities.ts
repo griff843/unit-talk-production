@@ -1,9 +1,9 @@
 /**
  * Auto Recheck Activities
- * 
+ *
  * Stub implementation for TypeScript compilation.
  * Temporal activities for automated pick re-checking.
- * 
+ *
  * @module autoRecheckActivities
  */
 
@@ -41,7 +41,15 @@ export interface RecheckConfig {
  */
 export interface RecheckWorkflowState {
   pickId: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'initializing' | 'running' | 'paused' | 'cancelled';
+  status:
+    | 'pending'
+    | 'in_progress'
+    | 'completed'
+    | 'failed'
+    | 'initializing'
+    | 'running'
+    | 'paused'
+    | 'cancelled';
   currentCheckpoint: number;
   totalCheckpoints: number;
   lastCheckTime?: string;
@@ -82,7 +90,14 @@ export interface RecheckCheckpoint {
   type: 'pre_game' | 'live' | 'post_game' | 'final_validation' | 'emergency_check';
   priority: 'low' | 'medium' | 'high';
   actions: string[];
-  status?: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled' | 'scheduled' | 'skipped';
+  status?:
+    | 'pending'
+    | 'in_progress'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+    | 'scheduled'
+    | 'skipped';
   completedAt?: number;
   result?: any;
   error?: string;
@@ -93,14 +108,17 @@ export interface RecheckCheckpoint {
 
 /**
  * Auto Recheck Activities
- * 
+ *
  * Stub implementation - provides minimal interface for compilation
  */
 export const AutoRecheckActivities = {
   /**
    * Initialize pick monitoring
    */
-  async initializePickMonitoring(pickId: string, config?: RecheckConfig): Promise<RecheckWorkflowState> {
+  async initializePickMonitoring(
+    pickId: string,
+    config?: RecheckConfig
+  ): Promise<RecheckWorkflowState> {
     logger.info('Initializing pick monitoring', { pickId });
 
     return {
@@ -120,7 +138,13 @@ export const AutoRecheckActivities = {
     pickId: string,
     checkpoint: RecheckCheckpoint,
     config?: RecheckConfig
-  ): Promise<{ success: boolean; changes: string[]; alertRequired?: boolean; error?: string; retryable?: boolean }> {
+  ): Promise<{
+    success: boolean;
+    changes: string[];
+    alertRequired?: boolean;
+    error?: string;
+    retryable?: boolean;
+  }> {
     logger.info('Executing recheck point', { pickId, checkpointId: checkpoint.id });
 
     // Stub implementation
@@ -195,7 +219,7 @@ export const AutoRecheckActivities = {
     state: RecheckWorkflowState
   ): Promise<{ finalized: boolean; summary: string }> {
     logger.info('Finalizing recheck schedule', { pickId, state: state.status });
-    
+
     // Stub implementation
     return {
       finalized: true,
@@ -242,4 +266,3 @@ export const AutoRecheckActivities = {
  * Type export for Temporal workflow
  */
 export type AutoRecheckActivities = typeof AutoRecheckActivities;
-

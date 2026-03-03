@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { zodResolver } from '@hookform/resolvers/zod';
+import dayjs from 'dayjs';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle, Clock, User, Tag, FileText, Send, Plus, X } from 'lucide-react';
+import React, { useState, useEffect , useCallback, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
-import { Textarea } from '../components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -10,18 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
-import { AlertCircle, Clock, User, Tag, FileText, Send, Plus, X } from 'lucide-react';
-import { Alert, AlertDescription } from '../components/ui/alert';
+import { Textarea } from '../components/ui/textarea';
 
-import { useCallback, useMemo } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import dayjs from 'dayjs';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   EnhancedTicketFormData,
@@ -552,8 +553,10 @@ export function EnhancedSubmitTicketForm({
         submission_timestamp: new Date().toISOString(),
         sport_config: currentSportConfig,
         total_edge_score:
-          Object.values(edgeScores).reduce((sum, professional_score) => sum + professional_score, 0) /
-          Object.keys(edgeScores).length,
+          Object.values(edgeScores).reduce(
+            (sum, professional_score) => sum + professional_score,
+            0
+          ) / Object.keys(edgeScores).length,
         ai_suggestions: aiSuggestions,
         validation_passed: true,
         submission_source: 'enhanced_smart_form',

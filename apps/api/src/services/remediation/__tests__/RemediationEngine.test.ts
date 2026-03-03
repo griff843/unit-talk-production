@@ -7,12 +7,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { RemediationEngine, createRemediationEngine } from '../RemediationEngine';
-import { PlaybookRegistry } from '../PlaybookRegistry';
+
 import { KnobResolver } from '../KnobResolver';
-import { ExecutionContext, PlaybookId } from '../types';
-import { PipelineLagThrottlePlaybook } from '../playbooks/PipelineLagThrottlePlaybook';
+import { PlaybookRegistry } from '../PlaybookRegistry';
 import { MVRefreshLagPlaybook } from '../playbooks/MVRefreshLagPlaybook';
+import { PipelineLagThrottlePlaybook } from '../playbooks/PipelineLagThrottlePlaybook';
+import { RemediationEngine, createRemediationEngine } from '../RemediationEngine';
+import { ExecutionContext, PlaybookId } from '../types';
 
 // Mock Supabase
 vi.mock('@supabase/supabase-js', () => ({
@@ -44,15 +45,11 @@ describe('RemediationEngine', () => {
     knobResolver = new KnobResolver('https://test.supabase.co', 'test-key');
 
     // Create engine with mocked dependencies
-    engine = createRemediationEngine(
-      'https://test.supabase.co',
-      'test-key',
-      {
-        enabled: true,
-        dry_run_only: true,
-        require_approval: false,
-      }
-    );
+    engine = createRemediationEngine('https://test.supabase.co', 'test-key', {
+      enabled: true,
+      dry_run_only: true,
+      require_approval: false,
+    });
   });
 
   afterEach(() => {
@@ -72,16 +69,11 @@ describe('RemediationEngine', () => {
     };
 
     it('should return skipped result when engine is disabled', async () => {
-      const disabledEngine = createRemediationEngine(
-        'https://test.supabase.co',
-        'test-key',
-        { enabled: false }
-      );
+      const disabledEngine = createRemediationEngine('https://test.supabase.co', 'test-key', {
+        enabled: false,
+      });
 
-      const result = await disabledEngine.executePlaybook(
-        'PIPELINE_LAG_THROTTLE',
-        mockContext
-      );
+      const result = await disabledEngine.executePlaybook('PIPELINE_LAG_THROTTLE', mockContext);
 
       expect(result.success).toBe(true);
       expect(result.status).toBe('skipped');
@@ -108,11 +100,9 @@ describe('RemediationEngine', () => {
       const playbook = new PipelineLagThrottlePlaybook();
       registry.register(playbook);
 
-      const result = await engine.executePlaybook(
-        'PIPELINE_LAG_THROTTLE',
-        mockContext,
-        { dryRun: true }
-      );
+      const result = await engine.executePlaybook('PIPELINE_LAG_THROTTLE', mockContext, {
+        dryRun: true,
+      });
 
       expect(result.dry_run).toBe(true);
       expect(result.playbook_id).toBe('PIPELINE_LAG_THROTTLE');
@@ -234,12 +224,15 @@ describe('Playbooks', () => {
 
     it('should return canExecute=true when knobs are available', () => {
       const knobs = new Map([
-        ['AUTOPILOT_MODE', {
-          knob_id: 'AUTOPILOT_MODE',
-          exists: true,
-          type: 'EXECUTABLE' as const,
-          can_execute: true,
-        }],
+        [
+          'AUTOPILOT_MODE',
+          {
+            knob_id: 'AUTOPILOT_MODE',
+            exists: true,
+            type: 'EXECUTABLE' as const,
+            can_execute: true,
+          },
+        ],
       ]);
 
       const result = playbook.canExecute(knobs);
@@ -248,13 +241,16 @@ describe('Playbooks', () => {
 
     it('should return canExecute=false when knobs are missing', () => {
       const knobs = new Map([
-        ['AUTOPILOT_MODE', {
-          knob_id: 'AUTOPILOT_MODE',
-          exists: false,
-          type: 'RECOMMENDATION_ONLY' as const,
-          can_execute: false,
-          reason: 'Not found',
-        }],
+        [
+          'AUTOPILOT_MODE',
+          {
+            knob_id: 'AUTOPILOT_MODE',
+            exists: false,
+            type: 'RECOMMENDATION_ONLY' as const,
+            can_execute: false,
+            reason: 'Not found',
+          },
+        ],
       ]);
 
       const result = playbook.canExecute(knobs);

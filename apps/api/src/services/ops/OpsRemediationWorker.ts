@@ -13,6 +13,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+
 import { makeLogger } from '../../utils/logger';
 import {
   RemediationEngine,
@@ -101,25 +102,25 @@ function getDefaultConfig(): OpsRemediationWorkerConfig {
 
 const SLO_PLAYBOOK_MAPPING: Record<string, PlaybookId> = {
   // Materialized view staleness
-  'mv_freshness': 'MV_REFRESH_LAG',
-  'materialized_view_lag': 'MV_REFRESH_LAG',
+  mv_freshness: 'MV_REFRESH_LAG',
+  materialized_view_lag: 'MV_REFRESH_LAG',
 
   // Pipeline processing
-  'pipeline_latency': 'PIPELINE_LAG_THROTTLE',
-  'event_processing_lag': 'PIPELINE_LAG_THROTTLE',
-  'bridge_outbox_backlog': 'PIPELINE_LAG_THROTTLE',
+  pipeline_latency: 'PIPELINE_LAG_THROTTLE',
+  event_processing_lag: 'PIPELINE_LAG_THROTTLE',
+  bridge_outbox_backlog: 'PIPELINE_LAG_THROTTLE',
 
   // API credits
-  'api_credit_burn': 'CREDIT_BURN_THROTTLE',
-  'api_quota_usage': 'CREDIT_BURN_THROTTLE',
+  api_credit_burn: 'CREDIT_BURN_THROTTLE',
+  api_quota_usage: 'CREDIT_BURN_THROTTLE',
 
   // Discord
-  'discord_notification_backlog': 'DISCORD_BACKLOG_NUDGE',
-  'notification_delivery_lag': 'DISCORD_BACKLOG_NUDGE',
+  discord_notification_backlog: 'DISCORD_BACKLOG_NUDGE',
+  notification_delivery_lag: 'DISCORD_BACKLOG_NUDGE',
 
   // SLO evaluation
-  'slo_evaluator_lag': 'SLO_EVALUATOR_STUCK',
-  'slo_evaluation_freshness': 'SLO_EVALUATOR_STUCK',
+  slo_evaluator_lag: 'SLO_EVALUATOR_STUCK',
+  slo_evaluation_freshness: 'SLO_EVALUATOR_STUCK',
 };
 
 // ============================================================================
@@ -177,15 +178,15 @@ export class OpsRemediationWorker {
       this.isRunning = true;
 
       // Start hourly reset interval
-      this.hourlyResetInterval = setInterval(() => {
-        this.remediationsThisHour = 0;
-      }, 60 * 60 * 1000);
+      this.hourlyResetInterval = setInterval(
+        () => {
+          this.remediationsThisHour = 0;
+        },
+        60 * 60 * 1000
+      );
 
       // Start polling
-      this.pollInterval = setInterval(
-        () => this.runCycle(),
-        this.config.pollIntervalMs
-      );
+      this.pollInterval = setInterval(() => this.runCycle(), this.config.pollIntervalMs);
 
       // Run initial cycle
       await this.runCycle();
@@ -256,11 +257,9 @@ export class OpsRemediationWorker {
       environment: this.config.environment,
     };
 
-    const executionResult = await this.engine.executePlaybook(
-      playbookId,
-      context,
-      { dryRun: this.config.dryRunOnly }
-    );
+    const executionResult = await this.engine.executePlaybook(playbookId, context, {
+      dryRun: this.config.dryRunOnly,
+    });
 
     if (executionResult.success) {
       await this.markRemediationAttempted(incident.incident_id, executionResult);
@@ -277,7 +276,11 @@ export class OpsRemediationWorker {
     logger.info('Starting remediation cycle', { correlationId });
 
     const result: RemediationCycleResult = {
-      processed: 0, triggered: 0, skipped: 0, errors: 0, results: [],
+      processed: 0,
+      triggered: 0,
+      skipped: 0,
+      errors: 0,
+      results: [],
     };
 
     const skipCheck = this.shouldSkipCycle();

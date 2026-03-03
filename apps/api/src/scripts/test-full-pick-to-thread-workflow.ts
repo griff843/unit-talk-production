@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * FULL WORKFLOW TEST: Pick Submission → Thread Creation → Content Routing
- * 
+ *
  * This tests the complete pipeline:
  * 1. Smart form pick submission with game data
  * 2. SmartFormBridge detects game and auto-creates thread
@@ -26,11 +26,11 @@ async function testFullPickToThreadWorkflow() {
 
   try {
     console.log('🎯 TESTING FULL PICK → THREAD WORKFLOW');
-    console.log('=' .repeat(60));
-    
+    console.log('='.repeat(60));
+
     // Step 1: Create a mock smart form submission
     console.log('\\n📝 STEP 1: Creating Smart Form Submission...');
-    
+
     const mockSmartTicket = {
       id: `test-ticket-${Date.now()}`,
       capper: 'KingRo623',
@@ -47,12 +47,13 @@ async function testFullPickToThreadWorkflow() {
           over_under: 'under',
           odds: '-110',
           units: 3,
-          confidence: 88
-        }
+          confidence: 88,
+        },
       ],
-      analysis: 'Rams on the road in division game. 49ers home defense has been dominant. Key injuries to Rams offensive line create pressure issues.',
+      analysis:
+        'Rams on the road in division game. 49ers home defense has been dominant. Key injuries to Rams offensive line create pressure issues.',
       total_confidence: 88,
-      total_units: 3
+      total_units: 3,
     };
 
     console.log(`✅ Created mock ticket: ${mockSmartTicket.id}`);
@@ -62,7 +63,7 @@ async function testFullPickToThreadWorkflow() {
 
     // Step 2: Insert into Supabase (simulate form submission)
     console.log('\\n💾 STEP 2: Inserting Smart Ticket into Database...');
-    
+
     const supabase = createClient(
       process.env.SUPABASE_URL || '',
       process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -84,9 +85,9 @@ async function testFullPickToThreadWorkflow() {
 
     // Step 3: Process through SmartFormBridge
     console.log('\\n🌉 STEP 3: Processing Through SmartFormBridge...');
-    
+
     const smartFormBridge = new SmartFormBridge();
-    
+
     try {
       // This should:
       // 1. Extract game info from ticket
@@ -98,13 +99,15 @@ async function testFullPickToThreadWorkflow() {
       console.log('   📍 Should have created/found game thread');
       console.log('   🎯 Should have routed pick to thread');
     } catch (bridgeError) {
-      console.log(`⚠️ SmartFormBridge processing: ${bridgeError instanceof Error ? bridgeError.message : String(bridgeError)}`);
+      console.log(
+        `⚠️ SmartFormBridge processing: ${bridgeError instanceof Error ? bridgeError.message : String(bridgeError)}`
+      );
       console.log('   💡 May be expected due to capper thread mapping');
     }
 
     // Step 4: Verify thread was created in Game Day Live
     console.log('\\n🧵 STEP 4: Checking Game Day Live for New Thread...');
-    
+
     const { data: gameThreads, error: threadsError } = await supabase
       .from('game_threads')
       .select('*')
@@ -128,26 +131,26 @@ async function testFullPickToThreadWorkflow() {
 
     // Step 5: Direct test of VIP+ routing
     console.log('\\n🎯 STEP 5: Testing Direct VIP+ Channel Routing...');
-    
+
     // const vipPlusService = new VIPPlusChannelService();
     // const mockThreadId = '1234567890123456789'; // Would be real thread ID
-    
+
     const testPick = {
       id: mockSmartTicket.id,
       gameId: mockSmartTicket.legs[0].game_id,
       player: mockSmartTicket.legs[0].player_name,
       statType: mockSmartTicket.legs[0].stat_type,
-      meta: { 
+      meta: {
         capper: mockSmartTicket.capper,
         confidence: mockSmartTicket.total_confidence,
-        stake: mockSmartTicket.total_units
+        stake: mockSmartTicket.total_units,
       },
       sport: mockSmartTicket.legs[0].sport,
       teams: mockSmartTicket.legs[0].teams,
       selection: `${mockSmartTicket.legs[0].player_name} ${mockSmartTicket.legs[0].line}`,
       odds: mockSmartTicket.legs[0].odds,
       units: mockSmartTicket.legs[0].units,
-      reasoning: mockSmartTicket.analysis
+      reasoning: mockSmartTicket.analysis,
     };
 
     try {
@@ -158,12 +161,14 @@ async function testFullPickToThreadWorkflow() {
       console.log(`   💪 Confidence: ${testPick.meta.confidence}%`);
       console.log('   📍 Would route to game thread in production');
     } catch (routingError) {
-      console.log(`❌ VIP+ routing test: ${routingError instanceof Error ? routingError.message : String(routingError)}`);
+      console.log(
+        `❌ VIP+ routing test: ${routingError instanceof Error ? routingError.message : String(routingError)}`
+      );
     }
 
     // Step 6: Summary and Expected Results
     console.log('\\n📸 EXPECTED RESULTS IN DISCORD:');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
     console.log('🎯 Navigate to Game Day Live channel (#game-day-live)');
     console.log('🔍 You should see:');
     console.log('   ✅ NEW THREAD: "🏈 Rams @ 49ers - [today\'s date]"');
@@ -191,22 +196,18 @@ async function testFullPickToThreadWorkflow() {
       ticketId: mockSmartTicket.id,
       gameData: mockSmartTicket.legs[0].teams,
       capper: mockSmartTicket.capper,
-      workflowStepsCompleted: 5
+      workflowStepsCompleted: 5,
     });
 
     // Cleanup: Remove test ticket if inserted
     if (!insertError && insertedTicket) {
-      await supabase
-        .from('smart_tickets')
-        .delete()
-        .eq('id', insertedTicket.id);
+      await supabase.from('smart_tickets').delete().eq('id', insertedTicket.id);
       console.log('\\n🧹 Cleaned up test data from database');
     }
-
   } catch (error) {
     testLogger.error('Full workflow test failed', {
       error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
     throw error;
   }

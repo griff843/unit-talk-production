@@ -9,7 +9,9 @@ jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({
     from: jest.fn(() => ({
       select: jest.fn(() => ({
-        distinct: jest.fn().mockResolvedValue({ data: [{ capper_id: 'test-capper' }], error: null }),
+        distinct: jest
+          .fn()
+          .mockResolvedValue({ data: [{ capper_id: 'test-capper' }], error: null }),
         eq: jest.fn().mockResolvedValue({ data: mockPicks, error: null }),
         limit: jest.fn().mockResolvedValue({ data: [{ id: 1 }], error: null }),
         order: jest.fn().mockReturnThis(),
@@ -51,16 +53,16 @@ const testConfig: BaseAgentConfig = {
   enabled: true,
   version: '1.0.0',
   logLevel: 'info',
-  metrics: { 
-    enabled: true, 
-    interval: 60 
+  metrics: {
+    enabled: true,
+    interval: 60,
   },
-  health: { 
-    enabled: true, 
+  health: {
+    enabled: true,
     interval: 30,
     timeout: 5000,
     checkDb: true,
-    checkExternal: false
+    checkExternal: false,
   },
   retry: {
     enabled: true,
@@ -70,7 +72,7 @@ const testConfig: BaseAgentConfig = {
     maxAttempts: 3,
     backoff: 1000,
     exponential: true,
-    jitter: false
+    jitter: false,
   },
 };
 
@@ -88,11 +90,11 @@ const testDependencies: BaseAgentDependencies = {
       warn: jest.fn(),
       error: jest.fn(),
       setLevel: jest.fn(),
-      child: jest.fn()
-    }))
+      child: jest.fn(),
+    })),
   },
   errorHandler: {
-    handleError: jest.fn()
+    handleError: jest.fn(),
   },
 };
 

@@ -8,7 +8,10 @@
 import { canaryDecide } from '../../agents/GradingAgent/scoring/canaryRouter';
 import { computeScoreV2 } from '../../agents/GradingAgent/scoring/computeScoreV2';
 import { logDrift } from '../../agents/GradingAgent/scoring/driftLogger';
-import { evaluatePromotion, parsePromotionPolicyConfig } from '../../agents/GradingAgent/scoring/promotionPolicy';
+import {
+  evaluatePromotion,
+  parsePromotionPolicyConfig,
+} from '../../agents/GradingAgent/scoring/promotionPolicy';
 import { type Tier, scoreOnlyTier } from '../../agents/GradingAgent/scoring/TierScale';
 import { professionalScoreOf } from '../../types/compat';
 import { PropObject } from '../../types/propTypes';
@@ -342,7 +345,13 @@ export function unifiedEdgeScore(
         const promoDecision = evaluatePromotion(v2Result, canarySport, canaryPickId, promoCfg);
         v2Postable = promoDecision.promote;
         // eslint-disable-next-line no-console
-        console.log(JSON.stringify({ type: 'promotion_decision_v2_primary', pick_id: canaryPickId, ...promoDecision }));
+        console.log(
+          JSON.stringify({
+            type: 'promotion_decision_v2_primary',
+            pick_id: canaryPickId,
+            ...promoDecision,
+          })
+        );
       } else {
         v2Postable = ['S', 'A'].includes(v2Result.tier);
       }

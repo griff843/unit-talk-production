@@ -18,7 +18,15 @@ export type PlaybookId =
   | 'SLO_EVALUATOR_STUCK';
 
 export type ExecutionType = 'EXECUTABLE' | 'RECOMMENDATION_ONLY';
-export type ExecutionStatus = 'pending' | 'approved' | 'executed' | 'completed' | 'failed' | 'skipped' | 'dry_run' | 'rollback';
+export type ExecutionStatus =
+  | 'pending'
+  | 'approved'
+  | 'executed'
+  | 'completed'
+  | 'failed'
+  | 'skipped'
+  | 'dry_run'
+  | 'rollback';
 export type PlaybookStatus = 'active' | 'disabled' | 'deprecated';
 
 // ============================================================================
@@ -113,16 +121,16 @@ export interface ExecutionRecord {
 // ============================================================================
 
 export type KnobType =
-  | 'EXECUTABLE'       // Can be toggled programmatically
-  | 'ENV_VAR'          // Environment variable (read-only at runtime)
+  | 'EXECUTABLE' // Can be toggled programmatically
+  | 'ENV_VAR' // Environment variable (read-only at runtime)
   | 'RECOMMENDATION_ONLY' // No programmatic toggle available
-  | 'DERIVED';         // Auto-computed based on other knobs
+  | 'DERIVED'; // Auto-computed based on other knobs
 
 export interface KnobDefinition {
   knob_id: string;
   name: string;
   type: KnobType;
-  location: string;        // File path or table name
+  location: string; // File path or table name
   description: string;
   current_value?: unknown;
   safe_to_toggle: boolean;
@@ -244,10 +252,13 @@ export interface RemediationStats {
   failed: number;
   pending_approval: number;
   recommendations_given: number;
-  by_playbook: Record<PlaybookId, {
-    total: number;
-    successful: number;
-    failed: number;
-    avg_duration_ms: number;
-  }>;
+  by_playbook: Record<
+    PlaybookId,
+    {
+      total: number;
+      successful: number;
+      failed: number;
+      avg_duration_ms: number;
+    }
+  >;
 }

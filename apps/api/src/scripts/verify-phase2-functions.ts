@@ -22,18 +22,14 @@ async function verifyFunctions() {
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  const functions = [
-    'admin_backfill_market_props',
-    'admin_score_batch',
-    'admin_refresh_views'
-  ];
+  const functions = ['admin_backfill_market_props', 'admin_score_batch', 'admin_refresh_views'];
 
   let allExist = true;
 
   for (const funcName of functions) {
     try {
       console.log(`Testing ${funcName}...`);
-      
+
       // Try to call the function with minimal params
       let result;
       if (funcName === 'admin_backfill_market_props') {
@@ -79,4 +75,3 @@ verifyFunctions().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

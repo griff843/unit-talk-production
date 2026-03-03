@@ -131,7 +131,7 @@ async function detectDrift(): Promise<DriftReport> {
       if (!hasReceipt) {
         // Check if not already captured by P1
         const alreadyCaptured = report.posting_drift.some(
-          (d) => d.pick_id === pick.id && d.drift_mode === 'P1'
+          d => d.pick_id === pick.id && d.drift_mode === 'P1'
         );
         if (!alreadyCaptured) {
           report.posting_drift.push({
@@ -223,7 +223,7 @@ async function detectDrift(): Promise<DriftReport> {
     for (const pick of s2Data) {
       // Avoid duplicate if already captured by S1
       const alreadyCaptured = report.settlement_drift.some(
-        (d) => d.pick_id === pick.id && d.drift_mode === 'S1'
+        d => d.pick_id === pick.id && d.drift_mode === 'S1'
       );
       if (!alreadyCaptured) {
         report.settlement_drift.push({
@@ -272,17 +272,12 @@ async function detectDrift(): Promise<DriftReport> {
   // --------------------------------------------------------
   // Calculate summary
   // --------------------------------------------------------
-  const allDrift = [
-    ...report.posting_drift,
-    ...report.settlement_drift,
-    ...report.outbox_drift,
-  ];
+  const allDrift = [...report.posting_drift, ...report.settlement_drift, ...report.outbox_drift];
 
   report.summary.total_drift = allDrift.length;
 
   for (const entry of allDrift) {
-    report.summary.by_mode[entry.drift_mode] =
-      (report.summary.by_mode[entry.drift_mode] || 0) + 1;
+    report.summary.by_mode[entry.drift_mode] = (report.summary.by_mode[entry.drift_mode] || 0) + 1;
     report.summary.by_severity[entry.severity] =
       (report.summary.by_severity[entry.severity] || 0) + 1;
   }

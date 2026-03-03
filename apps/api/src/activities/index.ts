@@ -1,21 +1,12 @@
-import {
-  BaseActivityParams,
-  Prop,
-  Alert,
-  Report
-} from '../agents/BaseAgent/types/index';
+import { BaseActivityParams, Prop, Alert, Report } from '../agents/BaseAgent/types/index';
 import { ScoringResult } from '../agents/GradingAgent/scoring/applyScoringLogic';
 import { NotificationResult } from '../agents/NotificationAgent/types';
 import {
   ActivityResult,
   FeedIngestionResult,
-  ApiQuotaResult
+  ApiQuotaResult,
 } from '../types/shared/activity-results';
-import {
-  SystemHealthResult,
-  LiveGameMonitorResult
-} from '../workflows/support-workflows';
-
+import { SystemHealthResult, LiveGameMonitorResult } from '../workflows/support-workflows';
 
 /**
  * TEMPORAL ACTIVITIES INDEX
@@ -27,14 +18,11 @@ export {
   ingestOptimalProps,
   ingestSGOProps,
   ingestOptimalGames,
-  validateIngestionData
+  validateIngestionData,
 } from './ingestion';
 
 // Processing Activities
-export {
-  processUSPDetection,
-  scoreAndGradeProps
-} from './processing';
+export { processUSPDetection, scoreAndGradeProps } from './processing';
 
 // Alert Activities
 export {
@@ -44,7 +32,7 @@ export {
   sendQuotaWarning,
   sendFallbackTrigger,
   sendWorkflowFailure,
-  sendWeeklyReport
+  sendWeeklyReport,
 } from './alerts';
 
 // Operator Activities
@@ -54,127 +42,223 @@ export {
   checkSystemHealth,
   detectLiveGames,
   logWorkflowMetrics,
-  logError
+  logError,
 } from './operator';
 
 // Activity type definitions for Temporal
 export interface IngestionActivities {
-  ingestOptimalProps(params: BaseActivityParams & {
-    league: string;
-    isLiveMode: boolean;
-  }): Promise<FeedIngestionResult>;
+  ingestOptimalProps(
+    params: BaseActivityParams & {
+      league: string;
+      isLiveMode: boolean;
+    }
+  ): Promise<FeedIngestionResult>;
 
-  ingestSGOProps(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    league: string;
-    isLiveMode: boolean;
-  }): Promise<FeedIngestionResult>;
+  ingestSGOProps(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      league: string;
+      isLiveMode: boolean;
+    }
+  ): Promise<FeedIngestionResult>;
 
-  ingestOptimalGames(params: BaseActivityParams & {
-    leagues: string[];
-    isLiveMode: boolean;
-    cycleCount: number;
-  }): Promise<{ success: boolean; gamesIngested: number; errors: string[] }>;
+  ingestOptimalGames(
+    params: BaseActivityParams & {
+      leagues: string[];
+      isLiveMode: boolean;
+      cycleCount: number;
+    }
+  ): Promise<{ success: boolean; gamesIngested: number; errors: string[] }>;
 
-  validateIngestionData(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    league: string;
-    expectedMinProps: number;
-  }): Promise<ActivityResult<{ isValid: boolean; actualCount: number; issues: string[] }>>;
+  validateIngestionData(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      league: string;
+      expectedMinProps: number;
+    }
+  ): Promise<ActivityResult<{ isValid: boolean; actualCount: number; issues: string[] }>>;
 }
 
 export interface ProcessingActivities {
-  processUSPDetection(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    leagues: string[];
-  }): Promise<ActivityResult>;
+  processUSPDetection(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      leagues: string[];
+    }
+  ): Promise<ActivityResult>;
 
-  scoreAndGradeProps(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    leagues: string[];
-  }): Promise<ScoringResult>;
+  scoreAndGradeProps(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      leagues: string[];
+    }
+  ): Promise<ScoringResult>;
 }
 
 export interface AlertActivities {
-  sendDiscordAlert(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    message: string;
-    channel: 'approved' | 'operator';
-    priority: 'critical' | 'high' | 'normal';
-    metadata?: Record<string, unknown>;
-  }): Promise<NotificationResult>;
+  sendDiscordAlert(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      message: string;
+      channel: 'approved' | 'operator';
+      priority: 'critical' | 'high' | 'normal';
+      metadata?: Record<string, unknown>;
+    }
+  ): Promise<NotificationResult>;
 
   sendOperatorAlert(params: BaseActivityParams & Alert): Promise<NotificationResult>;
 
-  sendApprovedPicksAlert(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    picks: Prop[];
-    totalPicks: number;
-  }): Promise<NotificationResult>;
+  sendApprovedPicksAlert(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      picks: Prop[];
+      totalPicks: number;
+    }
+  ): Promise<NotificationResult>;
 
-  sendQuotaWarning(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    provider: string;
-    currentUsage: number;
-    limit: number;
-    percentage: number;
-  }): Promise<ApiQuotaResult>;
+  sendQuotaWarning(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      provider: string;
+      currentUsage: number;
+      limit: number;
+      percentage: number;
+    }
+  ): Promise<ApiQuotaResult>;
 
-  sendFallbackTrigger(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    primaryProvider: string;
-    fallbackProvider: string;
-    reason: string;
-  }): Promise<NotificationResult>;
+  sendFallbackTrigger(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      primaryProvider: string;
+      fallbackProvider: string;
+      reason: string;
+    }
+  ): Promise<NotificationResult>;
 
-  sendWorkflowFailure(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    workflowName: string;
-    errorMessage: string;
-  }): Promise<NotificationResult>;
+  sendWorkflowFailure(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      workflowName: string;
+      errorMessage: string;
+    }
+  ): Promise<NotificationResult>;
 
-  sendWeeklyReport(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    report: Report;
-    webhook?: string;
-  }): Promise<NotificationResult>;
+  sendWeeklyReport(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      report: Report;
+      webhook?: string;
+    }
+  ): Promise<NotificationResult>;
 }
 
 export interface OperatorActivities {
-  logUSPError(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    uspType: string;
-    errorMessage: string;
-  }): Promise<ActivityResult>;
+  logUSPError(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      uspType: string;
+      errorMessage: string;
+    }
+  ): Promise<ActivityResult>;
 
-  monitorAPIQuota(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    provider: string;
-    currentUsage: number;
-    limit: number;
-  }): Promise<ApiQuotaResult>;
+  monitorAPIQuota(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      provider: string;
+      currentUsage: number;
+      limit: number;
+    }
+  ): Promise<ApiQuotaResult>;
 
-  checkSystemHealth(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    components: string[];
-  }): Promise<SystemHealthResult>;
+  checkSystemHealth(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      components: string[];
+    }
+  ): Promise<SystemHealthResult>;
 
-  detectLiveGames(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    leagues: string[];
-  }): Promise<LiveGameMonitorResult>;
+  detectLiveGames(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      leagues: string[];
+    }
+  ): Promise<LiveGameMonitorResult>;
 
-  logWorkflowMetrics(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    workflowName: string;
-    duration: number;
-    success: boolean;
-    metadata?: Record<string, unknown>;
-  }): Promise<ActivityResult>;
+  logWorkflowMetrics(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      workflowName: string;
+      duration: number;
+      success: boolean;
+      metadata?: Record<string, unknown>;
+    }
+  ): Promise<ActivityResult>;
 
-  monitorSmartFormHealth(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    formId?: string;
-  }): Promise<ActivityResult>;
+  monitorSmartFormHealth(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      formId?: string;
+    }
+  ): Promise<ActivityResult>;
 
-  processDailyPickBatch(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    batchId: string;
-    picks: any[];
-  }): Promise<ActivityResult>;
+  processDailyPickBatch(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      batchId: string;
+      picks: any[];
+    }
+  ): Promise<ActivityResult>;
 
-  processLivePick(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
-    pickId: string;
-    pickData: any;
-  }): Promise<ActivityResult>;
+  processLivePick(
+    params: BaseActivityParams & {
+      timestamp: string;
+      error?: Error;
+      context?: Record<string, unknown>;
+      pickId: string;
+      pickData: any;
+    }
+  ): Promise<ActivityResult>;
 
   // General logging activity for workflow error handling
-  logError(params: BaseActivityParams & {
-    error: string;
-    timestamp: string;
-    context?: Record<string, unknown>;
-  }): Promise<ActivityResult>;
+  logError(
+    params: BaseActivityParams & {
+      error: string;
+      timestamp: string;
+      context?: Record<string, unknown>;
+    }
+  ): Promise<ActivityResult>;
 }

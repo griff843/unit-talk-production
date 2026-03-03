@@ -9,8 +9,8 @@ const getDependencies = (): BaseAgentDependencies => {
     errorHandler: {
       handleError: (error: Error, context?: Record<string, unknown>) => {
         logger.error('Error in NotificationAgent', { error, context });
-      }
-    }
+      },
+    },
   };
 };
 
@@ -20,8 +20,8 @@ const getConfig = (): BaseAgentConfig => {
     enabled: true,
     metrics: {
       enabled: true,
-      interval: 30000
-    }
+      interval: 30000,
+    },
   };
 };
 

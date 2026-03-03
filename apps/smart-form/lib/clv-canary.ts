@@ -31,7 +31,9 @@ function getCanaryConfig(): CLVCanaryConfig {
   return {
     enabled: process.env.CLV_CANARY_ENABLED === 'true',
     maxCallsPerMin: parseInt(process.env.CLV_CANARY_MAX_CALLS_PER_MIN || '20', 10),
-    markets: (process.env.CLV_CANARY_MARKETS || 'player_prop,spread,total,moneyline,team_total').split(','),
+    markets: (
+      process.env.CLV_CANARY_MARKETS || 'player_prop,spread,total,moneyline,team_total'
+    ).split(','),
   };
 }
 
@@ -130,7 +132,9 @@ export class CLVCanaryService {
     // Check if market type is supported (if statType provided)
     if (params.statType) {
       const normalizedType = params.statType.toLowerCase().replace(/\s+/g, '_');
-      if (!this.config.markets.some(m => normalizedType.includes(m) || m.includes(normalizedType))) {
+      if (
+        !this.config.markets.some(m => normalizedType.includes(m) || m.includes(normalizedType))
+      ) {
         return false;
       }
     }
@@ -225,7 +229,6 @@ export class CLVCanaryService {
         marketLine: params.line, // For bet snapshot, this is the submitted line
         creditUsed: false, // No external API call for bet snapshot
       };
-
     } catch (err) {
       console.error('[CLV-CANARY] Unexpected error in captureBetSnapshot:', err);
       return {
@@ -283,7 +286,6 @@ export class CLVCanaryService {
       });
 
       return { success: true };
-
     } catch (err) {
       console.error('[CLV-CANARY] Error queuing for closing capture:', err);
       return {

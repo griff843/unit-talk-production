@@ -50,7 +50,12 @@ interface MarketOpportunity {
 
 interface MarketRisk {
   riskId: string;
-  type: 'liquidity_risk' | 'volatility_risk' | 'correlation_risk' | 'model_risk' | 'systematic_risk';
+  type:
+    | 'liquidity_risk'
+    | 'volatility_risk'
+    | 'correlation_risk'
+    | 'model_risk'
+    | 'systematic_risk';
   severity: 'low' | 'medium' | 'high' | 'critical';
   affectedMarkets: string[];
   riskScore: number;
@@ -102,12 +107,12 @@ export class MarketForecaster {
 
   async initialize(): Promise<void> {
     this.logger.info('📈 Initializing MarketForecaster');
-    
+
     await this.loadForecastingModels();
     await this.loadHistoricalPatterns();
     await this.loadMarketTrends();
     await this.loadAnomalyHistory();
-    
+
     this.logger.info('✅ MarketForecaster initialized');
   }
 
@@ -117,10 +122,10 @@ export class MarketForecaster {
     try {
       const trends: MarketInsight[] = [];
       const marketData = await this.getRecentMarketData();
-      
+
       for (const [marketId, data] of marketData) {
         const trendAnalysis = await this.analyzeTrendForMarket(marketId, data);
-        
+
         if (trendAnalysis) {
           const insight: MarketInsight = {
             insightId: `trend_${marketId}_${Date.now()}`,
@@ -133,11 +138,11 @@ export class MarketForecaster {
             actionable: trendAnalysis.strength > 0.6,
             recommendations: this.generateTrendRecommendations(trendAnalysis),
             historicalPrecedent: await this.findHistoricalPrecedent(trendAnalysis),
-            timestamp: new Date()
+            timestamp: new Date(),
           };
-          
+
           trends.push(insight);
-          
+
           // Store trend data
           const marketTrends = this.marketTrends.get(marketId) || [];
           marketTrends.push(trendAnalysis);
@@ -147,10 +152,9 @@ export class MarketForecaster {
 
       this.logger.info(`✅ Detected ${trends.length} market trends`);
       return trends;
-
     } catch (error) {
       this.logger.error('❌ Failed to detect trends', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
@@ -162,10 +166,10 @@ export class MarketForecaster {
     try {
       const anomalies: MarketInsight[] = [];
       const marketData = await this.getRecentMarketData();
-      
+
       for (const [marketId, data] of marketData) {
         const anomalyAnalysis = await this.analyzeAnomaliesForMarket(marketId, data);
-        
+
         for (const anomaly of anomalyAnalysis) {
           const insight: MarketInsight = {
             insightId: `anomaly_${marketId}_${Date.now()}`,
@@ -177,11 +181,11 @@ export class MarketForecaster {
             timeframe: anomaly.timeframe,
             actionable: anomaly.severity !== 'low',
             recommendations: this.generateAnomalyRecommendations(anomaly),
-            timestamp: new Date()
+            timestamp: new Date(),
           };
-          
+
           anomalies.push(insight);
-          
+
           // Store anomaly data
           const marketAnomalies = this.detectedAnomalies.get(marketId) || [];
           marketAnomalies.push(anomaly);
@@ -191,10 +195,9 @@ export class MarketForecaster {
 
       this.logger.info(`✅ Detected ${anomalies.length} market anomalies`);
       return anomalies;
-
     } catch (error) {
       this.logger.error('❌ Failed to detect anomalies', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
@@ -205,29 +208,28 @@ export class MarketForecaster {
 
     try {
       const opportunities: MarketInsight[] = [];
-      
+
       // Identify arbitrage opportunities
       const arbitrageOpps = await this.identifyArbitrageOpportunities();
       opportunities.push(...arbitrageOpps);
-      
+
       // Identify value betting opportunities
       const valueBetOpps = await this.identifyValueBettingOpportunities();
       opportunities.push(...valueBetOpps);
-      
+
       // Identify market inefficiencies
       const inefficiencyOpps = await this.identifyMarketInefficiencies();
       opportunities.push(...inefficiencyOpps);
-      
+
       // Identify trend reversal opportunities
       const reversalOpps = await this.identifyTrendReversalOpportunities();
       opportunities.push(...reversalOpps);
-      
+
       this.logger.info(`✅ Identified ${opportunities.length} market opportunities`);
       return opportunities;
-
     } catch (error) {
       this.logger.error('❌ Failed to identify opportunities', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
@@ -238,50 +240,45 @@ export class MarketForecaster {
 
     try {
       const risks: MarketInsight[] = [];
-      
+
       // Assess liquidity risks
       const liquidityRisks = await this.assessLiquidityRisks();
       risks.push(...liquidityRisks);
-      
+
       // Assess volatility risks
       const volatilityRisks = await this.assessVolatilityRisks();
       risks.push(...volatilityRisks);
-      
+
       // Assess correlation risks
       const correlationRisks = await this.assessCorrelationRisks();
       risks.push(...correlationRisks);
-      
+
       // Assess systematic risks
       const systematicRisks = await this.assessSystematicRisks();
       risks.push(...systematicRisks);
-      
+
       this.logger.info(`✅ Assessed ${risks.length} market risks`);
       return risks;
-
     } catch (error) {
       this.logger.error('❌ Failed to assess market risks', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
   }
 
-  async forecastMarketMovement(
-    marketId: string,
-    timeHorizon: number
-  ): Promise<any> {
-    
+  async forecastMarketMovement(marketId: string, timeHorizon: number): Promise<any> {
     this.logger.info('🔮 Forecasting market movement', {
       marketId,
-      timeHorizon
+      timeHorizon,
     });
 
     try {
       const marketData = await this.getMarketHistory(marketId);
       const bestModel = await this.selectBestModel(marketId, timeHorizon);
-      
+
       const forecast = await this.generateForecast(marketData, bestModel, timeHorizon);
-      
+
       return {
         marketId,
         forecast: {
@@ -290,17 +287,16 @@ export class MarketForecaster {
           direction: forecast.direction,
           momentum: forecast.momentum,
           volatility: forecast.volatility,
-          confidence: forecast.confidence
+          confidence: forecast.confidence,
         },
         timeHorizon,
         model: bestModel.modelId,
-        generatedAt: new Date()
+        generatedAt: new Date(),
       };
-
     } catch (error) {
       this.logger.error('❌ Failed to forecast market movement', {
         marketId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return null;
     }
@@ -313,28 +309,32 @@ export class MarketForecaster {
     // Calculate trend indicators
     const prices = data.map(d => d.price);
     const volumes = data.map(d => d.volume || 1);
-    
+
     // Simple moving averages
     const sma5 = this.calculateSMA(prices, 5);
     const sma20 = this.calculateSMA(prices, 20);
-    
+
     // Trend direction
-    const direction = sma5[sma5.length - 1] > sma20[sma20.length - 1] ? 'bullish' : 
-                     sma5[sma5.length - 1] < sma20[sma20.length - 1] ? 'bearish' : 'neutral';
-    
+    const direction =
+      sma5[sma5.length - 1] > sma20[sma20.length - 1]
+        ? 'bullish'
+        : sma5[sma5.length - 1] < sma20[sma20.length - 1]
+          ? 'bearish'
+          : 'neutral';
+
     // Trend strength
     const strength = this.calculateTrendStrength(prices);
-    
+
     // Only return significant trends
     if (strength < 0.3) return null;
 
     // Calculate support and resistance levels
     const supportLevel = Math.min(...prices.slice(-10));
     const resistanceLevel = Math.max(...prices.slice(-10));
-    
+
     // Calculate momentum
     const momentum = this.calculateMomentum(prices);
-    
+
     // Calculate volatility
     const volatility = this.calculateVolatility(prices);
 
@@ -352,29 +352,30 @@ export class MarketForecaster {
       volatility,
       startTime: new Date(data[0].timestamp),
       projectedEndTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-      keyDrivers: await this.identifyTrendDrivers(marketId, direction, strength)
+      keyDrivers: await this.identifyTrendDrivers(marketId, direction, strength),
     };
   }
 
   private async analyzeAnomaliesForMarket(marketId: string, data: any[]): Promise<MarketAnomaly[]> {
     const anomalies: MarketAnomaly[] = [];
-    
+
     if (data.length < 20) return anomalies; // Need sufficient data for baseline
 
     const prices = data.map(d => d.price);
     const volumes = data.map(d => d.volume || 1);
-    
+
     // Calculate statistical baselines
     const priceBaseline = this.calculateBaseline(prices);
     const volumeBaseline = this.calculateBaseline(volumes);
-    
+
     // Check latest data points for anomalies
     const recentData = data.slice(-5);
-    
+
     for (const point of recentData) {
       // Price spike detection
       const priceDeviation = Math.abs(point.price - priceBaseline.mean) / priceBaseline.stdDev;
-      if (priceDeviation > 2.5) { // 2.5 standard deviations
+      if (priceDeviation > 2.5) {
+        // 2.5 standard deviations
         anomalies.push({
           anomalyId: `price_spike_${marketId}_${point.timestamp}`,
           marketId,
@@ -387,12 +388,13 @@ export class MarketForecaster {
           timeframe: 'immediate',
           potentialCauses: await this.identifyAnomalyCauses('price_spike', priceDeviation),
           impactAssessment: this.assessAnomalyImpact('price_spike', priceDeviation),
-          detectedAt: new Date()
+          detectedAt: new Date(),
         });
       }
-      
+
       // Volume surge detection
-      const volumeDeviation = Math.abs((point.volume || 1) - volumeBaseline.mean) / volumeBaseline.stdDev;
+      const volumeDeviation =
+        Math.abs((point.volume || 1) - volumeBaseline.mean) / volumeBaseline.stdDev;
       if (volumeDeviation > 3) {
         anomalies.push({
           anomalyId: `volume_surge_${marketId}_${point.timestamp}`,
@@ -406,17 +408,17 @@ export class MarketForecaster {
           timeframe: 'short-term',
           potentialCauses: await this.identifyAnomalyCauses('volume_surge', volumeDeviation),
           impactAssessment: this.assessAnomalyImpact('volume_surge', volumeDeviation),
-          detectedAt: new Date()
+          detectedAt: new Date(),
         });
       }
     }
-    
+
     return anomalies;
   }
 
   private async identifyArbitrageOpportunities(): Promise<MarketInsight[]> {
     const opportunities: MarketInsight[] = [];
-    
+
     // This would analyze cross-sportsbook price differences
     // For demonstration, create sample arbitrage opportunity
     const arbitrageOpportunity: MarketInsight = {
@@ -431,24 +433,25 @@ export class MarketForecaster {
       recommendations: [
         'Place bet on Market A at Sportsbook 1',
         'Place opposing bet on Market B at Sportsbook 2',
-        'Monitor odds for changes'
+        'Monitor odds for changes',
       ],
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
+
     opportunities.push(arbitrageOpportunity);
     return opportunities;
   }
 
   private async identifyValueBettingOpportunities(): Promise<MarketInsight[]> {
     const opportunities: MarketInsight[] = [];
-    
+
     // Sample value betting opportunity
     const valueBetOpportunity: MarketInsight = {
       insightId: `value_bet_${Date.now()}`,
       type: 'opportunity',
       severity: 'medium',
-      description: 'Value betting opportunity: Market odds suggest 45% probability but model predicts 55%',
+      description:
+        'Value betting opportunity: Market odds suggest 45% probability but model predicts 55%',
       affectedMarkets: ['market_3'],
       confidence: 0.72,
       timeframe: '2 hours',
@@ -456,18 +459,18 @@ export class MarketForecaster {
       recommendations: [
         'Consider betting on undervalued outcome',
         'Monitor model confidence levels',
-        'Adjust position size based on edge'
+        'Adjust position size based on edge',
       ],
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
+
     opportunities.push(valueBetOpportunity);
     return opportunities;
   }
 
   private async identifyMarketInefficiencies(): Promise<MarketInsight[]> {
     const opportunities: MarketInsight[] = [];
-    
+
     // Sample market inefficiency
     const inefficiencyOpportunity: MarketInsight = {
       insightId: `inefficiency_${Date.now()}`,
@@ -481,18 +484,18 @@ export class MarketForecaster {
       recommendations: [
         'Monitor price adjustment speed',
         'Consider timing-based strategy',
-        'Watch for market correction'
+        'Watch for market correction',
       ],
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
+
     opportunities.push(inefficiencyOpportunity);
     return opportunities;
   }
 
   private async identifyTrendReversalOpportunities(): Promise<MarketInsight[]> {
     const opportunities: MarketInsight[] = [];
-    
+
     // Sample trend reversal opportunity
     const reversalOpportunity: MarketInsight = {
       insightId: `trend_reversal_${Date.now()}`,
@@ -506,18 +509,18 @@ export class MarketForecaster {
       recommendations: [
         'Monitor support level breaks',
         'Consider contrarian position',
-        'Set tight stop losses'
+        'Set tight stop losses',
       ],
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
+
     opportunities.push(reversalOpportunity);
     return opportunities;
   }
 
   private async assessLiquidityRisks(): Promise<MarketInsight[]> {
     const risks: MarketInsight[] = [];
-    
+
     // Sample liquidity risk
     const liquidityRisk: MarketInsight = {
       insightId: `liquidity_risk_${Date.now()}`,
@@ -531,18 +534,18 @@ export class MarketForecaster {
       recommendations: [
         'Reduce position sizes',
         'Monitor bid-ask spreads',
-        'Consider alternative markets'
+        'Consider alternative markets',
       ],
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
+
     risks.push(liquidityRisk);
     return risks;
   }
 
   private async assessVolatilityRisks(): Promise<MarketInsight[]> {
     const risks: MarketInsight[] = [];
-    
+
     // Sample volatility risk
     const volatilityRisk: MarketInsight = {
       insightId: `volatility_risk_${Date.now()}`,
@@ -556,18 +559,18 @@ export class MarketForecaster {
       recommendations: [
         'Implement volatility-based position sizing',
         'Consider hedging strategies',
-        'Monitor news events closely'
+        'Monitor news events closely',
       ],
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
+
     risks.push(volatilityRisk);
     return risks;
   }
 
   private async assessCorrelationRisks(): Promise<MarketInsight[]> {
     const risks: MarketInsight[] = [];
-    
+
     // Sample correlation risk
     const correlationRisk: MarketInsight = {
       insightId: `correlation_risk_${Date.now()}`,
@@ -581,18 +584,18 @@ export class MarketForecaster {
       recommendations: [
         'Diversify across uncorrelated markets',
         'Reduce concentration in correlated positions',
-        'Monitor correlation changes'
+        'Monitor correlation changes',
       ],
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
+
     risks.push(correlationRisk);
     return risks;
   }
 
   private async assessSystematicRisks(): Promise<MarketInsight[]> {
     const risks: MarketInsight[] = [];
-    
+
     // Sample systematic risk
     const systematicRisk: MarketInsight = {
       insightId: `systematic_risk_${Date.now()}`,
@@ -606,11 +609,11 @@ export class MarketForecaster {
       recommendations: [
         'Monitor regulatory developments',
         'Maintain operational flexibility',
-        'Diversify across jurisdictions'
+        'Diversify across jurisdictions',
       ],
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
+
     risks.push(systematicRisk);
     return risks;
   }
@@ -619,108 +622,109 @@ export class MarketForecaster {
   private async getRecentMarketData(): Promise<Map<string, any[]>> {
     // This would fetch real market data
     const mockData = new Map();
-    
+
     // Generate sample market data
     for (let i = 1; i <= 5; i++) {
       const marketId = `market_${i}`;
       const data = this.generateSampleMarketData(20); // 20 data points
       mockData.set(marketId, data);
     }
-    
+
     return mockData;
   }
 
   private generateSampleMarketData(points: number): any[] {
     const data = [];
     let price = 1.85 + Math.random() * 0.3; // Starting price between 1.85-2.15
-    
+
     for (let i = 0; i < points; i++) {
       price += (Math.random() - 0.5) * 0.1; // Random walk
       price = Math.max(1.1, Math.min(10.0, price)); // Keep within reasonable bounds
-      
+
       data.push({
         timestamp: new Date(Date.now() - (points - i) * 60 * 1000), // 1 minute intervals
         price: parseFloat(price.toFixed(3)),
-        volume: Math.floor(Math.random() * 1000) + 100
+        volume: Math.floor(Math.random() * 1000) + 100,
       });
     }
-    
+
     return data;
   }
 
   private calculateSMA(prices: number[], period: number): number[] {
     const sma = [];
-    
+
     for (let i = period - 1; i < prices.length; i++) {
       const sum = prices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
       sma.push(sum / period);
     }
-    
+
     return sma;
   }
 
   private calculateTrendStrength(prices: number[]): number {
     if (prices.length < 2) return 0;
-    
+
     const firstPrice = prices[0];
     const lastPrice = prices[prices.length - 1];
     const change = Math.abs(lastPrice - firstPrice) / firstPrice;
-    
+
     // Calculate R-squared for trend line
     const rSquared = this.calculateRSquared(prices);
-    
+
     return Math.min(1, change * 2 + rSquared);
   }
 
   private calculateRSquared(prices: number[]): number {
     // Simplified R-squared calculation for trend line
     const n = prices.length;
-    const x = Array.from({length: n}, (_, i) => i);
+    const x = Array.from({ length: n }, (_, i) => i);
     const y = prices;
-    
+
     const sumX = x.reduce((a, b) => a + b, 0);
     const sumY = y.reduce((a, b) => a + b, 0);
     const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
     const sumXX = x.reduce((sum, xi) => sum + xi * xi, 0);
     const sumYY = y.reduce((sum, yi) => sum + yi * yi, 0);
-    
+
     const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
     const intercept = (sumY - slope * sumX) / n;
-    
+
     const yMean = sumY / n;
     const ssRes = y.reduce((sum, yi, i) => {
       const predicted = slope * x[i] + intercept;
       return sum + Math.pow(yi - predicted, 2);
     }, 0);
-    
+
     const ssTot = y.reduce((sum, yi) => sum + Math.pow(yi - yMean, 2), 0);
-    
-    return ssTot === 0 ? 0 : 1 - (ssRes / ssTot);
+
+    return ssTot === 0 ? 0 : 1 - ssRes / ssTot;
   }
 
   private calculateMomentum(prices: number[]): number {
     if (prices.length < 10) return 0;
-    
+
     const recent = prices.slice(-5);
     const earlier = prices.slice(-10, -5);
-    
+
     const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
     const earlierAvg = earlier.reduce((a, b) => a + b, 0) / earlier.length;
-    
+
     return (recentAvg - earlierAvg) / earlierAvg;
   }
 
   private calculateVolatility(prices: number[]): number {
     if (prices.length < 2) return 0;
-    
+
     const returns = [];
     for (let i = 1; i < prices.length; i++) {
       returns.push(Math.log(prices[i] / prices[i - 1]));
     }
-    
+
     const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-    const variance = returns.reduce((sum, ret) => sum + Math.pow(ret - mean, 2), 0) / returns.length;
-    
+    const variance =
+      returns.reduce((sum, ret) => sum + Math.pow(ret - mean, 2), 0) / returns.length;
+
     return Math.sqrt(variance);
   }
 
@@ -728,7 +732,7 @@ export class MarketForecaster {
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
     const stdDev = Math.sqrt(variance);
-    
+
     return { mean, stdDev };
   }
 
@@ -737,7 +741,7 @@ export class MarketForecaster {
     // Higher volatility decreases confidence
     const baseConfidence = strength * 0.5 + Math.abs(momentum) * 0.3;
     const volatilityPenalty = volatility * 0.2;
-    
+
     return Math.max(0, Math.min(1, baseConfidence - volatilityPenalty));
   }
 
@@ -751,20 +755,24 @@ export class MarketForecaster {
   private generateTrendDescription(trend: MarketTrend): string {
     const direction = trend.direction.charAt(0).toUpperCase() + trend.direction.slice(1);
     const strength = trend.strength > 0.7 ? 'strong' : trend.strength > 0.5 ? 'moderate' : 'weak';
-    
-    return `${direction} ${strength} trend detected with ${(trend.confidence * 100).toFixed(1)}% confidence. ` +
-           `Support at ${trend.supportLevel.toFixed(3)}, resistance at ${trend.resistanceLevel.toFixed(3)}.`;
+
+    return (
+      `${direction} ${strength} trend detected with ${(trend.confidence * 100).toFixed(1)}% confidence. ` +
+      `Support at ${trend.supportLevel.toFixed(3)}, resistance at ${trend.resistanceLevel.toFixed(3)}.`
+    );
   }
 
   private generateAnomalyDescription(anomaly: MarketAnomaly): string {
     const type = anomaly.type.replace('_', ' ').toUpperCase();
-    return `${type} detected: ${anomaly.deviation.toFixed(2)} standard deviations from normal. ` +
-           `Expected ${anomaly.expectedValue.toFixed(3)}, observed ${anomaly.actualValue.toFixed(3)}.`;
+    return (
+      `${type} detected: ${anomaly.deviation.toFixed(2)} standard deviations from normal. ` +
+      `Expected ${anomaly.expectedValue.toFixed(3)}, observed ${anomaly.actualValue.toFixed(3)}.`
+    );
   }
 
   private generateTrendRecommendations(trend: MarketTrend): string[] {
     const recommendations = [];
-    
+
     if (trend.direction === 'bullish' && trend.strength > 0.6) {
       recommendations.push('Consider long positions near support level');
       recommendations.push('Monitor momentum for continuation signals');
@@ -775,17 +783,17 @@ export class MarketForecaster {
       recommendations.push('Monitor for trend development');
       recommendations.push('Wait for clearer directional signals');
     }
-    
+
     if (trend.volatility > 0.3) {
       recommendations.push('Use smaller position sizes due to high volatility');
     }
-    
+
     return recommendations;
   }
 
   private generateAnomalyRecommendations(anomaly: MarketAnomaly): string[] {
     const recommendations = [];
-    
+
     switch (anomaly.type) {
       case 'price_spike':
         recommendations.push('Investigate news or events causing price movement');
@@ -801,30 +809,34 @@ export class MarketForecaster {
         recommendations.push('Monitor situation closely');
         recommendations.push('Adjust risk management accordingly');
     }
-    
+
     return recommendations;
   }
 
-  private async identifyTrendDrivers(marketId: string, direction: string, strength: number): Promise<string[]> {
+  private async identifyTrendDrivers(
+    marketId: string,
+    direction: string,
+    strength: number
+  ): Promise<string[]> {
     // This would analyze news, events, and other factors driving the trend
     const drivers = [];
-    
+
     if (strength > 0.7) {
       drivers.push('Strong momentum');
     }
-    
+
     if (direction === 'bullish') {
       drivers.push('Positive market sentiment', 'Increased buying pressure');
     } else if (direction === 'bearish') {
       drivers.push('Negative market sentiment', 'Increased selling pressure');
     }
-    
+
     return drivers;
   }
 
   private async identifyAnomalyCauses(type: string, deviation: number): Promise<string[]> {
     const causes = [];
-    
+
     if (type === 'price_spike') {
       causes.push('Breaking news or announcement');
       if (deviation > 3) {
@@ -833,7 +845,7 @@ export class MarketForecaster {
     } else if (type === 'volume_surge') {
       causes.push('Increased market interest', 'News event or announcement');
     }
-    
+
     return causes;
   }
 
@@ -866,43 +878,47 @@ export class MarketForecaster {
   private async selectBestModel(marketId: string, timeHorizon: number): Promise<ForecastingModel> {
     // Select the best performing model for this market and time horizon
     const models = Array.from(this.forecastingModels.values());
-    
+
     // Filter by time horizon compatibility
-    const compatibleModels = models.filter(m => 
-      m.timeHorizon <= timeHorizon * 1.5 && m.timeHorizon >= timeHorizon * 0.5
+    const compatibleModels = models.filter(
+      m => m.timeHorizon <= timeHorizon * 1.5 && m.timeHorizon >= timeHorizon * 0.5
     );
-    
+
     // Return the most accurate compatible model
-    return compatibleModels.reduce((best, current) => 
-      current.accuracy > best.accuracy ? current : best,
+    return compatibleModels.reduce(
+      (best, current) => (current.accuracy > best.accuracy ? current : best),
       compatibleModels[0] || models[0]
     );
   }
 
-  private async generateForecast(data: any[], model: ForecastingModel, timeHorizon: number): Promise<any> {
+  private async generateForecast(
+    data: any[],
+    model: ForecastingModel,
+    timeHorizon: number
+  ): Promise<any> {
     // This would use the actual model to generate forecasts
     const prices = data.map(d => d.price);
     const lastPrice = prices[prices.length - 1];
-    
+
     // Simple forecast based on trend and volatility
     const trend = this.calculateMomentum(prices);
     const volatility = this.calculateVolatility(prices);
-    
+
     const predictedChange = trend * timeHorizon * 0.1; // Scale by time horizon
     const predictedPrice = lastPrice * (1 + predictedChange);
-    
+
     const uncertainty = volatility * Math.sqrt(timeHorizon / 60); // Scale uncertainty by time
-    
+
     return {
       predictedPrice,
       priceRange: {
         min: predictedPrice * (1 - uncertainty),
-        max: predictedPrice * (1 + uncertainty)
+        max: predictedPrice * (1 + uncertainty),
       },
       direction: trend > 0.02 ? 'bullish' : trend < -0.02 ? 'bearish' : 'neutral',
       momentum: trend,
       volatility,
-      confidence: model.accuracy * (1 - uncertainty)
+      confidence: model.accuracy * (1 - uncertainty),
     };
   }
 
@@ -916,7 +932,7 @@ export class MarketForecaster {
         updateFrequency: 'hourly',
         lastTrained: new Date(),
         features: ['price', 'volume', 'momentum', 'volatility'],
-        hyperparameters: { layers: 3, neurons: 64, dropout: 0.2 }
+        hyperparameters: { layers: 3, neurons: 64, dropout: 0.2 },
       },
       {
         modelId: 'arima_medium_term',
@@ -926,7 +942,7 @@ export class MarketForecaster {
         updateFrequency: 'daily',
         lastTrained: new Date(),
         features: ['price', 'trend', 'seasonality'],
-        hyperparameters: { p: 2, d: 1, q: 2 }
+        hyperparameters: { p: 2, d: 1, q: 2 },
       },
       {
         modelId: 'ensemble_long_term',
@@ -936,8 +952,8 @@ export class MarketForecaster {
         updateFrequency: 'daily',
         lastTrained: new Date(),
         features: ['price', 'volume', 'sentiment', 'external_factors'],
-        hyperparameters: { models: ['lstm', 'arima', 'gradient_boost'], weights: [0.4, 0.3, 0.3] }
-      }
+        hyperparameters: { models: ['lstm', 'arima', 'gradient_boost'], weights: [0.4, 0.3, 0.3] },
+      },
     ];
 
     for (const model of models) {
@@ -948,9 +964,9 @@ export class MarketForecaster {
   private async loadHistoricalPatterns(): Promise<void> {
     // Load historical market patterns for comparison
     const patterns = {
-      'bullish_breakout': { success_rate: 0.73, avg_duration: 180 },
-      'bearish_reversal': { success_rate: 0.68, avg_duration: 120 },
-      'sideways_consolidation': { success_rate: 0.82, avg_duration: 240 }
+      bullish_breakout: { success_rate: 0.73, avg_duration: 180 },
+      bearish_reversal: { success_rate: 0.68, avg_duration: 120 },
+      sideways_consolidation: { success_rate: 0.82, avg_duration: 240 },
     };
 
     for (const [patternName, pattern] of Object.entries(patterns)) {
@@ -961,7 +977,7 @@ export class MarketForecaster {
   private async loadMarketTrends(): Promise<void> {
     try {
       const cachedTrends = await redisCache.getPattern('forecaster:trends:*');
-      
+
       for (const [key, data] of cachedTrends) {
         const marketId = key.split(':').pop();
         if (marketId) {
@@ -983,7 +999,7 @@ export class MarketForecaster {
   private async loadAnomalyHistory(): Promise<void> {
     try {
       const cachedAnomalies = await redisCache.getPattern('forecaster:anomalies:*');
-      
+
       for (const [key, data] of cachedAnomalies) {
         const marketId = key.split(':').pop();
         if (marketId) {
@@ -1030,7 +1046,7 @@ export class MarketForecaster {
     this.identifiedOpportunities.clear();
     this.assessedRisks.clear();
     this.historicalPatterns.clear();
-    
+
     this.logger.info('🧹 MarketForecaster cleanup completed');
   }
 }

@@ -81,7 +81,7 @@ export async function GET(request: Request) {
     query = query.order('username', { ascending: true });
 
     // GAUNTLET-CLOSEOUT-028: Type assertion for Supabase query result
-    const { data, error } = await query as { data: UserRow[] | null; error: any };
+    const { data, error } = (await query) as { data: UserRow[] | null; error: any };
 
     logDatabaseOperation(log, 'SELECT', 'users', data, error);
 

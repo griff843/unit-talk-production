@@ -60,23 +60,23 @@ class AIModelRouter {
       costPerToken: 0.0000015, // Very cost-effective
       maxTokens: 4096,
       quality: 'good',
-      latency: 'fast'
+      latency: 'fast',
     },
     'claude-sonnet': {
       name: 'claude-sonnet',
       provider: 'anthropic',
-      costPerToken: 0.000003,  // Mid-range cost
+      costPerToken: 0.000003, // Mid-range cost
       maxTokens: 8192,
       quality: 'premium',
-      latency: 'medium'
+      latency: 'medium',
     },
     'gpt-4-turbo': {
-      name: 'gpt-4-turbo', 
+      name: 'gpt-4-turbo',
       provider: 'openai',
-      costPerToken: 0.00001,   // Premium cost
+      costPerToken: 0.00001, // Premium cost
       maxTokens: 16384,
       quality: 'elite',
-      latency: 'medium'
+      latency: 'medium',
     },
     'gpt-3.5': {
       name: 'gpt-3.5',
@@ -84,24 +84,24 @@ class AIModelRouter {
       costPerToken: 0.0000005, // Very low cost
       maxTokens: 4096,
       quality: 'basic',
-      latency: 'fast'
-    }
+      latency: 'fast',
+    },
   };
 
   private readonly ROUTING_RULES = {
     advice: {
       default: process.env.ADVICE_MODEL_DEFAULT || 'kimi-k2',
       fallback: process.env.ADVICE_MODEL_FALLBACK || 'claude-sonnet',
-      mvp: process.env.ADVICE_MODEL_MVP || 'gpt-4-turbo'
+      mvp: process.env.ADVICE_MODEL_MVP || 'gpt-4-turbo',
     },
     recap: {
       default: 'kimi-k2',
-      fallback: 'gpt-3.5'
+      fallback: 'gpt-3.5',
     },
     formatting: {
       default: 'gpt-3.5',
-      fallback: 'kimi-k2'
-    }
+      fallback: 'kimi-k2',
+    },
   };
 
   private constructor() {
@@ -185,27 +185,27 @@ class AIModelRouter {
   public async executeRequest(request: AIRequest): Promise<AIResponse> {
     const startTime = Date.now();
     const primaryModel = this.routeRequest(request);
-    
+
     try {
       // Try primary model
       const response = await this.callModel(primaryModel, request);
       this.updateMetrics(primaryModel, response, true);
       return response;
-
     } catch (error) {
       console.warn(`⚠️ Primary model ${primaryModel} failed, falling back...`);
-      
+
       // Try fallback model
       const fallbackModel = this.getFallbackModel(request.type);
       try {
         const response = await this.callModel(fallbackModel, request);
         this.updateMetrics(fallbackModel, response, true);
         return response;
-
       } catch (fallbackError) {
         console.error(`❌ Fallback model ${fallbackModel} also failed:`, fallbackError);
         this.updateMetrics(fallbackModel, null, false);
-        throw new Error(`Both primary (${primaryModel}) and fallback (${fallbackModel}) models failed`);
+        throw new Error(
+          `Both primary (${primaryModel}) and fallback (${fallbackModel}) models failed`
+        );
       }
     }
   }
@@ -216,7 +216,7 @@ class AIModelRouter {
   private async callModel(modelName: string, request: AIRequest): Promise<AIResponse> {
     const startTime = Date.now();
     const config = this.MODEL_CONFIGS[modelName];
-    
+
     if (!config) {
       throw new Error(`Unknown model: ${modelName}`);
     }
@@ -233,14 +233,17 @@ class AIModelRouter {
       cost: simulatedResponse.tokenCount * config.costPerToken,
       cached: false, // Will be set by cache layer
       processingTime,
-      quality: config.quality
+      quality: config.quality,
     };
   }
 
   /**
    * Simulate model API call (replace with actual implementations)
    */
-  private async simulateModelCall(config: AIModelConfig, request: AIRequest): Promise<{ content: string; tokenCount: number }> {
+  private async simulateModelCall(
+    config: AIModelConfig,
+    request: AIRequest
+  ): Promise<{ content: string; tokenCount: number }> {
     // Simulate network latency
     const delay = config.latency === 'fast' ? 100 : config.latency === 'medium' ? 300 : 500;
     await new Promise(resolve => setTimeout(resolve, delay));
@@ -319,7 +322,7 @@ class AIModelRouter {
       totalCost: 0,
       averageLatency: 0,
       successRate: 0,
-      lastUsed: new Date()
+      lastUsed: new Date(),
     };
 
     existing.callCount++;
@@ -365,7 +368,7 @@ class AIModelRouter {
       modelBreakdown[m.model] = {
         calls: m.callCount,
         cost: m.totalCost,
-        percentage: totalCost > 0 ? (m.totalCost / totalCost) * 100 : 0
+        percentage: totalCost > 0 ? (m.totalCost / totalCost) * 100 : 0,
       };
     });
 
@@ -374,7 +377,7 @@ class AIModelRouter {
       totalCost,
       totalTokens,
       averageCostPerCall: totalCalls > 0 ? totalCost / totalCalls : 0,
-      modelBreakdown
+      modelBreakdown,
     };
   }
 
@@ -399,7 +402,12 @@ class AIModelRouter {
   /**
    * Check if re-query is needed based on odds movement
    */
-  public shouldRequery(currentOdds: number, lastOdds: number, contextHash: string, lastContextHash: string): boolean {
+  public shouldRequery(
+    currentOdds: number,
+    lastOdds: number,
+    contextHash: string,
+    lastContextHash: string
+  ): boolean {
     const bpsThreshold = parseInt(process.env.ADVICE_REQUERY_BPS || '15');
     const oddsBps = this.calculateOddsBpsDifference(currentOdds, lastOdds);
     const contextChanged = contextHash !== lastContextHash;
@@ -421,7 +429,7 @@ class AIModelRouter {
         totalCost: 0,
         averageLatency: 0,
         successRate: 1.0,
-        lastUsed: new Date()
+        lastUsed: new Date(),
       });
     });
   }
@@ -431,23 +439,27 @@ class AIModelRouter {
    */
   public logMetrics(): void {
     const analysis = this.getCostAnalysis();
-    
+
     console.log('🤖 AI MODEL ROUTING METRICS');
     console.log('============================');
     console.log(`Total Calls: ${analysis.totalCalls}`);
     console.log(`Total Cost: $${analysis.totalCost.toFixed(4)}`);
     console.log(`Average Cost/Call: $${analysis.averageCostPerCall.toFixed(4)}`);
     console.log(`Total Tokens: ${analysis.totalTokens.toLocaleString()}`);
-    
+
     console.log('\n📊 Model Breakdown:');
     Object.entries(analysis.modelBreakdown).forEach(([model, stats]) => {
-      console.log(`  ${model}: ${stats.calls} calls ($${stats.cost.toFixed(4)}, ${stats.percentage.toFixed(1)}%)`);
+      console.log(
+        `  ${model}: ${stats.calls} calls ($${stats.cost.toFixed(4)}, ${stats.percentage.toFixed(1)}%)`
+      );
     });
-    
+
     const metrics = this.getMetrics();
     console.log('\n⚡ Performance Metrics:');
     metrics.forEach(m => {
-      console.log(`  ${m.model}: ${(m.successRate * 100).toFixed(1)}% success, ${m.averageLatency.toFixed(0)}ms avg`);
+      console.log(
+        `  ${m.model}: ${(m.successRate * 100).toFixed(1)}% success, ${m.averageLatency.toFixed(0)}ms avg`
+      );
     });
   }
 }

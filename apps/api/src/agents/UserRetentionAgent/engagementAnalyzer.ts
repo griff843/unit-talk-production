@@ -92,11 +92,11 @@ export class EngagementAnalyzer {
 
   async initialize(): Promise<void> {
     this.logger.info('📊 Initializing EngagementAnalyzer');
-    
+
     await this.loadEngagementModels();
     await this.loadBenchmarkMetrics();
     await this.loadUserEngagementHistory();
-    
+
     this.logger.info('✅ EngagementAnalyzer initialized');
   }
 
@@ -106,22 +106,22 @@ export class EngagementAnalyzer {
     try {
       // Collect current engagement data
       const engagementMetrics = await this.collectEngagementMetrics(userId);
-      
+
       // Calculate engagement score
       const engagementScore = await this.calculateEngagementScore(engagementMetrics);
-      
+
       // Analyze trends
       const trends = await this.analyzeTrends(userId, engagementMetrics);
-      
+
       // Assess risk level
       const riskLevel = await this.assessRiskLevel(engagementScore, trends);
-      
+
       // Generate recommendations
       const recommendations = await this.generateRecommendations(engagementMetrics, riskLevel);
-      
+
       // Identify strengths and weaknesses
       const { strengths, weaknesses } = await this.identifyStrengthsWeaknesses(engagementMetrics);
-      
+
       const analysis: EngagementAnalysis = {
         score: engagementScore,
         trends,
@@ -130,12 +130,12 @@ export class EngagementAnalyzer {
         recommendations,
         strengths,
         weaknesses,
-        interventionNeeded: riskLevel === 'high' || riskLevel === 'critical'
+        interventionNeeded: riskLevel === 'high' || riskLevel === 'critical',
       };
 
       // Cache analysis
       await this.cacheEngagementAnalysis(userId, analysis);
-      
+
       // Update user engagement data
       this.userEngagementData.set(userId, engagementMetrics);
 
@@ -143,17 +143,16 @@ export class EngagementAnalyzer {
         userId,
         score: engagementScore,
         riskLevel,
-        trend: trends.trend
+        trend: trends.trend,
       });
 
       return analysis;
-
     } catch (error) {
       this.logger.error('❌ Failed to analyze user engagement', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       return this.getDefaultAnalysis(userId);
     }
   }
@@ -169,15 +168,11 @@ export class EngagementAnalyzer {
       lastActivity: await this.getLastActivity(userId),
       recentSessions: await this.getRecentSessions(userId),
       activeFeatures: await this.getActiveFeatures(userId),
-      engagement_score: await this.getQuickEngagementScore(userId)
+      engagement_score: await this.getQuickEngagementScore(userId),
     };
 
     // Cache for 10 minutes
-    await redisCache.set(
-      `engagement:current:${userId}`,
-      JSON.stringify(engagement),
-      600
-    );
+    await redisCache.set(`engagement:current:${userId}`, JSON.stringify(engagement), 600);
 
     return engagement;
   }
@@ -205,7 +200,7 @@ export class EngagementAnalyzer {
 
   async generateEngagementInsights(): Promise<any> {
     const allUsers = Array.from(this.userEngagementData.values());
-    
+
     const insights = {
       totalUsers: allUsers.length,
       averageEngagement: this.calculateAverageEngagement(allUsers),
@@ -214,7 +209,7 @@ export class EngagementAnalyzer {
       riskAnalysis: this.analyzeRiskDistribution(allUsers),
       topEngagementDrivers: await this.identifyEngagementDrivers(allUsers),
       recommendations: await this.generateSystemRecommendations(allUsers),
-      benchmarkComparison: this.compareToBenchmarks(allUsers)
+      benchmarkComparison: this.compareToBenchmarks(allUsers),
     };
 
     // Cache insights
@@ -245,7 +240,7 @@ export class EngagementAnalyzer {
       trends: await this.calculateTrends(userId),
       score: 0, // Will be calculated separately
       lastInteraction,
-      riskFactors: []
+      riskFactors: [],
     };
   }
 
@@ -262,7 +257,7 @@ export class EngagementAnalyzer {
       sessionConsistency: sessionData.sessionConsistency || 0.5,
       peakUsageHours: sessionData.peakUsageHours || [12, 18, 20],
       weekendActivity: sessionData.weekendActivity || 0.3,
-      weekdayActivity: sessionData.weekdayActivity || 0.7
+      weekdayActivity: sessionData.weekdayActivity || 0.7,
     };
   }
 
@@ -278,7 +273,7 @@ export class EngagementAnalyzer {
       helpProvided: interactionData.helpProvided || 0,
       commandsUsed: interactionData.commandsUsed || 0,
       featureInteractions: interactionData.featureInteractions || {},
-      socialConnections: interactionData.socialConnections || 0
+      socialConnections: interactionData.socialConnections || 0,
     };
   }
 
@@ -294,7 +289,7 @@ export class EngagementAnalyzer {
       contentShared: contentData.contentShared || 0,
       bookmarksCreated: contentData.bookmarksCreated || 0,
       feedbackSubmitted: contentData.feedbackSubmitted || 0,
-      contentPreferences: contentData.contentPreferences || []
+      contentPreferences: contentData.contentPreferences || [],
     };
   }
 
@@ -310,16 +305,16 @@ export class EngagementAnalyzer {
       conversionFunnel: behaviorData.conversionFunnel || {},
       dropoffPoints: behaviorData.dropoffPoints || [],
       successfulActions: behaviorData.successfulActions || 0,
-      failedActions: behaviorData.failedActions || 0
+      failedActions: behaviorData.failedActions || 0,
     };
   }
 
   private async calculateEngagementScore(metrics: EngagementMetrics): Promise<number> {
     const weights = {
       sessions: 0.25,
-      interactions: 0.30,
+      interactions: 0.3,
       content: 0.25,
-      behavior: 0.20
+      behavior: 0.2,
     };
 
     const sessionScore = this.calculateSessionScore(metrics.sessionData);
@@ -327,12 +322,11 @@ export class EngagementAnalyzer {
     const contentScore = this.calculateContentScore(metrics.contentData);
     const behaviorScore = this.calculateBehaviorScore(metrics.behaviorData);
 
-    const totalScore = (
+    const totalScore =
       sessionScore * weights.sessions +
       interactionScore * weights.interactions +
       contentScore * weights.content +
-      behaviorScore * weights.behavior
-    );
+      behaviorScore * weights.behavior;
 
     return Math.max(0, Math.min(1, totalScore));
   }
@@ -341,8 +335,8 @@ export class EngagementAnalyzer {
     const sessionFrequencyScore = Math.min(sessionData.sessionsPerWeek / 5, 1);
     const durationScore = Math.min(sessionData.averageSessionDuration / 600, 1); // 10 minutes max
     const consistencyScore = sessionData.sessionConsistency;
-    
-    return (sessionFrequencyScore * 0.4 + durationScore * 0.3 + consistencyScore * 0.3);
+
+    return sessionFrequencyScore * 0.4 + durationScore * 0.3 + consistencyScore * 0.3;
   }
 
   private calculateInteractionScore(interactionData: InteractionMetrics): number {
@@ -350,8 +344,8 @@ export class EngagementAnalyzer {
     const reactionScore = Math.min(interactionData.reactionsGiven / 5, 1);
     const questionScore = Math.min(interactionData.questionsAsked / 3, 1);
     const featureScore = Math.min(Object.keys(interactionData.featureInteractions).length / 5, 1);
-    
-    return (messageScore * 0.3 + reactionScore * 0.2 + questionScore * 0.25 + featureScore * 0.25);
+
+    return messageScore * 0.3 + reactionScore * 0.2 + questionScore * 0.25 + featureScore * 0.25;
   }
 
   private calculateContentScore(contentData: ContentEngagementMetrics): number {
@@ -359,23 +353,24 @@ export class EngagementAnalyzer {
     const followScore = Math.min(contentData.picksFollowed / 5, 1);
     const readScore = Math.min(contentData.analysisRead / 3, 1);
     const tutorialScore = Math.min(contentData.tutorialsCompleted / 2, 1);
-    
-    return (viewScore * 0.3 + followScore * 0.3 + readScore * 0.2 + tutorialScore * 0.2);
+
+    return viewScore * 0.3 + followScore * 0.3 + readScore * 0.2 + tutorialScore * 0.2;
   }
 
   private calculateBehaviorScore(behaviorData: BehaviorMetrics): number {
     const loginScore = Math.min(behaviorData.loginFrequency / 7, 1); // Daily login = 1.0
     const adoptionScore = behaviorData.featureAdoption;
     const explorationScore = behaviorData.explorationRate;
-    const successScore = behaviorData.successfulActions / Math.max(1, 
-      behaviorData.successfulActions + behaviorData.failedActions);
-    
-    return (loginScore * 0.3 + adoptionScore * 0.25 + explorationScore * 0.2 + successScore * 0.25);
+    const successScore =
+      behaviorData.successfulActions /
+      Math.max(1, behaviorData.successfulActions + behaviorData.failedActions);
+
+    return loginScore * 0.3 + adoptionScore * 0.25 + explorationScore * 0.2 + successScore * 0.25;
   }
 
   private async calculateTrends(userId: string): Promise<EngagementTrends> {
     const historicalData = await this.getHistoricalEngagementData(userId);
-    
+
     if (historicalData.length < 2) {
       return {
         currentScore: 0.5,
@@ -385,7 +380,7 @@ export class EngagementAnalyzer {
         weeklyTrend: [0.5],
         monthlyAverage: 0.5,
         seasonalPattern: {},
-        predictedNext: 0.5
+        predictedNext: 0.5,
       };
     }
 
@@ -401,7 +396,7 @@ export class EngagementAnalyzer {
       weeklyTrend: historicalData.slice(-7),
       monthlyAverage: this.calculateAverage(historicalData.slice(-30)),
       seasonalPattern: await this.calculateSeasonalPattern(userId),
-      predictedNext: await this.predictNextScore(historicalData)
+      predictedNext: await this.predictNextScore(historicalData),
     };
   }
 
@@ -411,18 +406,27 @@ export class EngagementAnalyzer {
     return 'stable';
   }
 
-  private async analyzeTrends(userId: string, metrics: EngagementMetrics): Promise<EngagementTrends> {
+  private async analyzeTrends(
+    userId: string,
+    metrics: EngagementMetrics
+  ): Promise<EngagementTrends> {
     return metrics.trends;
   }
 
-  private async assessRiskLevel(score: number, trends: EngagementTrends): Promise<'low' | 'medium' | 'high' | 'critical'> {
+  private async assessRiskLevel(
+    score: number,
+    trends: EngagementTrends
+  ): Promise<'low' | 'medium' | 'high' | 'critical'> {
     if (score < 0.2 || (score < 0.4 && trends.trend === 'decreasing')) return 'critical';
     if (score < 0.4 || (score < 0.6 && trends.trend === 'decreasing')) return 'high';
     if (score < 0.7 || trends.trend === 'decreasing') return 'medium';
     return 'low';
   }
 
-  private async generateRecommendations(metrics: EngagementMetrics, riskLevel: string): Promise<string[]> {
+  private async generateRecommendations(
+    metrics: EngagementMetrics,
+    riskLevel: string
+  ): Promise<string[]> {
     const recommendations: string[] = [];
 
     if (metrics.sessionData.sessionsPerWeek < 2) {
@@ -448,7 +452,9 @@ export class EngagementAnalyzer {
     return recommendations;
   }
 
-  private async identifyStrengthsWeaknesses(metrics: EngagementMetrics): Promise<{ strengths: string[]; weaknesses: string[] }> {
+  private async identifyStrengthsWeaknesses(
+    metrics: EngagementMetrics
+  ): Promise<{ strengths: string[]; weaknesses: string[] }> {
     const strengths: string[] = [];
     const weaknesses: string[] = [];
 
@@ -494,14 +500,14 @@ export class EngagementAnalyzer {
         weeklyTrend: [0.5],
         monthlyAverage: 0.5,
         seasonalPattern: {},
-        predictedNext: 0.5
+        predictedNext: 0.5,
       },
       lastInteraction: new Date(),
       riskLevel: 'medium',
       recommendations: ['Unable to analyze - insufficient data'],
       strengths: [],
       weaknesses: ['Insufficient engagement data'],
-      interventionNeeded: false
+      interventionNeeded: false,
     };
   }
 
@@ -544,23 +550,23 @@ export class EngagementAnalyzer {
   private async calculateSeasonalPattern(userId: string): Promise<Record<string, number>> {
     // This would analyze seasonal engagement patterns
     return {
-      'weekday_morning': 0.6,
-      'weekday_afternoon': 0.8,
-      'weekday_evening': 0.9,
-      'weekend_morning': 0.4,
-      'weekend_afternoon': 0.5,
-      'weekend_evening': 0.7
+      weekday_morning: 0.6,
+      weekday_afternoon: 0.8,
+      weekday_evening: 0.9,
+      weekend_morning: 0.4,
+      weekend_afternoon: 0.5,
+      weekend_evening: 0.7,
     };
   }
 
   private async predictNextScore(historicalData: number[]): Promise<number> {
     if (historicalData.length < 3) return historicalData[historicalData.length - 1] || 0.5;
-    
+
     // Simple linear trend prediction
     const recent = historicalData.slice(-3);
     const trend = (recent[2] - recent[0]) / 2;
     const predicted = recent[2] + trend;
-    
+
     return Math.max(0, Math.min(1, predicted));
   }
 
@@ -571,7 +577,7 @@ export class EngagementAnalyzer {
 
   private getEngagementDistribution(users: EngagementMetrics[]): any {
     const distribution = { low: 0, medium: 0, high: 0 };
-    
+
     users.forEach(user => {
       if (user.score < 0.4) distribution.low++;
       else if (user.score < 0.7) distribution.medium++;
@@ -583,7 +589,7 @@ export class EngagementAnalyzer {
 
   private analyzeTrendPatterns(users: EngagementMetrics[]): any {
     const patterns = { increasing: 0, decreasing: 0, stable: 0 };
-    
+
     users.forEach(user => {
       patterns[user.trends.trend]++;
     });
@@ -593,7 +599,7 @@ export class EngagementAnalyzer {
 
   private analyzeRiskDistribution(users: EngagementMetrics[]): any {
     const risk = { low: 0, medium: 0, high: 0, critical: 0 };
-    
+
     users.forEach(user => {
       if (user.score < 0.2) risk.critical++;
       else if (user.score < 0.4) risk.high++;
@@ -611,13 +617,13 @@ export class EngagementAnalyzer {
       'Community interaction',
       'Tutorial completion',
       'Regular session patterns',
-      'Feature exploration'
+      'Feature exploration',
     ];
   }
 
   private async generateSystemRecommendations(users: EngagementMetrics[]): Promise<string[]> {
     const recommendations: string[] = [];
-    
+
     const avgEngagement = this.calculateAverageEngagement(users);
     if (avgEngagement < 0.6) {
       recommendations.push('Implement gamification to boost overall engagement');
@@ -633,16 +639,19 @@ export class EngagementAnalyzer {
 
   private compareToBenchmarks(users: EngagementMetrics[]): any {
     const avgScore = this.calculateAverageEngagement(users);
-    
+
     return {
       currentAverage: avgScore,
       industryBenchmark: this.benchmarkMetrics.industry || 0.65,
-      internalBenchmark: this.benchmarkMetrics.internal || 0.70,
-      performance: avgScore > (this.benchmarkMetrics.industry || 0.65) ? 'above' : 'below'
+      internalBenchmark: this.benchmarkMetrics.internal || 0.7,
+      performance: avgScore > (this.benchmarkMetrics.industry || 0.65) ? 'above' : 'below',
     };
   }
 
-  private async cacheEngagementAnalysis(userId: string, analysis: EngagementAnalysis): Promise<void> {
+  private async cacheEngagementAnalysis(
+    userId: string,
+    analysis: EngagementAnalysis
+  ): Promise<void> {
     await redisCache.set(
       `engagement:analysis:${userId}`,
       JSON.stringify(analysis),
@@ -655,7 +664,7 @@ export class EngagementAnalyzer {
     const models = {
       score_predictor: { accuracy: 0.82, features: ['sessions', 'interactions', 'content'] },
       churn_predictor: { accuracy: 0.78, features: ['engagement_decline', 'inactivity'] },
-      intervention_optimizer: { accuracy: 0.75, features: ['user_segment', 'risk_level'] }
+      intervention_optimizer: { accuracy: 0.75, features: ['user_segment', 'risk_level'] },
     };
 
     for (const [modelName, model] of Object.entries(models)) {
@@ -666,18 +675,18 @@ export class EngagementAnalyzer {
   private async loadBenchmarkMetrics(): Promise<void> {
     this.benchmarkMetrics = {
       industry: 0.65,
-      internal: 0.70,
+      internal: 0.7,
       competitors: {
-        'competitor_a': 0.62,
-        'competitor_b': 0.68
-      }
+        competitor_a: 0.62,
+        competitor_b: 0.68,
+      },
     };
   }
 
   private async loadUserEngagementHistory(): Promise<void> {
     try {
       const cachedData = await redisCache.getPattern('engagement:metrics:*');
-      
+
       for (const [key, data] of cachedData) {
         const userId = key.split(':').pop();
         if (userId) {
@@ -710,7 +719,7 @@ export class EngagementAnalyzer {
 
     this.userEngagementData.clear();
     this.engagementModels.clear();
-    
+
     this.logger.info('🧹 EngagementAnalyzer cleanup completed');
   }
 }

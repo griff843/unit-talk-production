@@ -2,7 +2,7 @@
 
 /**
  * Test DataLifecycleAgent with Current Data
- * 
+ *
  * Tests the lifecycle agent against the current raw_props data
  * to validate archiving functionality works correctly.
  */
@@ -33,7 +33,7 @@ async function testLifecycleAgent() {
       {
         name: 'DataLifecycleAgent',
         enabled: true,
-        logLevel: 'info'
+        logLevel: 'info',
       },
       { logger, supabase: supabaseClient }
     );
@@ -60,16 +60,18 @@ async function testLifecycleAgent() {
 
     // 5. Run a test cycle (if there's data to archive)
     console.log('\n🔄 Step 5: Running test lifecycle cycle...');
-    
+
     // Check if there are old props to archive
-    const { count: oldProps } = await supabaseClient
+    const { count: oldProps } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
+      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0])) || {
+      count: 0,
+    };
 
     if ((oldProps || 0) > 0) {
       console.log(`Found ${oldProps} props older than 1 day - running archival process...`);
-      
+
       // Run the process method
       await (agent as any).process();
       console.log('✅ Lifecycle cycle completed');
@@ -92,7 +94,6 @@ async function testLifecycleAgent() {
 
     console.log('\n🎉 DataLifecycleAgent test completed successfully!');
     console.log('📋 The agent is ready for production deployment');
-
   } catch (error) {
     console.error('\n❌ Test failed:', error instanceof Error ? error.message : 'Unknown error');
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
@@ -106,7 +107,7 @@ async function analyzeCurrentState(): Promise<void> {
     const [rawPropsCount, recentCount, historicalCount] = await Promise.all([
       getTableCount('raw_props'),
       getTableCount('raw_props_recent'),
-      getTableCount('raw_props_historical')
+      getTableCount('raw_props_historical'),
     ]);
 
     console.log('📈 Current Data Distribution:');
@@ -115,21 +116,23 @@ async function analyzeCurrentState(): Promise<void> {
     console.log(`  🧊 Cold Tier (raw_props_historical): ${historicalCount} records`);
 
     // Analyze age distribution of hot tier
-    const { count: todayProps } = await supabaseClient
+    const { count: todayProps } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .gte('game_date', new Date().toISOString().split('T')[0]) || { count: 0 };
+      .gte('game_date', new Date().toISOString().split('T')[0])) || { count: 0 };
 
-    const { count: yesterdayProps } = await supabaseClient
+    const { count: yesterdayProps } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
       .gte('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-      .lt('game_date', new Date().toISOString().split('T')[0]) || { count: 0 };
+      .lt('game_date', new Date().toISOString().split('T')[0])) || { count: 0 };
 
-    const { count: olderProps } = await supabaseClient
+    const { count: olderProps } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
+      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0])) || {
+      count: 0,
+    };
 
     console.log('\n📅 Hot Tier Age Analysis:');
     console.log(`  📅 Today: ${todayProps || 0} props`);
@@ -139,7 +142,6 @@ async function analyzeCurrentState(): Promise<void> {
     if ((olderProps || 0) > 0) {
       console.log(`  ⚠️ Recommendation: Archive ${olderProps} old props to improve performance`);
     }
-
   } catch (error) {
     console.error('⚠️ Failed to analyze current state:', error);
   }
@@ -147,12 +149,12 @@ async function analyzeCurrentState(): Promise<void> {
 
 async function analyzePostProcessState(): Promise<void> {
   console.log('\n📊 Post-Process Analysis:');
-  
+
   try {
     const [rawPropsCount, recentCount, historicalCount] = await Promise.all([
       getTableCount('raw_props'),
       getTableCount('raw_props_recent'),
-      getTableCount('raw_props_historical')
+      getTableCount('raw_props_historical'),
     ]);
 
     console.log('📈 Updated Data Distribution:');
@@ -161,17 +163,20 @@ async function analyzePostProcessState(): Promise<void> {
     console.log(`  🧊 Cold Tier (raw_props_historical): ${historicalCount} records`);
 
     // Check for remaining old props
-    const { count: remainingOldProps } = await supabaseClient
+    const { count: remainingOldProps } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
+      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0])) || {
+      count: 0,
+    };
 
     if ((remainingOldProps || 0) === 0) {
       console.log('✅ All old props successfully archived!');
     } else {
-      console.log(`⚠️ ${remainingOldProps} old props still in hot tier (may need additional cycles)`);
+      console.log(
+        `⚠️ ${remainingOldProps} old props still in hot tier (may need additional cycles)`
+      );
     }
-
   } catch (error) {
     console.error('⚠️ Failed to analyze post-process state:', error);
   }
@@ -206,7 +211,7 @@ if (require.main === module) {
       console.log('\n✅ Lifecycle agent test completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Test crashed:', error);
       process.exit(1);
     });

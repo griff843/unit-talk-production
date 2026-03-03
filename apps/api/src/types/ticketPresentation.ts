@@ -180,7 +180,9 @@ export const MAX_DISPLAY_LEGS = 6;
 /**
  * Check if a set of picks constitutes a parlay
  */
-export function isParlay(picks: Array<{ ticket_type?: string; leg_index?: number | null }>): boolean {
+export function isParlay(
+  picks: Array<{ ticket_type?: string; leg_index?: number | null }>
+): boolean {
   if (picks.length === 0) return false;
   if (picks.length > 1) return true;
   if (picks[0]?.ticket_type === 'parlay') return true;

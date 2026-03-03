@@ -43,10 +43,7 @@ export class RetryPolicy {
         }
 
         await new Promise(resolve => setTimeout(resolve, interval));
-        interval = Math.min(
-          interval * this.backoffCoefficient,
-          this.maximumInterval
-        );
+        interval = Math.min(interval * this.backoffCoefficient, this.maximumInterval);
       }
     }
 
@@ -59,7 +56,7 @@ export class RetryPolicy {
       initialInterval: this.initialInterval,
       maximumInterval: this.maximumInterval,
       backoffCoefficient: this.backoffCoefficient,
-      nonRetryableErrorTypes: Array.from(this.nonRetryableErrorTypes)
+      nonRetryableErrorTypes: Array.from(this.nonRetryableErrorTypes),
     };
   }
-} 
+}

@@ -1,6 +1,13 @@
 export const nflCoreStats = [
-  'passing_yards', 'passing_tds', 'rushing_yards', 'rushing_tds',
-  'receiving_yards', 'receiving_tds', 'receptions', 'completions', 'interceptions'
+  'passing_yards',
+  'passing_tds',
+  'rushing_yards',
+  'rushing_tds',
+  'receiving_yards',
+  'receiving_tds',
+  'receptions',
+  'completions',
+  'interceptions',
 ];
 export const nflSynergy: Record<string, string[]> = {
   QB: ['passing_yards', 'passing_tds', 'completions', 'interceptions'],

@@ -36,7 +36,12 @@ export interface ApiHealthStatus {
 
 export interface DataIngestionAlert {
   id: string;
-  alertType: 'api_key_expired' | 'connection_failed' | 'data_stale' | 'quota_exceeded' | 'provider_down';
+  alertType:
+    | 'api_key_expired'
+    | 'connection_failed'
+    | 'data_stale'
+    | 'quota_exceeded'
+    | 'provider_down';
   provider: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   message: string;
@@ -94,7 +99,7 @@ class ApiMonitoringService {
 
     try {
       const startTime = Date.now();
-      
+
       // Test API connection
       const response = await this.testApiConnection(provider, config.endpoint, apiKey);
       const responseTime = Date.now() - startTime;
@@ -106,27 +111,42 @@ class ApiMonitoringService {
       if (response.status === 401 || response.status === 403) {
         healthStatus.status = 'expired';
         healthStatus.errorMessage = 'API Key expired or invalid';
-        await this.triggerAlert('api_key_expired', provider, 'critical', 
-          `${config.name} API key has expired or is invalid`, {
+        await this.triggerAlert(
+          'api_key_expired',
+          provider,
+          'critical',
+          `${config.name} API key has expired or is invalid`,
+          {
             httpStatus: response.status,
             responseTime,
-          });
+          }
+        );
       } else if (response.status === 429) {
         healthStatus.status = 'failed';
         healthStatus.errorMessage = 'API quota exceeded';
-        await this.triggerAlert('quota_exceeded', provider, 'high',
-          `${config.name} API quota has been exceeded`, {
+        await this.triggerAlert(
+          'quota_exceeded',
+          provider,
+          'high',
+          `${config.name} API quota has been exceeded`,
+          {
             httpStatus: response.status,
             responseTime,
-          });
+          }
+        );
       } else if (response.status >= 500) {
         healthStatus.status = 'failed';
         healthStatus.errorMessage = `Server error: ${response.status}`;
-        await this.triggerAlert('provider_down', provider, 'high',
-          `${config.name} server is experiencing issues`, {
+        await this.triggerAlert(
+          'provider_down',
+          provider,
+          'high',
+          `${config.name} server is experiencing issues`,
+          {
             httpStatus: response.status,
             responseTime,
-          });
+          }
+        );
       } else if (responseTime > this.alertThresholds.responseTimeThreshold) {
         healthStatus.status = 'degraded';
         healthStatus.errorMessage = `Slow response time: ${responseTime}ms`;
@@ -138,18 +158,22 @@ class ApiMonitoringService {
 
       if (dataFreshness.isStale) {
         healthStatus.status = healthStatus.status === 'healthy' ? 'degraded' : healthStatus.status;
-        await this.triggerAlert('data_stale', provider, 'medium',
-          `Data from ${config.name} is stale (last update: ${dataFreshness.lastUpdate})`, {
+        await this.triggerAlert(
+          'data_stale',
+          provider,
+          'medium',
+          `Data from ${config.name} is stale (last update: ${dataFreshness.lastUpdate})`,
+          {
             lastUpdate: dataFreshness.lastUpdate,
             expectedInterval: dataFreshness.expectedUpdateInterval,
-          });
+          }
+        );
       }
 
       // Update success metrics
       await this.updateHealthMetrics(provider, healthStatus);
 
       return healthStatus;
-
     } catch (error) {
       healthStatus.status = 'failed';
       healthStatus.lastFailure = new Date();
@@ -160,13 +184,21 @@ class ApiMonitoringService {
       healthStatus.consecutiveFailures = (previousStatus?.consecutiveFailures || 0) + 1;
 
       // Determine severity based on consecutive failures
-      const severity = healthStatus.consecutiveFailures >= this.alertThresholds.criticalFailureThreshold ? 'critical' : 'high';
+      const severity =
+        healthStatus.consecutiveFailures >= this.alertThresholds.criticalFailureThreshold
+          ? 'critical'
+          : 'high';
 
-      await this.triggerAlert('connection_failed', provider, severity,
-        `Failed to connect to ${config.name}`, {
+      await this.triggerAlert(
+        'connection_failed',
+        provider,
+        severity,
+        `Failed to connect to ${config.name}`,
+        {
           error: healthStatus.errorMessage,
           consecutiveFailures: healthStatus.consecutiveFailures,
-        });
+        }
+      );
 
       await this.updateHealthMetrics(provider, healthStatus);
 
@@ -184,7 +216,7 @@ class ApiMonitoringService {
    */
   private async testApiConnection(provider: string, endpoint: string, apiKey?: string) {
     const headers: Record<string, string> = {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'User-Agent': 'Unit-Talk-Monitor/1.0',
     };
 
@@ -209,7 +241,6 @@ class ApiMonitoringService {
 
       clearTimeout(timeoutId);
       return response;
-
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === 'AbortError') {
@@ -224,7 +255,7 @@ class ApiMonitoringService {
    */
   private async checkDataFreshness(provider: string) {
     const config = this.providerConfigs[provider as keyof typeof this.providerConfigs];
-    
+
     try {
       // Check when we last successfully ingested data from this provider
       const { data: lastIngestion, error } = await supabaseClient
@@ -239,14 +270,16 @@ class ApiMonitoringService {
       if (error) {
         // If table doesn't exist, assume data is fresh (no false alarms)
         if (error.code === '42P01') {
-          this.logger.info(`data_ingestion_log table not found - assuming fresh data for ${provider}`);
+          this.logger.info(
+            `data_ingestion_log table not found - assuming fresh data for ${provider}`
+          );
           return {
             lastUpdate: new Date(), // Use current time to indicate fresh
             expectedUpdateInterval: config?.expectedUpdateInterval || 5,
             isStale: false, // Not stale if we can't check
           };
         }
-        
+
         // Not found is OK for individual records
         if (error.code !== 'PGRST116') {
           throw error;
@@ -255,7 +288,9 @@ class ApiMonitoringService {
 
       const now = new Date();
       const lastUpdate = lastIngestion ? new Date(lastIngestion.created_at) : new Date();
-      const minutesSinceLastUpdate = Math.floor((now.getTime() - lastUpdate.getTime()) / (1000 * 60));
+      const minutesSinceLastUpdate = Math.floor(
+        (now.getTime() - lastUpdate.getTime()) / (1000 * 60)
+      );
       const isStale = minutesSinceLastUpdate > (config?.expectedUpdateInterval || 5);
 
       return {
@@ -263,9 +298,11 @@ class ApiMonitoringService {
         expectedUpdateInterval: config?.expectedUpdateInterval || 5,
         isStale,
       };
-
     } catch (error) {
-      this.logger.warn(`Cannot check data freshness for ${provider} - assuming fresh to prevent false alarms`, { error });
+      this.logger.warn(
+        `Cannot check data freshness for ${provider} - assuming fresh to prevent false alarms`,
+        { error }
+      );
       // Return fresh status to prevent false alarms when monitoring is not set up
       return {
         lastUpdate: new Date(),
@@ -310,9 +347,9 @@ class ApiMonitoringService {
             provider,
             alertType,
             message,
-            severity
+            severity,
           });
-          
+
           console.error(`🚨 ALERT [${severity.toUpperCase()}]: ${message}`, {
             provider,
             alertType,
@@ -335,10 +372,13 @@ class ApiMonitoringService {
       await this.sendCommandCenterNotification(data as DataIngestionAlert);
 
       return data;
-
     } catch (error) {
-      this.logger.warn('Alert storage not available - logging only', { provider, message, severity });
-      
+      this.logger.warn('Alert storage not available - logging only', {
+        provider,
+        message,
+        severity,
+      });
+
       // Even if database fails, still log critical alerts
       console.error(`🚨 ALERT [${severity.toUpperCase()}]: ${message}`, {
         provider,
@@ -354,9 +394,8 @@ class ApiMonitoringService {
   private async sendCommandCenterNotification(alert: DataIngestionAlert) {
     try {
       // Send to Command Center real-time channel
-      const { error } = await supabaseClient
-        .from('realtime_notifications')
-        .insert([{
+      const { error } = await supabaseClient.from('realtime_notifications').insert([
+        {
           channel: 'command_center',
           event_type: 'data_ingestion_alert',
           severity: alert.severity,
@@ -369,7 +408,8 @@ class ApiMonitoringService {
             details: alert.details,
           },
           created_at: new Date().toISOString(),
-        }]);
+        },
+      ]);
 
       if (error) throw error;
 
@@ -387,7 +427,6 @@ class ApiMonitoringService {
           triggeredAt: alert.triggeredAt,
         },
       });
-
     } catch (error) {
       this.logger.error('Failed to send Command Center notification', { error, alert });
     }
@@ -398,9 +437,8 @@ class ApiMonitoringService {
    */
   private async updateHealthMetrics(provider: string, healthStatus: ApiHealthStatus) {
     try {
-      const { error } = await supabaseClient
-        .from('api_health_status')
-        .upsert({
+      const { error } = await supabaseClient.from('api_health_status').upsert(
+        {
           provider,
           status: healthStatus.status,
           last_success: healthStatus.lastSuccess,
@@ -411,21 +449,27 @@ class ApiMonitoringService {
           consecutive_failures: healthStatus.consecutiveFailures,
           data_freshness: healthStatus.dataFreshness,
           updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'provider'
-        });
+        },
+        {
+          onConflict: 'provider',
+        }
+      );
 
       if (error) {
         // If health status table doesn't exist, just log the status
         if (error.code === '42P01') {
-          this.logger.info(`api_health_status table not found - health status not persisted for ${provider}:${healthStatus.status}`);
+          this.logger.info(
+            `api_health_status table not found - health status not persisted for ${provider}:${healthStatus.status}`
+          );
           return;
         }
         throw error;
       }
-
     } catch (error) {
-      this.logger.warn('Health metrics storage not available - status not persisted', { provider, status: healthStatus.status });
+      this.logger.warn('Health metrics storage not available - status not persisted', {
+        provider,
+        status: healthStatus.status,
+      });
     }
   }
 
@@ -443,7 +487,9 @@ class ApiMonitoringService {
       if (error) {
         // If table doesn't exist, return null (no previous status)
         if (error.code === '42P01') {
-          this.logger.info(`api_health_status table not found - no previous status for ${provider}`);
+          this.logger.info(
+            `api_health_status table not found - no previous status for ${provider}`
+          );
           return null;
         }
         if (error.code === 'PGRST116') return null; // Not found
@@ -461,7 +507,6 @@ class ApiMonitoringService {
         consecutiveFailures: data.consecutive_failures || 0,
         dataFreshness: data.data_freshness,
       };
-
     } catch (error) {
       this.logger.warn('Health status retrieval not available', { provider });
       return null;
@@ -477,15 +522,13 @@ class ApiMonitoringService {
     for (const [provider, config] of Object.entries(this.providerConfigs)) {
       try {
         // Get API key from environment
-        const apiKey = provider === 'optimal_api' 
-          ? process.env.OPTIMAL_API_KEY 
-          : process.env.ODDS_API_KEY;
+        const apiKey =
+          provider === 'optimal_api' ? process.env.OPTIMAL_API_KEY : process.env.ODDS_API_KEY;
 
         results[provider] = await this.checkApiHealth(provider, apiKey);
-
       } catch (error) {
         this.logger.error(`Failed to monitor ${provider}`, { error });
-        
+
         results[provider] = {
           provider,
           status: 'failed',
@@ -522,7 +565,6 @@ class ApiMonitoringService {
       }
 
       return data || [];
-
     } catch (error) {
       this.logger.warn('Active alerts retrieval not available', { error });
       return [];
@@ -543,7 +585,6 @@ class ApiMonitoringService {
         .eq('id', alertId);
 
       if (error) throw error;
-
     } catch (error) {
       this.logger.error('Failed to acknowledge alert', { error, alertId });
       throw error;
@@ -577,7 +618,6 @@ class ApiMonitoringService {
         triggeredAt: new Date(),
         resolved: true,
       });
-
     } catch (error) {
       this.logger.error('Failed to resolve alert', { error, alertId });
       throw error;

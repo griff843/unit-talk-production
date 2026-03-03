@@ -21,4 +21,4 @@ export interface EligibilityResult {
   skipped: number;
   failed: number;
   errors?: string[];
-} 
+}

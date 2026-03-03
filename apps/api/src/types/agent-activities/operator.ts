@@ -7,14 +7,33 @@ interface BaseParams {
 
 export interface OperatorAgentActivities {
   // System monitoring
-  updateLiveGameStatus(params: BaseParams & { liveGames: any[]; totalCount: number; leaguesWithLiveGames: string[] }): Promise<ActivityResult>;
+  updateLiveGameStatus(
+    params: BaseParams & { liveGames: any[]; totalCount: number; leaguesWithLiveGames: string[] }
+  ): Promise<ActivityResult>;
   ensureLiveMode(params: BaseParams & { reason: string; games: any[] }): Promise<ActivityResult>;
   ensureOffPeakMode(params: BaseParams & { reason: string }): Promise<ActivityResult>;
   // API quota management
-  monitorAPIQuota(params: BaseParams & { provider: string; currentUsage: number; limit: number }): Promise<ApiQuotaResult>;
-  getHourlyApiUsage(params: BaseParams & { provider: string; hour: number }): Promise<ActivityResult<number>>;
-  activateFallbackMode(params: BaseParams & { primary: string; fallbacks: string[]; reason: string }): Promise<ActivityResult>;
-  logQuotaStatus(params: BaseParams & { providers: Array<{ name: string; hourlyLimit: number; hourlyUsed: number; remainingCalls: number; resetTime: string; status: 'healthy' | 'warning' | 'critical'; }> }): Promise<ActivityResult>;
+  monitorAPIQuota(
+    params: BaseParams & { provider: string; currentUsage: number; limit: number }
+  ): Promise<ApiQuotaResult>;
+  getHourlyApiUsage(
+    params: BaseParams & { provider: string; hour: number }
+  ): Promise<ActivityResult<number>>;
+  activateFallbackMode(
+    params: BaseParams & { primary: string; fallbacks: string[]; reason: string }
+  ): Promise<ActivityResult>;
+  logQuotaStatus(
+    params: BaseParams & {
+      providers: Array<{
+        name: string;
+        hourlyLimit: number;
+        hourlyUsed: number;
+        remainingCalls: number;
+        resetTime: string;
+        status: 'healthy' | 'warning' | 'critical';
+      }>;
+    }
+  ): Promise<ActivityResult>;
 
   // Health monitoring
   checkDatabaseHealth(): Promise<ActivityResult<any>>;
@@ -25,14 +44,28 @@ export interface OperatorAgentActivities {
 
   getSystemMetrics(): Promise<ActivityResult<any>>;
 
-  logHealthStatus(params: BaseParams & { healthScore: number; dbHealth: any; apiHealth: any[]; workflowMetrics: any; systemMetrics: any }): Promise<ActivityResult>;
+  logHealthStatus(
+    params: BaseParams & {
+      healthScore: number;
+      dbHealth: any;
+      apiHealth: any[];
+      workflowMetrics: any;
+      systemMetrics: any;
+    }
+  ): Promise<ActivityResult>;
 
   // League and season management
-  checkLeagueSeason(params: BaseParams & { league: string; season: string; currentDate: string }): Promise<ActivityResult<boolean>>;
+  checkLeagueSeason(
+    params: BaseParams & { league: string; season: string; currentDate: string }
+  ): Promise<ActivityResult<boolean>>;
 
-  enablePeakMonitoring(params: BaseParams & { league: string; reason: string }): Promise<ActivityResult>;
+  enablePeakMonitoring(
+    params: BaseParams & { league: string; reason: string }
+  ): Promise<ActivityResult>;
 
-  enableStandardMonitoring(params: BaseParams & { league: string; reason: string }): Promise<ActivityResult>;
+  enableStandardMonitoring(
+    params: BaseParams & { league: string; reason: string }
+  ): Promise<ActivityResult>;
 
   // Maintenance operations
   cleanupOldLogs(params: BaseParams & { retentionDays: number }): Promise<MaintenanceResult>;
@@ -45,18 +78,26 @@ export interface OperatorAgentActivities {
 
   generateDailySummary(params: BaseParams & { date: string }): Promise<ActivityResult>;
 
-  generateWeeklyReport(params: BaseParams & { startDate: string; endDate: string; includeMetrics: string[] }): Promise<ActivityResult<any>>;
+  generateWeeklyReport(
+    params: BaseParams & { startDate: string; endDate: string; includeMetrics: string[] }
+  ): Promise<ActivityResult<any>>;
 
   createNotionReport(params: BaseParams & { report: any; type: string }): Promise<ActivityResult>;
 
   // Error handling and logging
   logCriticalAlert(params: BaseParams & { type: string; message: string }): Promise<ActivityResult>;
 
-  handleIngestionFailures(params: BaseParams & { failures: Array<{ propId: string; reason: string }> }): Promise<ActivityResult>;
+  handleIngestionFailures(
+    params: BaseParams & { failures: Array<{ propId: string; reason: string }> }
+  ): Promise<ActivityResult>;
 
-  logPerformanceWarning(params: BaseParams & { cycleTime: number; maxCycleTime: number }): Promise<ActivityResult>;
+  logPerformanceWarning(
+    params: BaseParams & { cycleTime: number; maxCycleTime: number }
+  ): Promise<ActivityResult>;
 
   handleCriticalError(params: BaseParams & { errorMessage: string }): Promise<ActivityResult>;
 
-  logFallbackActivation(params: BaseParams & { league: string; primaryError: string; fallbackError: string }): Promise<ActivityResult>;
-} 
+  logFallbackActivation(
+    params: BaseParams & { league: string; primaryError: string; fallbackError: string }
+  ): Promise<ActivityResult>;
+}

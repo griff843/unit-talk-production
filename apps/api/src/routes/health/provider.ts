@@ -4,27 +4,28 @@
  */
 
 import { Request, Response } from 'express';
-import { supabaseClient } from '../../services/supabaseClient';
+
 import { getProviderHealth } from '../../agents/FeedAgent/activities';
+import { supabaseClient } from '../../services/supabaseClient';
 
 export async function getProviderHealthEndpoint(req: Request, res: Response) {
   try {
     // Get provider health from FeedAgent activities
     const providerData = await getProviderHealth();
-    
+
     // Get last raw props created time from database
     const { data: lastProp } = await supabaseClient
       .from('raw_props')
       .select('created_at')
       .order('created_at', { ascending: false })
       .limit(1);
-    
+
     const lastIngestion = lastProp?.[0]?.created_at || null;
     const lastIngestionTime = lastIngestion ? new Date(lastIngestion) : null;
-    const minutesSinceLastIngestion = lastIngestionTime 
+    const minutesSinceLastIngestion = lastIngestionTime
       ? Math.floor((Date.now() - lastIngestionTime.getTime()) / (1000 * 60))
       : null;
-    
+
     // Calculate freshness status
     let freshnessStatus: 'fresh' | 'stale' | 'critical' = 'critical';
     if (minutesSinceLastIngestion !== null) {
@@ -34,41 +35,40 @@ export async function getProviderHealthEndpoint(req: Request, res: Response) {
         freshnessStatus = 'stale';
       }
     }
-    
+
     const response = {
       timestamp: new Date().toISOString(),
       dataFreshness: {
         status: freshnessStatus,
         lastIngestion: lastIngestion,
         minutesSinceLastIngestion,
-        statusText: getFreshnessStatusText(freshnessStatus, minutesSinceLastIngestion)
+        statusText: getFreshnessStatusText(freshnessStatus, minutesSinceLastIngestion),
       },
       providers: providerData.providers,
-      circuitBreakers: providerData.circuitBreakers
+      circuitBreakers: providerData.circuitBreakers,
     };
-    
+
     // Set cache headers to prevent caching
     res.set({
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
+      Pragma: 'no-cache',
+      Expires: '0',
     });
-    
+
     res.json(response);
-    
   } catch (error) {
     console.error('Provider health endpoint error:', error);
     res.status(500).json({
       error: 'Failed to get provider health',
       message: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 }
 
 function getFreshnessStatusText(status: string, minutes: number | null): string {
   if (minutes === null) return 'No data ingested';
-  
+
   switch (status) {
     case 'fresh':
       return `Fresh (${minutes}m ago)`;

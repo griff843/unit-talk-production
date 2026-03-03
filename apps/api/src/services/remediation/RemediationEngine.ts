@@ -12,12 +12,15 @@
  * @module services/remediation/RemediationEngine
  */
 
+import * as crypto from 'crypto';
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
-import * as crypto from 'crypto';
+
 import { makeLogger } from '../../utils/logger';
-import { PlaybookRegistry, getPlaybookRegistry } from './PlaybookRegistry';
+
 import { KnobResolver, getKnobResolver } from './KnobResolver';
+import { PlaybookRegistry, getPlaybookRegistry } from './PlaybookRegistry';
 import {
   ExecutionContext,
   ExecutionRecord,
@@ -179,11 +182,20 @@ export class RemediationEngine implements IRemediationEngine {
     const knobCheck = await this.knobResolver.canExecutePlaybook(playbook.requiredKnobs);
 
     // Determine execution type based on knob availability
-    const effectiveExecutionType = knobCheck.canExecute ? definition.execution_type : 'RECOMMENDATION_ONLY';
+    const effectiveExecutionType = knobCheck.canExecute
+      ? definition.execution_type
+      : 'RECOMMENDATION_ONLY';
 
     // Create execution record
     const executionKey = this.generateExecutionKey(playbookId, context);
-    await this.createExecutionRecord(executionId, playbookId, context, effectiveExecutionType, dryRun, executionKey);
+    await this.createExecutionRecord(
+      executionId,
+      playbookId,
+      context,
+      effectiveExecutionType,
+      dryRun,
+      executionKey
+    );
 
     // If RECOMMENDATION_ONLY, return recommendations without executing
     if (effectiveExecutionType === 'RECOMMENDATION_ONLY' || !playbook.canExecute(knobs)) {
@@ -331,21 +343,22 @@ export class RemediationEngine implements IRemediationEngine {
       environment: this.config.environment,
     };
 
-    return this.executePlaybook(
-      executionRecord.playbook_id,
-      context,
-      { dryRun: executionRecord.dry_run, skipApproval: true }
-    );
+    return this.executePlaybook(executionRecord.playbook_id, context, {
+      dryRun: executionRecord.dry_run,
+      skipApproval: true,
+    });
   }
 
   /**
    * Get execution history
    */
-  async getExecutionHistory(options: {
-    playbookId?: PlaybookId;
-    incidentId?: string;
-    limit?: number;
-  } = {}): Promise<ExecutionRecord[]> {
+  async getExecutionHistory(
+    options: {
+      playbookId?: PlaybookId;
+      incidentId?: string;
+      limit?: number;
+    } = {}
+  ): Promise<ExecutionRecord[]> {
     let query = this.supabase
       .from('ops.remediation_executions')
       .select('*')

@@ -15,9 +15,10 @@
  * @module AutopilotPolicyEngine
  */
 
-import { createLogger } from '../utils/logger';
-import { supabase as supabaseClient } from '../services/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
+
+import { supabase as supabaseClient } from '../services/supabaseClient';
+import { createLogger } from '../utils/logger';
 
 // ============================================================================
 // Types
@@ -302,7 +303,7 @@ const DEFAULT_POLICY_CONFIG: PolicyConfig = {
       enabled: true,
       allowed_modes: ['CANARY', 'AUTO'],
       min_sample_size: 10,
-      min_confidence_score: 0.50,
+      min_confidence_score: 0.5,
       require_healthy_platform: true,
       cooldown_seconds: 300,
       cooldown_scope: 'entity',
@@ -313,9 +314,9 @@ const DEFAULT_POLICY_CONFIG: PolicyConfig = {
       enabled: true,
       allowed_modes: ['AUTO'], // Sizing only in AUTO mode
       min_sample_size: 50,
-      min_confidence_score: 0.70,
-      min_clv_positive_rate: 0.60,
-      max_exposure: 0.20,
+      min_confidence_score: 0.7,
+      min_clv_positive_rate: 0.6,
+      max_exposure: 0.2,
       require_healthy_platform: true,
       require_slo_compliance: true,
     },
@@ -325,7 +326,7 @@ const DEFAULT_POLICY_CONFIG: PolicyConfig = {
       enabled: true,
       allowed_modes: ['CANARY', 'AUTO'],
       min_sample_size: 20,
-      min_confidence_score: 0.60,
+      min_confidence_score: 0.6,
       require_healthy_platform: true,
       cooldown_seconds: 300,
       cooldown_scope: 'entity',
@@ -336,7 +337,7 @@ const DEFAULT_POLICY_CONFIG: PolicyConfig = {
       enabled: true,
       allowed_modes: ['AUTO'], // Demotion only in AUTO mode
       min_sample_size: 100,
-      min_confidence_score: 0.80,
+      min_confidence_score: 0.8,
       require_healthy_platform: true,
       require_slo_compliance: true,
     },
@@ -355,7 +356,7 @@ const DEFAULT_POLICY_CONFIG: PolicyConfig = {
       min_sample_size: 30,
       min_confidence_score: 0.75,
       min_confidence_tier: 'A',
-      min_clv_positive_rate: 0.60,
+      min_clv_positive_rate: 0.6,
       require_healthy_platform: true,
       require_slo_compliance: true,
     },
@@ -380,7 +381,7 @@ const DEFAULT_POLICY_CONFIG: PolicyConfig = {
       enabled: true,
       allowed_modes: ['AUTO'],
       min_sample_size: 50,
-      min_confidence_score: 0.70,
+      min_confidence_score: 0.7,
       require_healthy_platform: true,
       require_slo_compliance: true,
     },
@@ -398,11 +399,11 @@ const DEFAULT_POLICY_CONFIG: PolicyConfig = {
 // ============================================================================
 
 const TIER_RANK: Record<string, number> = {
-  'S': 5,
-  'A': 4,
-  'B': 3,
-  'C': 2,
-  'D': 1,
+  S: 5,
+  A: 4,
+  B: 3,
+  C: 2,
+  D: 1,
 };
 
 // ============================================================================
@@ -533,16 +534,25 @@ export class AutopilotPolicyEngine {
         slo_status: sloStatus,
         platform_health: platformHealth,
         global_freeze: freezeData?.value?.global_freeze || config.operator_overrides.global_freeze,
-        agent_freezes: Object.keys(freezeData?.value?.agent_freezes || config.operator_overrides.agent_freezes || {})
-          .filter(k => freezeData?.value?.agent_freezes?.[k] || config.operator_overrides.agent_freezes?.[k]),
-        action_freezes: Object.keys(freezeData?.value?.action_freezes || config.operator_overrides.action_freezes || {})
-          .filter(k => freezeData?.value?.action_freezes?.[k as AutopilotActionType] ||
-            config.operator_overrides.action_freezes?.[k as AutopilotActionType]) as AutopilotActionType[],
-        active_cooldowns: (cooldownData || []).map((c: { entity_id: string; action_type: AutopilotActionType; expires_at: string }) => ({
-          entity_id: c.entity_id,
-          action_type: c.action_type,
-          expires_at: c.expires_at,
-        })),
+        agent_freezes: Object.keys(
+          freezeData?.value?.agent_freezes || config.operator_overrides.agent_freezes || {}
+        ).filter(
+          k => freezeData?.value?.agent_freezes?.[k] || config.operator_overrides.agent_freezes?.[k]
+        ),
+        action_freezes: Object.keys(
+          freezeData?.value?.action_freezes || config.operator_overrides.action_freezes || {}
+        ).filter(
+          k =>
+            freezeData?.value?.action_freezes?.[k as AutopilotActionType] ||
+            config.operator_overrides.action_freezes?.[k as AutopilotActionType]
+        ) as AutopilotActionType[],
+        active_cooldowns: (cooldownData || []).map(
+          (c: { entity_id: string; action_type: AutopilotActionType; expires_at: string }) => ({
+            entity_id: c.entity_id,
+            action_type: c.action_type,
+            expires_at: c.expires_at,
+          })
+        ),
         current_mode: config.default_mode,
         canary_percentage: config.canary_percentage,
       };
@@ -583,44 +593,84 @@ export class AutopilotPolicyEngine {
       // FAIL-CLOSED: Missing policy = DENY
       if (!rule) {
         reasonCodes.push('POLICY_NOT_FOUND');
-        return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+        return this.createResult(
+          decisionId,
+          traceId,
+          'DENY',
+          reasonCodes,
           `No policy rule found for action type: ${request.action_type}`,
-          config.version, request.system_state.current_mode, request, false);
+          config.version,
+          request.system_state.current_mode,
+          request,
+          false
+        );
       }
 
       // Check if action type is enabled
       if (!rule.enabled) {
         reasonCodes.push('ACTION_TYPE_DISABLED');
-        return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+        return this.createResult(
+          decisionId,
+          traceId,
+          'DENY',
+          reasonCodes,
           `Action type ${request.action_type} is disabled in policy`,
-          config.version, request.system_state.current_mode, request, false);
+          config.version,
+          request.system_state.current_mode,
+          request,
+          false
+        );
       }
 
       // Check global freeze (OPERATOR OVERRIDE WINS)
       if (request.system_state.global_freeze) {
         reasonCodes.push('OPERATOR_FREEZE_ACTIVE');
-        return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+        return this.createResult(
+          decisionId,
+          traceId,
+          'DENY',
+          reasonCodes,
           'Global autopilot freeze is active',
-          config.version, request.system_state.current_mode, request, false,
-          'Wait for operator to lift global freeze');
+          config.version,
+          request.system_state.current_mode,
+          request,
+          false,
+          'Wait for operator to lift global freeze'
+        );
       }
 
       // Check agent-level freeze
       if (request.system_state.agent_freezes.includes(request.context.agent_id)) {
         reasonCodes.push('AGENT_FREEZE_ACTIVE');
-        return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+        return this.createResult(
+          decisionId,
+          traceId,
+          'DENY',
+          reasonCodes,
           `Agent ${request.context.agent_name} is frozen`,
-          config.version, request.system_state.current_mode, request, false,
-          `Lift freeze for agent: ${request.context.agent_id}`);
+          config.version,
+          request.system_state.current_mode,
+          request,
+          false,
+          `Lift freeze for agent: ${request.context.agent_id}`
+        );
       }
 
       // Check action-level freeze
       if (request.system_state.action_freezes.includes(request.action_type)) {
         reasonCodes.push('OPERATOR_OVERRIDE');
-        return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+        return this.createResult(
+          decisionId,
+          traceId,
+          'DENY',
+          reasonCodes,
           `Action type ${request.action_type} is frozen`,
-          config.version, request.system_state.current_mode, request, false,
-          `Lift freeze for action: ${request.action_type}`);
+          config.version,
+          request.system_state.current_mode,
+          request,
+          false,
+          `Lift freeze for action: ${request.action_type}`
+        );
       }
 
       // Check mode
@@ -628,24 +678,48 @@ export class AutopilotPolicyEngine {
 
       if (currentMode === 'OFF') {
         reasonCodes.push('MODE_OFF');
-        return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+        return this.createResult(
+          decisionId,
+          traceId,
+          'DENY',
+          reasonCodes,
           'Autopilot mode is OFF - no actions allowed',
-          config.version, currentMode, request, false);
+          config.version,
+          currentMode,
+          request,
+          false
+        );
       }
 
       if (currentMode === 'SHADOW') {
         reasonCodes.push('MODE_SHADOW');
-        return this.createResult(decisionId, traceId, 'SHADOW_ONLY', reasonCodes,
+        return this.createResult(
+          decisionId,
+          traceId,
+          'SHADOW_ONLY',
+          reasonCodes,
           'Autopilot mode is SHADOW - evaluate + log only',
-          config.version, currentMode, request, false);
+          config.version,
+          currentMode,
+          request,
+          false
+        );
       }
 
       // Check if current mode is allowed for this action
       if (!rule.allowed_modes.includes(currentMode)) {
         reasonCodes.push('CANARY_NOT_SELECTED');
-        return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+        return this.createResult(
+          decisionId,
+          traceId,
+          'DENY',
+          reasonCodes,
           `Action ${request.action_type} not allowed in ${currentMode} mode (requires: ${rule.allowed_modes.join(', ')})`,
-          config.version, currentMode, request, false);
+          config.version,
+          currentMode,
+          request,
+          false
+        );
       }
 
       // CANARY mode: percentage-based routing
@@ -653,9 +727,17 @@ export class AutopilotPolicyEngine {
         const bucket = this.calculateCanaryBucket(request.context);
         if (bucket > request.system_state.canary_percentage) {
           reasonCodes.push('CANARY_NOT_SELECTED');
-          return this.createResult(decisionId, traceId, 'SHADOW_ONLY', reasonCodes,
+          return this.createResult(
+            decisionId,
+            traceId,
+            'SHADOW_ONLY',
+            reasonCodes,
             `Canary bucket ${bucket} exceeds percentage ${request.system_state.canary_percentage}`,
-            config.version, currentMode, request, false);
+            config.version,
+            currentMode,
+            request,
+            false
+          );
         }
       }
 
@@ -663,10 +745,18 @@ export class AutopilotPolicyEngine {
       if (rule.require_healthy_platform) {
         if (request.system_state.platform_health === 'FAIL') {
           reasonCodes.push('PLATFORM_DEGRADED');
-          return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+          return this.createResult(
+            decisionId,
+            traceId,
+            'DENY',
+            reasonCodes,
             'Platform health is FAIL - action blocked',
-            config.version, currentMode, request, false,
-            'Wait for platform health to recover');
+            config.version,
+            currentMode,
+            request,
+            false,
+            'Wait for platform health to recover'
+          );
         }
       }
 
@@ -674,10 +764,18 @@ export class AutopilotPolicyEngine {
       if (rule.require_slo_compliance) {
         if (request.system_state.slo_status === 'CRITICAL') {
           reasonCodes.push('SLO_VIOLATION');
-          return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+          return this.createResult(
+            decisionId,
+            traceId,
+            'DENY',
+            reasonCodes,
             'SLO status is CRITICAL - action blocked',
-            config.version, currentMode, request, false,
-            'Wait for SLO status to recover');
+            config.version,
+            currentMode,
+            request,
+            false,
+            'Wait for SLO status to recover'
+          );
         }
       }
 
@@ -689,10 +787,18 @@ export class AutopilotPolicyEngine {
         );
         if (activeCooldown) {
           reasonCodes.push('COOLDOWN_ACTIVE');
-          return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+          return this.createResult(
+            decisionId,
+            traceId,
+            'DENY',
+            reasonCodes,
             `Cooldown active for ${entityId} until ${activeCooldown.expires_at}`,
-            config.version, currentMode, request, false,
-            `Wait until: ${activeCooldown.expires_at}`);
+            config.version,
+            currentMode,
+            request,
+            false,
+            `Wait until: ${activeCooldown.expires_at}`
+          );
         }
       }
 
@@ -702,21 +808,40 @@ export class AutopilotPolicyEngine {
       if (rule.min_sample_size !== undefined) {
         if (!request.evidence.sample_size || request.evidence.sample_size < rule.min_sample_size) {
           reasonCodes.push('INSUFFICIENT_SAMPLE_SIZE');
-          return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+          return this.createResult(
+            decisionId,
+            traceId,
+            'DENY',
+            reasonCodes,
             `Sample size ${request.evidence.sample_size || 0} below minimum ${rule.min_sample_size}`,
-            config.version, currentMode, request, true,
-            'Escalate to operator for manual review');
+            config.version,
+            currentMode,
+            request,
+            true,
+            'Escalate to operator for manual review'
+          );
         }
       }
 
       // Check confidence score
       if (rule.min_confidence_score !== undefined) {
-        if (!request.evidence.confidence_score || request.evidence.confidence_score < rule.min_confidence_score) {
+        if (
+          !request.evidence.confidence_score ||
+          request.evidence.confidence_score < rule.min_confidence_score
+        ) {
           reasonCodes.push('CONFIDENCE_BELOW_THRESHOLD');
-          return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+          return this.createResult(
+            decisionId,
+            traceId,
+            'DENY',
+            reasonCodes,
             `Confidence score ${request.evidence.confidence_score || 0} below minimum ${rule.min_confidence_score}`,
-            config.version, currentMode, request, true,
-            'Escalate to operator for manual review');
+            config.version,
+            currentMode,
+            request,
+            true,
+            'Escalate to operator for manual review'
+          );
         }
       }
 
@@ -726,50 +851,95 @@ export class AutopilotPolicyEngine {
         const actualRank = TIER_RANK[request.evidence.confidence_tier] || 0;
         if (actualRank < requiredRank) {
           reasonCodes.push('CONFIDENCE_BELOW_THRESHOLD');
-          return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+          return this.createResult(
+            decisionId,
+            traceId,
+            'DENY',
+            reasonCodes,
             `Confidence tier ${request.evidence.confidence_tier} below minimum ${rule.min_confidence_tier}`,
-            config.version, currentMode, request, true,
-            'Escalate to operator for manual review');
+            config.version,
+            currentMode,
+            request,
+            true,
+            'Escalate to operator for manual review'
+          );
         }
       }
 
       // Check CLV positive rate
       if (rule.min_clv_positive_rate !== undefined) {
-        if (!request.evidence.clv_positive_rate || request.evidence.clv_positive_rate < rule.min_clv_positive_rate) {
+        if (
+          !request.evidence.clv_positive_rate ||
+          request.evidence.clv_positive_rate < rule.min_clv_positive_rate
+        ) {
           reasonCodes.push('CLV_REQUIREMENT_NOT_MET');
-          return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+          return this.createResult(
+            decisionId,
+            traceId,
+            'DENY',
+            reasonCodes,
             `CLV positive rate ${request.evidence.clv_positive_rate || 0} below minimum ${rule.min_clv_positive_rate}`,
-            config.version, currentMode, request, true,
-            'Escalate to operator for manual review');
+            config.version,
+            currentMode,
+            request,
+            true,
+            'Escalate to operator for manual review'
+          );
         }
       }
 
       // Check exposure limits
       if (rule.max_exposure !== undefined) {
-        if (request.evidence.exposure_current && request.evidence.exposure_current > rule.max_exposure) {
+        if (
+          request.evidence.exposure_current &&
+          request.evidence.exposure_current > rule.max_exposure
+        ) {
           reasonCodes.push('EXPOSURE_LIMIT_EXCEEDED');
-          return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+          return this.createResult(
+            decisionId,
+            traceId,
+            'DENY',
+            reasonCodes,
             `Current exposure ${request.evidence.exposure_current} exceeds maximum ${rule.max_exposure}`,
-            config.version, currentMode, request, false,
-            'Reduce exposure before proceeding');
+            config.version,
+            currentMode,
+            request,
+            false,
+            'Reduce exposure before proceeding'
+          );
         }
       }
 
       // All checks passed - ALLOW
       reasonCodes.push('ALLOWED_BY_POLICY');
-      return this.createResult(decisionId, traceId, 'ALLOW', reasonCodes,
+      return this.createResult(
+        decisionId,
+        traceId,
+        'ALLOW',
+        reasonCodes,
         'All policy requirements satisfied',
-        config.version, currentMode, request, false);
-
+        config.version,
+        currentMode,
+        request,
+        false
+      );
     } catch (err) {
       this.logger.error('Policy evaluation error', { error: err, request });
 
       // FAIL-CLOSED: On any error, DENY
       reasonCodes.push('POLICY_MALFORMED');
-      return this.createResult(decisionId, traceId, 'DENY', reasonCodes,
+      return this.createResult(
+        decisionId,
+        traceId,
+        'DENY',
+        reasonCodes,
         `Policy evaluation error: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        this.policyConfig.version, 'OFF', request, true,
-        'Escalate to operator - policy evaluation failed');
+        this.policyConfig.version,
+        'OFF',
+        request,
+        true,
+        'Escalate to operator - policy evaluation failed'
+      );
     }
   }
 
@@ -835,11 +1005,15 @@ export class AutopilotPolicyEngine {
   /**
    * Write decision to ledger (append-only)
    */
-  public async writeToLedger(result: PolicyEvaluationResult, executed: boolean, executionResult?: {
-    success: boolean;
-    error?: string;
-    output?: Record<string, unknown>;
-  }): Promise<void> {
+  public async writeToLedger(
+    result: PolicyEvaluationResult,
+    executed: boolean,
+    executionResult?: {
+      success: boolean;
+      error?: string;
+      output?: Record<string, unknown>;
+    }
+  ): Promise<void> {
     try {
       const entry: Partial<DecisionLedgerEntry> = {
         decision_id: result.decision_id,
@@ -862,9 +1036,7 @@ export class AutopilotPolicyEngine {
         created_at: new Date().toISOString(),
       };
 
-      const { error } = await supabaseClient
-        .from('autopilot_decisions')
-        .insert(entry);
+      const { error } = await supabaseClient.from('autopilot_decisions').insert(entry);
 
       if (error) {
         this.logger.error('Failed to write to decision ledger', { error, entry });
@@ -887,15 +1059,16 @@ export class AutopilotPolicyEngine {
     try {
       const expiresAt = new Date(Date.now() + durationSeconds * 1000).toISOString();
 
-      await supabaseClient
-        .from('autopilot_cooldowns')
-        .upsert({
+      await supabaseClient.from('autopilot_cooldowns').upsert(
+        {
           entity_id: entityId,
           action_type: actionType,
           expires_at: expiresAt,
-        }, {
+        },
+        {
           onConflict: 'entity_id,action_type',
-        });
+        }
+      );
 
       this.logger.debug('Cooldown applied', { actionType, entityId, expiresAt });
     } catch (err) {
@@ -932,12 +1105,10 @@ export class AutopilotPolicyEngine {
         updated_by: updatedBy,
       };
 
-      const { error } = await supabaseClient
-        .from('autopilot_policy_config')
-        .upsert({
-          id: 'default',
-          ...newConfig,
-        });
+      const { error } = await supabaseClient.from('autopilot_policy_config').upsert({
+        id: 'default',
+        ...newConfig,
+      });
 
       if (error) {
         this.logger.error('Failed to update policy', { error });
@@ -960,44 +1131,61 @@ export class AutopilotPolicyEngine {
    * Set global freeze (operator override)
    */
   public async setGlobalFreeze(freeze: boolean, operatorId: string): Promise<boolean> {
-    return this.updatePolicy({
-      operator_overrides: {
-        ...this.policyConfig.operator_overrides,
-        global_freeze: freeze,
+    return this.updatePolicy(
+      {
+        operator_overrides: {
+          ...this.policyConfig.operator_overrides,
+          global_freeze: freeze,
+        },
       },
-    }, operatorId);
+      operatorId
+    );
   }
 
   /**
    * Set agent freeze (operator override)
    */
-  public async setAgentFreeze(agentId: string, freeze: boolean, operatorId: string): Promise<boolean> {
+  public async setAgentFreeze(
+    agentId: string,
+    freeze: boolean,
+    operatorId: string
+  ): Promise<boolean> {
     const currentConfig = await this.loadPolicyConfig();
-    return this.updatePolicy({
-      operator_overrides: {
-        ...currentConfig.operator_overrides,
-        agent_freezes: {
-          ...currentConfig.operator_overrides.agent_freezes,
-          [agentId]: freeze,
+    return this.updatePolicy(
+      {
+        operator_overrides: {
+          ...currentConfig.operator_overrides,
+          agent_freezes: {
+            ...currentConfig.operator_overrides.agent_freezes,
+            [agentId]: freeze,
+          },
         },
       },
-    }, operatorId);
+      operatorId
+    );
   }
 
   /**
    * Set action freeze (operator override)
    */
-  public async setActionFreeze(actionType: AutopilotActionType, freeze: boolean, operatorId: string): Promise<boolean> {
+  public async setActionFreeze(
+    actionType: AutopilotActionType,
+    freeze: boolean,
+    operatorId: string
+  ): Promise<boolean> {
     const currentConfig = await this.loadPolicyConfig();
-    return this.updatePolicy({
-      operator_overrides: {
-        ...currentConfig.operator_overrides,
-        action_freezes: {
-          ...currentConfig.operator_overrides.action_freezes,
-          [actionType]: freeze,
+    return this.updatePolicy(
+      {
+        operator_overrides: {
+          ...currentConfig.operator_overrides,
+          action_freezes: {
+            ...currentConfig.operator_overrides.action_freezes,
+            [actionType]: freeze,
+          },
         },
       },
-    }, operatorId);
+      operatorId
+    );
   }
 
   /**

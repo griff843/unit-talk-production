@@ -10,10 +10,16 @@ export async function execute(
   try {
     // Check if user has VIP role
     const member = interaction.member;
-    if (!member?.roles || (typeof member.roles === 'object' && 'cache' in member.roles && !member.roles.cache.has(config.roles.vip)) || (Array.isArray(member.roles) && !member.roles.includes(config.roles.vip))) {
+    if (
+      !member?.roles ||
+      (typeof member.roles === 'object' &&
+        'cache' in member.roles &&
+        !member.roles.cache.has(config.roles.vip)) ||
+      (Array.isArray(member.roles) && !member.roles.includes(config.roles.vip))
+    ) {
       await interaction.reply({
         content: 'This command is only available to VIP members.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -50,7 +56,7 @@ export async function execute(
     report.picks.slice(0, limit).forEach((pick: any, index: number) => {
       embed.addFields({
         name: `Pick ${index + 1}`,
-        value: `${pick.details}\nEV: ${pick.ev.toFixed(2)}\nConfidence: ${(pick.confidence * 100).toFixed(1)}%`
+        value: `${pick.details}\nEV: ${pick.ev.toFixed(2)}\nConfidence: ${(pick.confidence * 100).toFixed(1)}%`,
       });
     });
 
@@ -61,16 +67,18 @@ export async function execute(
     deps.logger.info('EV report generated successfully', {
       userId: interaction.user.id,
       reportType,
-      totalPicks: report.picks.length
+      totalPicks: report.picks.length,
     });
   } catch (error) {
     // Log error
     deps.logger.error('Failed to generate EV report', {
       error,
-      userId: interaction.user.id
+      userId: interaction.user.id,
     });
 
     // Send error message
-    await interaction.editReply('Sorry, I encountered an error while generating the EV report. Please try again later.');
+    await interaction.editReply(
+      'Sorry, I encountered an error while generating the EV report. Please try again later.'
+    );
   }
-} 
+}

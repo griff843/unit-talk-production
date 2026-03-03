@@ -1,6 +1,6 @@
 /**
  * Create Professional System Database Tables
- * 
+ *
  * Creates the missing professional betting system tables:
  * - clv_tracking: CLV (Closing Line Value) tracking
  * - processing_logs: System processing logs and summaries
@@ -18,7 +18,7 @@ const supabase = createClient(
 
 async function createProfessionalTables() {
   console.log('🛠️ Creating Professional System Database Tables...\n');
-  
+
   try {
     // Create CLV Tracking table
     console.log('📊 Creating CLV Tracking table...');
@@ -73,15 +73,15 @@ async function createProfessionalTables() {
         CREATE INDEX IF NOT EXISTS idx_clv_tracking_userid ON clv_tracking(userId);
         CREATE INDEX IF NOT EXISTS idx_clv_tracking_sport ON clv_tracking(sport);
         CREATE INDEX IF NOT EXISTS idx_clv_tracking_bettime ON clv_tracking(betTime);
-      `
+      `,
     });
-    
+
     if (clvError) {
       console.error('❌ CLV Tracking table creation failed:', clvError);
     } else {
       console.log('✅ CLV Tracking table created successfully');
     }
-    
+
     // Create Processing Logs table
     console.log('📋 Creating Processing Logs table...');
     const { error: logsError } = await supabase.rpc('exec_sql', {
@@ -103,37 +103,36 @@ async function createProfessionalTables() {
         -- Create indexes for performance
         CREATE INDEX IF NOT EXISTS idx_processing_logs_processor ON processing_logs(processor);
         CREATE INDEX IF NOT EXISTS idx_processing_logs_processed_at ON processing_logs(processed_at);
-      `
+      `,
     });
-    
+
     if (logsError) {
       console.error('❌ Processing Logs table creation failed:', logsError);
     } else {
       console.log('✅ Processing Logs table created successfully');
     }
-    
+
     // Verify tables were created
     console.log('\n🔍 Verifying table creation...');
-    
+
     const { data: clvData, error: clvCheckError } = await supabase
       .from('clv_tracking')
       .select('*')
       .limit(1);
-    
+
     const { data: logsData, error: logsCheckError } = await supabase
       .from('processing_logs')
       .select('*')
       .limit(1);
-    
+
     console.log('CLV Tracking table verification:', !clvCheckError ? '✅' : '❌');
     console.log('Processing Logs table verification:', !logsCheckError ? '✅' : '❌');
-    
+
     if (!clvCheckError && !logsCheckError) {
       console.log('\n🎉 All professional system tables created successfully!');
       console.log('✅ CLV tracking ready for closing line value monitoring');
       console.log('✅ Processing logs ready for system monitoring');
     }
-    
   } catch (error) {
     console.error('❌ Error creating professional tables:', error);
     throw error;
@@ -143,12 +142,12 @@ async function createProfessionalTables() {
 // Alternative method using direct SQL if RPC doesn't work
 async function createTablesDirectSQL() {
   console.log('🔄 Attempting direct SQL creation...');
-  
+
   try {
     // Note: This would require a service role key, not anon key
     console.log('⚠️ Direct SQL creation requires service role permissions');
     console.log('📝 Please run these SQL commands in Supabase SQL Editor:');
-    
+
     const clvTableSQL = `
 -- CLV Tracking Table
 CREATE TABLE IF NOT EXISTS clv_tracking (
@@ -222,13 +221,12 @@ CREATE TABLE IF NOT EXISTS processing_logs (
 CREATE INDEX IF NOT EXISTS idx_processing_logs_processor ON processing_logs(processor);
 CREATE INDEX IF NOT EXISTS idx_processing_logs_processed_at ON processing_logs(processed_at);
 `;
-    
+
     console.log('\n📋 CLV Tracking Table SQL:');
     console.log(clvTableSQL);
-    
+
     console.log('\n📋 Processing Logs Table SQL:');
     console.log(logsTableSQL);
-    
   } catch (error) {
     console.error('Error generating SQL:', error);
   }

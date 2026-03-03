@@ -18,7 +18,9 @@ function getSupabase(): SupabaseClient {
     const supabaseUrl = process.env['SUPABASE_URL'];
     const supabaseKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
     if (!supabaseUrl || !supabaseKey) {
-      console.error('❌ Missing Supabase credentials. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.');
+      console.error(
+        '❌ Missing Supabase credentials. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
+      );
       process.exit(1);
     }
     _supabase = createClient(supabaseUrl, supabaseKey);
@@ -29,7 +31,9 @@ function getSupabase(): SupabaseClient {
 function getOptimalApiKey(): string {
   const key = process.env['OPTIMAL_API_KEY'];
   if (!key) {
-    console.error('❌ Missing OPTIMAL_API_KEY environment variable. Please set it to test Optimal integration.');
+    console.error(
+      '❌ Missing OPTIMAL_API_KEY environment variable. Please set it to test Optimal integration.'
+    );
     process.exit(1);
   }
   return key;
@@ -46,7 +50,7 @@ const ingestionConfig: BaseAgentConfig & any = {
   logLevel: 'info',
   metrics: {
     enabled: true,
-    interval: 60
+    interval: 60,
   },
   // IngestionAgent specific config
   providers: [
@@ -60,22 +64,22 @@ const ingestionConfig: BaseAgentConfig & any = {
       retryDelay: 1000,
       rateLimit: {
         requests: 900,
-        window: 3600000 // 1 hour
-      }
-    }
+        window: 3600000, // 1 hour
+      },
+    },
   ],
   batchSize: 100,
   processingTimeout: 300000,
   duplicateCheckEnabled: true,
   duplicateCheckWindow: 86400000, // 24 hours
   validationEnabled: true,
-  normalizationEnabled: true
+  normalizationEnabled: true,
 };
 
 const deps = {
   supabase: getSupabase(),
   logger,
-  errorHandler
+  errorHandler,
 };
 
 /**
@@ -91,10 +95,9 @@ async function checkRawPropsTable(label: string) {
       console.error(`❌ Error checking raw_props table (${label}):`, error);
       return 0;
     }
-    
+
     console.log(`📊 Raw props count (${label}): ${count || 0}`);
     return count || 0;
-    
   } catch (error) {
     console.error(`❌ Exception checking raw_props table (${label}):`, error);
     return 0;
@@ -111,23 +114,24 @@ async function showRecentProps(limit: number = 5) {
       .select('player_name, stat_type, line, provider, scraped_at, sport')
       .order('scraped_at', { ascending: false })
       .limit(limit);
-    
+
     if (error) {
       console.error('❌ Error fetching recent props:', error);
       return;
     }
-    
+
     if (!data || data.length === 0) {
       console.log('📭 No props found in the table');
       return;
     }
-    
+
     console.log(`\n📋 Recent ${data.length} props:`);
     data.forEach((prop, index) => {
-      console.log(`  ${index + 1}. ${prop.player_name} - ${prop.stat_type} ${prop.line} (${prop.provider}) [${prop.sport}]`);
+      console.log(
+        `  ${index + 1}. ${prop.player_name} - ${prop.stat_type} ${prop.line} (${prop.provider}) [${prop.sport}]`
+      );
     });
     console.log('');
-    
   } catch (error) {
     console.error('❌ Exception fetching recent props:', error);
   }
@@ -140,14 +144,13 @@ async function testOptimalRateLimit() {
   try {
     const { getRateLimitStatus } = await import('../agents/FeedAgent/optimal');
     const status = getRateLimitStatus();
-    
+
     console.log('🚦 Optimal API Rate Limit Status:');
     console.log(`  Requests in window: ${status.requestsInWindow}/${status.maxRequests}`);
     console.log(`  Can make request: ${status.canMakeRequest ? '✅' : '❌'}`);
     console.log(`  Window: ${Math.round(status.windowMs / 1000 / 60)} minutes`);
-    
+
     return status.canMakeRequest;
-    
   } catch (error) {
     console.error('❌ Error checking Optimal rate limit:', error);
     return false;
@@ -216,7 +219,6 @@ async function runOptimalIngestionTest() {
 
     // Stop the agent
     await ingestionAgent.stop();
-
   } catch (error) {
     console.error('❌ Test failed:', error);
 
@@ -258,7 +260,7 @@ if (require.main === module) {
       console.log('\n✅ Test completed successfully');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n❌ Test failed:', error);
       process.exit(1);
     });

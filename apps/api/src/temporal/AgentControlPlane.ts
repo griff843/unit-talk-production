@@ -9,10 +9,21 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+
 import { Logger } from '../shared/logger/types';
 
 export type AgentDesiredState = 'stopped' | 'running' | 'paused' | 'draining' | 'killed';
-export type AgentCurrentState = 'stopped' | 'starting' | 'running' | 'pausing' | 'paused' | 'resuming' | 'stopping' | 'draining' | 'error' | 'killed';
+export type AgentCurrentState =
+  | 'stopped'
+  | 'starting'
+  | 'running'
+  | 'pausing'
+  | 'paused'
+  | 'resuming'
+  | 'stopping'
+  | 'draining'
+  | 'error'
+  | 'killed';
 
 export interface AgentControlStatus {
   shouldProcess: boolean;
@@ -183,10 +194,7 @@ export class AgentControlPlane {
     const now = Date.now();
 
     // Return cached status if still valid
-    if (
-      this.cachedStatus &&
-      now - this.lastStatusCheck < this.config.stateCheckIntervalMs
-    ) {
+    if (this.cachedStatus && now - this.lastStatusCheck < this.config.stateCheckIntervalMs) {
       return this.cachedStatus;
     }
 

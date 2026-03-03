@@ -5,10 +5,7 @@ import { getEnv } from '../utils/getEnv';
 
 const env = getEnv();
 
-export const supabase = createClient(
-  env.SUPABASE_URL,
-  env.SUPABASE_SERVICE_ROLE_KEY
-);
+export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
 // Export with both names for compatibility
 export const supabaseClient = supabase;

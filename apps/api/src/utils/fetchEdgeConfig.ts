@@ -6,6 +6,8 @@ export async function fetchEdgeConfig(): Promise<unknown> {
     .select('config')
     .eq('key', 'default')
     .single();
-  if (error || !data) {throw new Error('Failed to fetch edge config');}
+  if (error || !data) {
+    throw new Error('Failed to fetch edge config');
+  }
   return data.config;
 }

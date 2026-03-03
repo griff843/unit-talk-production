@@ -20,7 +20,7 @@ const leaderboardEntrySchema = z.object({
   score: z.number(),
   trend: z.enum(['up', 'down', 'stable']),
   achievements: z.array(z.string()),
-  fairPlayScore: z.number().min(0).max(100)
+  fairPlayScore: z.number().min(0).max(100),
 });
 
 const leaderboardSchema = z.object({
@@ -34,8 +34,8 @@ const leaderboardSchema = z.object({
     averageScore: z.number(),
     highestScore: z.number(),
     lowestScore: z.number(),
-    scoreDistribution: z.record(z.number())
-  })
+    scoreDistribution: z.record(z.number()),
+  }),
 });
 
 export class LeaderboardManager {
@@ -57,12 +57,16 @@ export class LeaderboardManager {
       // Subscribe to participant professional_score updates
       this.supabase
         .channel('score_updates')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'contest_participants',
-          filter: 'professional_score IS NOT NULL'
-        }, this.handleScoreUpdate.bind(this))
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'contest_participants',
+            filter: 'professional_score IS NOT NULL',
+          },
+          this.handleScoreUpdate.bind(this)
+        )
         .subscribe();
 
       // Load active leaderboards
@@ -71,9 +75,9 @@ export class LeaderboardManager {
         .select('*')
         .eq('status', 'active');
 
-      if (error) {throw error;}
-
-
+      if (error) {
+        throw error;
+      }
 
       // Initialize update queues for active leaderboards
       for (const leaderboard of leaderboards || []) {
@@ -83,7 +87,7 @@ export class LeaderboardManager {
       this.logger.info('LeaderboardManager initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize LeaderboardManager', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -99,9 +103,9 @@ export class LeaderboardManager {
   private async handleScoreUpdate(payload: any): Promise<void> {
     try {
       const { new: newScore, old: oldScore } = payload;
-      if (!newScore || !oldScore || newScore.professional_score === oldScore.professional_score) {return;}
-
-
+      if (!newScore || !oldScore || newScore.professional_score === oldScore.professional_score) {
+        return;
+      }
 
       // Get leaderboard for this participant's contest
       const { data: leaderboard, error } = await this.supabase
@@ -110,7 +114,9 @@ export class LeaderboardManager {
         .eq('contestId', newScore.contestId)
         .single();
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
       // Schedule immediate update if professional_score change is significant
       const scoreDiff = Math.abs(newScore.professional_score - oldScore.professional_score);
@@ -123,7 +129,7 @@ export class LeaderboardManager {
       // Metrics removed for simplification
     } catch (error) {
       this.logger.error('Failed to handle professional_score update', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -136,10 +142,7 @@ export class LeaderboardManager {
 
     // Schedule new update
     const updateInterval = this.config.health?.interval ? this.config.health.interval * 1000 : 5000;
-    const timer = setTimeout(
-      () => this.updateLeaderboard(leaderboardId, false),
-      updateInterval
-    );
+    const timer = setTimeout(() => this.updateLeaderboard(leaderboardId, false), updateInterval);
 
     this.updateQueue.set(leaderboardId, timer);
   }
@@ -155,7 +158,9 @@ export class LeaderboardManager {
         .eq('id', leaderboardId)
         .single();
 
-      if (leaderboardError) {throw leaderboardError;}
+      if (leaderboardError) {
+        throw leaderboardError;
+      }
 
       // Get all participants for this contest
       const { data: participants, error: participantsError } = await this.supabase
@@ -164,7 +169,9 @@ export class LeaderboardManager {
         .eq('contestId', leaderboard.contestId)
         .order('score', { ascending: false });
 
-      if (participantsError) {throw participantsError;}
+      if (participantsError) {
+        throw participantsError;
+      }
 
       // Calculate new rankings with tiebreakers
       const rankings = await this.calculateRankings(participants || [], leaderboard);
@@ -178,11 +185,13 @@ export class LeaderboardManager {
         .update({
           rankings,
           stats,
-          lastUpdated: new Date()
+          lastUpdated: new Date(),
         })
         .eq('id', leaderboardId);
 
-      if (updateError) {throw updateError;}
+      if (updateError) {
+        throw updateError;
+      }
 
       // Update metrics
       // Metrics removed for simplification
@@ -190,7 +199,7 @@ export class LeaderboardManager {
       this.logger.info('Leaderboard updated successfully', {
         leaderboardId,
         participantCount: participants?.length,
-        updateTime: Date.now() - startTime
+        updateTime: Date.now() - startTime,
       });
 
       // Schedule next update if not immediate
@@ -199,7 +208,7 @@ export class LeaderboardManager {
       }
     } catch (error) {
       this.logger.error('Failed to update leaderboard', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -209,7 +218,9 @@ export class LeaderboardManager {
     leaderboard: Leaderboard
   ): Promise<LeaderboardEntry[]> {
     // Sort participants by primary professional_score
-    let sortedParticipants = [...participants].sort((a, b) => b.professional_score - a.professional_score);
+    let sortedParticipants = [...participants].sort(
+      (a, b) => b.professional_score - a.professional_score
+    );
 
     // Apply tiebreakers for equal scores
     sortedParticipants = await this.applyTiebreakers(sortedParticipants, leaderboard);
@@ -231,8 +242,8 @@ export class LeaderboardManager {
         achievements: [], // Removed achievements access since it doesn't exist on Participant
         metadata: {
           trend: this.calculateTrend(currentRank, previousRank),
-          fairPlayScore: participant.fairPlayScore
-        }
+          fairPlayScore: participant.fairPlayScore,
+        },
       };
     });
   }
@@ -265,21 +276,23 @@ export class LeaderboardManager {
       // 2. Achievement count
       // 3. Time of last professional_score update
       // 4. Head-to-head record (if applicable)
-      const tiebroken = await Promise.all(group.map(async p => {
-        const { data: history } = await this.supabase
-          .from('participant_history')
-          .select('updated_at')
-          .eq('participant_id', p.id)
-          .order('updated_at', { ascending: false })
-          .limit(1);
+      const tiebroken = await Promise.all(
+        group.map(async p => {
+          const { data: history } = await this.supabase
+            .from('participant_history')
+            .select('updated_at')
+            .eq('participant_id', p.id)
+            .order('updated_at', { ascending: false })
+            .limit(1);
 
-        return {
-          participant: p,
-          fairPlayScore: p.fairPlayScore,
-          achievementCount: 0, // Removed achievements access since it doesn't exist on Participant
-          lastUpdate: history?.[0]?.updated_at || new Date(0)
-        };
-      }));
+          return {
+            participant: p,
+            fairPlayScore: p.fairPlayScore,
+            achievementCount: 0, // Removed achievements access since it doesn't exist on Participant
+            lastUpdate: history?.[0]?.updated_at || new Date(0),
+          };
+        })
+      );
 
       // Sort by tiebreaker criteria
       tiebroken.sort((a, b) => {
@@ -299,9 +312,15 @@ export class LeaderboardManager {
   }
 
   private calculateTrend(currentRank: number, previousRank: number): 'up' | 'down' | 'stable' {
-    if (previousRank === 0) {return 'stable';}
-    if (currentRank < previousRank) {return 'up';}
-    if (currentRank > previousRank) {return 'down';}
+    if (previousRank === 0) {
+      return 'stable';
+    }
+    if (currentRank < previousRank) {
+      return 'up';
+    }
+    if (currentRank > previousRank) {
+      return 'down';
+    }
     return 'stable';
   }
 
@@ -315,7 +334,7 @@ export class LeaderboardManager {
       averageScore: scores.reduce((a, b) => a + b, 0) / totalParticipants,
       highestScore: Math.max(...scores),
       lowestScore: Math.min(...scores),
-      scoreDistribution: {}
+      scoreDistribution: {},
     };
 
     // Calculate professional_score distribution in 10-point buckets
@@ -327,7 +346,10 @@ export class LeaderboardManager {
     return stats;
   }
 
-  async createLeaderboard(contestId: string, type: 'global' | 'regional' | 'division'): Promise<Leaderboard> {
+  async createLeaderboard(
+    contestId: string,
+    type: 'global' | 'regional' | 'division'
+  ): Promise<Leaderboard> {
     try {
       const leaderboard: Leaderboard = {
         id: crypto.randomUUID(),
@@ -341,19 +363,19 @@ export class LeaderboardManager {
           averageScore: 0,
           highestScore: 0,
           lowestScore: 0,
-          scoreDistribution: {}
-        }
+          scoreDistribution: {},
+        },
       };
 
       // Validate leaderboard structure
       await leaderboardSchema.parseAsync(leaderboard);
 
       // Insert into database
-      const { error } = await this.supabase
-        .from('leaderboards')
-        .insert(leaderboard);
+      const { error } = await this.supabase.from('leaderboards').insert(leaderboard);
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
       // Initialize update queue
       this.scheduleUpdate(leaderboard.id);
@@ -363,7 +385,7 @@ export class LeaderboardManager {
       return leaderboard;
     } catch (error) {
       this.logger.error('Failed to create leaderboard', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       throw error instanceof Error ? error : new Error(String(error));
     }
@@ -377,13 +399,17 @@ export class LeaderboardManager {
         .eq('id', leaderboardId)
         .single();
 
-      if (error) {throw error;}
-      if (!data) {throw new Error('Leaderboard not found');}
+      if (error) {
+        throw error;
+      }
+      if (!data) {
+        throw new Error('Leaderboard not found');
+      }
 
       return data as Leaderboard;
     } catch (error) {
       this.logger.error('Failed to get leaderboard', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       throw error instanceof Error ? error : new Error(String(error));
     }
@@ -392,12 +418,11 @@ export class LeaderboardManager {
   async checkHealth(): Promise<{ status: string; details?: any }> {
     try {
       // Check database connectivity
-      const { error: dbError } = await this.supabase
-        .from('leaderboards')
-        .select('id')
-        .limit(1);
+      const { error: dbError } = await this.supabase.from('leaderboards').select('id').limit(1);
 
-      if (dbError) {throw dbError;}
+      if (dbError) {
+        throw dbError;
+      }
 
       // Check update queue health
       const queueSize = this.updateQueue.size;
@@ -415,16 +440,16 @@ export class LeaderboardManager {
           oldestUpdate,
           queueHealth,
           activeLeaderboards: 0, // Metrics removed for simplification
-          updateLatency: 0 // Metrics removed for simplification
-        }
+          updateLatency: 0, // Metrics removed for simplification
+        },
       };
     } catch (error) {
       this.logger.error('Health check failed', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       return {
         status: 'unhealthy',
-        details: { error: error instanceof Error ? error.message : 'Unknown error' }
+        details: { error: error instanceof Error ? error.message : 'Unknown error' },
       };
     }
   }
@@ -437,8 +462,6 @@ export class LeaderboardManager {
     }
   }
 
-
-
   async getMetrics(): Promise<BaseMetrics> {
     return {
       agentName: 'LeaderboardManager',
@@ -446,7 +469,7 @@ export class LeaderboardManager {
       errorCount: 0,
       warningCount: 0,
       processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
   }
-} 
+}

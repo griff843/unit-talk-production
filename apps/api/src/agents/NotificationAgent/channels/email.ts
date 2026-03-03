@@ -38,7 +38,7 @@ export async function sendEmailNotification(
       subject: payload.title || 'Unit Talk Notification',
       text: emailContent.text,
       html: emailContent.html,
-      attachments: payload.attachments
+      attachments: payload.attachments,
     });
   } catch (error) {
     throw new Error(`Failed to send email: ${(error as Error).message}`);
@@ -47,7 +47,7 @@ export async function sendEmailNotification(
 
 function formatEmailContent(payload: NotificationPayload): { text: string; html: string } {
   const text = `${payload.title || 'Notification'}\n\n${payload.message}`;
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -78,4 +78,4 @@ function formatEmailContent(payload: NotificationPayload): { text: string; html:
   `;
 
   return { text, html };
-} 
+}

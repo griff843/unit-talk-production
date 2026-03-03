@@ -12,7 +12,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { BasePlaybook } from './BasePlaybook';
+
 import {
   ExecutionContext,
   ExecutionResult,
@@ -20,6 +20,8 @@ import {
   KnobResolutionResult,
   PlaybookId,
 } from '../types';
+
+import { BasePlaybook } from './BasePlaybook';
 
 // ============================================================================
 // MVRefreshLagPlaybook Class
@@ -190,10 +192,10 @@ export class MVRefreshLagPlaybook extends BasePlaybook {
       '   SELECT * FROM ops.v_mv_freshness;',
       '',
       '3. Manually trigger refresh:',
-      '   SELECT * FROM ops.logged_refresh_mv(\'mv_pipeline_lag_24h\', \'manual\');',
+      "   SELECT * FROM ops.logged_refresh_mv('mv_pipeline_lag_24h', 'manual');",
       '',
       '4. Check refresh history:',
-      '   SELECT * FROM ops.get_mv_refresh_history(\'mv_pipeline_lag_24h\', 10);',
+      "   SELECT * FROM ops.get_mv_refresh_history('mv_pipeline_lag_24h', 10);",
       '',
       '📊 INCIDENT DETAILS:',
       `   Incident ID: ${context.incident_id}`,

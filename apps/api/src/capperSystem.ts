@@ -37,11 +37,10 @@ export class CapperSystem {
 
       this.initialized = true;
       logger.info('Capper System initialized successfully');
-
     } catch (error) {
       logger.error('Failed to initialize Capper System', {
         err: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
     }
@@ -59,7 +58,7 @@ export class CapperSystem {
     if (!this.initialized) {
       return {
         initialized: false,
-        error: 'System not initialized'
+        error: 'System not initialized',
       };
     }
 
@@ -69,16 +68,16 @@ export class CapperSystem {
         ready: this.config.discordClient.isReady(),
         user: this.config.discordClient.user?.tag || null,
         guilds: this.config.discordClient.guilds.cache.size,
-        uptime: this.config.discordClient.uptime
+        uptime: this.config.discordClient.uptime,
       },
       database: {
-        connected: true // We assume it's connected if initialization succeeded
+        connected: true, // We assume it's connected if initialization succeeded
       },
       publisher: this.publisher.getStatus(),
       config: {
         enabled: this.config.enabled,
-        publishingChannelId: this.config.publishingChannelId
-      }
+        publishingChannelId: this.config.publishingChannelId,
+      },
     };
   }
 

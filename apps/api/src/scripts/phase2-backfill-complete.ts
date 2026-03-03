@@ -69,7 +69,7 @@ $$ LANGUAGE plpgsql;
     // Try direct query execution
     console.log('Attempting direct SQL execution...\n');
     const { error: directError } = await supabase.from('_sql').insert({ query: createFunctionSQL });
-    
+
     if (directError) {
       console.log('⚠️  Cannot create function via client. Function may already exist.\n');
     }
@@ -87,17 +87,19 @@ async function executeBackfill() {
   while (true) {
     console.log(`Iteration ${iteration}...`);
 
-    const { data, error } = await supabase.rpc('backfill_market_props_today', { batch_limit: 50000 });
+    const { data, error } = await supabase.rpc('backfill_market_props_today', {
+      batch_limit: 50000,
+    });
 
     if (error) {
       console.error(`❌ Error: ${error.message}\n`);
-      
+
       if (error.message.includes('Could not find')) {
         console.log('Function does not exist. Creating it now...\n');
         await createBackfillFunction();
         continue;
       }
-      
+
       break;
     }
 
@@ -256,7 +258,6 @@ async function main() {
 
     console.log('✅ Phase 2 backfill complete!\n');
     process.exit(0);
-
   } catch (error: any) {
     console.error('Fatal error:', error.message);
     process.exit(1);
@@ -264,4 +265,3 @@ async function main() {
 }
 
 main();
-

@@ -293,10 +293,7 @@ async function runGoldenProof() {
   }
 
   // Save golden outputs
-  fs.writeFileSync(
-    path.join(OUT_DIR, 'D1_golden_outputs.json'),
-    JSON.stringify(outputs, null, 2)
-  );
+  fs.writeFileSync(path.join(OUT_DIR, 'D1_golden_outputs.json'), JSON.stringify(outputs, null, 2));
   console.log(`\n✅ Saved golden outputs to D1_golden_outputs.json`);
 
   // Generate verification report
@@ -351,7 +348,7 @@ The forward-write implementation is safe and does not affect grading behavior.
   console.log('═'.repeat(70));
 }
 
-runGoldenProof().catch((err) => {
+runGoldenProof().catch(err => {
   console.error('Golden proof failed:', err);
   process.exit(1);
 });

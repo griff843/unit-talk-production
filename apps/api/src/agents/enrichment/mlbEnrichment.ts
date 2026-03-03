@@ -100,7 +100,6 @@ export async function getMlbRosters(): Promise<MlbRosterPlayer[]> {
 
         // Rate limiting
         await new Promise(resolve => setTimeout(resolve, 100));
-
       } catch (error) {
         logger.error(`Error fetching roster for team ${team.id}:`, error);
       }
@@ -108,7 +107,6 @@ export async function getMlbRosters(): Promise<MlbRosterPlayer[]> {
 
     logger.info(`Fetched ${allPlayers.length} MLB players from rosters`);
     return allPlayers;
-
   } catch (error) {
     logger.error('Error fetching MLB rosters:', error);
     throw error;
@@ -129,7 +127,7 @@ export function convertMlbRosterPlayer(player: MlbRosterPlayer) {
     photo_url: null, // Will be enriched separately
     position: player.primaryPosition?.name || null,
     jersey_number: player.primaryNumber || null,
-    active: player.active
+    active: player.active,
   };
 }
 
@@ -160,15 +158,15 @@ export async function getMlbStats(_playerId: string): Promise<any> {
   // Implementation would fetch from MLB API
   return {
     batting: {
-      avg: 0.300,
+      avg: 0.3,
       hr: 30,
-      rbi: 100
+      rbi: 100,
     },
     pitching: {
-      era: 3.50,
-      whip: 1.20,
-      strikeouts: 200
-    }
+      era: 3.5,
+      whip: 1.2,
+      strikeouts: 200,
+    },
   };
 }
 
@@ -177,7 +175,7 @@ export async function getMlbTeam(_playerId: string): Promise<any> {
   return {
     id: 'team-1',
     name: 'Los Angeles Dodgers',
-    abbreviation: 'LAD'
+    abbreviation: 'LAD',
   };
 }
 
@@ -194,17 +192,17 @@ export async function getMlbGameLog(_playerId: string): Promise<any> {
             ab: 4,
             h: 2,
             hr: 1,
-            rbi: 3
+            rbi: 3,
           },
           pitching: {
             ip: 7,
             h: 5,
             er: 2,
-            so: 8
-          }
-        }
-      }
-    ]
+            so: 8,
+          },
+        },
+      },
+    ],
   };
 }
 
@@ -213,7 +211,7 @@ export async function getMlbInjuryStatus(_playerId: string): Promise<any> {
   return {
     status: 'ACTIVE',
     details: null,
-    expectedReturn: null
+    expectedReturn: null,
   };
 }
 
@@ -228,10 +226,10 @@ export async function getMlbProjections(_playerId: string): Promise<any> {
           ab: 4,
           h: 1.2,
           hr: 0.3,
-          rbi: 0.8
-        }
-      }
-    }
+          rbi: 0.8,
+        },
+      },
+    },
   };
 }
 
@@ -249,11 +247,13 @@ export async function getMlbPhysicals(playerName: string): Promise<PlayerPhysica
     const searchResponse = await fetch(searchUrl);
 
     if (!searchResponse.ok) {
-      console.log(`MLB API search failed for ${playerName}: ${searchResponse.status} ${searchResponse.statusText}`);
+      console.log(
+        `MLB API search failed for ${playerName}: ${searchResponse.status} ${searchResponse.statusText}`
+      );
       return { height_cm: null, weight_kg: null, birthday: null };
     }
 
-    const searchData = await searchResponse.json() as MlbPlayerSearchResponse;
+    const searchData = (await searchResponse.json()) as MlbPlayerSearchResponse;
 
     if (!searchData.people || searchData.people.length === 0) {
       console.log(`No MLB player found for name: ${playerName}`);
@@ -275,7 +275,7 @@ export async function getMlbPhysicals(playerName: string): Promise<PlayerPhysica
         const detailResponse = await fetch(detailUrl);
 
         if (detailResponse.ok) {
-          const detailData = await detailResponse.json() as MlbPlayerDetailResponse;
+          const detailData = (await detailResponse.json()) as MlbPlayerDetailResponse;
           if (detailData.people && detailData.people.length > 0 && detailData.people[0]) {
             detailedPlayer = detailData.people[0];
           }
@@ -301,17 +301,16 @@ export async function getMlbPhysicals(playerName: string): Promise<PlayerPhysica
     const result: PlayerPhysicals = {
       height_cm,
       weight_kg,
-      birthday
+      birthday,
     };
 
     console.log(`Found MLB physicals for ${playerName}:`, {
       height: detailedPlayer.height ? `${detailedPlayer.height} (${height_cm}cm)` : 'N/A',
       weight: detailedPlayer.weight ? `${detailedPlayer.weight}lbs (${weight_kg}kg)` : 'N/A',
-      birthday: birthday || 'N/A'
+      birthday: birthday || 'N/A',
     });
 
     return result;
-
   } catch (error) {
     console.error(`Error fetching MLB physicals for ${playerName}:`, error);
     return { height_cm: null, weight_kg: null, birthday: null };

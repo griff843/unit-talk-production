@@ -8,7 +8,6 @@ import { AgentMetricsCollector } from './AgentMetricsCollector';
 import { AgentMonitoringDashboard } from './AgentMonitoringDashboard';
 import { AgentMonitoringIntegration } from './AgentMonitoringIntegration';
 
-
 interface MonitoringConfig {
   enabled: boolean;
   metricsCollectionInterval: number;
@@ -47,11 +46,11 @@ export class AgentMonitoringService extends EventEmitter {
     this.config = {
       enabled: true,
       metricsCollectionInterval: 60000, // 1 minute
-      dashboardUpdateInterval: 30000,   // 30 seconds
+      dashboardUpdateInterval: 30000, // 30 seconds
       alertingEnabled: true,
       exportFormats: ['json', 'csv', 'prometheus'],
       retentionPeriod: 30, // 30 days
-      ...config
+      ...config,
     };
 
     // Initialize components
@@ -72,7 +71,7 @@ export class AgentMonitoringService extends EventEmitter {
     }
 
     this.logger.info('🚀 Initializing AgentMonitoringService', {
-      config: this.config
+      config: this.config,
     });
 
     try {
@@ -96,9 +95,8 @@ export class AgentMonitoringService extends EventEmitter {
       // Emit initialization event
       this.emit('service_initialized', {
         timestamp: new Date(),
-        config: this.config
+        config: this.config,
       });
-
     } catch (error) {
       this.logger.error('❌ Failed to initialize AgentMonitoringService', { error });
       throw error;
@@ -124,9 +122,8 @@ export class AgentMonitoringService extends EventEmitter {
 
       this.emit('agent_registered', {
         agentName,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
-
     } catch (error) {
       this.logger.error('Failed to register agent', { agentName, error });
       throw error;
@@ -147,9 +144,8 @@ export class AgentMonitoringService extends EventEmitter {
 
       this.emit('agent_unregistered', {
         agentName,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
-
     } catch (error) {
       this.logger.error('Failed to unregister agent', { agentName, error });
       throw error;
@@ -163,7 +159,7 @@ export class AgentMonitoringService extends EventEmitter {
       metricsCollector: await this.checkComponentHealth('metricsCollector'),
       dashboard: await this.checkComponentHealth('dashboard'),
       integration: await this.checkComponentHealth('integration'),
-      alerting: this.config.alertingEnabled
+      alerting: this.config.alertingEnabled,
     };
 
     const healthyComponents = Object.values(components).filter(Boolean).length;
@@ -185,7 +181,7 @@ export class AgentMonitoringService extends EventEmitter {
       components,
       uptime: uptime / 1000, // Convert to seconds
       lastUpdate: new Date(),
-      version: '1.0.0'
+      version: '1.0.0',
     };
   }
 
@@ -197,7 +193,10 @@ export class AgentMonitoringService extends EventEmitter {
     return await this.dashboard.getSystemOverview();
   }
 
-  async getAgentMetrics(agentName: string, timeframe: 'last_hour' | 'last_day' | 'last_week' = 'last_hour'): Promise<any> {
+  async getAgentMetrics(
+    agentName: string,
+    timeframe: 'last_hour' | 'last_day' | 'last_week' = 'last_hour'
+  ): Promise<any> {
     if (!this.isInitialized) {
       throw new Error('Monitoring service not initialized');
     }
@@ -221,7 +220,11 @@ export class AgentMonitoringService extends EventEmitter {
     return await this.metricsCollector.createAlertRule(rule);
   }
 
-  async exportMetrics(agentName: string, format: 'json' | 'csv' | 'prometheus', timeframe: 'last_hour' | 'last_day' | 'last_week'): Promise<string> {
+  async exportMetrics(
+    agentName: string,
+    format: 'json' | 'csv' | 'prometheus',
+    timeframe: 'last_hour' | 'last_day' | 'last_week'
+  ): Promise<string> {
     if (!this.isInitialized) {
       throw new Error('Monitoring service not initialized');
     }
@@ -289,7 +292,7 @@ export class AgentMonitoringService extends EventEmitter {
     try {
       switch (component) {
         case 'metricsCollector':
-          return await this.metricsCollector.isHealthy?.() || true;
+          return (await this.metricsCollector.isHealthy?.()) || true;
         case 'dashboard':
           return true; // Dashboard doesn't have explicit health check
         case 'integration':
@@ -306,30 +309,30 @@ export class AgentMonitoringService extends EventEmitter {
 
   private setupEventHandlers(): void {
     // Metrics collector events
-    this.metricsCollector.on('metrics_collected', (metrics) => {
+    this.metricsCollector.on('metrics_collected', metrics => {
       this.emit('metrics_update', metrics);
     });
 
-    this.metricsCollector.on('alert_triggered', (alert) => {
+    this.metricsCollector.on('alert_triggered', alert => {
       this.emit('alert_triggered', alert);
       this.logger.warn('Agent alert triggered', alert);
     });
 
     // Dashboard events
-    this.dashboard.on('dashboard_update', (data) => {
+    this.dashboard.on('dashboard_update', data => {
       // Forward dashboard updates to external listeners
       this.emit('dashboard_update', data);
     });
 
     // System health monitoring
-    this.on('metrics_update', async (_metrics) => {
+    this.on('metrics_update', async _metrics => {
       try {
         const systemStatus = await this.getServiceStatus();
         if (systemStatus.status !== 'healthy') {
           this.emit('system_health_change', {
             status: systemStatus.status,
             timestamp: new Date(),
-            details: systemStatus.components
+            details: systemStatus.components,
           });
         }
       } catch (error) {
@@ -343,7 +346,7 @@ export class AgentMonitoringService extends EventEmitter {
     this.healthCheckInterval = setInterval(async () => {
       try {
         const status = await this.getServiceStatus();
-        
+
         if (status.status !== 'healthy') {
           this.logger.warn('Service health degraded', { status });
           this.emit('service_health_change', status);
@@ -351,7 +354,6 @@ export class AgentMonitoringService extends EventEmitter {
 
         // Store health status in Redis for external monitoring
         await redisCache.set('monitoring_service_health', JSON.stringify(status), 300);
-
       } catch (error) {
         this.logger.error('Health monitoring check failed', { error });
       }
@@ -367,7 +369,7 @@ export class AgentMonitoringService extends EventEmitter {
         operator: '>' as const,
         severity: 'high' as const,
         enabled: true,
-        cooldownMinutes: 10
+        cooldownMinutes: 10,
       },
       {
         agentName,
@@ -376,7 +378,7 @@ export class AgentMonitoringService extends EventEmitter {
         operator: '>' as const,
         severity: 'medium' as const,
         enabled: true,
-        cooldownMinutes: 15
+        cooldownMinutes: 15,
       },
       {
         agentName,
@@ -385,8 +387,8 @@ export class AgentMonitoringService extends EventEmitter {
         operator: '<' as const,
         severity: 'high' as const,
         enabled: true,
-        cooldownMinutes: 5
-      }
+        cooldownMinutes: 5,
+      },
     ];
 
     for (const rule of defaultRules) {
@@ -408,7 +410,7 @@ export class AgentMonitoringService extends EventEmitter {
 
     process.on('SIGTERM', cleanup);
     process.on('SIGINT', cleanup);
-    process.on('uncaughtException', async (error) => {
+    process.on('uncaughtException', async error => {
       this.logger.error('Uncaught exception in monitoring service', { error });
       await this.cleanup();
       process.exit(1);
@@ -428,7 +430,7 @@ export class AgentMonitoringService extends EventEmitter {
       await Promise.allSettled([
         this.integration.cleanup(),
         this.dashboard.cleanup(),
-        this.metricsCollector.cleanup()
+        this.metricsCollector.cleanup(),
       ]);
 
       // Remove all event listeners
@@ -437,7 +439,6 @@ export class AgentMonitoringService extends EventEmitter {
       this.isInitialized = false;
 
       this.logger.info('✅ AgentMonitoringService cleanup completed');
-
     } catch (error) {
       this.logger.error('Error during cleanup', { error });
       throw error;
@@ -445,7 +446,10 @@ export class AgentMonitoringService extends EventEmitter {
   }
 
   // Static factory method for easy instantiation
-  static async create(logger: Logger, config?: Partial<MonitoringConfig>): Promise<AgentMonitoringService> {
+  static async create(
+    logger: Logger,
+    config?: Partial<MonitoringConfig>
+  ): Promise<AgentMonitoringService> {
     const service = new AgentMonitoringService(logger, config);
     await service.initialize();
     return service;

@@ -185,7 +185,7 @@ export interface Database {
           profit_loss?: number;
           metadata?: Json | null;
         };
-              Relationships: [];
+        Relationships: [];
       };
       trend_analysis: {
         Row: {
@@ -227,7 +227,7 @@ export interface Database {
           confidence?: number;
           metadata?: Json | null;
         };
-              Relationships: [];
+        Relationships: [];
       };
       // Onboarding tables from existing schema
       onboarding_config: {
@@ -252,7 +252,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       onboarding_progress: {
         Row: {
@@ -303,7 +303,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       dm_failures: {
         Row: {
@@ -354,7 +354,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       analytics_events: {
         Row: {
@@ -393,7 +393,7 @@ export interface Database {
           ip_address?: string | null;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       user_journeys: {
         Row: {
@@ -438,7 +438,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       onboarding_flow_edits: {
         Row: {
@@ -471,7 +471,7 @@ export interface Database {
           edited_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       admin_actions: {
         Row: {
@@ -510,7 +510,7 @@ export interface Database {
           user_agent?: string | null;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       user_preferences: {
         Row: {
@@ -558,7 +558,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       onboarding_templates: {
         Row: {
@@ -591,7 +591,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       // Missing tables identified from code analysis
       user_profiles: {
@@ -634,7 +634,7 @@ export interface Database {
           last_active?: string;
           metadata?: Json;
         };
-              Relationships: [];
+        Relationships: [];
       };
       game_threads: {
         Row: {
@@ -691,7 +691,7 @@ export interface Database {
           updated_at?: string;
           metadata?: Json;
         };
-              Relationships: [];
+        Relationships: [];
       };
       user_picks: {
         Row: {
@@ -760,7 +760,7 @@ export interface Database {
           updated_at?: string;
           metadata?: Json;
         };
-              Relationships: [];
+        Relationships: [];
       };
       thread_stats: {
         Row: {
@@ -796,7 +796,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       thread_followers: {
         Row: {
@@ -826,7 +826,7 @@ export interface Database {
           notifications_enabled?: boolean;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       user_cooldowns: {
         Row: {
@@ -853,7 +853,7 @@ export interface Database {
           expires_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       pick_gradings: {
         Row: {
@@ -892,7 +892,7 @@ export interface Database {
           graded_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       coaching_sessions: {
         Row: {
@@ -943,7 +943,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       message_feedback: {
         Row: {
@@ -973,7 +973,7 @@ export interface Database {
           comment?: string | null;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       feedback_messages: {
         Row: {
@@ -1018,7 +1018,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       activity_logs: {
         Row: {
@@ -1051,7 +1051,7 @@ export interface Database {
           user_agent?: string | null;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       config_edit_sessions: {
         Row: {
@@ -1087,7 +1087,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       config_changes: {
         Row: {
@@ -1120,7 +1120,7 @@ export interface Database {
           changed_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       agent_health_checks: {
         Row: {
@@ -1159,7 +1159,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       keyword_triggers: {
         Row: {
@@ -1201,7 +1201,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       emoji_triggers: {
         Row: {
@@ -1237,7 +1237,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       auto_dm_templates: {
         Row: {
@@ -1270,7 +1270,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       trigger_activation_logs: {
         Row: {
@@ -1309,7 +1309,7 @@ export interface Database {
           response_message_id?: string | null;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       vip_notification_sequences: {
         Row: {
@@ -1342,7 +1342,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       vip_welcome_flows: {
         Row: {
@@ -1378,7 +1378,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       notification_logs: {
         Row: {
@@ -1417,7 +1417,7 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       // SPRINT-ENV-BUILD-TRUTH-LOCK: A/B Testing stub types for planned features
       // These tables may not exist in production - services using them will fail at runtime
@@ -1461,7 +1461,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       user_cohort_assignments: {
         Row: {
@@ -1488,7 +1488,7 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       ab_test_results: {
         Row: {
@@ -1521,7 +1521,7 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       message_templates: {
         Row: {
@@ -1557,7 +1557,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       system_config: {
         Row: {
@@ -1575,7 +1575,7 @@ export interface Database {
           value?: Json;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       system_health_checks: {
         Row: {
@@ -1617,7 +1617,7 @@ export interface Database {
           errors?: Json;
           recommendations?: string[];
         };
-              Relationships: [];
+        Relationships: [];
       };
       trial_subscriptions: {
         Row: {
@@ -1641,7 +1641,7 @@ export interface Database {
           expires_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       // Additional missing tables - SPRINT-ENV-BUILD-TRUTH-LOCK
       user_trials: {
@@ -1675,7 +1675,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       error_logs: {
         Row: {
@@ -1705,7 +1705,7 @@ export interface Database {
           timestamp?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       event_logs: {
         Row: {
@@ -1729,7 +1729,7 @@ export interface Database {
           timestamp?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       thread_linking_rules: {
         Row: {
@@ -1756,7 +1756,7 @@ export interface Database {
           is_active?: boolean;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       cross_post_configs: {
         Row: {
@@ -1783,7 +1783,7 @@ export interface Database {
           is_active?: boolean;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       games: {
         Row: {
@@ -1822,7 +1822,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       thread_trivia: {
         Row: {
@@ -1852,7 +1852,7 @@ export interface Database {
           is_active?: boolean;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       thread_rules: {
         Row: {
@@ -1879,7 +1879,7 @@ export interface Database {
           is_active?: boolean;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       ai_grading_results: {
         Row: {
@@ -1909,7 +1909,7 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       ai_coaching_sessions: {
         Row: {
@@ -1942,7 +1942,7 @@ export interface Database {
           ended_at?: string | null;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       ai_pick_recommendations: {
         Row: {
@@ -1969,7 +1969,7 @@ export interface Database {
           expires_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       alert_preferences: {
         Row: {
@@ -1993,7 +1993,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       betting_pattern_analyses: {
         Row: {
@@ -2017,7 +2017,7 @@ export interface Database {
           generated_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       live_coaching_sessions: {
         Row: {
@@ -2050,7 +2050,7 @@ export interface Database {
           ended_at?: string | null;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       multi_lang_responses: {
         Row: {
@@ -2074,7 +2074,7 @@ export interface Database {
           response?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       pick_analytics: {
         Row: {
@@ -2098,7 +2098,7 @@ export interface Database {
           calculated_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       pick_trends: {
         Row: {
@@ -2122,7 +2122,7 @@ export interface Database {
           calculated_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       picks: {
         Row: {
@@ -2158,7 +2158,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       user_pick_stats: {
         Row: {
@@ -2182,7 +2182,7 @@ export interface Database {
           calculated_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       users: {
         Row: {
@@ -2218,7 +2218,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       dm_analytics: {
         Row: {
@@ -2242,7 +2242,7 @@ export interface Database {
           calculated_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       dm_logs: {
         Row: {
@@ -2272,7 +2272,7 @@ export interface Database {
           sent_at?: string;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       dm_templates: {
         Row: {
@@ -2299,7 +2299,7 @@ export interface Database {
           is_active?: boolean;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       dm_triggers: {
         Row: {
@@ -2326,7 +2326,7 @@ export interface Database {
           is_active?: boolean;
           created_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       enhanced_players: {
         Row: {
@@ -2362,7 +2362,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       enhanced_games: {
         Row: {
@@ -2401,7 +2401,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
       enhanced_tickets: {
         Row: {
@@ -2434,7 +2434,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-              Relationships: [];
+        Relationships: [];
       };
     };
     Views: {
@@ -2528,7 +2528,7 @@ export interface Database {
           worst_streak?: number;
           metadata?: Json | null;
         };
-              Relationships: [];
+        Relationships: [];
       };
       capper_evaluations: {
         Row: {
@@ -2570,7 +2570,7 @@ export interface Database {
           notes?: string | null;
           metadata?: Json | null;
         };
-              Relationships: [];
+        Relationships: [];
       };
     };
     Functions: {

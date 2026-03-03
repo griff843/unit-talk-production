@@ -3,7 +3,7 @@
 
 /**
  * Real-world FeedAgent Test
- * 
+ *
  * This script tests the FeedAgent with live Optimal API data to verify:
  * 1. API connectivity and authentication
  * 2. Data ingestion and normalization
@@ -57,7 +57,7 @@ async function main() {
     feedAgent: { status: 'failure', propsIngested: 0, duplicatesFound: 0, errors: 0, duration: 0 },
     alertAgent: { status: 'failure', alertsGenerated: 0, detectionTypes: [] },
     riskAgent: { status: 'failure', parlayHedgesFound: 0, hedgeRecommendations: 0 },
-    database: { status: 'failure', totalProps: 0, todaysProps: 0 }
+    database: { status: 'failure', totalProps: 0, todaysProps: 0 },
   };
 
   const logger = new Logger('test-feedagent-realworld');
@@ -67,8 +67,10 @@ async function main() {
     // 1. Check API connectivity and rate limits
     console.log('\n📡 Checking Optimal API Status...');
     const rateLimitStatus = getRateLimitStatus();
-    console.log(`Rate Limit Status: ${rateLimitStatus.requestsInWindow}/${rateLimitStatus.maxRequests} requests used`);
-    
+    console.log(
+      `Rate Limit Status: ${rateLimitStatus.requestsInWindow}/${rateLimitStatus.maxRequests} requests used`
+    );
+
     if (!rateLimitStatus.canMakeRequest) {
       throw new Error('Rate limit exceeded - cannot proceed with test');
     }
@@ -79,7 +81,7 @@ async function main() {
       .from('raw_props')
       .select('count')
       .limit(1);
-    
+
     if (dbError) {
       throw new Error(`Database connectivity failed: ${dbError.message}`);
     }
@@ -88,7 +90,7 @@ async function main() {
     // 3. Initialize and test FeedAgent
     console.log('\n🔄 Testing FeedAgent with real Optimal API data...');
     const feedStartTime = Date.now();
-    
+
     const feedAgent = new FeedAgent(
       {
         name: 'FeedAgent',
@@ -99,29 +101,29 @@ async function main() {
             name: 'optimal',
             enabled: true,
             baseUrl: 'https://api.optimal-bet.com',
-            timeout: 30000
-          }
-        }
+            timeout: 30000,
+          },
+        },
       },
       { logger, supabase }
     );
 
     await feedAgent.initialize();
-    
+
     // Get baseline prop count
-    const { count: initialCount } = await supabase
+    const { count: initialCount } = (await supabase
       .from('raw_props')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
 
     console.log(`Initial database props count: ${initialCount}`);
 
     // Run the feed agent
     await feedAgent.process();
-    
+
     // Check results
-    const { count: finalCount } = await supabase
+    const { count: finalCount } = (await supabase
       .from('raw_props')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
 
     const newProps = (finalCount || 0) - (initialCount || 0);
     const feedDuration = Date.now() - feedStartTime;
@@ -130,8 +132,8 @@ async function main() {
       status: newProps > 0 ? 'success' : 'failure',
       propsIngested: newProps,
       duplicatesFound: 0, // Would get from agent metrics
-      errors: 0, // Would get from agent metrics  
-      duration: feedDuration
+      errors: 0, // Would get from agent metrics
+      duration: feedDuration,
     };
 
     console.log(`✅ FeedAgent test completed: ${newProps} new props ingested in ${feedDuration}ms`);
@@ -149,7 +151,9 @@ async function main() {
     } else if (recentProps && recentProps.length > 0) {
       console.log(`📊 Sample of ${recentProps.length} recent props:`);
       recentProps.slice(0, 3).forEach((prop, i) => {
-        console.log(`  ${i + 1}. ${prop.player_name} - ${prop.stat_type} ${prop.line} (${prop.sport})`);
+        console.log(
+          `  ${i + 1}. ${prop.player_name} - ${prop.stat_type} ${prop.line} (${prop.sport})`
+        );
       });
     }
 
@@ -162,15 +166,18 @@ async function main() {
       );
 
       await alertAgent.initialize();
-      
+
       // This would trigger detection methods with real data
       // For now, we'll just verify the agent is healthy
       const alertHealth = await alertAgent.checkHealth();
       results.alertAgent.status = alertHealth.status === 'healthy' ? 'success' : 'failure';
-      
+
       console.log(`✅ AlertAgent health: ${alertHealth.status}`);
     } catch (error) {
-      console.error('❌ AlertAgent test failed:', error instanceof Error ? error.message : 'Unknown error');
+      console.error(
+        '❌ AlertAgent test failed:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
     }
 
     // 6. Test RiskManagementAgent
@@ -182,33 +189,36 @@ async function main() {
       );
 
       await riskAgent.initialize();
-      
+
       // This would analyze portfolios and parlay hedge opportunities
       const riskHealth = await riskAgent.checkHealth();
       results.riskAgent.status = riskHealth.status === 'healthy' ? 'success' : 'failure';
-      
+
       console.log(`✅ RiskManagementAgent health: ${riskHealth.status}`);
     } catch (error) {
-      console.error('❌ RiskManagementAgent test failed:', error instanceof Error ? error.message : 'Unknown error');
+      console.error(
+        '❌ RiskManagementAgent test failed:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
     }
 
     // 7. Final database analysis
     console.log('\n📈 Final database analysis...');
     const today = new Date().toISOString().split('T')[0];
-    
-    const { count: totalProps } = await supabase
-      .from('raw_props')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: todaysProps } = await supabase
+    const { count: totalProps } = (await supabase
+      .from('raw_props')
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
+
+    const { count: todaysProps } = (await supabase
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .gte('game_date', today) || { count: 0 };
+      .gte('game_date', today)) || { count: 0 };
 
     results.database = {
       status: 'success',
       totalProps: totalProps || 0,
-      todaysProps: todaysProps || 0
+      todaysProps: todaysProps || 0,
     };
 
     // 8. Summary report
@@ -223,17 +233,19 @@ async function main() {
     console.log(`   - Total props: ${results.database.totalProps}`);
     console.log(`   - Today's props: ${results.database.todaysProps}`);
 
-    const overallSuccess = results.feedAgent.status === 'success' && 
-                          results.database.status === 'success';
-    
+    const overallSuccess =
+      results.feedAgent.status === 'success' && results.database.status === 'success';
+
     if (overallSuccess) {
       console.log('\n🎉 REAL-WORLD TEST PASSED! System is ready for production.');
     } else {
       console.log('\n⚠️ Some tests failed. Review results before production deployment.');
     }
-
   } catch (error) {
-    console.error('\n❌ Test failed with error:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      '\n❌ Test failed with error:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
   }
 }
@@ -245,7 +257,7 @@ if (require.main === module) {
       console.log('\n✅ Test completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Test crashed:', error);
       process.exit(1);
     });

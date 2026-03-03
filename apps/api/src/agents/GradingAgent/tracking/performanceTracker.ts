@@ -26,8 +26,8 @@ export class PerformanceTracker {
       parlay: 0,
       teaser: 0,
       roundrobin: 0,
-      sgp: 0
-    }
+      sgp: 0,
+    },
   };
 
   private constructor(private supabase: SupabaseClient) {
@@ -45,12 +45,15 @@ export class PerformanceTracker {
     setInterval(() => this.syncMetrics(), 60000); // Sync every minute
   }
 
-  public async trackPick(pick: Pick, result: { tier: GradeTier, duration_ms: number, success: boolean }): Promise<void> {
+  public async trackPick(
+    pick: Pick,
+    result: { tier: GradeTier; duration_ms: number; success: boolean }
+  ): Promise<void> {
     try {
       // Update local metrics
       this.metrics.total_processed++;
       this.metrics.processing_time_ms += result.duration_ms;
-      
+
       if (result.success) {
         this.metrics.successful++;
         this.metrics.tier_distribution[result.tier]++;
@@ -71,12 +74,14 @@ export class PerformanceTracker {
         tier: result.tier,
         processing_time_ms: result.duration_ms,
         success: result.success,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       logger.error('Failed to track pick performance:', error);
-      metrics.trackFailedOperation('performance_tracking', error instanceof Error ? error.message : String(error));
+      metrics.trackFailedOperation(
+        'performance_tracking',
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
@@ -84,14 +89,17 @@ export class PerformanceTracker {
     try {
       await this.supabase.from('grading_metrics').insert({
         ...this.metrics,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       // Reset counters after successful sync
       this.resetMetrics();
     } catch (error) {
       logger.error('Failed to sync metrics:', error);
-      metrics.trackFailedOperation('metrics_sync', error instanceof Error ? error.message : String(error));
+      metrics.trackFailedOperation(
+        'metrics_sync',
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
@@ -107,12 +115,12 @@ export class PerformanceTracker {
         parlay: 0,
         teaser: 0,
         roundrobin: 0,
-        sgp: 0
-      }
+        sgp: 0,
+      },
     };
   }
 
   public getMetrics(): PerformanceMetrics {
     return { ...this.metrics };
   }
-} 
+}

@@ -1,15 +1,15 @@
 import 'dotenv/config';
-import { BridgeWorker } from '../workers/BridgeWorker';
 import { supabaseClient } from '../services/supabaseClient';
-import { createLogger } from '../utils/logger';
 import { getEnv } from '../utils/getEnv';
+import { createLogger } from '../utils/logger';
+import { BridgeWorker } from '../workers/BridgeWorker';
 
 const logger = createLogger('bridge-worker-test');
 const env = getEnv();
 
 /**
  * Test the enhanced BridgeWorker with bridge_outbox support
- * 
+ *
  * Tests:
  * 1. Bridge Worker initialization with bridge outbox support
  * 2. Event processing from both events and bridge_outbox tables
@@ -19,10 +19,10 @@ const env = getEnv();
 async function testBridgeWorker(): Promise<void> {
   try {
     logger.info('🚀 Starting Bridge Worker test with bridge_outbox support...');
-    
+
     // Use existing Supabase client
     const supabase = supabaseClient;
-    
+
     // Configure Bridge Worker with bridge outbox enabled
     const bridgeWorkerConfig = {
       agentId: 'bridge-worker-test',
@@ -33,33 +33,33 @@ async function testBridgeWorker(): Promise<void> {
       enableBridgeOutbox: true, // Enable bridge outbox processing
       bridgeOutboxBatchSize: 3,
     };
-    
+
     const bridgeWorkerDeps = {
       supabaseClient: supabase,
       logger,
     };
-    
+
     // Initialize Bridge Worker
     logger.info('🌉 Initializing Bridge Worker with dual-source support...');
     const bridgeWorker = new BridgeWorker(bridgeWorkerConfig, bridgeWorkerDeps);
-    
+
     // Test initialization
     logger.info('🔧 Testing Bridge Worker initialization...');
     await bridgeWorker.start();
-    
+
     // Check health status
     logger.info('🏥 Testing Bridge Worker health checks...');
     const healthStatus = await bridgeWorker.checkHealth();
     logger.info('Health Status:', {
       status: healthStatus.status,
-      services: healthStatus.details.checks.map(c => ({ 
-        service: c.service, 
+      services: healthStatus.details.checks.map(c => ({
+        service: c.service,
         status: c.status,
-        note: c.note || 'none'
+        note: c.note || 'none',
       })),
       bridgeOutboxEnabled: healthStatus.details.processing.bridgeOutboxEnabled,
     });
-    
+
     // Test metrics collection
     logger.info('📊 Testing Bridge Worker metrics collection...');
     const metrics = await bridgeWorker.collectMetrics();
@@ -71,13 +71,13 @@ async function testBridgeWorker(): Promise<void> {
       bridgeOutboxEventsFailed: metrics.bridgeOutboxEventsFailed,
       workflowsTriggered: metrics.workflowsTriggered,
     });
-    
+
     // Test a few processing cycles
     logger.info('⚡ Testing event processing cycles...');
     for (let i = 0; i < 3; i++) {
       logger.info(`Running processing cycle ${i + 1}/3...`);
       await new Promise(resolve => setTimeout(resolve, 15000)); // 15 seconds between tests
-      
+
       const updatedMetrics = await bridgeWorker.collectMetrics();
       logger.info(`Cycle ${i + 1} Metrics:`, {
         totalEvents: updatedMetrics.totalEventsFromBothSources,
@@ -86,7 +86,7 @@ async function testBridgeWorker(): Promise<void> {
         failures: updatedMetrics.eventsFailed + updatedMetrics.bridgeOutboxEventsFailed,
       });
     }
-    
+
     // Test health check after processing
     logger.info('🏥 Final health check after processing...');
     const finalHealth = await bridgeWorker.checkHealth();
@@ -96,11 +96,11 @@ async function testBridgeWorker(): Promise<void> {
       totalServices: finalHealth.details.checks.length,
       healthyServices: finalHealth.details.checks.filter(c => c.status === 'healthy').length,
     });
-    
+
     // Clean shutdown
     logger.info('🛑 Shutting down Bridge Worker...');
     await bridgeWorker.stop();
-    
+
     logger.info('✅ Bridge Worker test completed successfully!');
     logger.info('');
     logger.info('🎯 Test Summary:');
@@ -109,7 +109,6 @@ async function testBridgeWorker(): Promise<void> {
     logger.info('   ✅ Metrics collection working for both event sources');
     logger.info('   ✅ Processing cycles completed successfully');
     logger.info('   ✅ Clean shutdown completed');
-    
   } catch (error) {
     logger.error('❌ Bridge Worker test failed:', {
       error: error instanceof Error ? error.message : String(error),
@@ -126,7 +125,7 @@ if (require.main === module) {
       logger.info('Bridge Worker test completed successfully');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       logger.error('Bridge Worker test failed:', error);
       process.exit(1);
     });

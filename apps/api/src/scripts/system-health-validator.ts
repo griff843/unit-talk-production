@@ -11,7 +11,7 @@ const logger = createLogger('SystemHealthValidator');
 
 // Initialize Supabase client
 const supabase = createClient(
-  env.SUPABASE_URL || process.env.SUPABASE_URL!, 
+  env.SUPABASE_URL || process.env.SUPABASE_URL!,
   env.SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY!
 );
 
@@ -43,7 +43,7 @@ class SystemHealthValidator {
 
   async validateSystemHealth(): Promise<SystemHealthReport> {
     logger.info('🏥 Starting comprehensive system health validation');
-    
+
     // Run all health checks
     await Promise.all([
       this.checkDatabase(),
@@ -62,14 +62,10 @@ class SystemHealthValidator {
   // Database Health Check
   private async checkDatabase(): Promise<void> {
     const startTime = Date.now();
-    
+
     try {
       // Test basic connectivity
-      const { data, error } = await supabase
-        .from('raw_props')
-        .select('count')
-        .limit(1)
-        .single();
+      const { data, error } = await supabase.from('raw_props').select('count').limit(1).single();
 
       const responseTime = Date.now() - startTime;
 
@@ -79,7 +75,7 @@ class SystemHealthValidator {
           status: 'UNHEALTHY',
           responseTime,
           message: `Database connection failed: ${error.message}`,
-          details: { error: error.code }
+          details: { error: error.code },
         });
         return;
       }
@@ -101,15 +97,14 @@ class SystemHealthValidator {
         status,
         responseTime,
         message,
-        details: { threshold: responseTime > 500 ? 'exceeded' : 'within_limits' }
+        details: { threshold: responseTime > 500 ? 'exceeded' : 'within_limits' },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'database',
         status: 'UNHEALTHY',
         responseTime: Date.now() - startTime,
-        message: `Database health check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Database health check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -128,7 +123,7 @@ class SystemHealthValidator {
         this.healthChecks.push({
           component: 'temporal_workers',
           status: 'UNHEALTHY',
-          message: `Failed to check worker status: ${error.message}`
+          message: `Failed to check worker status: ${error.message}`,
         });
         return;
       }
@@ -152,18 +147,17 @@ class SystemHealthValidator {
         component: 'temporal_workers',
         status,
         message,
-        details: { 
-          totalWorkers, 
-          healthyWorkers, 
-          healthRatio: Math.round(healthRatio * 100) 
-        }
+        details: {
+          totalWorkers,
+          healthyWorkers,
+          healthRatio: Math.round(healthRatio * 100),
+        },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'temporal_workers',
         status: 'UNHEALTHY',
-        message: `Temporal workers check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Temporal workers check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -181,14 +175,14 @@ class SystemHealthValidator {
         this.healthChecks.push({
           component: 'agents',
           status: 'UNHEALTHY',
-          message: `Failed to retrieve agent health: ${error.message}`
+          message: `Failed to retrieve agent health: ${error.message}`,
         });
         return;
       }
 
       const criticalAgents = ['GradingAgent', 'FeedAgent', 'AlertAgent', 'AnalyticsAgent'];
       const healthyAgents = agents?.filter(a => a.status === 'healthy') || [];
-      const criticalAgentsHealthy = criticalAgents.filter(name => 
+      const criticalAgentsHealthy = criticalAgents.filter(name =>
         healthyAgents.some(a => a.agent_name === name)
       );
 
@@ -197,9 +191,9 @@ class SystemHealthValidator {
 
       if (criticalAgentsHealthy.length < criticalAgents.length) {
         status = 'UNHEALTHY';
-        message = `Critical agents offline: ${criticalAgents.filter(name => 
-          !healthyAgents.some(a => a.agent_name === name)
-        ).join(', ')}`;
+        message = `Critical agents offline: ${criticalAgents
+          .filter(name => !healthyAgents.some(a => a.agent_name === name))
+          .join(', ')}`;
       } else if (healthyAgents.length < (agents?.length || 0) * 0.8) {
         status = 'DEGRADED';
         message = `Agent health degraded: ${healthyAgents.length}/${agents?.length || 0} healthy`;
@@ -213,15 +207,14 @@ class SystemHealthValidator {
           totalAgents: agents?.length || 0,
           healthyAgents: healthyAgents.length,
           criticalAgentsHealthy,
-          unhealthyAgents: agents?.filter(a => a.status !== 'healthy').map(a => a.agent_name) || []
-        }
+          unhealthyAgents: agents?.filter(a => a.status !== 'healthy').map(a => a.agent_name) || [],
+        },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'agents',
         status: 'UNHEALTHY',
-        message: `Agent health check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Agent health check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -230,19 +223,19 @@ class SystemHealthValidator {
   private async checkAPIServices(): Promise<void> {
     const apiChecks = [
       { name: 'optimal_api', endpoint: 'optimal-api', timeout: 5000 },
-      { name: 'odds_api', endpoint: 'odds-api', timeout: 5000 }
+      { name: 'odds_api', endpoint: 'odds-api', timeout: 5000 },
     ];
 
     for (const api of apiChecks) {
       try {
         const startTime = Date.now();
-        
+
         // Simulate API health check (in production, this would be actual API calls)
         const isHealthy = Math.random() > 0.1; // 90% chance healthy for simulation
         const responseTime = startTime + Math.random() * 2000; // Simulate response time
-        
+
         const actualResponseTime = Math.round(responseTime - startTime);
-        
+
         let status: 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' = 'HEALTHY';
         let message = `${api.name} responsive in ${actualResponseTime}ms`;
 
@@ -259,14 +252,13 @@ class SystemHealthValidator {
           status,
           responseTime: actualResponseTime,
           message,
-          details: { endpoint: api.endpoint }
+          details: { endpoint: api.endpoint },
         });
-
       } catch (error) {
         this.healthChecks.push({
           component: api.name,
           status: 'UNHEALTHY',
-          message: `${api.name} health check failed: ${error instanceof Error ? error.message : String(error)}`
+          message: `${api.name} health check failed: ${error instanceof Error ? error.message : String(error)}`,
         });
       }
     }
@@ -286,7 +278,7 @@ class SystemHealthValidator {
         this.healthChecks.push({
           component: 'data_ingestion',
           status: 'UNHEALTHY',
-          message: `Failed to check data ingestion: ${error.message}`
+          message: `Failed to check data ingestion: ${error.message}`,
         });
         return;
       }
@@ -299,7 +291,7 @@ class SystemHealthValidator {
 
       // Expected minimum ingestion rates during different periods
       const currentHour = new Date().getHours();
-      const isPeakHours = (currentHour >= 17 && currentHour <= 23); // 5 PM - 11 PM
+      const isPeakHours = currentHour >= 17 && currentHour <= 23; // 5 PM - 11 PM
       const minRate = isPeakHours ? 1000 : 300; // Higher expectations during peak hours
 
       if (ingestionRate < minRate * 0.5) {
@@ -318,15 +310,14 @@ class SystemHealthValidator {
           recentCount,
           ingestionRate: Math.round(ingestionRate),
           isPeakHours,
-          minExpectedRate: minRate
-        }
+          minExpectedRate: minRate,
+        },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'data_ingestion',
         status: 'UNHEALTHY',
-        message: `Data ingestion check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Data ingestion check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -347,15 +338,17 @@ class SystemHealthValidator {
         this.healthChecks.push({
           component: 'professional_features',
           status: 'UNHEALTHY',
-          message: `Failed to check professional features: ${error.message}`
+          message: `Failed to check professional features: ${error.message}`,
         });
         return;
       }
 
       const professionalGrades = recentGrades?.length || 0;
-      const avgProfessionalScore = recentGrades && recentGrades.length > 0
-        ? recentGrades.reduce((sum, grade) => sum + (grade.professional_score || 0), 0) / recentGrades.length
-        : 0;
+      const avgProfessionalScore =
+        recentGrades && recentGrades.length > 0
+          ? recentGrades.reduce((sum, grade) => sum + (grade.professional_score || 0), 0) /
+            recentGrades.length
+          : 0;
 
       let status: 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' = 'HEALTHY';
       let message = `${professionalGrades} professional grades in last hour (avg score: ${avgProfessionalScore.toFixed(2)})`;
@@ -375,15 +368,14 @@ class SystemHealthValidator {
         details: {
           professionalGrades,
           avgProfessionalScore: Math.round(avgProfessionalScore * 100) / 100,
-          sampleFeatures: recentGrades?.[0]?.feature_contributions || null
-        }
+          sampleFeatures: recentGrades?.[0]?.feature_contributions || null,
+        },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'professional_features',
         status: 'UNHEALTHY',
-        message: `Professional features check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Professional features check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -400,10 +392,12 @@ class SystemHealthValidator {
       let message = `Memory usage: ${heapUsedMB}MB heap, ${rssUsedMB}MB RSS`;
 
       // Alert thresholds (adjust based on container limits)
-      if (heapUsedMB > 1000) { // 1GB heap
+      if (heapUsedMB > 1000) {
+        // 1GB heap
         status = 'UNHEALTHY';
         message = `Critical memory usage: ${heapUsedMB}MB heap (>1GB)`;
-      } else if (heapUsedMB > 750) { // 750MB heap
+      } else if (heapUsedMB > 750) {
+        // 750MB heap
         status = 'DEGRADED';
         message = `High memory usage: ${heapUsedMB}MB heap (>750MB)`;
       }
@@ -416,15 +410,14 @@ class SystemHealthValidator {
           heapUsedMB,
           heapTotalMB,
           rssUsedMB,
-          external: Math.round(memUsage.external / 1024 / 1024)
-        }
+          external: Math.round(memUsage.external / 1024 / 1024),
+        },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'memory',
         status: 'UNHEALTHY',
-        message: `Memory check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Memory check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -434,7 +427,7 @@ class SystemHealthValidator {
     try {
       // For Docker/container environment, we'll simulate disk space check
       // In production, this could use `df` command or similar
-      
+
       const totalSpaceGB = 50; // Simulated 50GB available
       const usedSpaceGB = Math.random() * 40; // Random usage up to 40GB
       const usagePercent = (usedSpaceGB / totalSpaceGB) * 100;
@@ -457,15 +450,14 @@ class SystemHealthValidator {
         details: {
           totalSpaceGB,
           usedSpaceGB: Math.round(usedSpaceGB * 10) / 10,
-          usagePercent: Math.round(usagePercent * 10) / 10
-        }
+          usagePercent: Math.round(usagePercent * 10) / 10,
+        },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'disk_space',
         status: 'UNHEALTHY',
-        message: `Disk space check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Disk space check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -474,7 +466,7 @@ class SystemHealthValidator {
     const healthyComponents = this.healthChecks.filter(c => c.status === 'HEALTHY').length;
     const degradedComponents = this.healthChecks.filter(c => c.status === 'DEGRADED').length;
     const unhealthyComponents = this.healthChecks.filter(c => c.status === 'UNHEALTHY').length;
-    
+
     const totalComponents = this.healthChecks.length;
     const healthScore = Math.round((healthyComponents / totalComponents) * 100);
 
@@ -497,12 +489,12 @@ class SystemHealthValidator {
     // Calculate performance metrics
     const dataIngestionComponent = this.healthChecks.find(c => c.component === 'data_ingestion');
     const databaseComponent = this.healthChecks.find(c => c.component === 'database');
-    
+
     const performance = {
       dataIngestionRate: dataIngestionComponent?.details?.ingestionRate || 0,
       avgProcessingTime: databaseComponent?.responseTime || 0,
       errorRate: (unhealthyComponents / totalComponents) * 100,
-      uptime: healthScore
+      uptime: healthScore,
     };
 
     return {
@@ -512,7 +504,7 @@ class SystemHealthValidator {
       components: this.healthChecks,
       criticalIssues,
       recommendations,
-      performance
+      performance,
     };
   }
 
@@ -532,7 +524,9 @@ class SystemHealthValidator {
     if (memCheck?.status === 'DEGRADED') {
       recommendations.push('Monitor memory usage and consider garbage collection tuning');
     } else if (memCheck?.status === 'UNHEALTHY') {
-      recommendations.push('URGENT: Memory usage critical - restart services or increase allocation');
+      recommendations.push(
+        'URGENT: Memory usage critical - restart services or increase allocation'
+      );
     }
 
     // Data ingestion recommendations
@@ -557,7 +551,9 @@ class SystemHealthValidator {
 
     if (recommendations.length === 0) {
       recommendations.push('System health optimal - no immediate actions required');
-      recommendations.push('Continue monitoring performance metrics and maintain current operations');
+      recommendations.push(
+        'Continue monitoring performance metrics and maintain current operations'
+      );
     }
 
     return recommendations;
@@ -567,7 +563,7 @@ class SystemHealthValidator {
 // CLI Interface
 async function main() {
   const validator = new SystemHealthValidator();
-  
+
   console.log('🏥 Unit Talk System Health Validation');
   console.log('====================================');
   console.log('Comprehensive health check for all system components');
@@ -575,11 +571,11 @@ async function main() {
 
   try {
     const report = await validator.validateSystemHealth();
-    
+
     // Display overall status
-    const statusIcon = report.overallStatus === 'HEALTHY' ? '✅' :
-                      report.overallStatus === 'DEGRADED' ? '⚠️' : '❌';
-    
+    const statusIcon =
+      report.overallStatus === 'HEALTHY' ? '✅' : report.overallStatus === 'DEGRADED' ? '⚠️' : '❌';
+
     console.log('📊 SYSTEM HEALTH STATUS');
     console.log('=======================');
     console.log(`${statusIcon} Overall Status: ${report.overallStatus}`);
@@ -600,8 +596,8 @@ async function main() {
     console.log('🔧 COMPONENT STATUS');
     console.log('==================');
     for (const component of report.components) {
-      const icon = component.status === 'HEALTHY' ? '✅' :
-                   component.status === 'DEGRADED' ? '⚠️' : '❌';
+      const icon =
+        component.status === 'HEALTHY' ? '✅' : component.status === 'DEGRADED' ? '⚠️' : '❌';
       const timeInfo = component.responseTime ? ` (${component.responseTime}ms)` : '';
       console.log(`${icon} ${component.component}${timeInfo}: ${component.message}`);
     }
@@ -619,26 +615,25 @@ async function main() {
     console.log('💡 RECOMMENDATIONS');
     console.log('==================');
     report.recommendations.forEach(rec => console.log(`• ${rec}`));
-    
+
     // Save report to file
     const fs = await import('fs/promises');
     const path = await import('path');
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `system-health-${timestamp}.json`;
     const filepath = path.join(process.cwd(), 'logs', filename);
-    
+
     await fs.mkdir(path.dirname(filepath), { recursive: true });
     await fs.writeFile(filepath, JSON.stringify(report, null, 2));
-    
+
     console.log('');
     console.log(`📁 Detailed report saved to: ${filepath}`);
 
     // Exit with appropriate code
     process.exit(report.overallStatus === 'UNHEALTHY' ? 1 : 0);
-
   } catch (error) {
-    logger.error('System health validation failed:', { 
-      error: error instanceof Error ? error.message : String(error) 
+    logger.error('System health validation failed:', {
+      error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);
   }

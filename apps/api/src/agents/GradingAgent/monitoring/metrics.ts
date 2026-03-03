@@ -9,31 +9,31 @@ const register = new client.Registry();
 export const picksProcessed = new client.Counter({
   name: 'grading_picks_processed_total',
   help: 'Total number of picks processed',
-  labelNames: ['bet_type', 'status'] as const
+  labelNames: ['bet_type', 'status'] as const,
 });
 
 export const pickGrades = new client.Counter({
   name: 'grading_pick_grades_total',
   help: 'Distribution of grades assigned to picks',
-  labelNames: ['tier', 'bet_type'] as const
+  labelNames: ['tier', 'bet_type'] as const,
 });
 
 export const processingDuration = new client.Histogram({
   name: 'grading_processing_duration_seconds',
   help: 'Time spent processing picks',
   buckets: [0.1, 0.5, 1, 2, 5],
-  labelNames: ['bet_type'] as const
+  labelNames: ['bet_type'] as const,
 });
 
 export const failedOperations = new client.Counter({
   name: 'grading_failed_operations_total',
   help: 'Number of failed operations',
-  labelNames: ['operation_type', 'error_type'] as const
+  labelNames: ['operation_type', 'error_type'] as const,
 });
 
 export const queueSize = new client.Gauge({
   name: 'grading_queue_size',
-  help: 'Current number of picks waiting to be processed'
+  help: 'Current number of picks waiting to be processed',
 });
 
 // Register all metrics
@@ -64,4 +64,4 @@ export function updateQueueSize(size: number): void {
   queueSize.set(size);
 }
 
-export { register }; 
+export { register };

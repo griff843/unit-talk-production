@@ -168,7 +168,7 @@ async function runTestScenario(scenario: (typeof TEST_SCENARIOS)[0], prop: TestP
     // Step 2: Wait for specified delay (or default 5 seconds)
     const delayMs = (scenario.delaySeconds || 5) * 1000;
     logger.info(`Step 2: Waiting ${delayMs / 1000} seconds before line change...`);
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    await new Promise(resolve => setTimeout(resolve, delayMs));
 
     // Step 3: Insert prop with changed line
     logger.info('Step 3: Inserting prop with changed line...');
@@ -176,7 +176,7 @@ async function runTestScenario(scenario: (typeof TEST_SCENARIOS)[0], prop: TestP
 
     // Step 4: Wait for AlertAgent to process
     logger.info('Step 4: Waiting 10 seconds for AlertAgent to process...');
-    await new Promise((resolve) => setTimeout(resolve, 10000));
+    await new Promise(resolve => setTimeout(resolve, 10000));
 
     // Step 5: Query for line movement detection
     const supabase = requireSupabase();
@@ -204,10 +204,7 @@ async function runTestScenario(scenario: (typeof TEST_SCENARIOS)[0], prop: TestP
         });
 
         // Verify priority if specified
-        if (
-          scenario.expectedPriority &&
-          movement.alert_priority !== scenario.expectedPriority
-        ) {
+        if (scenario.expectedPriority && movement.alert_priority !== scenario.expectedPriority) {
           logger.warn('⚠️ Alert priority mismatch', {
             expected: scenario.expectedPriority,
             actual: movement.alert_priority,
@@ -281,7 +278,7 @@ async function testHedgeOpportunities() {
       'BookmakerA'
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Bookmaker B: DraftKings - Line 29.5 at -110 (4 point discrepancy - should trigger alert)
     await insertTestPropWithBookmaker(
@@ -296,7 +293,7 @@ async function testHedgeOpportunities() {
 
     // Wait for processing
     logger.info('Waiting 10 seconds for hedge detection...');
-    await new Promise((resolve) => setTimeout(resolve, 10000));
+    await new Promise(resolve => setTimeout(resolve, 10000));
 
     // Query for hedge opportunities
     const supabase = requireSupabase();
@@ -409,7 +406,7 @@ async function main() {
       await runTestScenario(scenario, testProp);
 
       // Wait between scenarios
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
     // Run hedge opportunity test
@@ -427,7 +424,9 @@ async function main() {
     logger.info('Verification queries:');
     logger.info('  SELECT * FROM line_movements ORDER BY detected_at DESC LIMIT 10;');
     logger.info('  SELECT * FROM hedge_opportunities ORDER BY detected_at DESC LIMIT 10;');
-    logger.info("  SELECT * FROM events WHERE event_type LIKE 'alert.%' ORDER BY created_at DESC LIMIT 10;");
+    logger.info(
+      "  SELECT * FROM events WHERE event_type LIKE 'alert.%' ORDER BY created_at DESC LIMIT 10;"
+    );
     logger.info('━'.repeat(80));
 
     process.exit(0);

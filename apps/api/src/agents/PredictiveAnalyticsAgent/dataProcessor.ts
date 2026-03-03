@@ -109,12 +109,12 @@ export class DataProcessor {
 
   async initialize(): Promise<void> {
     this.logger.info('📊 Initializing DataProcessor');
-    
+
     await this.loadProcessingHistory();
     await this.loadQualityMetrics();
     await this.initializeFeatureEngineering();
     await this.setupOutlierDetection();
-    
+
     this.logger.info('✅ DataProcessor initialized');
   }
 
@@ -126,24 +126,24 @@ export class DataProcessor {
     try {
       // 1. Data quality assessment
       const qualityReport = await this.assessDataQuality(rawData);
-      
+
       // 2. Data cleaning and filtering
       const cleanedData = await this.cleanData(rawData, qualityReport);
-      
+
       // 3. Feature engineering
       const engineeredData = await this.engineerFeatures(cleanedData);
-      
+
       // 4. Technical indicator calculation
       const processedData: ProcessedData[] = [];
-      
+
       for (const dataPoint of engineeredData) {
         const processed = await this.processDataPoint(dataPoint, processingStartTime);
         processedData.push(processed);
       }
-      
+
       // 5. Store processed data
       await this.storeProcessedData(processedData);
-      
+
       // 6. Update quality metrics
       await this.updateQualityMetrics(qualityReport);
 
@@ -152,14 +152,13 @@ export class DataProcessor {
         inputPoints: rawData.length,
         outputPoints: processedData.length,
         processingTimeMs: processingTime,
-        qualityScore: qualityReport.qualityScore
+        qualityScore: qualityReport.qualityScore,
       });
 
       return processedData;
-
     } catch (error) {
       this.logger.error('❌ Failed to process market data', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -178,26 +177,25 @@ export class DataProcessor {
 
       // Calculate derived features
       await this.calculateDerivedFeatures(engineeredData);
-      
+
       // Generate interaction features
       await this.generateInteractionFeatures(engineeredData);
-      
+
       // Create lag features
       await this.createLagFeatures(engineeredData);
-      
+
       // Calculate ratio features
       await this.calculateRatioFeatures(engineeredData);
 
       this.logger.debug('✅ Feature engineering completed', {
         transformations: this.transformationPipeline.length,
-        dataPoints: engineeredData.length
+        dataPoints: engineeredData.length,
       });
 
       return engineeredData;
-
     } catch (error) {
       this.logger.error('❌ Feature engineering failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return rawData; // Return original data as fallback
     }
@@ -232,7 +230,10 @@ export class DataProcessor {
       const highIssues = qualityIssues.filter(i => i.severity === 'high').length;
       const mediumIssues = qualityIssues.filter(i => i.severity === 'medium').length;
 
-      const qualityScore = Math.max(0, 1 - (criticalIssues * 0.3 + highIssues * 0.2 + mediumIssues * 0.1));
+      const qualityScore = Math.max(
+        0,
+        1 - (criticalIssues * 0.3 + highIssues * 0.2 + mediumIssues * 0.1)
+      );
 
       const report: DataQualityReport = {
         totalDataPoints: data.length,
@@ -243,16 +244,15 @@ export class DataProcessor {
         timelinessScore: this.calculateTimelinessScore(data),
         accuracyScore: this.calculateAccuracyScore(data),
         consistencyScore: this.calculateConsistencyScore(data),
-        issues: qualityIssues
+        issues: qualityIssues,
       };
 
       return report;
-
     } catch (error) {
       this.logger.error('❌ Data quality validation failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       return {
         totalDataPoints: data.length,
         qualityScore: 0.5,
@@ -262,17 +262,16 @@ export class DataProcessor {
         timelinessScore: 0.5,
         accuracyScore: 0.5,
         consistencyScore: 0.5,
-        issues: []
+        issues: [],
       };
     }
   }
 
   // Private Methods
   private async processDataPoint(
-    dataPoint: MarketDataPoint, 
+    dataPoint: MarketDataPoint,
     processingStartTime: number
   ): Promise<ProcessedData> {
-    
     const features = await this.extractFeatures(dataPoint);
     const technicalIndicators = await this.calculateTechnicalIndicators(dataPoint);
     const marketMetrics = await this.calculateMarketMetrics(dataPoint, technicalIndicators);
@@ -286,7 +285,7 @@ export class DataProcessor {
       marketMetrics,
       qualityScore,
       timestamp: new Date(),
-      processingLatency: Date.now() - processingStartTime
+      processingLatency: Date.now() - processingStartTime,
     };
   }
 
@@ -297,43 +296,46 @@ export class DataProcessor {
       odds: dataPoint.odds,
       log_price: Math.log(dataPoint.price),
       log_odds: Math.log(dataPoint.odds),
-      
+
       // Volume features
       volume: dataPoint.volume,
       log_volume: Math.log(Math.max(1, dataPoint.volume)),
-      volume_ma_ratio: dataPoint.volume / Math.max(1, await this.getVolumeMA(dataPoint.marketId, 20)),
-      
+      volume_ma_ratio:
+        dataPoint.volume / Math.max(1, await this.getVolumeMA(dataPoint.marketId, 20)),
+
       // Spread features
       bid_ask_spread: dataPoint.bidAskSpread,
       spread_percentage: dataPoint.bidAskSpread / Math.max(0.01, dataPoint.price),
-      
+
       // Liquidity features
       liquidity: dataPoint.liquidity,
       liquidity_score: Math.min(1, dataPoint.liquidity / 10000),
-      
+
       // Volatility features
       volatility: dataPoint.volatility,
       volatility_rank: await this.getVolatilityRank(dataPoint.marketId, dataPoint.volatility),
-      
+
       // Quality features
       data_quality: dataPoint.quality,
       source_reliability: await this.getSourceReliability(dataPoint.source),
-      
+
       // Time features
       hour_of_day: new Date(dataPoint.timestamp).getHours(),
       day_of_week: new Date(dataPoint.timestamp).getDay(),
       minutes_to_game: await this.getMinutesToGame(dataPoint.gameId),
-      
+
       // Market structure features
       market_depth: await this.getMarketDepth(dataPoint.marketId),
       order_flow: await this.getOrderFlow(dataPoint.marketId),
-      trade_intensity: await this.getTradeIntensity(dataPoint.marketId)
+      trade_intensity: await this.getTradeIntensity(dataPoint.marketId),
     };
   }
 
-  private async calculateTechnicalIndicators(dataPoint: MarketDataPoint): Promise<TechnicalIndicators> {
+  private async calculateTechnicalIndicators(
+    dataPoint: MarketDataPoint
+  ): Promise<TechnicalIndicators> {
     const historicalPrices = await this.getHistoricalPrices(dataPoint.marketId, 50);
-    
+
     return {
       sma_5: this.calculateSMA(historicalPrices, 5),
       sma_10: this.calculateSMA(historicalPrices, 10),
@@ -349,15 +351,14 @@ export class DataProcessor {
       atr: this.calculateATR(historicalPrices, 14),
       momentum: this.calculateMomentum(historicalPrices, 10),
       roc: this.calculateROC(historicalPrices, 10),
-      williamR: this.calculateWilliamR(historicalPrices, 14)
+      williamR: this.calculateWilliamR(historicalPrices, 14),
     };
   }
 
   private async calculateMarketMetrics(
-    dataPoint: MarketDataPoint, 
+    dataPoint: MarketDataPoint,
     indicators: TechnicalIndicators
   ): Promise<MarketMetrics> {
-    
     const trend = this.determineTrend(indicators);
     const trendStrength = this.calculateTrendStrength(indicators);
     const support = await this.calculateSupport(dataPoint.marketId);
@@ -379,7 +380,7 @@ export class DataProcessor {
       efficiencyRatio,
       anomalyScore,
       marketSentiment,
-      pressureIndex
+      pressureIndex,
     };
   }
 
@@ -393,72 +394,75 @@ export class DataProcessor {
   private calculateEMA(prices: number[], period: number): number {
     if (prices.length === 0) return 0;
     if (prices.length < period) return this.calculateSMA(prices, prices.length);
-    
+
     const multiplier = 2 / (period + 1);
     let ema = this.calculateSMA(prices.slice(0, period), period);
-    
+
     for (let i = period; i < prices.length; i++) {
       ema = (prices[i] - ema) * multiplier + ema;
     }
-    
+
     return ema;
   }
 
   private calculateRSI(prices: number[], period: number): number {
     if (prices.length < period + 1) return 50;
-    
+
     let gains = 0;
     let losses = 0;
-    
+
     for (let i = 1; i <= period; i++) {
       const change = prices[prices.length - i] - prices[prices.length - i - 1];
       if (change >= 0) gains += change;
       else losses -= change;
     }
-    
+
     const avgGain = gains / period;
     const avgLoss = losses / period;
-    
+
     if (avgLoss === 0) return 100;
-    
+
     const rs = avgGain / avgLoss;
-    return 100 - (100 / (1 + rs));
+    return 100 - 100 / (1 + rs);
   }
 
   private calculateMACD(prices: number[]): { macd: number; signal: number } {
     const ema12 = this.calculateEMA(prices, 12);
     const ema26 = this.calculateEMA(prices, 26);
     const macd = ema12 - ema26;
-    
+
     // Simplified signal line calculation
     const signal = macd * 0.9; // Approximation
-    
+
     return { macd, signal };
   }
 
-  private calculateBollingerBands(prices: number[], period: number): { upper: number; lower: number; width: number } {
+  private calculateBollingerBands(
+    prices: number[],
+    period: number
+  ): { upper: number; lower: number; width: number } {
     const sma = this.calculateSMA(prices, period);
     const slice = prices.slice(-period);
-    
+
     const variance = slice.reduce((sum, price) => sum + Math.pow(price - sma, 2), 0) / period;
     const stdDev = Math.sqrt(variance);
-    
-    const upper = sma + (2 * stdDev);
-    const lower = sma - (2 * stdDev);
+
+    const upper = sma + 2 * stdDev;
+    const lower = sma - 2 * stdDev;
     const width = upper - lower;
-    
+
     return { upper, lower, width };
   }
 
   private calculateATR(prices: number[], period: number): number {
     // Simplified ATR calculation using price volatility
     if (prices.length < 2) return 0;
-    
+
     const ranges = [];
     for (let i = 1; i < Math.min(prices.length, period + 1); i++) {
       ranges.push(Math.abs(prices[i] - prices[i - 1]));
     }
-    
+
     return ranges.reduce((sum, range) => sum + range, 0) / ranges.length;
   }
 
@@ -476,12 +480,12 @@ export class DataProcessor {
 
   private calculateWilliamR(prices: number[], period: number): number {
     if (prices.length < period) return 0;
-    
+
     const slice = prices.slice(-period);
     const highest = Math.max(...slice);
     const lowest = Math.min(...slice);
     const current = prices[prices.length - 1];
-    
+
     return highest !== lowest ? ((highest - current) / (highest - lowest)) * -100 : 0;
   }
 
@@ -490,9 +494,9 @@ export class DataProcessor {
     const macdTrend = indicators.macd > indicators.macdSignal;
     const smaTrend = indicators.sma_5 > indicators.sma_10 && indicators.sma_10 > indicators.sma_20;
     const rsiTrend = indicators.rsi > 50;
-    
+
     const bullishSignals = [macdTrend, smaTrend, rsiTrend].filter(Boolean).length;
-    
+
     if (bullishSignals >= 2) return 'bullish';
     if (bullishSignals <= 1) return 'bearish';
     return 'neutral';
@@ -500,22 +504,26 @@ export class DataProcessor {
 
   private calculateTrendStrength(indicators: TechnicalIndicators): number {
     const rsiStrength = Math.abs(indicators.rsi - 50) / 50;
-    const macdStrength = Math.abs(indicators.macd - indicators.macdSignal) / Math.max(0.01, Math.abs(indicators.macdSignal));
-    const bollingerStrength = Math.abs(indicators.bollinger_width) / Math.max(0.01, (indicators.bollinger_upper + indicators.bollinger_lower) / 2);
-    
+    const macdStrength =
+      Math.abs(indicators.macd - indicators.macdSignal) /
+      Math.max(0.01, Math.abs(indicators.macdSignal));
+    const bollingerStrength =
+      Math.abs(indicators.bollinger_width) /
+      Math.max(0.01, (indicators.bollinger_upper + indicators.bollinger_lower) / 2);
+
     return Math.min(1, (rsiStrength + macdStrength + bollingerStrength) / 3);
   }
 
   private determineVolatilityRegime(volatility: number): 'low' | 'medium' | 'high' {
     if (volatility < 0.15) return 'low';
-    if (volatility < 0.30) return 'medium';
+    if (volatility < 0.3) return 'medium';
     return 'high';
   }
 
   // Data Quality Methods
   private async assessDataQuality(data: MarketDataPoint[]): Promise<DataQualityReport> {
     const issues: DataQualityIssue[] = [];
-    
+
     // Check for missing data
     const missingCount = data.filter(d => !d.price || !d.odds || !d.volume).length;
     if (missingCount > 0) {
@@ -525,10 +533,10 @@ export class DataProcessor {
         description: `${missingCount} data points have missing required fields`,
         affectedFields: ['price', 'odds', 'volume'],
         count: missingCount,
-        recommendation: 'Implement data validation and fallback mechanisms'
+        recommendation: 'Implement data validation and fallback mechanisms',
       });
     }
-    
+
     // Check for outliers
     const outliers = await this.detectDataOutliers(data);
     if (outliers.length > 0) {
@@ -538,50 +546,53 @@ export class DataProcessor {
         description: `${outliers.length} potential outlier data points detected`,
         affectedFields: ['price', 'odds', 'volume'],
         count: outliers.length,
-        recommendation: 'Review outlier detection thresholds and data sources'
+        recommendation: 'Review outlier detection thresholds and data sources',
       });
     }
-    
-    const qualityScore = Math.max(0, 1 - (issues.length * 0.1));
-    
+
+    const qualityScore = Math.max(0, 1 - issues.length * 0.1);
+
     return {
       totalDataPoints: data.length,
       qualityScore,
       missingDataPercentage: (missingCount / Math.max(1, data.length)) * 100,
       outlierPercentage: (outliers.length / Math.max(1, data.length)) * 100,
-      completenessScore: 1 - (missingCount / Math.max(1, data.length)),
+      completenessScore: 1 - missingCount / Math.max(1, data.length),
       timelinessScore: this.calculateDataTimeliness(data),
       accuracyScore: 0.8, // Placeholder
       consistencyScore: 0.85, // Placeholder
-      issues
+      issues,
     };
   }
 
-  private async cleanData(data: MarketDataPoint[], _qualityReport: DataQualityReport): Promise<MarketDataPoint[]> {
+  private async cleanData(
+    data: MarketDataPoint[],
+    _qualityReport: DataQualityReport
+  ): Promise<MarketDataPoint[]> {
     let cleanedData = [...data];
-    
+
     // Remove data points with critical quality issues
     cleanedData = cleanedData.filter(d => d.price > 0 && d.odds > 0 && d.volume >= 0);
-    
+
     // Handle outliers
     cleanedData = await this.handleOutliers(cleanedData);
-    
+
     // Fill missing values
     cleanedData = await this.fillMissingValues(cleanedData);
-    
+
     return cleanedData;
   }
 
   private async detectDataOutliers(data: MarketDataPoint[]): Promise<MarketDataPoint[]> {
     const outliers: MarketDataPoint[] = [];
-    
+
     for (const point of data) {
       // Simple outlier detection using IQR method
       if (await this.isOutlier(point, data)) {
         outliers.push(point);
       }
     }
-    
+
     return outliers;
   }
 
@@ -590,62 +601,118 @@ export class DataProcessor {
     const q1 = prices[Math.floor(prices.length * 0.25)];
     const q3 = prices[Math.floor(prices.length * 0.75)];
     const iqr = q3 - q1;
-    
+
     const lowerBound = q1 - 1.5 * iqr;
     const upperBound = q3 + 1.5 * iqr;
-    
+
     return point.price < lowerBound || point.price > upperBound;
   }
 
   private calculateDataTimeliness(data: MarketDataPoint[]): number {
     const now = new Date();
-    const avgAge = data.reduce((sum, d) => {
-      return sum + (now.getTime() - new Date(d.timestamp).getTime());
-    }, 0) / data.length;
-    
+    const avgAge =
+      data.reduce((sum, d) => {
+        return sum + (now.getTime() - new Date(d.timestamp).getTime());
+      }, 0) / data.length;
+
     // Score based on age (fresher data = higher professional_score)
     const maxAcceptableAge = 60 * 60 * 1000; // 1 hour
-    return Math.max(0, 1 - (avgAge / maxAcceptableAge));
+    return Math.max(0, 1 - avgAge / maxAcceptableAge);
   }
 
   // Placeholder methods for missing functionality
-  private async getVolumeMA(_marketId: string, _period: number): Promise<number> { return 1000; }
-  private async getVolatilityRank(_marketId: string, _volatility: number): Promise<number> { return 0.5; }
-  private async getSourceReliability(source: string): Promise<number> { return 0.8; }
-  private async getMinutesToGame(gameId: string): Promise<number> { return 120; }
-  private async getMarketDepth(marketId: string): Promise<number> { return 0.5; }
-  private async getOrderFlow(marketId: string): Promise<number> { return 0.3; }
-  private async getTradeIntensity(marketId: string): Promise<number> { return 0.7; }
+  private async getVolumeMA(_marketId: string, _period: number): Promise<number> {
+    return 1000;
+  }
+  private async getVolatilityRank(_marketId: string, _volatility: number): Promise<number> {
+    return 0.5;
+  }
+  private async getSourceReliability(source: string): Promise<number> {
+    return 0.8;
+  }
+  private async getMinutesToGame(gameId: string): Promise<number> {
+    return 120;
+  }
+  private async getMarketDepth(marketId: string): Promise<number> {
+    return 0.5;
+  }
+  private async getOrderFlow(marketId: string): Promise<number> {
+    return 0.3;
+  }
+  private async getTradeIntensity(marketId: string): Promise<number> {
+    return 0.7;
+  }
   private async getHistoricalPrices(marketId: string, count: number): Promise<number[]> {
     // Mock historical prices
     return Array.from({ length: count }, (_, i) => 100 + Math.random() * 20 - 10);
   }
-  private async calculateSupport(marketId: string): Promise<number> { return 95; }
-  private async calculateResistance(marketId: string): Promise<number> { return 105; }
-  private async calculateEfficiencyRatio(marketId: string): Promise<number> { return 0.6; }
-  private async calculateAnomalyScore(dataPoint: MarketDataPoint): Promise<number> { return 0.1; }
-  private async calculateMarketSentiment(marketId: string): Promise<number> { return 0.6; }
-  private async calculatePressureIndex(marketId: string): Promise<number> { return 0.4; }
-  private async calculateDataPointQuality(dataPoint: MarketDataPoint): Promise<number> { return 0.8; }
+  private async calculateSupport(marketId: string): Promise<number> {
+    return 95;
+  }
+  private async calculateResistance(marketId: string): Promise<number> {
+    return 105;
+  }
+  private async calculateEfficiencyRatio(marketId: string): Promise<number> {
+    return 0.6;
+  }
+  private async calculateAnomalyScore(dataPoint: MarketDataPoint): Promise<number> {
+    return 0.1;
+  }
+  private async calculateMarketSentiment(marketId: string): Promise<number> {
+    return 0.6;
+  }
+  private async calculatePressureIndex(marketId: string): Promise<number> {
+    return 0.4;
+  }
+  private async calculateDataPointQuality(dataPoint: MarketDataPoint): Promise<number> {
+    return 0.8;
+  }
 
   // More placeholder methods
-  private async applyTransformation(data: MarketDataPoint[], transformation: FeatureTransformation): Promise<void> {}
+  private async applyTransformation(
+    data: MarketDataPoint[],
+    transformation: FeatureTransformation
+  ): Promise<void> {}
   private async calculateDerivedFeatures(data: MarketDataPoint[]): Promise<void> {}
   private async generateInteractionFeatures(data: MarketDataPoint[]): Promise<void> {}
   private async createLagFeatures(data: MarketDataPoint[]): Promise<void> {}
   private async calculateRatioFeatures(data: MarketDataPoint[]): Promise<void> {}
-  private async detectMissingData(data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
-  private async detectOutliers(data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
-  private async detectStaleData(data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
-  private async detectInconsistencies(data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
-  private calculateMissingDataPercentage(data: ProcessedData[]): number { return 0; }
-  private calculateOutlierPercentage(data: ProcessedData[]): number { return 0; }
-  private calculateCompletenessScore(data: ProcessedData[]): number { return 0.9; }
-  private calculateTimelinessScore(data: ProcessedData[]): number { return 0.8; }
-  private calculateAccuracyScore(data: ProcessedData[]): number { return 0.85; }
-  private calculateConsistencyScore(data: ProcessedData[]): number { return 0.9; }
-  private async handleOutliers(data: MarketDataPoint[]): Promise<MarketDataPoint[]> { return data; }
-  private async fillMissingValues(data: MarketDataPoint[]): Promise<MarketDataPoint[]> { return data; }
+  private async detectMissingData(data: ProcessedData[]): Promise<DataQualityIssue[]> {
+    return [];
+  }
+  private async detectOutliers(data: ProcessedData[]): Promise<DataQualityIssue[]> {
+    return [];
+  }
+  private async detectStaleData(data: ProcessedData[]): Promise<DataQualityIssue[]> {
+    return [];
+  }
+  private async detectInconsistencies(data: ProcessedData[]): Promise<DataQualityIssue[]> {
+    return [];
+  }
+  private calculateMissingDataPercentage(data: ProcessedData[]): number {
+    return 0;
+  }
+  private calculateOutlierPercentage(data: ProcessedData[]): number {
+    return 0;
+  }
+  private calculateCompletenessScore(data: ProcessedData[]): number {
+    return 0.9;
+  }
+  private calculateTimelinessScore(data: ProcessedData[]): number {
+    return 0.8;
+  }
+  private calculateAccuracyScore(data: ProcessedData[]): number {
+    return 0.85;
+  }
+  private calculateConsistencyScore(data: ProcessedData[]): number {
+    return 0.9;
+  }
+  private async handleOutliers(data: MarketDataPoint[]): Promise<MarketDataPoint[]> {
+    return data;
+  }
+  private async fillMissingValues(data: MarketDataPoint[]): Promise<MarketDataPoint[]> {
+    return data;
+  }
 
   private async storeProcessedData(data: ProcessedData[]): Promise<void> {
     for (const processed of data) {
@@ -700,22 +767,22 @@ export class DataProcessor {
         type: 'polynomial',
         inputFeatures: ['price', 'volume'],
         outputFeature: 'log_features',
-        parameters: { degree: 1, log: true }
+        parameters: { degree: 1, log: true },
       },
       {
         name: 'price_momentum',
         type: 'lag',
         inputFeatures: ['price'],
         outputFeature: 'price_momentum',
-        parameters: { lags: [1, 5, 10] }
-      }
+        parameters: { lags: [1, 5, 10] },
+      },
     ];
   }
 
   private async setupOutlierDetection(): Promise<void> {
     this.outlierDetectors.set('isolation_forest', {
       contamination: 0.05,
-      threshold: 0.1
+      threshold: 0.1,
     });
   }
 
@@ -737,7 +804,7 @@ export class DataProcessor {
     this.qualityMetrics.clear();
     this.featureStore.clear();
     this.outlierDetectors.clear();
-    
+
     this.logger.info('🧹 DataProcessor cleanup completed');
   }
 }

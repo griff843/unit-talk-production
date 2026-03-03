@@ -4,24 +4,25 @@
  * Eliminates magic numbers and provides type safety
  */
 
-import { ScoringConfig, SportSpecificWeights, validateWeights, validateWeightsV2 } from './types';
-import { NBA_CONFIG } from './nba';
-import { MLB_CONFIG } from './mlb';
-import { NFL_CONFIG } from './nfl';
-import { NHL_CONFIG } from './nhl';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { MLB_CONFIG } from './mlb';
+import { NBA_CONFIG } from './nba';
+import { NFL_CONFIG } from './nfl';
+import { NHL_CONFIG } from './nhl';
+import { ScoringConfig, SportSpecificWeights, validateWeights, validateWeightsV2 } from './types';
+
 // Sport configuration registry
 const SPORT_CONFIGS: Record<string, ScoringConfig> = {
-  'NBA': NBA_CONFIG,
-  'MLB': MLB_CONFIG,
-  'NFL': NFL_CONFIG,
-  'NHL': NHL_CONFIG,
+  NBA: NBA_CONFIG,
+  MLB: MLB_CONFIG,
+  NFL: NFL_CONFIG,
+  NHL: NHL_CONFIG,
   // Additional sports can be added here
-  'NCAAF': NFL_CONFIG, // Use NFL config as base for college football
-  'NCAAB': NBA_CONFIG, // Use NBA config as base for college basketball
-  'WNBA': NBA_CONFIG,  // Use NBA config for WNBA
+  NCAAF: NFL_CONFIG, // Use NFL config as base for college football
+  NCAAB: NBA_CONFIG, // Use NBA config as base for college basketball
+  WNBA: NBA_CONFIG, // Use NBA config for WNBA
 };
 
 // Default configuration for unknown sports
@@ -85,20 +86,20 @@ export function getSupportedSports(): string[] {
  */
 export function loadCustomWeights(): Record<string, ScoringConfig> | null {
   const customPath = process.env.SCORING_WEIGHTS_PATH;
-  
+
   if (!customPath) {
     return null;
   }
-  
+
   try {
     if (!fs.existsSync(customPath)) {
       console.warn(`⚠️ Custom weights file not found: ${customPath}`);
       return null;
     }
-    
+
     const customWeights = JSON.parse(fs.readFileSync(customPath, 'utf8'));
     console.log(`✅ Loaded custom weights from: ${customPath}`);
-    
+
     // Validate custom weights
     for (const [sport, config] of Object.entries(customWeights as Record<string, any>)) {
       if (!validateWeights(config.weights)) {
@@ -106,7 +107,7 @@ export function loadCustomWeights(): Record<string, ScoringConfig> | null {
         delete customWeights[sport];
       }
     }
-    
+
     return customWeights as Record<string, ScoringConfig>;
   } catch (error) {
     console.error(`❌ Failed to load custom weights: ${error}`);
@@ -119,12 +120,12 @@ export function loadCustomWeights(): Record<string, ScoringConfig> | null {
  */
 export function initializeWeights(): Record<string, ScoringConfig> {
   const customWeights = loadCustomWeights();
-  
+
   if (customWeights) {
     // Merge custom weights with defaults
     return { ...SPORT_CONFIGS, ...customWeights };
   }
-  
+
   return SPORT_CONFIGS;
 }
 
@@ -135,12 +136,12 @@ export function initializeWeights(): Record<string, ScoringConfig> {
 export function getFeatureWeight(sport: string, featureName: string): number {
   const config = getScoringConfig(sport);
   const weights = config.weights as any;
-  
+
   if (!(featureName in weights)) {
     console.warn(`⚠️ Feature '${featureName}' not found in ${sport} weights, defaulting to 0`);
     return 0;
   }
-  
+
   return weights[featureName];
 }
 

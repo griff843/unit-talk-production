@@ -14,7 +14,9 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+
 import { makeLogger } from '../../utils/logger';
+
 import { OpsDigestData } from './OpsDiscordEmbedBuilder';
 import { getOpsDiscordSender } from './OpsDiscordSender';
 
@@ -64,11 +66,7 @@ export class OpsDigestScheduler {
   private config: OpsDigestConfig;
   private intervalId: ReturnType<typeof setInterval> | null = null;
 
-  constructor(
-    supabaseUrl: string,
-    supabaseServiceKey: string,
-    config?: Partial<OpsDigestConfig>
-  ) {
+  constructor(supabaseUrl: string, supabaseServiceKey: string, config?: Partial<OpsDigestConfig>) {
     this.supabase = createClient(supabaseUrl, supabaseServiceKey);
     this.config = { ...getDefaultConfig(), ...config };
 
@@ -92,9 +90,12 @@ export class OpsDigestScheduler {
     logger.info('Starting OpsDigestScheduler');
 
     // Check every hour if it's time to run the digest
-    this.intervalId = setInterval(() => {
-      this.checkAndRunDigest();
-    }, 60 * 60 * 1000); // 1 hour
+    this.intervalId = setInterval(
+      () => {
+        this.checkAndRunDigest();
+      },
+      60 * 60 * 1000
+    ); // 1 hour
 
     // Initial check
     this.checkAndRunDigest();
@@ -124,7 +125,8 @@ export class OpsDigestScheduler {
 
     // Check if it's Monday 9 AM (or whenever scheduled)
     // Parse cron: "0 9 * * 1" means minute 0, hour 9, any day, any month, Monday (1)
-    const [_minute, cronHour, _dayOfMonth, _month, cronDayOfWeek] = this.config.cronSchedule.split(' ');
+    const [_minute, cronHour, _dayOfMonth, _month, cronDayOfWeek] =
+      this.config.cronSchedule.split(' ');
     const targetHour = parseInt(cronHour, 10);
     const targetDay = parseInt(cronDayOfWeek, 10);
 
@@ -280,22 +282,17 @@ export class OpsDigestScheduler {
   /**
    * Record digest in history
    */
-  private async recordDigest(
-    digest: OpsDigestData,
-    correlationId: string
-  ): Promise<string> {
+  private async recordDigest(digest: OpsDigestData, correlationId: string): Promise<string> {
     const digestId = uuidv4();
 
-    const { error } = await this.supabase
-      .from('ops.digest_history')
-      .insert({
-        id: digestId,
-        period_start: digest.periodStart,
-        period_end: digest.periodEnd,
-        digest_data: digest,
-        correlation_id: correlationId,
-        generated_at: new Date().toISOString(),
-      });
+    const { error } = await this.supabase.from('ops.digest_history').insert({
+      id: digestId,
+      period_start: digest.periodStart,
+      period_end: digest.periodEnd,
+      digest_data: digest,
+      correlation_id: correlationId,
+      generated_at: new Date().toISOString(),
+    });
 
     if (error) {
       logger.warn('Failed to record digest in history', { error: error.message });
@@ -307,10 +304,7 @@ export class OpsDigestScheduler {
   /**
    * Update digest with Discord message ID
    */
-  private async updateDigestMessageId(
-    digestId: string,
-    messageId: string
-  ): Promise<void> {
+  private async updateDigestMessageId(digestId: string, messageId: string): Promise<void> {
     const { error } = await this.supabase
       .from('ops.digest_history')
       .update({
@@ -374,7 +368,8 @@ export class OpsDigestScheduler {
    */
   private calculateNextScheduledTime(): string {
     const now = new Date();
-    const [_minute, cronHour, _dayOfMonth, _month, cronDayOfWeek] = this.config.cronSchedule.split(' ');
+    const [_minute, cronHour, _dayOfMonth, _month, cronDayOfWeek] =
+      this.config.cronSchedule.split(' ');
     const targetHour = parseInt(cronHour, 10);
     const targetDay = parseInt(cronDayOfWeek, 10);
 

@@ -12,7 +12,6 @@ export interface HealthStatus {
 // Export HealthCheckResult as an alias for HealthStatus for backward compatibility
 export type HealthCheckResult = HealthStatus;
 
-
 export interface BaseMetrics {
   // Add agentName property
   agentName: string;
@@ -100,29 +99,38 @@ export const BaseAgentConfigSchema = z.object({
   version: z.string().optional().default('1.0.0'),
   enabled: z.boolean().optional().default(true),
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).optional().default('info'),
-  metrics: z.object({
-    enabled: z.boolean().optional().default(true),
-    interval: z.number().min(5).optional().default(60), // seconds
-    port: z.number().optional(),
-    endpoint: z.string().optional()
-  }).optional().default({}),
-  health: z.object({
-    enabled: z.boolean().optional().default(true),
-    interval: z.number().min(5).optional().default(30), // seconds
-    timeout: z.number().optional().default(5000),
-    checkDb: z.boolean().optional().default(true),
-    checkExternal: z.boolean().optional().default(false),
-    endpoint: z.string().optional()
-  }).optional().default({}),
-  retry: z.object({
-    enabled: z.boolean().optional().default(true),
-    maxRetries: z.number().min(0).optional().default(3),
-    backoffMs: z.number().min(100).optional().default(200),
-    maxBackoffMs: z.number().min(500).optional().default(5000),
-    exponential: z.boolean().optional().default(true),
-    jitter: z.boolean().optional().default(true)
-  }).optional().default({}),
-  schedule: z.enum(['disabled', 'enabled', 'manual']).optional().default('enabled')
+  metrics: z
+    .object({
+      enabled: z.boolean().optional().default(true),
+      interval: z.number().min(5).optional().default(60), // seconds
+      port: z.number().optional(),
+      endpoint: z.string().optional(),
+    })
+    .optional()
+    .default({}),
+  health: z
+    .object({
+      enabled: z.boolean().optional().default(true),
+      interval: z.number().min(5).optional().default(30), // seconds
+      timeout: z.number().optional().default(5000),
+      checkDb: z.boolean().optional().default(true),
+      checkExternal: z.boolean().optional().default(false),
+      endpoint: z.string().optional(),
+    })
+    .optional()
+    .default({}),
+  retry: z
+    .object({
+      enabled: z.boolean().optional().default(true),
+      maxRetries: z.number().min(0).optional().default(3),
+      backoffMs: z.number().min(100).optional().default(200),
+      maxBackoffMs: z.number().min(500).optional().default(5000),
+      exponential: z.boolean().optional().default(true),
+      jitter: z.boolean().optional().default(true),
+    })
+    .optional()
+    .default({}),
+  schedule: z.enum(['disabled', 'enabled', 'manual']).optional().default('enabled'),
 });
 
 // Export the Logger type

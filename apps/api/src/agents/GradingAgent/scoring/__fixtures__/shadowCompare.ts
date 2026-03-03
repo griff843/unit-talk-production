@@ -19,8 +19,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { computeScoreV2 } from '../computeScoreV2';
-import type { GradingFeatureSet } from '../../../../types/GradingFeatureSet';
+
 import { SCORING_FIXTURES, type ScoringFixture } from './scoringFixtures';
+
+import type { GradingFeatureSet } from '../../../../types/GradingFeatureSet';
 
 interface ComparisonResult {
   fixture: string;
@@ -65,12 +67,13 @@ function runComparison(): ComparisonResult[] {
     const v2 = computeScoreV2(features);
 
     const auditEntries = Object.values(v2.feature_audit);
-    const featuresPresent = auditEntries.filter((a) => a.present).length;
-    const fallbacksUsed = auditEntries.filter((a) => a.fallbackUsed).length;
-    const excluded = auditEntries.filter((a) => a.fallbackPolicy === 'excluded').length;
+    const featuresPresent = auditEntries.filter(a => a.present).length;
+    const fallbacksUsed = auditEntries.filter(a => a.fallbackUsed).length;
+    const excluded = auditEntries.filter(a => a.fallbackPolicy === 'excluded').length;
 
     const tierMatch = fixture.expected.tierRange.includes(v2.tier);
-    const scoreInRange = v2.score >= fixture.expected.scoreMin && v2.score <= fixture.expected.scoreMax;
+    const scoreInRange =
+      v2.score >= fixture.expected.scoreMin && v2.score <= fixture.expected.scoreMax;
     const evSignMatch = validateEvSign(v2.ev, fixture.expected.evSign);
 
     results.push({
@@ -106,7 +109,7 @@ function generateDriftReport(results: ComparisonResult[]): string {
   lines.push('');
 
   // Summary
-  const passed = results.filter((r) => r.validation.allPassed).length;
+  const passed = results.filter(r => r.validation.allPassed).length;
   const failed = results.length - passed;
   lines.push('## Summary');
   lines.push('');
@@ -135,8 +138,12 @@ function generateDriftReport(results: ComparisonResult[]): string {
   // Detail table
   lines.push('## Fixture Details');
   lines.push('');
-  lines.push('| Fixture | V2 Score | V2 Tier | EV | Present/Fallback/Excluded | Tier OK | Score OK | EV OK | All OK |');
-  lines.push('|---------|----------|---------|-----|--------------------------|---------|----------|-------|--------|');
+  lines.push(
+    '| Fixture | V2 Score | V2 Tier | EV | Present/Fallback/Excluded | Tier OK | Score OK | EV OK | All OK |'
+  );
+  lines.push(
+    '|---------|----------|---------|-----|--------------------------|---------|----------|-------|--------|'
+  );
 
   for (const r of results) {
     const status = r.validation.allPassed ? 'PASS' : 'FAIL';
@@ -147,14 +154,16 @@ function generateDriftReport(results: ComparisonResult[]): string {
   lines.push('');
 
   // Failures detail
-  const failures = results.filter((r) => !r.validation.allPassed);
+  const failures = results.filter(r => !r.validation.allPassed);
   if (failures.length > 0) {
     lines.push('## Failures');
     lines.push('');
     for (const f of failures) {
       lines.push(`### ${f.fixture}`);
       lines.push(`- **Description**: ${f.description}`);
-      lines.push(`- **V2 Score**: ${f.v2.score.toFixed(2)} (expected ${f.expected.scoreMin}-${f.expected.scoreMax})`);
+      lines.push(
+        `- **V2 Score**: ${f.v2.score.toFixed(2)} (expected ${f.expected.scoreMin}-${f.expected.scoreMax})`
+      );
       lines.push(`- **V2 Tier**: ${f.v2.tier} (expected ${f.expected.tierRange.join('/')})`);
       lines.push(`- **EV**: ${f.v2.ev} (expected ${f.expected.evSign})`);
       if (!f.validation.tierMatch) lines.push(`- **FAIL**: Tier mismatch`);
@@ -221,24 +230,31 @@ function main() {
   console.log(`Wrote: ${reportPath}`);
 
   // Summary
-  const passed = results.filter((r) => r.validation.allPassed).length;
+  const passed = results.filter(r => r.validation.allPassed).length;
   const failed = results.length - passed;
   console.log('');
   console.log(`Results: ${passed}/${results.length} passed, ${failed} failed`);
 
   for (const r of results) {
     const status = r.validation.allPassed ? 'PASS' : 'FAIL';
-    console.log(`  [${status}] ${r.fixture}: score=${r.v2.score.toFixed(1)}, tier=${r.v2.tier}, ev=${r.v2.ev}`);
+    console.log(
+      `  [${status}] ${r.fixture}: score=${r.v2.score.toFixed(1)}, tier=${r.v2.tier}, ev=${r.v2.ev}`
+    );
   }
 
   if (failed > 0) {
     console.log('');
     console.log('FAILURES:');
-    for (const r of results.filter((r) => !r.validation.allPassed)) {
+    for (const r of results.filter(r => !r.validation.allPassed)) {
       console.log(`  ${r.fixture}:`);
-      if (!r.validation.tierMatch) console.log(`    Tier: got ${r.v2.tier}, expected ${r.expected.tierRange.join('/')}`);
-      if (!r.validation.scoreInRange) console.log(`    Score: got ${r.v2.score.toFixed(2)}, expected ${r.expected.scoreMin}-${r.expected.scoreMax}`);
-      if (!r.validation.evSignMatch) console.log(`    EV: got ${r.v2.ev}, expected ${r.expected.evSign}`);
+      if (!r.validation.tierMatch)
+        console.log(`    Tier: got ${r.v2.tier}, expected ${r.expected.tierRange.join('/')}`);
+      if (!r.validation.scoreInRange)
+        console.log(
+          `    Score: got ${r.v2.score.toFixed(2)}, expected ${r.expected.scoreMin}-${r.expected.scoreMax}`
+        );
+      if (!r.validation.evSignMatch)
+        console.log(`    EV: got ${r.v2.ev}, expected ${r.expected.evSign}`);
     }
   }
 

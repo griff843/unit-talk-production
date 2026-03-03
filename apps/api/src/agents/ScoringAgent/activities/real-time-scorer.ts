@@ -14,12 +14,13 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+
+import { FeatureStoreService } from '../../../services/FeatureStoreService';
+import { GradingFeatureSet } from '../../../types/GradingFeatureSet';
 import { createLogger } from '../../../utils/logger';
 import { Enhanced45FactorEngine, Enhanced45FactorResult } from '../scoring/Enhanced45FactorEngine';
 import { FeatureStoreIntegration } from '../scoring/FeatureStoreIntegration';
 import { MaterialChangeDetector } from '../scoring/MaterialChangeDetector';
-import { FeatureStoreService } from '../../../services/FeatureStoreService';
-import { GradingFeatureSet } from '../../../types/GradingFeatureSet';
 
 const logger = createLogger('RealTimeScorer');
 
@@ -70,10 +71,7 @@ export class RealTimeScorer {
   private isInitialized: boolean = false;
   private subscriptionChannel?: any;
 
-  constructor(
-    supabase: SupabaseClient,
-    config: Partial<RealTimeScoringConfig> = {}
-  ) {
+  constructor(supabase: SupabaseClient, config: Partial<RealTimeScoringConfig> = {}) {
     this.supabase = supabase;
     this.config = {
       autoApprove: config.autoApprove ?? true,
@@ -81,7 +79,7 @@ export class RealTimeScorer {
       discordAlertsEnabled: config.discordAlertsEnabled ?? true,
       discordChannelId: config.discordChannelId ?? (process.env.DISCORD_PREMIUM_CHANNEL_ID || ''),
       timeSeriesLookbackDays: config.timeSeriesLookbackDays ?? 14,
-      minDataPoints: config.minDataPoints ?? 5
+      minDataPoints: config.minDataPoints ?? 5,
     };
   }
 
@@ -101,10 +99,7 @@ export class RealTimeScorer {
       const featureStoreService = new FeatureStoreService();
       this.featureStore = new FeatureStoreIntegration(featureStoreService);
       this.changeDetector = new MaterialChangeDetector();
-      this.enhanced45Engine = new Enhanced45FactorEngine(
-        this.featureStore,
-        this.changeDetector
-      );
+      this.enhanced45Engine = new Enhanced45FactorEngine(this.featureStore, this.changeDetector);
 
       // Set up material change event listeners
       this.changeDetector.on('materialChange', this.handleMaterialChange.bind(this));
@@ -117,12 +112,11 @@ export class RealTimeScorer {
       logger.info('✅ RealTimeScorer initialized successfully', {
         autoApprove: this.config.autoApprove,
         autoApproveTiers: this.config.autoApproveTiers,
-        discordAlertsEnabled: this.config.discordAlertsEnabled
+        discordAlertsEnabled: this.config.discordAlertsEnabled,
       });
-
     } catch (error) {
       logger.error('❌ Failed to initialize RealTimeScorer', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -154,9 +148,7 @@ export class RealTimeScorer {
           logger.info(`Found ${newProps.length} new props for real-time scoring`);
 
           // Process in parallel for maximum throughput
-          const results = await Promise.all(
-            newProps.map(prop => this.scoreNewProp(prop))
-          );
+          const results = await Promise.all(newProps.map(prop => this.scoreNewProp(prop)));
 
           const successful = results.filter(r => r.scored).length;
           const autoApproved = results.filter(r => r.autoApproved).length;
@@ -167,12 +159,13 @@ export class RealTimeScorer {
             successful,
             autoApproved,
             alertsSent,
-            avgProcessingTime: results.reduce((sum, r) => sum + r.processingTimeMs, 0) / results.length
+            avgProcessingTime:
+              results.reduce((sum, r) => sum + r.processingTimeMs, 0) / results.length,
           });
         }
       } catch (error) {
         logger.error('Polling error', {
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
 
@@ -208,7 +201,7 @@ export class RealTimeScorer {
       return (data || []) as NewPropEvent[];
     } catch (error) {
       logger.error('Error fetching unscored props', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
@@ -225,7 +218,7 @@ export class RealTimeScorer {
         propId: prop.id,
         sport: prop.sport,
         player: prop.player_name,
-        market: prop.stat_type
+        market: prop.stat_type,
       });
 
       // Step 1: Normalize to market_props format (if using dual-track pipeline)
@@ -281,7 +274,7 @@ export class RealTimeScorer {
         score: scoringResult.totalScore,
         autoApproved,
         discordAlertSent,
-        processingTimeMs
+        processingTimeMs,
       });
 
       return {
@@ -291,23 +284,22 @@ export class RealTimeScorer {
         professionalScore: scoringResult.totalScore,
         autoApproved,
         discordAlertSent,
-        processingTimeMs
+        processingTimeMs,
       };
-
     } catch (error) {
       const processingTimeMs = Date.now() - startTime;
 
       logger.error('❌ Failed to score prop', {
         propId: prop.id,
         error: error instanceof Error ? error.message : 'Unknown error',
-        processingTimeMs
+        processingTimeMs,
       });
 
       return {
         propId: prop.id,
         scored: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        processingTimeMs
+        processingTimeMs,
       };
     }
   }
@@ -333,27 +325,25 @@ export class RealTimeScorer {
         team: prop.team,
         opponent: prop.opponent,
         metadata: prop.metadata || {},
-        created_at: prop.created_at
+        created_at: prop.created_at,
       };
 
       // Insert into market_props (upsert to handle duplicates)
-      const { error } = await this.supabase
-        .from('market_props')
-        .upsert(marketProp, {
-          onConflict: 'bookmaker_key,external_prop_id',
-          ignoreDuplicates: true
-        });
+      const { error } = await this.supabase.from('market_props').upsert(marketProp, {
+        onConflict: 'bookmaker_key,external_prop_id',
+        ignoreDuplicates: true,
+      });
 
       if (error) {
         logger.warn('Failed to normalize to market_props', {
           propId: prop.id,
-          error: error.message
+          error: error.message,
         });
       }
     } catch (error) {
       logger.warn('Error normalizing to market_props', {
         propId: prop.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -371,10 +361,7 @@ export class RealTimeScorer {
       );
 
       // Feature 3: Player Form
-      const playerForm = await this.computePlayerForm(
-        prop.player_name,
-        prop.sport
-      );
+      const playerForm = await this.computePlayerForm(prop.player_name, prop.sport);
 
       // Feature 5: Closing Line Value Prediction
       const clvPrediction = await this.predictClosingLineValue(
@@ -391,12 +378,12 @@ export class RealTimeScorer {
         playerFormTrend: playerForm.trend,
         predictedCLV: clvPrediction.expectedCLV,
         clvConfidence: clvPrediction.confidence,
-        historicalDataPoints: lineMovement.dataPoints
+        historicalDataPoints: lineMovement.dataPoints,
       };
     } catch (error) {
       logger.warn('Failed to compute time-series features', {
         propId: prop.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
 
       // Return defaults if computation fails
@@ -407,7 +394,7 @@ export class RealTimeScorer {
         playerFormTrend: 'stable',
         predictedCLV: 0,
         clvConfidence: 0.5,
-        historicalDataPoints: 0
+        historicalDataPoints: 0,
       };
     }
   }
@@ -449,7 +436,7 @@ export class RealTimeScorer {
       return { velocity, direction, dataPoints: data.length };
     } catch (error) {
       logger.warn('Error computing line movement velocity', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return { velocity: 0, direction: 'stable', dataPoints: 0 };
     }
@@ -489,15 +476,19 @@ export class RealTimeScorer {
       const recentWins = data.slice(0, 5).filter(d => d.result === 'win').length;
       const recentWinRate = recentWins / Math.min(5, data.length);
 
-      const trend = recentWinRate > winRate + 0.1 ? 'improving' :
-                   recentWinRate < winRate - 0.1 ? 'declining' : 'stable';
+      const trend =
+        recentWinRate > winRate + 0.1
+          ? 'improving'
+          : recentWinRate < winRate - 0.1
+            ? 'declining'
+            : 'stable';
 
-      const formScore = (winRate * 50) + (avgScore * 0.5);
+      const formScore = winRate * 50 + avgScore * 0.5;
 
       return { score: formScore, trend };
     } catch (error) {
       logger.warn('Error computing player form', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return { score: 50, trend: 'stable' };
     }
@@ -546,7 +537,7 @@ export class RealTimeScorer {
       return { expectedCLV: avgMovement, confidence };
     } catch (error) {
       logger.warn('Error predicting CLV', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return { expectedCLV: 0, confidence: 0.3 };
     }
@@ -555,10 +546,7 @@ export class RealTimeScorer {
   /**
    * Build GradingFeatureSet for Enhanced45FactorEngine
    */
-  private buildGradingFeatures(
-    prop: NewPropEvent,
-    timeSeriesFeatures: any
-  ): GradingFeatureSet {
+  private buildGradingFeatures(prop: NewPropEvent, timeSeriesFeatures: any): GradingFeatureSet {
     return {
       propId: prop.id,
       date: prop.game_date.split('T')[0],
@@ -570,7 +558,7 @@ export class RealTimeScorer {
       market: {
         type: prop.stat_type,
         odds: prop.odds,
-        line: prop.line
+        line: prop.line,
       },
 
       // Time-series features
@@ -604,8 +592,8 @@ export class RealTimeScorer {
         completeness: 0.95,
         outlierScore: 0.95,
         consistencyScore: 0.95,
-        dataValidationScore: 0.95
-      }
+        dataValidationScore: 0.95,
+      },
     };
   }
 
@@ -614,12 +602,12 @@ export class RealTimeScorer {
    */
   private extractLeague(sport: string): string {
     const leagueMap: Record<string, string> = {
-      'nfl': 'NFL',
-      'nba': 'NBA',
-      'mlb': 'MLB',
-      'nhl': 'NHL',
-      'ncaaf': 'NCAAF',
-      'ncaab': 'NCAAB'
+      nfl: 'NFL',
+      nba: 'NBA',
+      mlb: 'MLB',
+      nhl: 'NHL',
+      ncaaf: 'NCAAF',
+      ncaab: 'NCAAB',
     };
     return leagueMap[sport.toLowerCase()] || sport.toUpperCase();
   }
@@ -650,14 +638,14 @@ export class RealTimeScorer {
           player: result.playerScore,
           matchup: result.matchupScore,
           price: result.priceScore,
-          meta: result.metaScore
+          meta: result.metaScore,
         },
         processing_time_ms: result.processingTimeMs,
         features_retrieved_ms: result.featuresRetrievedMs,
         version: result.version,
         config_used: result.configUsed,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       const { error } = await this.supabase
@@ -667,13 +655,13 @@ export class RealTimeScorer {
       if (error) {
         logger.error('Failed to store scoring result', {
           propId,
-          error: error.message
+          error: error.message,
         });
       }
     } catch (error) {
       logger.error('Error storing scoring result', {
         propId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -697,17 +685,15 @@ export class RealTimeScorer {
         confidence: scoringResult.confidence,
         auto_approved: true,
         approved_at: new Date().toISOString(),
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       };
 
-      const { error } = await this.supabase
-        .from('promotion_queue')
-        .insert(promotionEntry);
+      const { error } = await this.supabase.from('promotion_queue').insert(promotionEntry);
 
       if (error) {
         logger.error('Failed to auto-approve to promotion_queue', {
           propId: prop.id,
-          error: error.message
+          error: error.message,
         });
         return false;
       }
@@ -715,14 +701,14 @@ export class RealTimeScorer {
       logger.info('✅ Auto-approved to promotion_queue', {
         propId: prop.id,
         tier: scoringResult.tier,
-        score: scoringResult.totalScore
+        score: scoringResult.totalScore,
       });
 
       return true;
     } catch (error) {
       logger.error('Error auto-approving to promotion_queue', {
         propId: prop.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }
@@ -740,39 +726,37 @@ export class RealTimeScorer {
       const message = this.formatDiscordMessage(prop, scoringResult);
 
       // Store alert in database (AlertAgent will pick it up)
-      const { error } = await this.supabase
-        .from('pending_alerts')
-        .insert({
-          type: 'discord',
-          priority: 'high',
-          channel_id: this.config.discordChannelId,
-          content: message,
-          metadata: {
-            propId: prop.id,
-            tier: scoringResult.tier,
-            score: scoringResult.totalScore
-          },
-          created_at: new Date().toISOString()
-        });
+      const { error } = await this.supabase.from('pending_alerts').insert({
+        type: 'discord',
+        priority: 'high',
+        channel_id: this.config.discordChannelId,
+        content: message,
+        metadata: {
+          propId: prop.id,
+          tier: scoringResult.tier,
+          score: scoringResult.totalScore,
+        },
+        created_at: new Date().toISOString(),
+      });
 
       if (error) {
         logger.error('Failed to queue Discord alert', {
           propId: prop.id,
-          error: error.message
+          error: error.message,
         });
         return false;
       }
 
       logger.info('✅ Discord alert queued', {
         propId: prop.id,
-        tier: scoringResult.tier
+        tier: scoringResult.tier,
       });
 
       return true;
     } catch (error) {
       logger.error('Error sending Discord alert', {
         propId: prop.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }
@@ -821,7 +805,7 @@ ${pickSide} ${line} @ ${this.formatOdds(prop.odds)}
     logger.info('📊 Material change detected', {
       propId: change.propId,
       changeType: change.changeType,
-      severity: change.severity
+      severity: change.severity,
     });
 
     // Re-score if high severity
@@ -846,7 +830,7 @@ ${pickSide} ${line} @ ${this.formatOdds(prop.odds)}
     logger.warn('🚨 Critical material change detected', {
       propId: change.propId,
       changeType: change.changeType,
-      impact: change.impact
+      impact: change.impact,
     });
 
     // Force immediate re-scoring

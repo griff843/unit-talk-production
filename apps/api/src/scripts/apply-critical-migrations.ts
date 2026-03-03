@@ -2,7 +2,7 @@
 
 /**
  * Apply Critical Database Migrations
- * 
+ *
  * Applies the critical migrations identified in the production readiness bundle:
  * 1. Add missing 'published' column to unified_picks (CRITICAL)
  * 2. Add professional grading columns to raw_props (ENHANCEMENT)
@@ -32,7 +32,6 @@ class CriticalMigrationApplicator {
       await this.applyCriticalUnifiedPicksColumn();
       await this.applyProfessionalGradingColumns();
       await this.generateReport();
-      
     } catch (error) {
       logger.error('❌ Migration application failed:', error);
       process.exit(1);
@@ -41,7 +40,7 @@ class CriticalMigrationApplicator {
 
   private async applyCriticalUnifiedPicksColumn(): Promise<void> {
     logger.info('🔥 CRITICAL: Adding published column to unified_picks table');
-    
+
     const sql = `
       ALTER TABLE unified_picks 
       ADD COLUMN IF NOT EXISTS published BOOLEAN DEFAULT FALSE;
@@ -67,51 +66,52 @@ class CriticalMigrationApplicator {
         .limit(1);
 
       if (testError && testError.message.includes('column "published" does not exist')) {
-        logger.info('📋 Column does not exist, will need manual application via Supabase dashboard');
+        logger.info(
+          '📋 Column does not exist, will need manual application via Supabase dashboard'
+        );
         this.results.push({
           migration: 'Add published column to unified_picks',
           success: false,
-          error: 'Column does not exist - requires manual application via Supabase SQL Editor'
+          error: 'Column does not exist - requires manual application via Supabase SQL Editor',
         });
       } else if (!testError) {
         logger.info('✅ Column already exists');
         this.results.push({
           migration: 'Add published column to unified_picks',
-          success: true
+          success: true,
         });
       } else {
         logger.error('❌ Unexpected error checking column:', testError);
         this.results.push({
           migration: 'Add published column to unified_picks',
           success: false,
-          error: testError.message
+          error: testError.message,
         });
       }
 
       // Output the SQL for manual application
       logger.info('📝 SQL to run manually in Supabase SQL Editor:');
       logger.info(sql.trim());
-
     } catch (error) {
       logger.error('❌ Failed to apply critical migration:', error);
       this.results.push({
         migration: 'Add published column to unified_picks',
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 
   private async applyProfessionalGradingColumns(): Promise<void> {
     logger.info('⚡ ENHANCEMENT: Adding professional grading columns to raw_props table');
-    
+
     const columns = [
       'processed_at',
-      'pro_attempts', 
+      'pro_attempts',
       'processing_error',
       'professional_score',
       'kelly_fraction',
-      'clv_tracking_id'
+      'clv_tracking_id',
     ];
 
     const sql = `
@@ -127,13 +127,10 @@ class CriticalMigrationApplicator {
     try {
       // Test each column individually
       const columnResults = [];
-      
+
       for (const column of columns) {
         try {
-          const { error: testError } = await supabase
-            .from('raw_props')
-            .select(column)
-            .limit(1);
+          const { error: testError } = await supabase.from('raw_props').select(column).limit(1);
 
           if (testError && testError.message.includes(`column "${column}" does not exist`)) {
             columnResults.push({ column, exists: false });
@@ -161,22 +158,21 @@ class CriticalMigrationApplicator {
         this.results.push({
           migration: 'Add professional grading columns to raw_props',
           success: false,
-          error: `${missingColumns.length} columns missing - requires manual application via Supabase SQL Editor`
+          error: `${missingColumns.length} columns missing - requires manual application via Supabase SQL Editor`,
         });
       } else {
         logger.info('✅ All professional grading columns already exist');
         this.results.push({
           migration: 'Add professional grading columns to raw_props',
-          success: true
+          success: true,
         });
       }
-
     } catch (error) {
       logger.error('❌ Failed to check professional grading columns:', error);
       this.results.push({
         migration: 'Add professional grading columns to raw_props',
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -212,15 +208,14 @@ class CriticalMigrationApplicator {
 
     if (successful > 0) {
       logger.info('✅ SUCCESSFULLY APPLIED:');
-      this.results
-        .filter(r => r.success)
-        .forEach(r => logger.info(`   • ${r.migration}`));
+      this.results.filter(r => r.success).forEach(r => logger.info(`   • ${r.migration}`));
       logger.info('');
     }
 
     // Critical assessment
-    const criticalPassed = this.results.find(r => r.migration.includes('published'))?.success || false;
-    
+    const criticalPassed =
+      this.results.find(r => r.migration.includes('published'))?.success || false;
+
     logger.info('🎯 PRODUCTION READINESS IMPACT:');
     if (criticalPassed) {
       logger.info('   ✅ CRITICAL ISSUE RESOLVED - Deployment readiness improved');

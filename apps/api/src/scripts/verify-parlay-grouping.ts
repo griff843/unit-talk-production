@@ -46,12 +46,15 @@ async function main() {
     console.log(`Created: ${unpublished[0].created_at}\n`);
 
     // Capture C1: DB state BEFORE processing
-    const { rows: beforePicks } = await client.query(`
+    const { rows: beforePicks } = await client.query(
+      `
       SELECT id, bet_slip_id, leg_index, posted_to_discord, ticket_type, tier, meta
       FROM unified_picks
       WHERE bet_slip_id = $1
       ORDER BY leg_index
-    `, [parlayId]);
+    `,
+      [parlayId]
+    );
 
     const c1 = { parlay_id: parlayId, legs: beforePicks, captured_at: new Date().toISOString() };
     fs.writeFileSync(path.join(OUTPUT_DIR, 'C1_db_before.json'), JSON.stringify(c1, null, 2));
@@ -60,7 +63,6 @@ async function main() {
     console.log('Run the auto-processor now to post this parlay:');
     console.log('  npx tsx apps/api/src/scripts/auto-processor.ts');
     console.log('\nThen re-run this script to capture C4_db_after.json');
-
   } else {
     // Check for recently published parlays (posted in last hour)
     const { rows: recent } = await client.query(`
@@ -81,12 +83,15 @@ async function main() {
       console.log(`Updated: ${recent[0].updated_at}\n`);
 
       // Capture C4: DB state AFTER processing
-      const { rows: afterPicks } = await client.query(`
+      const { rows: afterPicks } = await client.query(
+        `
         SELECT id, bet_slip_id, leg_index, posted_to_discord, ticket_type, tier, meta
         FROM unified_picks
         WHERE bet_slip_id = $1
         ORDER BY leg_index
-      `, [parlayId]);
+      `,
+        [parlayId]
+      );
 
       const c4 = { parlay_id: parlayId, legs: afterPicks, captured_at: new Date().toISOString() };
       fs.writeFileSync(path.join(OUTPUT_DIR, 'C4_db_after.json'), JSON.stringify(c4, null, 2));
@@ -111,7 +116,9 @@ async function main() {
       } else {
         console.log('\n FAIL: Multiple discord_message_ids found');
         afterPicks.forEach(p => {
-          console.log(`  leg_index=${p.leg_index}: ${p.meta?.discord_receipt?.message_id || 'none'}`);
+          console.log(
+            `  leg_index=${p.leg_index}: ${p.meta?.discord_receipt?.message_id || 'none'}`
+          );
         });
       }
 
@@ -125,13 +132,15 @@ async function main() {
         legs: afterPicks.map(p => ({
           leg_index: p.leg_index,
           posted_to_discord: p.posted_to_discord,
-          discord_message_id: p.meta?.discord_receipt?.message_id
-        }))
+          discord_message_id: p.meta?.discord_receipt?.message_id,
+        })),
       };
 
-      fs.writeFileSync(path.join(OUTPUT_DIR, 'C3_discord_message_proof.json'), JSON.stringify(verification, null, 2));
+      fs.writeFileSync(
+        path.join(OUTPUT_DIR, 'C3_discord_message_proof.json'),
+        JSON.stringify(verification, null, 2)
+      );
       console.log('\nC3_discord_message_proof.json saved');
-
     } else {
       console.log('No recent parlays found (unpublished or published in last hour)');
       console.log('\nTo test PARLAY-DISCORD-GROUPING-001:');

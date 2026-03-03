@@ -13,7 +13,7 @@ import {
   BaseAgentDependencies,
   AgentStatus,
   Logger,
-  ErrorHandler
+  ErrorHandler,
 } from './types';
 
 export type { BaseAgentConfig, BaseAgentDependencies } from './types';
@@ -65,7 +65,7 @@ export abstract class BaseAgent extends EventEmitter {
       // If validation fails, use factory to create proper config
       if (deps?.logger) {
         deps.logger.warn('Config validation failed, using factory to create proper config', {
-          err: error instanceof Error ? error.message : String(error)
+          err: error instanceof Error ? error.message : String(error),
         });
       }
       this.config = createBaseAgentConfig(config);
@@ -78,17 +78,17 @@ export abstract class BaseAgent extends EventEmitter {
       errorCount: 0,
       warningCount: 0,
       processingTimeMs: 0,
-      memoryUsageMb: 0
+      memoryUsageMb: 0,
     };
 
     // Set up error handling
-    this.on('error', (error) => {
+    this.on('error', error => {
       this.metrics.errorCount = (this.metrics.errorCount || 0) + 1;
       if (this.deps.errorHandler) {
         this.deps.errorHandler.handleError(error, {
           agentName: this.config.name,
           status: this.status,
-          context: 'BaseAgent'
+          context: 'BaseAgent',
         });
       }
     });
@@ -99,7 +99,7 @@ export abstract class BaseAgent extends EventEmitter {
   protected abstract process(): Promise<void>;
   protected abstract cleanup(): Promise<void>;
   protected abstract checkHealth(): Promise<HealthCheckResult>;
-  
+
   // Enhanced health check that includes dependency validation
   public async getEnhancedHealth(): Promise<{
     agent: HealthCheckResult;
@@ -109,10 +109,10 @@ export abstract class BaseAgent extends EventEmitter {
     try {
       // Get agent-specific health
       const agentHealth = await this.checkHealth();
-      
+
       // Get dependency health checks
       const dependencies: HealthCheck[] = [];
-      
+
       // Check Supabase if agent uses it
       if (this.hasSupabase()) {
         const supabaseHealth = healthChecker.getDependencyHealth('supabase');
@@ -120,13 +120,13 @@ export abstract class BaseAgent extends EventEmitter {
           dependencies.push(supabaseHealth);
         }
       }
-      
+
       // Check circuit breaker status for services this agent might use
       const circuitBreakerHealth = circuitBreaker.getHealthStatus();
-      const relevantServices = circuitBreakerHealth.services.filter(s => 
-        s.name.includes('openai') || s.name.includes('discord') || s.name.includes('supabase')
+      const relevantServices = circuitBreakerHealth.services.filter(
+        s => s.name.includes('openai') || s.name.includes('discord') || s.name.includes('supabase')
       );
-      
+
       // Add circuit breaker states as health checks
       relevantServices.forEach(service => {
         dependencies.push({
@@ -136,18 +136,18 @@ export abstract class BaseAgent extends EventEmitter {
           lastCheck: new Date().toISOString(),
           metadata: {
             circuit_state: service.state,
-            failure_rate: service.failureRate
-          }
+            failure_rate: service.failureRate,
+          },
         });
       });
-      
+
       // Determine overall health
-      const criticalDependenciesUnhealthy = dependencies
-        .filter(d => d.critical && d.status === 'unhealthy').length > 0;
-      const anyDependenciesUnhealthy = dependencies
-        .filter(d => d.status === 'unhealthy').length > 0;
+      const criticalDependenciesUnhealthy =
+        dependencies.filter(d => d.critical && d.status === 'unhealthy').length > 0;
+      const anyDependenciesUnhealthy =
+        dependencies.filter(d => d.status === 'unhealthy').length > 0;
       const agentUnhealthy = agentHealth.status === 'unhealthy';
-      
+
       let overall: 'healthy' | 'degraded' | 'unhealthy';
       if (agentUnhealthy || criticalDependenciesUnhealthy) {
         overall = 'unhealthy';
@@ -156,26 +156,26 @@ export abstract class BaseAgent extends EventEmitter {
       } else {
         overall = 'healthy';
       }
-      
+
       return {
         agent: agentHealth,
         dependencies,
-        overall
+        overall,
       };
     } catch (error) {
       this.logger.error('Enhanced health check failed', {
         agentName: this.config.name,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       return {
         agent: {
           status: 'unhealthy',
           timestamp: new Date().toISOString(),
-          details: { error: 'Health check system failure' }
+          details: { error: 'Health check system failure' },
         },
         dependencies: [],
-        overall: 'unhealthy'
+        overall: 'unhealthy',
       };
     }
   }
@@ -184,7 +184,7 @@ export abstract class BaseAgent extends EventEmitter {
   // Register agent with health check system
   private registerAgentHealthCheck(): void {
     const agentName = this.config.name.toLowerCase().replace(/agent$/, '');
-    
+
     healthChecker.registerDependency({
       name: `agent_${agentName}`,
       critical: true,
@@ -194,30 +194,29 @@ export abstract class BaseAgent extends EventEmitter {
         try {
           const startTime = Date.now();
           const health = await this.checkHealth();
-          
+
           return {
             healthy: health.status === 'healthy',
             responseTime: Date.now() - startTime,
-            error: health.status !== 'healthy' ? 
-              JSON.stringify(health.details) : undefined,
+            error: health.status !== 'healthy' ? JSON.stringify(health.details) : undefined,
             metadata: {
               agentStatus: this.status,
               metrics: this.metrics,
-              ...health.details
-            }
+              ...health.details,
+            },
           };
         } catch (error) {
           return {
             healthy: false,
-            error: error instanceof Error ? error.message : 'Agent health check failed'
+            error: error instanceof Error ? error.message : 'Agent health check failed',
           };
         }
-      }
+      },
     });
-    
+
     this.logger.debug('Agent registered with health check system', {
       agentName: this.config.name,
-      healthCheckName: `agent_${agentName}`
+      healthCheckName: `agent_${agentName}`,
     });
   }
 
@@ -252,7 +251,7 @@ export abstract class BaseAgent extends EventEmitter {
     } catch (error) {
       this.status = 'error';
       this.logger.error(`Failed to start ${this.config.name}:`, {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -285,7 +284,7 @@ export abstract class BaseAgent extends EventEmitter {
     } catch (error) {
       this.status = 'error';
       this.logger.error(`Failed to stop ${this.config.name}:`, {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -296,21 +295,21 @@ export abstract class BaseAgent extends EventEmitter {
     try {
       this.processLoopActive = true;
       this.logger.info(`Running ${this.config.name} process...`);
-      
+
       const startTime = Date.now();
       await this.process();
       const processingTime = Date.now() - startTime;
-      
+
       this.metrics.processingTimeMs = processingTime;
       this.metrics.successCount = (this.metrics.successCount || 0) + 1;
-      
+
       this.logger.info(`${this.config.name} process completed`, {
-        processingTimeMs: processingTime
+        processingTimeMs: processingTime,
       });
     } catch (error) {
       this.metrics.errorCount = (this.metrics.errorCount || 0) + 1;
       this.logger.error(`${this.config.name} process failed:`, {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -324,7 +323,7 @@ export abstract class BaseAgent extends EventEmitter {
       await this.recordHealth(health);
     } catch (error) {
       this.logger.error('Health check failed:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       this.status = 'error';
     }
@@ -338,7 +337,7 @@ export abstract class BaseAgent extends EventEmitter {
       await this.recordMetrics(this.metrics);
     } catch (error) {
       this.logger.error('Metrics collection failed:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -347,16 +346,18 @@ export abstract class BaseAgent extends EventEmitter {
   private async recordHealth(health: HealthCheckResult): Promise<void> {
     try {
       if (this.deps.supabase) {
-        await this.deps.supabase.from('agent_health').insert([{
-          agent: this.config.name,
-          status: health.status,
-          details: health.details,
-          timestamp: health.timestamp || new Date().toISOString()
-        }]);
+        await this.deps.supabase.from('agent_health').insert([
+          {
+            agent: this.config.name,
+            status: health.status,
+            details: health.details,
+            timestamp: health.timestamp || new Date().toISOString(),
+          },
+        ]);
       }
     } catch (error) {
       this.logger.error('Failed to record health check:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -365,15 +366,17 @@ export abstract class BaseAgent extends EventEmitter {
   private async recordMetrics(metrics: BaseMetrics): Promise<void> {
     try {
       if (this.deps.supabase) {
-        await this.deps.supabase.from('agent_metrics').insert([{
-          agent: this.config.name,
-          ...metrics,
-          timestamp: new Date().toISOString()
-        }]);
+        await this.deps.supabase.from('agent_metrics').insert([
+          {
+            agent: this.config.name,
+            ...metrics,
+            timestamp: new Date().toISOString(),
+          },
+        ]);
       }
     } catch (error) {
       this.logger.error('Failed to record metrics:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -427,11 +430,6 @@ export abstract class BaseAgent extends EventEmitter {
     fn: () => Promise<T>,
     tags?: Record<string, any>
   ): Promise<T> {
-    return tracer.runInSpan(
-      operation,
-      fn,
-      this.config.name,
-      tags
-    );
+    return tracer.runInSpan(operation, fn, this.config.name, tags);
   }
 }

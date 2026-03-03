@@ -1,6 +1,11 @@
 import { createBaseAgentConfig } from '../BaseAgent/config';
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types';
+import {
+  BaseAgentConfig,
+  BaseAgentDependencies,
+  HealthStatus,
+  BaseMetrics,
+} from '../BaseAgent/types';
 
 import { FeedAgentConfigSchema, FeedAgentConfig, FeedMetrics, RawProp } from './types';
 import { normalizePublicProps, dedupePublicProps } from './utils';
@@ -27,13 +32,13 @@ function createFeedAgentConfig(config: any): BaseAgentConfig & { feedConfig?: Fe
       retryConfig: {
         maxRetries: 3,
         backoffMs: 1000,
-        maxBackoffMs: 30000
+        maxBackoffMs: 30000,
       },
       providers: config.providers || {},
       dedupeConfig: {
         checkInterval: 300,
-        ttlHours: 24
-      }
+        ttlHours: 24,
+      },
     };
   }
 
@@ -63,13 +68,13 @@ export class FeedAgent extends BaseAgent {
       retryConfig: {
         maxRetries: 3,
         backoffMs: 1000,
-        maxBackoffMs: 30000
+        maxBackoffMs: 30000,
       },
       providers: {},
       dedupeConfig: {
         checkInterval: 300,
-        ttlHours: 24
-      }
+        ttlHours: 24,
+      },
     };
 
     this.feedMetrics = {
@@ -82,8 +87,8 @@ export class FeedAgent extends BaseAgent {
         SportsGameOdds: { success: 0, failed: 0, avgLatencyMs: 0 },
         OddsAPI: { success: 0, failed: 0, avgLatencyMs: 0 },
         Pinnacle: { success: 0, failed: 0, avgLatencyMs: 0 },
-        Optimal: { success: 0, failed: 0, avgLatencyMs: 0 }
-      }
+        Optimal: { success: 0, failed: 0, avgLatencyMs: 0 },
+      },
     };
   }
 
@@ -104,7 +109,7 @@ export class FeedAgent extends BaseAgent {
       }
     } catch (error) {
       this.logger.error('Failed to process feed data', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -124,16 +129,16 @@ export class FeedAgent extends BaseAgent {
         timestamp: new Date().toISOString(),
         details: {
           errorRate,
-          metrics: this.feedMetrics
-        }
+          metrics: this.feedMetrics,
+        },
       };
     } catch (error) {
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
         details: {
-          err: error instanceof Error ? error.message : String(error)
-        }
+          err: error instanceof Error ? error.message : String(error),
+        },
       };
     }
   }
@@ -145,7 +150,7 @@ export class FeedAgent extends BaseAgent {
       errorCount: this.feedMetrics.errors,
       warningCount: this.feedMetrics.duplicates,
       processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
   }
 
@@ -154,10 +159,7 @@ export class FeedAgent extends BaseAgent {
     if (!this.supabase) {
       throw new Error('Supabase client is required for FeedAgent');
     }
-    const { error } = await this.supabase
-      .from('raw_props')
-      .select('id')
-      .limit(1);
+    const { error } = await this.supabase.from('raw_props').select('id').limit(1);
 
     if (error) {
       throw new Error(`Database connectivity check failed: ${error.message}`);
@@ -187,10 +189,9 @@ export class FeedAgent extends BaseAgent {
 
       // Process the props
       await this.processProps(rawProps);
-
     } catch (error) {
       this.logger.error(`Provider ingestion failed: ${provider.name}`, {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       this.feedMetrics.errors++;
       throw error;
@@ -199,42 +200,44 @@ export class FeedAgent extends BaseAgent {
 
   private async fetchFromProvider(provider: any): Promise<any[]> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.info(`🌐 Fetching real data using unified data source router`);
-      
+
       // Import the unified data source router
       const { fetchUnifiedData } = await import('./dataSourceRouter');
-      
+
       // Get today's date for filtering
       const today = new Date().toISOString().split('T')[0];
-      
+
       // Fetch props for all supported sports using smart routing
       const sports = ['NBA', 'NFL', 'MLB', 'NHL', 'NCAAF'];
       const allProps = [];
-      
+
       for (const sport of sports) {
         try {
           this.logger.info(`🏀 Fetching ${sport} props using smart routing`);
-          
+
           // Use unified data router to automatically select best API
           const result = await fetchUnifiedData({
             sport,
             marketType: 'player-props',
-            date: today
+            date: today,
           });
-          
-          this.logger.info(`📊 ${sport}: ${result.data.length} props from ${result.source} (${result.metadata.processingTimeMs}ms)`);
-          
+
+          this.logger.info(
+            `📊 ${sport}: ${result.data.length} props from ${result.source} (${result.metadata.processingTimeMs}ms)`
+          );
+
           // Add source metadata to props
           const sourceProps = result.data.map(prop => ({
             ...prop,
             source: result.source,
-            fetched_via: 'unified-router'
+            fetched_via: 'unified-router',
           }));
-          
+
           allProps.push(...sourceProps);
-          
+
           // Update provider stats based on source used
           if (result.source === 'optimal-api') {
             this.feedMetrics.providerStats.Optimal.success++;
@@ -243,31 +246,31 @@ export class FeedAgent extends BaseAgent {
             this.feedMetrics.providerStats.OddsAPI.success++;
             this.feedMetrics.providerStats.OddsAPI.avgLatencyMs = result.metadata.processingTimeMs;
           }
-          
+
           // Log any errors from the unified system
           if (result.metadata.errors.length > 0) {
             this.logger.warn(`⚠️ ${sport} fetch had errors:`, result.metadata.errors);
           }
-          
+
           // Small delay between sports
           await new Promise(resolve => setTimeout(resolve, 200));
-          
         } catch (error) {
           this.logger.error(`❌ Failed to fetch ${sport} props`, {
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
           this.feedMetrics.errors++;
         }
       }
-      
+
       const duration = Date.now() - startTime;
-      
-      this.logger.info(`✅ Fetched ${allProps.length} total props using unified routing in ${duration}ms`);
+
+      this.logger.info(
+        `✅ Fetched ${allProps.length} total props using unified routing in ${duration}ms`
+      );
       return allProps;
-      
     } catch (error) {
       this.logger.error(`❌ Unified data fetch failed`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
@@ -281,12 +284,11 @@ export class FeedAgent extends BaseAgent {
     for (const prop of props) {
       try {
         // Insert into database
-        const { error } = await this.supabase
-          .from('raw_props')
-          .insert(prop);
+        const { error } = await this.supabase.from('raw_props').insert(prop);
 
         if (error) {
-          if (error.code === '23505') { // Duplicate key error
+          if (error.code === '23505') {
+            // Duplicate key error
             this.feedMetrics.duplicates++;
           } else {
             throw error;
@@ -296,11 +298,10 @@ export class FeedAgent extends BaseAgent {
         }
 
         this.feedMetrics.totalProps++;
-
       } catch (error) {
         this.logger.error('Failed to process prop', {
           err: error instanceof Error ? error.message : String(error),
-          prop: prop
+          prop: prop,
         });
         this.feedMetrics.errors++;
       }
@@ -326,7 +327,7 @@ export class FeedAgent extends BaseAgent {
       scraped_at: new Date().toISOString(),
       sport: item.sport,
       sport_key: item.sport_key,
-      matchup: item.matchup
+      matchup: item.matchup,
     }));
   }
 }

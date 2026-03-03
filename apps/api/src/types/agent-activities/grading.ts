@@ -12,11 +12,13 @@ export interface GradingAgentActivities {
     grade: string;
     confidence: number;
     options?: Record<string, unknown>;
-  }): Promise<ActivityResult<{
-    valid: boolean;
-    reasons?: string[];
-    timestamp: string;
-  }>>;
+  }): Promise<
+    ActivityResult<{
+      valid: boolean;
+      reasons?: string[];
+      timestamp: string;
+    }>
+  >;
 
   monitorGrading(params: {
     interval?: number;
@@ -24,10 +26,12 @@ export interface GradingAgentActivities {
       confidence: number;
       quality: number;
     };
-  }): Promise<ActivityResult<{
-    totalGraded: number;
-    avgConfidence: number;
-    avgQuality: number;
-    timestamp: string;
-  }>>;
-} 
+  }): Promise<
+    ActivityResult<{
+      totalGraded: number;
+      avgConfidence: number;
+      avgQuality: number;
+      timestamp: string;
+    }>
+  >;
+}

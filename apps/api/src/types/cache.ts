@@ -55,4 +55,4 @@ export interface CacheInvalidationRule {
   pattern: string;
   ttl: number;
   conditions: Record<string, any>;
-} 
+}

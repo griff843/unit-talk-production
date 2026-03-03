@@ -3,12 +3,13 @@
  * Automated 5-15 minute pre-post game validation with real-time monitoring
  */
 
+import { publishGuard } from '../promotion/PublishGuard';
 import { Logger, createLogger } from '../utils/logger';
-import { supabaseClient } from './supabaseClient';
+
+import { portfolioRiskManager } from './PortfolioRiskManager';
 import { promotionGatekeeper } from './PromotionGatekeeper';
 import { sTierEnforcer } from './STierEnforcer';
-import { portfolioRiskManager } from './PortfolioRiskManager';
-import { publishGuard } from '../promotion/PublishGuard';
+import { supabaseClient } from './supabaseClient';
 
 export interface RecheckSchedule {
   pickId: string;
@@ -87,14 +88,14 @@ class AutoRecheckService {
   private static instance: AutoRecheckService;
   private logger: Logger;
   private activeSchedules: Map<string, RecheckSchedule> = new Map();
-  
+
   // Configurable recheck intervals (minutes before game)
   private readonly DEFAULT_RECHECK_INTERVALS = [
     { minutes: 15, type: 'final_validation' as const },
     { minutes: 10, type: 'market_check' as const },
     { minutes: 5, type: 'emergency_check' as const },
     { minutes: -30, type: 'post_game_settlement' as const }, // 30 min after game
-    { minutes: -60, type: 'final_settlement' as const } // 1 hour after game
+    { minutes: -60, type: 'final_settlement' as const }, // 1 hour after game
   ];
 
   private constructor() {
@@ -114,15 +115,15 @@ class AutoRecheckService {
    */
   private async initializeService(): Promise<void> {
     this.logger.info('Initializing Auto Re-check Service');
-    
+
     // Load active schedules from database
     await this.loadActiveSchedules();
-    
+
     // Start monitoring loop
     this.startMonitoringLoop();
-    
+
     this.logger.info('Auto Re-check Service initialized', {
-      activeSchedules: this.activeSchedules.size
+      activeSchedules: this.activeSchedules.size,
     });
   }
 
@@ -133,17 +134,17 @@ class AutoRecheckService {
     this.logger.info('Scheduling auto re-checks', {
       pickId: pick.id,
       gameTime: pick.game_time,
-      tier: pick.tier
+      tier: pick.tier,
     });
 
     const gameTime = new Date(pick.game_time);
     const now = new Date();
-    
+
     // Calculate pre-game check points
     const preGameChecks: RecheckPoint[] = [];
     for (const interval of this.DEFAULT_RECHECK_INTERVALS.filter(i => i.minutes > 0)) {
-      const checkTime = new Date(gameTime.getTime() - (interval.minutes * 60 * 1000));
-      
+      const checkTime = new Date(gameTime.getTime() - interval.minutes * 60 * 1000);
+
       // Only schedule if check time is in the future
       if (checkTime > now) {
         preGameChecks.push({
@@ -151,7 +152,7 @@ class AutoRecheckService {
           type: 'pre_game',
           scheduledTime: checkTime,
           minutesBeforeGame: interval.minutes,
-          status: 'pending'
+          status: 'pending',
         });
       }
     }
@@ -159,14 +160,14 @@ class AutoRecheckService {
     // Calculate post-game check points
     const postGameChecks: RecheckPoint[] = [];
     for (const interval of this.DEFAULT_RECHECK_INTERVALS.filter(i => i.minutes < 0)) {
-      const checkTime = new Date(gameTime.getTime() + (Math.abs(interval.minutes) * 60 * 1000));
-      
+      const checkTime = new Date(gameTime.getTime() + Math.abs(interval.minutes) * 60 * 1000);
+
       postGameChecks.push({
         id: `${pick.id}_post_${Math.abs(interval.minutes)}`,
         type: 'post_game',
         scheduledTime: checkTime,
         minutesBeforeGame: interval.minutes,
-        status: 'pending'
+        status: 'pending',
       });
     }
 
@@ -177,7 +178,7 @@ class AutoRecheckService {
       postGameChecks,
       status: 'scheduled',
       lastCheck: null,
-      nextCheck: this.getNextCheckTime(preGameChecks, postGameChecks)
+      nextCheck: this.getNextCheckTime(preGameChecks, postGameChecks),
     };
 
     // Store schedule
@@ -188,7 +189,7 @@ class AutoRecheckService {
       pickId: pick.id,
       preGameChecks: preGameChecks.length,
       postGameChecks: postGameChecks.length,
-      nextCheck: schedule.nextCheck
+      nextCheck: schedule.nextCheck,
     });
 
     return schedule;
@@ -240,7 +241,7 @@ class AutoRecheckService {
 
     if (dueSchedules.length > 0) {
       this.logger.info('Processed scheduled re-checks', {
-        processedCount: dueSchedules.length
+        processedCount: dueSchedules.length,
       });
     }
   }
@@ -248,12 +249,15 @@ class AutoRecheckService {
   /**
    * Execute a single re-check point
    */
-  private async executeRecheckPoint(schedule: RecheckSchedule, checkPoint: RecheckPoint): Promise<void> {
+  private async executeRecheckPoint(
+    schedule: RecheckSchedule,
+    checkPoint: RecheckPoint
+  ): Promise<void> {
     this.logger.info('Executing re-check point', {
       pickId: schedule.pickId,
       checkPointId: checkPoint.id,
       type: checkPoint.type,
-      minutesBeforeGame: checkPoint.minutesBeforeGame
+      minutesBeforeGame: checkPoint.minutesBeforeGame,
     });
 
     checkPoint.status = 'in_progress';
@@ -303,15 +307,14 @@ class AutoRecheckService {
         pickId: schedule.pickId,
         checkPointId: checkPoint.id,
         action: action.type,
-        validationStatus: validationSnapshot.pickStatus
+        validationStatus: validationSnapshot.pickStatus,
       });
-
     } catch (error) {
       checkPoint.status = 'failed';
       this.logger.error('Re-check point failed', {
         error,
         pickId: schedule.pickId,
-        checkPointId: checkPoint.id
+        checkPointId: checkPoint.id,
       });
     }
 
@@ -322,7 +325,10 @@ class AutoRecheckService {
   /**
    * Perform comprehensive validation
    */
-  private async performValidation(pick: any, checkType: 'pre_game' | 'post_game'): Promise<ValidationSnapshot> {
+  private async performValidation(
+    pick: any,
+    checkType: 'pre_game' | 'post_game'
+  ): Promise<ValidationSnapshot> {
     const timestamp = new Date();
 
     // Promotion gate validation
@@ -337,7 +343,7 @@ class AutoRecheckService {
       gameTime: new Date(pick.game_time),
       sport: pick.sport,
       correlatedPicks: pick.correlated_picks || [],
-      portfolioExposure: pick.portfolio_exposure || 0
+      portfolioExposure: pick.portfolio_exposure || 0,
     });
 
     // S-tier validation (if applicable)
@@ -347,18 +353,22 @@ class AutoRecheckService {
       sTierValidation = {
         meetsStandards: sTierResult.passed,
         violations: sTierResult.violations,
-        recommendedTier: sTierResult.adjustedTier
+        recommendedTier: sTierResult.adjustedTier,
       };
     }
 
     // Portfolio risk validation
-    const portfolioResult = await portfolioRiskManager.assessPositionRisk(pick, pick.kelly_fraction || 0.1);
+    const portfolioResult = await portfolioRiskManager.assessPositionRisk(
+      pick,
+      pick.kelly_fraction || 0.1
+    );
     const portfolioValidation = {
       withinLimits: portfolioResult.approved,
       correlationRisk: 'medium', // Would calculate based on correlation analysis
-      positionSizeAdjustment: portfolioResult.recommendedSize !== (pick.kelly_fraction || 0.1) 
-        ? portfolioResult.recommendedSize 
-        : undefined
+      positionSizeAdjustment:
+        portfolioResult.recommendedSize !== (pick.kelly_fraction || 0.1)
+          ? portfolioResult.recommendedSize
+          : undefined,
     };
 
     // Market validation
@@ -366,7 +376,7 @@ class AutoRecheckService {
 
     // Determine overall pick status
     let pickStatus: 'valid' | 'warning' | 'invalid' | 'cancelled' = 'valid';
-    
+
     if (!promotionValidation.approved || !portfolioValidation.withinLimits) {
       pickStatus = 'invalid';
     } else if (sTierValidation && !sTierValidation.meetsStandards) {
@@ -381,11 +391,11 @@ class AutoRecheckService {
       promotionValidation: {
         stillQualifies: promotionValidation.approved,
         gateResults: promotionValidation.gateResults,
-        riskScore: promotionValidation.riskScore
+        riskScore: promotionValidation.riskScore,
       },
       sTierValidation,
       portfolioValidation,
-      marketValidation
+      marketValidation,
     };
   }
 
@@ -419,14 +429,14 @@ class AutoRecheckService {
       return {
         liquidityAdequate: (marketData?.depth || 0) > 5000,
         steamDirection: steamData?.direction || 'neutral',
-        sharpMoneyFlow: marketData?.institutional_flow || 0.5
+        sharpMoneyFlow: marketData?.institutional_flow || 0.5,
       };
     } catch (error) {
       this.logger.error('Failed to validate market conditions', { error, propId: pick.prop_id });
       return {
         liquidityAdequate: true,
         steamDirection: 'neutral',
-        sharpMoneyFlow: 0.5
+        sharpMoneyFlow: 0.5,
       };
     }
   }
@@ -454,24 +464,25 @@ class AutoRecheckService {
           volume: 0,
           steamStrength: 0,
           clvImpact: 0,
-          marketDepth: 10000
+          marketDepth: 10000,
         };
       }
 
       const initialOdds = oddsHistory[0].odds;
       const currentOdds = oddsHistory[oddsHistory.length - 1].odds;
       const movementBps = this.calculateOddsMovementBps(initialOdds, currentOdds);
-      
+
       return {
         timestamp: new Date(),
         initialOdds,
         currentOdds,
         movementBps,
-        movementDirection: movementBps > 5 ? 'favorable' : movementBps < -5 ? 'unfavorable' : 'neutral',
+        movementDirection:
+          movementBps > 5 ? 'favorable' : movementBps < -5 ? 'unfavorable' : 'neutral',
         volume: oddsHistory[oddsHistory.length - 1].volume || 0,
         steamStrength: oddsHistory[oddsHistory.length - 1].steam_strength || 0,
         clvImpact: movementBps,
-        marketDepth: oddsHistory[oddsHistory.length - 1].market_depth || 10000
+        marketDepth: oddsHistory[oddsHistory.length - 1].market_depth || 10000,
       };
     } catch (error) {
       this.logger.error('Failed to get odds movement data', { error, propId: pick.prop_id });
@@ -484,7 +495,7 @@ class AutoRecheckService {
         volume: 0,
         steamStrength: 0,
         clvImpact: 0,
-        marketDepth: 10000
+        marketDepth: 10000,
       };
     }
   }
@@ -505,7 +516,7 @@ class AutoRecheckService {
         reason: 'Pick no longer meets promotion gate requirements or portfolio limits',
         changes: { statusChange: 'cancelled' },
         confidence: 0.9,
-        riskImpact: -0.5
+        riskImpact: -0.5,
       };
     }
 
@@ -516,10 +527,10 @@ class AutoRecheckService {
         reason: `S-tier standards violated: ${validation.sTierValidation.violations.length} violations`,
         changes: {
           oldTier: pick.tier,
-          newTier: validation.sTierValidation.recommendedTier
+          newTier: validation.sTierValidation.recommendedTier,
         },
         confidence: 0.8,
-        riskImpact: -0.2
+        riskImpact: -0.2,
       };
     }
 
@@ -527,17 +538,18 @@ class AutoRecheckService {
     if (validation.portfolioValidation.positionSizeAdjustment) {
       const currentSize = pick.kelly_fraction || 0.1;
       const newSize = validation.portfolioValidation.positionSizeAdjustment;
-      
-      if (Math.abs(newSize - currentSize) > 0.02) { // Only adjust if >2% difference
+
+      if (Math.abs(newSize - currentSize) > 0.02) {
+        // Only adjust if >2% difference
         return {
           type: 'adjust_size',
           reason: 'Portfolio risk management requires position size adjustment',
           changes: {
             oldSize: currentSize,
-            newSize
+            newSize,
           },
           confidence: 0.7,
-          riskImpact: 0.1
+          riskImpact: 0.1,
         };
       }
     }
@@ -549,7 +561,7 @@ class AutoRecheckService {
         reason: `Significant favorable odds movement: ${oddsMovement.movementBps} BPS`,
         changes: {},
         confidence: 0.6,
-        riskImpact: 0.2
+        riskImpact: 0.2,
       };
     }
 
@@ -559,7 +571,7 @@ class AutoRecheckService {
       reason: 'All validation checks passed, no action required',
       changes: {},
       confidence: 0.9,
-      riskImpact: 0
+      riskImpact: 0,
     };
   }
 
@@ -570,7 +582,7 @@ class AutoRecheckService {
     this.logger.info('Executing re-check action', {
       pickId: pick.id,
       actionType: action.type,
-      reason: action.reason
+      reason: action.reason,
     });
 
     // Handle recheck decision through publish guard (shadow mode aware)
@@ -582,7 +594,7 @@ class AutoRecheckService {
       {
         evAtRecheck: pick.expected_value,
         clvAtRecheck: pick.clv_tracking?.current_clv_bps,
-        oddsMovement: action.changes?.oldSize !== action.changes?.newSize ? 10 : 0
+        oddsMovement: action.changes?.oldSize !== action.changes?.newSize ? 10 : 0,
       }
     );
 
@@ -595,7 +607,7 @@ class AutoRecheckService {
               status: 'cancelled',
               cancellation_reason: action.reason,
               cancelled_at: new Date().toISOString(),
-              cancelled_by: 'AutoRecheckService'
+              cancelled_by: 'AutoRecheckService',
             })
             .eq('id', pick.id);
           break;
@@ -607,7 +619,7 @@ class AutoRecheckService {
               tier: action.changes.newTier,
               tier_adjustment_reason: action.reason,
               tier_adjusted_at: new Date().toISOString(),
-              adjusted_by: 'AutoRecheckService'
+              adjusted_by: 'AutoRecheckService',
             })
             .eq('id', pick.id);
           break;
@@ -619,7 +631,7 @@ class AutoRecheckService {
               position_size: action.changes.newSize,
               size_adjustment_reason: action.reason,
               size_adjusted_at: new Date().toISOString(),
-              adjusted_by: 'AutoRecheckService'
+              adjusted_by: 'AutoRecheckService',
             })
             .eq('id', pick.id);
           break;
@@ -636,14 +648,13 @@ class AutoRecheckService {
 
       this.logger.info('Re-check action executed successfully', {
         pickId: pick.id,
-        actionType: action.type
+        actionType: action.type,
       });
-
     } catch (error) {
       this.logger.error('Failed to execute re-check action', {
         error,
         pickId: pick.id,
-        actionType: action.type
+        actionType: action.type,
       });
       throw error;
     }
@@ -658,22 +669,26 @@ class AutoRecheckService {
     return (difference / Math.abs(initialOdds)) * 10000;
   }
 
-  private getNextCheckTime(preGameChecks: RecheckPoint[], postGameChecks: RecheckPoint[]): Date | null {
+  private getNextCheckTime(
+    preGameChecks: RecheckPoint[],
+    postGameChecks: RecheckPoint[]
+  ): Date | null {
     const allChecks = [...preGameChecks, ...postGameChecks];
     const pendingChecks = allChecks.filter(c => c.status === 'pending');
-    
+
     if (pendingChecks.length === 0) return null;
-    
-    return pendingChecks.reduce((earliest, check) => 
-      check.scheduledTime < earliest ? check.scheduledTime : earliest,
+
+    return pendingChecks.reduce(
+      (earliest, check) => (check.scheduledTime < earliest ? check.scheduledTime : earliest),
       pendingChecks[0].scheduledTime
     );
   }
 
   private isScheduleComplete(schedule: RecheckSchedule): boolean {
     const allChecks = [...schedule.preGameChecks, ...schedule.postGameChecks];
-    return allChecks.every(check => 
-      check.status === 'completed' || check.status === 'skipped' || check.status === 'failed'
+    return allChecks.every(
+      check =>
+        check.status === 'completed' || check.status === 'skipped' || check.status === 'failed'
     );
   }
 
@@ -707,7 +722,7 @@ class AutoRecheckService {
             postGameChecks: schedule.post_game_checks || [],
             status: schedule.status,
             lastCheck: schedule.last_check ? new Date(schedule.last_check) : null,
-            nextCheck: schedule.next_check ? new Date(schedule.next_check) : null
+            nextCheck: schedule.next_check ? new Date(schedule.next_check) : null,
           });
         });
       }
@@ -718,18 +733,16 @@ class AutoRecheckService {
 
   private async storeRecheckSchedule(schedule: RecheckSchedule): Promise<void> {
     try {
-      await supabaseClient
-        .from('recheck_schedules')
-        .insert({
-          pick_id: schedule.pickId,
-          game_time: schedule.gameTime.toISOString(),
-          pre_game_checks: schedule.preGameChecks,
-          post_game_checks: schedule.postGameChecks,
-          status: schedule.status,
-          last_check: schedule.lastCheck?.toISOString(),
-          next_check: schedule.nextCheck?.toISOString(),
-          created_at: new Date().toISOString()
-        });
+      await supabaseClient.from('recheck_schedules').insert({
+        pick_id: schedule.pickId,
+        game_time: schedule.gameTime.toISOString(),
+        pre_game_checks: schedule.preGameChecks,
+        post_game_checks: schedule.postGameChecks,
+        status: schedule.status,
+        last_check: schedule.lastCheck?.toISOString(),
+        next_check: schedule.nextCheck?.toISOString(),
+        created_at: new Date().toISOString(),
+      });
     } catch (error) {
       this.logger.error('Failed to store recheck schedule', { error, pickId: schedule.pickId });
     }
@@ -745,7 +758,7 @@ class AutoRecheckService {
           status: schedule.status,
           last_check: schedule.lastCheck?.toISOString(),
           next_check: schedule.nextCheck?.toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('pick_id', schedule.pickId);
     } catch (error) {
@@ -772,11 +785,12 @@ class AutoRecheckService {
     // Implementation would query recheck data
     return {
       totalSchedules: this.activeSchedules.size,
-      activeSchedules: Array.from(this.activeSchedules.values()).filter(s => s.status === 'active').length,
+      activeSchedules: Array.from(this.activeSchedules.values()).filter(s => s.status === 'active')
+        .length,
       completedChecks: 0,
       actionsKnown: {},
       avgCheckTime: 0,
-      successRate: 0
+      successRate: 0,
     };
   }
 }

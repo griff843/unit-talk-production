@@ -11,6 +11,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
+
+import { InvalidTransitionError, InvalidWriterError, InvalidTimestampError } from '../errors';
 import {
   deriveLifecycleStage,
   deriveLifecycleState,
@@ -36,11 +38,7 @@ import {
   getFieldsByWriter,
   getImmutableFields,
 } from '../writer-authority';
-import {
-  InvalidTransitionError,
-  InvalidWriterError,
-  InvalidTimestampError,
-} from '../errors';
+
 import type { LifecyclePick, WriterRole, LifecycleStage } from '../types';
 
 // ============================================================
@@ -188,15 +186,12 @@ describe('Transition Validation', () => {
       ['POSTED', 'VOID', 'settler'],
     ];
 
-    it.each(validTransitions)(
-      'allows transition %s -> %s by %s',
-      (from, to, writer) => {
-        expect(isTransitionAllowed(from, to)).toBe(true);
-        const def = getTransitionDefinition(from, to);
-        expect(def).not.toBeNull();
-        expect(def!.allowedWriters).toContain(writer);
-      }
-    );
+    it.each(validTransitions)('allows transition %s -> %s by %s', (from, to, writer) => {
+      expect(isTransitionAllowed(from, to)).toBe(true);
+      const def = getTransitionDefinition(from, to);
+      expect(def).not.toBeNull();
+      expect(def!.allowedWriters).toContain(writer);
+    });
   });
 
   describe('Forbidden Transitions', () => {
@@ -221,13 +216,10 @@ describe('Transition Validation', () => {
       ['SETTLED', 'CANCELLED'],
     ];
 
-    it.each(forbiddenTransitions)(
-      'forbids transition %s -> %s',
-      (from, to) => {
-        expect(isTransitionAllowed(from, to)).toBe(false);
-        expect(getTransitionDefinition(from, to)).toBeNull();
-      }
-    );
+    it.each(forbiddenTransitions)('forbids transition %s -> %s', (from, to) => {
+      expect(isTransitionAllowed(from, to)).toBe(false);
+      expect(getTransitionDefinition(from, to)).toBeNull();
+    });
   });
 
   describe('assertTransition', () => {
@@ -406,7 +398,15 @@ describe('State Invariants', () => {
 describe('Writer Authority', () => {
   describe('Field Authority Definitions', () => {
     it('assigns submission fields to submitter only', () => {
-      const submitterFields = ['id', 'bet_slip_id', 'user_id', 'selection', 'line', 'odds', 'stake'];
+      const submitterFields = [
+        'id',
+        'bet_slip_id',
+        'user_id',
+        'selection',
+        'line',
+        'odds',
+        'stake',
+      ];
       for (const field of submitterFields) {
         const authority = getFieldAuthority(field);
         expect(authority).not.toBeNull();
@@ -426,7 +426,12 @@ describe('Writer Authority', () => {
     });
 
     it('assigns settlement fields to settler', () => {
-      const settlerFields = ['settlement_status', 'settlement_result', 'settlement_source', 'settlement_hash'];
+      const settlerFields = [
+        'settlement_status',
+        'settlement_result',
+        'settlement_source',
+        'settlement_hash',
+      ];
       for (const field of settlerFields) {
         const authority = getFieldAuthority(field);
         expect(authority).not.toBeNull();
@@ -475,13 +480,11 @@ describe('Writer Authority', () => {
     });
 
     it('throws InvalidWriterError for unauthorized field', () => {
-      expect(() =>
-        assertWriterAuthority('submitter', ['id', 'settlement_status'])
-      ).toThrow(InvalidWriterError);
+      expect(() => assertWriterAuthority('submitter', ['id', 'settlement_status'])).toThrow(
+        InvalidWriterError
+      );
 
-      expect(() =>
-        assertWriterAuthority('poster', ['selection'])
-      ).toThrow(InvalidWriterError);
+      expect(() => assertWriterAuthority('poster', ['selection'])).toThrow(InvalidWriterError);
     });
   });
 
@@ -492,9 +495,9 @@ describe('Writer Authority', () => {
         selection: 'existing-selection',
       };
 
-      expect(() =>
-        assertImmutability('submitter', ['id', 'selection'], currentValues)
-      ).toThrow(InvalidWriterError);
+      expect(() => assertImmutability('submitter', ['id', 'selection'], currentValues)).toThrow(
+        InvalidWriterError
+      );
     });
 
     it('allows setting immutable field for first time', () => {
@@ -527,19 +530,15 @@ describe('Writer Authority', () => {
       };
 
       // submitter cannot update existing id
-      expect(() =>
-        validateWrite('submitter', ['id'], currentValues)
-      ).toThrow(InvalidWriterError);
+      expect(() => validateWrite('submitter', ['id'], currentValues)).toThrow(InvalidWriterError);
 
       // submitter cannot update settlement fields at all
-      expect(() =>
-        validateWrite('submitter', ['settlement_status'], {})
-      ).toThrow(InvalidWriterError);
+      expect(() => validateWrite('submitter', ['settlement_status'], {})).toThrow(
+        InvalidWriterError
+      );
 
       // settler can update settlement_status
-      expect(() =>
-        validateWrite('settler', ['settlement_status'], {})
-      ).not.toThrow();
+      expect(() => validateWrite('settler', ['settlement_status'], {})).not.toThrow();
     });
   });
 });
@@ -552,13 +551,13 @@ describe('Documentation Helpers', () => {
   it('getAllowedTransitionsFrom returns valid transitions', () => {
     const fromSubmitted = getAllowedTransitionsFrom('SUBMITTED');
     expect(fromSubmitted.length).toBeGreaterThan(0);
-    expect(fromSubmitted.every((t) => t.from === 'SUBMITTED')).toBe(true);
+    expect(fromSubmitted.every(t => t.from === 'SUBMITTED')).toBe(true);
   });
 
   it('getForbiddenTransitions returns documented forbidden transitions', () => {
     const forbidden = getForbiddenTransitions();
     expect(forbidden.length).toBeGreaterThan(0);
-    expect(forbidden.every((t) => typeof t.reason === 'string')).toBe(true);
+    expect(forbidden.every(t => typeof t.reason === 'string')).toBe(true);
   });
 
   it('getFieldsByWriter groups fields correctly', () => {

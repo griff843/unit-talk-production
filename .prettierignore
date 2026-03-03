@@ -1,0 +1,22 @@
+# Build artifacts
+dist/
+build/
+.next/
+coverage/
+.turbo/
+.cache/
+
+# Dependencies
+node_modules/
+
+# Sprint proof artifacts
+out/
+
+# Generated / minified
+*.generated.*
+*.min.js
+*.min.css
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json

@@ -8,11 +8,9 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+
 import { Logger } from '../shared/logger/types';
-import {
-  AgentDesiredState,
-  AgentCurrentState,
-} from '../temporal/AgentControlPlane';
+import { AgentDesiredState, AgentCurrentState } from '../temporal/AgentControlPlane';
 
 export interface TemporalWorkerInfo {
   taskQueue: string;
@@ -49,11 +47,7 @@ export class TemporalControlClient {
   private logger: Logger;
   private operatorId: string;
 
-  constructor(
-    supabase: SupabaseClient,
-    logger: Logger,
-    operatorId: string
-  ) {
+  constructor(supabase: SupabaseClient, logger: Logger, operatorId: string) {
     this.supabase = supabase;
     this.logger = logger;
     this.operatorId = operatorId;
@@ -249,15 +243,17 @@ export class TemporalControlClient {
   /**
    * List all registered agents
    */
-  async listAgents(): Promise<Array<{
-    agentId: string;
-    agentType: string;
-    displayName: string;
-    desiredState: AgentDesiredState;
-    currentState: AgentCurrentState;
-    lastHeartbeat: string | null;
-    isHealthy: boolean;
-  }>> {
+  async listAgents(): Promise<
+    Array<{
+      agentId: string;
+      agentType: string;
+      displayName: string;
+      desiredState: AgentDesiredState;
+      currentState: AgentCurrentState;
+      lastHeartbeat: string | null;
+      isHealthy: boolean;
+    }>
+  > {
     try {
       const { data, error } = await this.supabase
         .from('agent_registry')
@@ -268,7 +264,7 @@ export class TemporalControlClient {
         return [];
       }
 
-      return data.map((agent) => {
+      return data.map(agent => {
         const heartbeatAge = agent.last_heartbeat
           ? Date.now() - new Date(agent.last_heartbeat).getTime()
           : Infinity;
@@ -297,14 +293,16 @@ export class TemporalControlClient {
   async getLifecycleEvents(
     agentId: string,
     limit: number = 100
-  ): Promise<Array<{
-    eventType: string;
-    previousState: string | null;
-    newState: string | null;
-    requestedBy: string | null;
-    reason: string | null;
-    timestamp: string;
-  }>> {
+  ): Promise<
+    Array<{
+      eventType: string;
+      previousState: string | null;
+      newState: string | null;
+      requestedBy: string | null;
+      reason: string | null;
+      timestamp: string;
+    }>
+  > {
     try {
       const { data, error } = await this.supabase
         .from('agent_lifecycle_events')
@@ -317,7 +315,7 @@ export class TemporalControlClient {
         return [];
       }
 
-      return data.map((event) => ({
+      return data.map(event => ({
         eventType: event.event_type,
         previousState: event.previous_state,
         newState: event.new_state,
@@ -341,15 +339,17 @@ export class TemporalControlClient {
     agentId: string,
     fromTime?: Date,
     limit: number = 100
-  ): Promise<Array<{
-    runCount: number;
-    successCount: number;
-    failureCount: number;
-    avgLatencyMs: number | null;
-    p95LatencyMs: number | null;
-    backlogSize: number;
-    collectedAt: string;
-  }>> {
+  ): Promise<
+    Array<{
+      runCount: number;
+      successCount: number;
+      failureCount: number;
+      avgLatencyMs: number | null;
+      p95LatencyMs: number | null;
+      backlogSize: number;
+      collectedAt: string;
+    }>
+  > {
     try {
       let query = this.supabase
         .from('agent_metrics_snapshots')
@@ -368,7 +368,7 @@ export class TemporalControlClient {
         return [];
       }
 
-      return data.map((snapshot) => ({
+      return data.map(snapshot => ({
         runCount: snapshot.run_count,
         successCount: snapshot.success_count,
         failureCount: snapshot.failure_count,

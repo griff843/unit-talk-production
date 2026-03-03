@@ -24,10 +24,7 @@ export class HealthCheck {
     this.logger = logger;
   }
 
-  public registerHealthCheck(
-    agentName: string,
-    checkFn: () => Promise<HealthStatus>
-  ): void {
+  public registerHealthCheck(agentName: string, checkFn: () => Promise<HealthStatus>): void {
     this.healthChecks.set(agentName, checkFn);
   }
 
@@ -37,7 +34,7 @@ export class HealthCheck {
       const errorStatus: HealthStatus = {
         status: 'unhealthy',
         details: { error: `No health check registered for agent: ${agentName}` },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
       this.logger.warn('Health check failed', { agentName, status: errorStatus });
       return errorStatus;
@@ -51,7 +48,7 @@ export class HealthCheck {
       const errorStatus: HealthStatus = {
         status: 'unhealthy',
         details: { err: error instanceof Error ? error.message : String(error) },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
       this.logger.warn('Health check failed', { agentName, status: errorStatus });
       return errorStatus;

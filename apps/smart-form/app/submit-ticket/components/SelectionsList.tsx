@@ -33,17 +33,27 @@ export function SelectionsList({ selections, onRemove }: SelectionsListProps) {
               <div className="font-medium text-sm text-gray-900 flex items-center gap-1.5 flex-wrap">
                 {sel.game}
                 {sel.sport && (
-                  <Badge variant="default" className="text-xs px-1.5 py-0 bg-blue-100 text-blue-800">{sel.sport}</Badge>
+                  <Badge
+                    variant="default"
+                    className="text-xs px-1.5 py-0 bg-blue-100 text-blue-800"
+                  >
+                    {sel.sport}
+                  </Badge>
                 )}
                 {sel.bet_type && (
-                  <Badge variant="outline" className="text-xs px-1.5 py-0">{formatBetType(sel.bet_type)}</Badge>
+                  <Badge variant="outline" className="text-xs px-1.5 py-0">
+                    {formatBetType(sel.bet_type)}
+                  </Badge>
                 )}
                 {sel.source === 'manual' && (
-                  <Badge variant="secondary" className="text-xs px-1.5 py-0">Manual</Badge>
+                  <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                    Manual
+                  </Badge>
                 )}
               </div>
               <div className="text-xs text-gray-500 mt-0.5">
-                {sel.selection} @ {Number(sel.odds) > 0 ? '+' : ''}{sel.odds}
+                {sel.selection} @ {Number(sel.odds) > 0 ? '+' : ''}
+                {sel.odds}
                 {sel.line && !sel.selection.includes(sel.line) && ` (${sel.line})`}
               </div>
             </div>

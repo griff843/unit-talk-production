@@ -4,5 +4,5 @@ export const loggerMock = {
   warn: jest.fn(),
   debug: jest.fn(),
   logAgentActivity: jest.fn(),
-  logAgentError: jest.fn()
-}; 
+  logAgentError: jest.fn(),
+};

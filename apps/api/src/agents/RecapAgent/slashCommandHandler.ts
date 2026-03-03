@@ -34,7 +34,7 @@ export class SlashCommandHandler {
         code: 'SLASH_INIT_FAILED',
         message: `Failed to initialize slash commands: ${error}`,
         timestamp: new Date().toISOString(),
-        severity: 'medium'
+        severity: 'medium',
       });
     }
   }
@@ -62,7 +62,7 @@ export class SlashCommandHandler {
         message: `Slash command failed: ${error}`,
         timestamp: new Date().toISOString(),
         context: { ...options } as Record<string, unknown>,
-        severity: 'medium'
+        severity: 'medium',
       });
     }
   }
@@ -71,12 +71,12 @@ export class SlashCommandHandler {
    * Handle daily recap slash command
    */
   private async handleDailyRecap(
-    date?: string, 
-    capper?: string, 
+    date?: string,
+    capper?: string,
     format?: string
   ): Promise<EmbedBuilder> {
     const targetDate = date || new Date().toISOString().split('T')[0]!;
-    
+
     const summary = await this.recapAgent.getRecapService().getDailyRecapData(targetDate);
     if (!summary) {
       return this.createErrorEmbed(`No data found for ${targetDate}`);
@@ -90,7 +90,7 @@ export class SlashCommandHandler {
     }
 
     const parlayGroups = await this.recapAgent.getRecapService().getParlayGroups(targetDate);
-    
+
     if (format === 'summary') {
       return this.createSummaryEmbed(summary, 'daily');
     }
@@ -102,8 +102,8 @@ export class SlashCommandHandler {
    * Handle weekly recap slash command
    */
   private async handleWeeklyRecap(
-    date?: string, 
-    capper?: string, 
+    date?: string,
+    capper?: string,
     format?: string
   ): Promise<EmbedBuilder> {
     // Calculate week range
@@ -117,7 +117,9 @@ export class SlashCommandHandler {
     const startDateStr = startDate.toISOString().split('T')[0]!;
     const endDateStr = endDate.toISOString().split('T')[0]!;
 
-    const summary = await this.recapAgent.getRecapService().getWeeklyRecapData(startDateStr, endDateStr);
+    const summary = await this.recapAgent
+      .getRecapService()
+      .getWeeklyRecapData(startDateStr, endDateStr);
     if (!summary) {
       return this.createErrorEmbed(`No data found for week of ${startDateStr}`);
     }
@@ -154,7 +156,9 @@ export class SlashCommandHandler {
     const startDateStr = startDate.toISOString().split('T')[0]!;
     const endDateStr = endDate.toISOString().split('T')[0]!;
 
-    const summary = await this.recapAgent.getRecapService().getMonthlyRecapData(startDateStr, endDateStr);
+    const summary = await this.recapAgent
+      .getRecapService()
+      .getMonthlyRecapData(startDateStr, endDateStr);
     if (!summary) {
       return this.createErrorEmbed(`No data found for month of ${startDateStr}`);
     }
@@ -184,15 +188,19 @@ export class SlashCommandHandler {
       .setColor(summary.netUnits >= 0 ? 0x00ff00 : 0xff0000)
       .setTimestamp();
 
-    const unitsText = summary.netUnits >= 0 ? `+${summary.netUnits.toFixed(1)}U` : `${summary.netUnits.toFixed(1)}U`;
+    const unitsText =
+      summary.netUnits >= 0
+        ? `+${summary.netUnits.toFixed(1)}U`
+        : `${summary.netUnits.toFixed(1)}U`;
 
     embed.addFields({
       name: '📈 Performance',
-      value: `**Record:** ${summary.wins}W-${summary.losses}L\n` +
-             `**Net Units:** ${unitsText}\n` +
-             `**ROI:** ${summary.roi.toFixed(1)}%\n` +
-             `**Win Rate:** ${summary.winRate.toFixed(1)}%`,
-      inline: true
+      value:
+        `**Record:** ${summary.wins}W-${summary.losses}L\n` +
+        `**Net Units:** ${unitsText}\n` +
+        `**ROI:** ${summary.roi.toFixed(1)}%\n` +
+        `**Win Rate:** ${summary.winRate.toFixed(1)}%`,
+      inline: true,
     });
 
     if (summary.capperBreakdown.length > 0) {
@@ -200,10 +208,11 @@ export class SlashCommandHandler {
       if (topCapper) {
         embed.addFields({
           name: '👑 Top Capper',
-          value: `**${topCapper.capper}**\n` +
-                 `${topCapper.wins}W-${topCapper.losses}L\n` +
-                 `${topCapper.netUnits > 0 ? '+' : ''}${topCapper.netUnits.toFixed(1)}U`,
-          inline: true
+          value:
+            `**${topCapper.capper}**\n` +
+            `${topCapper.wins}W-${topCapper.losses}L\n` +
+            `${topCapper.netUnits > 0 ? '+' : ''}${topCapper.netUnits.toFixed(1)}U`,
+          inline: true,
         });
       }
     }

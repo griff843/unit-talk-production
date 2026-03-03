@@ -1,4 +1,3 @@
-
 import nodemailer from 'nodemailer';
 
 import { logger } from './logging';
@@ -24,8 +23,8 @@ export class EmailService {
       secure: process.env['SMTP_SECURE'] === 'true',
       auth: {
         user: process.env['SMTP_USER'] || '',
-        pass: process.env['SMTP_PASS'] || ''
-      }
+        pass: process.env['SMTP_PASS'] || '',
+      },
     };
 
     this.transporter = nodemailer.createTransport(this.config);
@@ -37,7 +36,7 @@ export class EmailService {
         from: process.env['SMTP_FROM'] || this.config.auth.user,
         to,
         subject,
-        html
+        html,
       });
 
       logger.info('Email sent successfully:', info.messageId);

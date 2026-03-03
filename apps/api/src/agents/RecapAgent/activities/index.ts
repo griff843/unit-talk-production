@@ -24,17 +24,17 @@ export async function triggerDailyRecap(date?: string): Promise<void> {
 
     const result = await generateRecapReport({
       mode: 'daily',
-      date: date || undefined
+      date: date || undefined,
     });
 
     logger.info('Daily recap generated', {
       picks_count: result.picks_count,
       date_range: result.date_range,
-      decision: result.summary?.decision?.decision || 'N/A'
+      decision: result.summary?.decision?.decision || 'N/A',
     });
   } catch (error) {
     logger.error('triggerDailyRecap activity failed', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
@@ -51,17 +51,17 @@ export async function triggerWeeklyRecap(): Promise<void> {
     const { generateRecapReport } = await import('../../../scripts/recap/generateRecap');
 
     const result = await generateRecapReport({
-      mode: 'weekly'
+      mode: 'weekly',
     });
 
     logger.info('Weekly recap generated', {
       picks_count: result.picks_count,
       date_range: result.date_range,
-      decision: result.summary?.decision?.decision || 'N/A'
+      decision: result.summary?.decision?.decision || 'N/A',
     });
   } catch (error) {
     logger.error('triggerWeeklyRecap activity failed', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
@@ -78,17 +78,17 @@ export async function triggerMonthlyRecap(): Promise<void> {
     const { generateRecapReport } = await import('../../../scripts/recap/generateRecap');
 
     const result = await generateRecapReport({
-      mode: 'monthly'
+      mode: 'monthly',
     });
 
     logger.info('Monthly recap generated', {
       picks_count: result.picks_count,
       date_range: result.date_range,
-      decision: result.summary?.decision?.decision || 'N/A'
+      decision: result.summary?.decision?.decision || 'N/A',
     });
   } catch (error) {
     logger.error('triggerMonthlyRecap activity failed', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
@@ -113,7 +113,7 @@ export async function checkMicroRecapTriggers(): Promise<void> {
       logger.info('Micro-recap ROI trigger fired', {
         trigger: roiData.trigger,
         winLoss: roiData.winLoss,
-        dailyRoi: roiData.dailyRoi
+        dailyRoi: roiData.dailyRoi,
       });
     }
 
@@ -122,7 +122,7 @@ export async function checkMicroRecapTriggers(): Promise<void> {
       logger.info('Micro-recap last-pick-graded trigger fired', {
         trigger: lastPickData.trigger,
         winLoss: lastPickData.winLoss,
-        dailyRoi: lastPickData.dailyRoi
+        dailyRoi: lastPickData.dailyRoi,
       });
     }
 
@@ -131,7 +131,7 @@ export async function checkMicroRecapTriggers(): Promise<void> {
     }
   } catch (error) {
     logger.error('checkMicroRecapTriggers activity failed', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     // Micro-recap failures are non-critical — do not throw
   }

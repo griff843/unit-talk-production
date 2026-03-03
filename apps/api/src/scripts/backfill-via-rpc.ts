@@ -73,7 +73,7 @@ $$ LANGUAGE plpgsql;
 
   console.log('Creating backfill RPC function...');
   const { error: createError } = await supabase.rpc('exec_sql', { sql: createFunctionSQL });
-  
+
   if (createError && !createError.message.includes('does not exist')) {
     // Try direct execution via a different approach
     console.log('Note: exec_sql RPC may not exist, function might already be created');
@@ -108,4 +108,3 @@ backfillViaRPC().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

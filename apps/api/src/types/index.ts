@@ -5,11 +5,7 @@ export * from './common';
 export * from './validation';
 
 // Agent types (explicit to avoid conflicts)
-export {
-  AgentConfig as BaseAgentConfig,
-  AgentStatus,
-  AgentMetrics
-} from './agent';
+export { AgentConfig as BaseAgentConfig, AgentStatus, AgentMetrics } from './agent';
 
 // Activity types
 export * from './activities';
@@ -28,7 +24,7 @@ export {
   RateLimitError,
   CircuitBreakerError,
   AIValidationError,
-  TimeoutError
+  TimeoutError,
 } from './ai';
 
 // ML types (explicit to avoid conflicts)
@@ -42,7 +38,7 @@ export {
   ModelMetrics,
   PredictionResult,
   ModelPerformance as MLModelPerformance,
-  TrainingConfig
+  TrainingConfig,
 } from './ml';
 
 // Adaptive ML types
@@ -58,7 +54,7 @@ export {
   RecoveryAction,
   MonitoringConfig as MonitoringConfigType,
   HealthStatus as MonitoringHealthStatus,
-  SystemStatus
+  SystemStatus,
 } from './monitoring';
 
 // Business logic types
@@ -79,7 +75,7 @@ export {
   PortfolioConstraints,
   PortfolioAllocation,
   RebalancingEvent,
-  PortfolioAnalytics
+  PortfolioAnalytics,
 } from './portfolio';
 
 // Risk types (explicit to avoid conflicts)
@@ -87,7 +83,7 @@ export {
   RiskLimits,
   RiskMetrics as RiskMetricsType,
   PortfolioPosition as RiskPortfolioPosition,
-  OptimizationResult as RiskOptimizationResult
+  OptimizationResult as RiskOptimizationResult,
 } from './risk';
 
 // Configuration
@@ -97,7 +93,4 @@ export * from './config';
 export * from './alerts';
 
 // Shared types (explicit to avoid conflicts)
-export {
-  HealthStatus,
-  ValidationResult
-} from './shared';
+export { HealthStatus, ValidationResult } from './shared';

@@ -1,11 +1,7 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity */
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Wrench,
   Play,
@@ -20,8 +16,14 @@ import {
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 // ============================================================================
 // Types
@@ -99,9 +101,19 @@ function getStatusBadge(status: ExecutionStatus) {
 
 function getExecutionTypeBadge(type: ExecutionType) {
   if (type === 'EXECUTABLE') {
-    return <Badge className="bg-blue-600"><Zap className="w-3 h-3 mr-1" />Executable</Badge>;
+    return (
+      <Badge className="bg-blue-600">
+        <Zap className="w-3 h-3 mr-1" />
+        Executable
+      </Badge>
+    );
   }
-  return <Badge className="bg-orange-500"><FileText className="w-3 h-3 mr-1" />Recommendation</Badge>;
+  return (
+    <Badge className="bg-orange-500">
+      <FileText className="w-3 h-3 mr-1" />
+      Recommendation
+    </Badge>
+  );
 }
 
 function timeAgo(date: string) {
@@ -161,11 +173,11 @@ export default function RemediationDashboardPage() {
       if (!response.ok) throw new Error('Failed to trigger playbook');
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       toast.success(data.message || 'Playbook triggered successfully');
       queryClient.invalidateQueries({ queryKey: ['remediation-dashboard'] });
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Failed: ${error.message}`);
     },
   });
@@ -188,7 +200,7 @@ export default function RemediationDashboardPage() {
       toast.success('Remediation approved');
       queryClient.invalidateQueries({ queryKey: ['remediation-dashboard'] });
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Failed: ${error.message}`);
     },
   });
@@ -217,15 +229,15 @@ export default function RemediationDashboardPage() {
       toast.success('Playbook status updated');
       queryClient.invalidateQueries({ queryKey: ['remediation-dashboard'] });
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Failed: ${error.message}`);
     },
   });
 
-  const playbooks = dashboardData?.playbooks as PlaybookDefinition[] || [];
-  const executions = dashboardData?.executions as ExecutionRecord[] || [];
-  const pending = dashboardData?.pending as ExecutionRecord[] || [];
-  const stats = dashboardData?.stats as RemediationStats || {
+  const playbooks = (dashboardData?.playbooks as PlaybookDefinition[]) || [];
+  const executions = (dashboardData?.executions as ExecutionRecord[]) || [];
+  const pending = (dashboardData?.pending as ExecutionRecord[]) || [];
+  const stats = (dashboardData?.stats as RemediationStats) || {
     total_executions: 0,
     successful: 0,
     failed: 0,
@@ -302,9 +314,7 @@ export default function RemediationDashboardPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Successful
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Successful</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-500">{stats.successful}</div>
@@ -312,9 +322,7 @@ export default function RemediationDashboardPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Failed
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Failed</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-500">{stats.failed}</div>
@@ -362,20 +370,24 @@ export default function RemediationDashboardPage() {
         {/* Playbooks Tab */}
         <TabsContent value="playbooks" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {playbooks.map((playbook) => (
+            {playbooks.map(playbook => (
               <Card
                 key={playbook.playbook_id}
                 className={`cursor-pointer transition-all ${
                   selectedPlaybook === playbook.playbook_id ? 'ring-2 ring-blue-500' : ''
                 } ${playbook.status === 'disabled' ? 'opacity-60' : ''}`}
-                onClick={() => setSelectedPlaybook(
-                  selectedPlaybook === playbook.playbook_id ? null : playbook.playbook_id
-                )}
+                onClick={() =>
+                  setSelectedPlaybook(
+                    selectedPlaybook === playbook.playbook_id ? null : playbook.playbook_id
+                  )
+                }
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{playbook.name}</CardTitle>
-                    <Badge className={playbook.status === 'active' ? 'bg-green-500' : 'bg-gray-500'}>
+                    <Badge
+                      className={playbook.status === 'active' ? 'bg-green-500' : 'bg-gray-500'}
+                    >
                       {playbook.status}
                     </Badge>
                   </div>
@@ -390,14 +402,16 @@ export default function RemediationDashboardPage() {
 
                   <div className="text-xs text-muted-foreground space-y-1">
                     <div>Required Knobs: {playbook.required_knobs.join(', ')}</div>
-                    <div>Cooldown: {playbook.cooldown_seconds}s | Max/hour: {playbook.max_per_hour}</div>
+                    <div>
+                      Cooldown: {playbook.cooldown_seconds}s | Max/hour: {playbook.max_per_hour}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2 pt-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         triggerMutation.mutate({
                           playbookId: playbook.playbook_id,
@@ -413,7 +427,7 @@ export default function RemediationDashboardPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         toggleStatusMutation.mutate({
                           playbookId: playbook.playbook_id,
@@ -446,7 +460,7 @@ export default function RemediationDashboardPage() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {pending.map((execution) => (
+              {pending.map(execution => (
                 <Card key={execution.execution_id}>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
@@ -499,7 +513,7 @@ export default function RemediationDashboardPage() {
             </Card>
           ) : (
             <div className="space-y-2">
-              {executions.map((execution) => (
+              {executions.map(execution => (
                 <Card key={execution.execution_id} className="hover:bg-accent/50 transition-colors">
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between">
@@ -512,9 +526,7 @@ export default function RemediationDashboardPage() {
                         </div>
                         {getStatusBadge(execution.status)}
                         {getExecutionTypeBadge(execution.execution_type)}
-                        {execution.dry_run && (
-                          <Badge variant="outline">DRY RUN</Badge>
-                        )}
+                        {execution.dry_run && <Badge variant="outline">DRY RUN</Badge>}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {timeAgo(execution.created_at)}
@@ -551,8 +563,11 @@ export default function RemediationDashboardPage() {
             <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
               <AlertTriangle className="w-5 h-5" />
               <span>
-                Auto-remediation is currently <strong>disabled</strong>.
-                Set <code className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">REMEDIATION_ENABLED=true</code> to enable.
+                Auto-remediation is currently <strong>disabled</strong>. Set{' '}
+                <code className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">
+                  REMEDIATION_ENABLED=true
+                </code>{' '}
+                to enable.
               </span>
             </div>
           </CardContent>

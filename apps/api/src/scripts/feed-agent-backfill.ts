@@ -2,7 +2,7 @@
 
 /**
  * FeedAgent Backfill CLI Script
- * 
+ *
  * Usage:
  *   npx tsx src/scripts/feed-agent-backfill.ts --start=2025-08-01 --end=2025-08-02
  *   npx tsx src/scripts/feed-agent-backfill.ts --start=2025-08-01 --end=2025-08-02 --sport=NFL --dryRun
@@ -11,7 +11,11 @@
 
 import { Worker } from '@temporalio/worker';
 import { Connection, Client } from '@temporalio/client';
-import { FeedAgentBackfillWorkflow, BackfillRequest, getProgressQuery } from '../workflows/FeedAgentBackfillWorkflow';
+import {
+  FeedAgentBackfillWorkflow,
+  BackfillRequest,
+  getProgressQuery,
+} from '../workflows/FeedAgentBackfillWorkflow';
 import * as activities from '../activities/backfill';
 import { Logger } from '../utils/logger';
 
@@ -29,7 +33,7 @@ interface CLIArgs {
 function parseArgs(): CLIArgs {
   const args: CLIArgs = {
     start: '',
-    end: ''
+    end: '',
   };
 
   process.argv.slice(2).forEach(arg => {
@@ -93,40 +97,51 @@ Safety Features:
 
 async function monitorProgress(client: Client, workflowId: string) {
   const handle = client.workflow.getHandle(workflowId);
-  
+
   console.log('🔄 Monitoring backfill progress...');
   console.log('Press Ctrl+C to cancel the workflow\n');
 
   const progressInterval = setInterval(async () => {
     try {
       const progress = await handle.query(getProgressQuery);
-      
-      const percentage = progress.totalHours > 0 
-        ? Math.round((progress.completedHours / progress.totalHours) * 100)
-        : 0;
 
-      console.log(`📊 Progress: ${progress.completedHours}/${progress.totalHours} hours (${percentage}%)`);
-      console.log(`   Props: ${progress.processedProps} processed, ${progress.duplicateProps} duplicates`);
+      const percentage =
+        progress.totalHours > 0
+          ? Math.round((progress.completedHours / progress.totalHours) * 100)
+          : 0;
+
+      console.log(
+        `📊 Progress: ${progress.completedHours}/${progress.totalHours} hours (${percentage}%)`
+      );
+      console.log(
+        `   Props: ${progress.processedProps} processed, ${progress.duplicateProps} duplicates`
+      );
       console.log(`   API calls: ${progress.apiCallCount}, Status: ${progress.status}`);
-      
+
       if (progress.failedHours > 0) {
         console.log(`   ⚠️  Failed hours: ${progress.failedHours}`);
       }
-      
+
       console.log(''); // Empty line for readability
 
-      if (progress.status === 'completed' || progress.status === 'failed' || progress.status === 'cancelled') {
+      if (
+        progress.status === 'completed' ||
+        progress.status === 'failed' ||
+        progress.status === 'cancelled'
+      ) {
         clearInterval(progressInterval);
-        
+
         if (progress.status === 'completed') {
           console.log('✅ Backfill completed successfully!');
-          console.log(`Final results: ${progress.processedProps} props processed from ${progress.totalHours} hours`);
+          console.log(
+            `Final results: ${progress.processedProps} props processed from ${progress.totalHours} hours`
+          );
         } else if (progress.status === 'failed') {
           console.log('❌ Backfill failed:', progress.error);
         } else if (progress.status === 'cancelled') {
           console.log('🛑 Backfill was cancelled');
         }
-        
+
         process.exit(0);
       }
     } catch (error) {
@@ -138,11 +153,11 @@ async function monitorProgress(client: Client, workflowId: string) {
   process.on('SIGINT', async () => {
     console.log('\n🛑 Cancelling backfill workflow...');
     clearInterval(progressInterval);
-    
+
     try {
       await handle.signal('cancel');
       console.log('Cancel signal sent. Waiting for workflow to stop...');
-      
+
       // Wait a bit for cancellation to process
       setTimeout(() => {
         console.log('Workflow cancellation initiated.');
@@ -173,7 +188,7 @@ async function main() {
     // Validate date format
     const startDate = new Date(args.start);
     const endDate = new Date(args.end);
-    
+
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       console.error('❌ Error: Invalid date format. Use YYYY-MM-DD');
       process.exit(1);
@@ -206,7 +221,7 @@ async function main() {
       dryRun: args.dryRun || false,
       maxCalls: args.maxCalls,
       batchSize: args.batchSize || 100,
-      delayBetweenChunks: args.delayBetweenChunks || 1000
+      delayBetweenChunks: args.delayBetweenChunks || 1000,
     };
 
     // Start workflow
@@ -218,12 +233,13 @@ async function main() {
     });
 
     console.log(`✅ Started backfill workflow: ${workflowId}`);
-    console.log(`🔗 Workflow URL: http://localhost:8080/namespaces/default/workflows/${workflowId}`);
+    console.log(
+      `🔗 Workflow URL: http://localhost:8080/namespaces/default/workflows/${workflowId}`
+    );
     console.log('');
 
     // Monitor progress
     await monitorProgress(client, workflowId);
-
   } catch (error) {
     console.error('❌ Backfill failed:', error);
     process.exit(1);

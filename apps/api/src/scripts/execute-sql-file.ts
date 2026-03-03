@@ -17,7 +17,7 @@ async function executeSQLFile(filePath: string) {
   console.log(`📄 Executing SQL file: ${filePath}\n`);
 
   const sqlContent = fs.readFileSync(filePath, 'utf-8');
-  
+
   // Split by semicolon and filter out comments/empty lines
   const statements = sqlContent
     .split(';')
@@ -33,21 +33,21 @@ async function executeSQLFile(filePath: string) {
 
     try {
       const { data, error } = await supabase.rpc('exec_sql', { sql: stmt });
-      
+
       if (error) {
         // Try direct query if RPC doesn't exist
         console.log('RPC not available, trying direct execution...');
-        
+
         // For INSERT/UPDATE/DELETE, we need to use the REST API differently
         // Let's use a workaround with a custom function
         const { data: result, error: execError } = await supabase
           .from('_exec_sql_result')
           .select('*')
           .limit(0);
-        
+
         if (execError) {
           console.error(`❌ Error: ${execError.message}`);
-          
+
           // If it's a SELECT, try to parse and execute
           if (stmt.toUpperCase().trim().startsWith('SELECT')) {
             console.log('Attempting to execute SELECT via query...');
@@ -74,4 +74,3 @@ executeSQLFile(sqlFile).catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

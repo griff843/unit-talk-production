@@ -145,33 +145,33 @@ export class PredictionEngine {
 
   constructor(logger: Logger) {
     this.logger = logger;
-    
+
     this.ensembleConfig = {
       models: [],
       aggregationMethod: 'weighted_average',
       weightingStrategy: 'adaptive',
       diversityThreshold: 0.3,
       minimumModels: 3,
-      maximumModels: 8
+      maximumModels: 8,
     };
   }
 
   async initialize(): Promise<void> {
     this.logger.info('🎯 Initializing PredictionEngine');
-    
+
     await this.loadEnsembleConfiguration();
     await this.loadCalibrationData();
     await this.loadPredictionHistory();
     await this.loadModelPerformance();
     await this.initializeFeatureScalers();
-    
+
     this.logger.info('✅ PredictionEngine initialized');
   }
 
   async generatePrediction(market: MarketContext): Promise<PredictionResult | null> {
-    this.logger.debug('🔮 Generating prediction for market', { 
-      marketId: market.id, 
-      betType: market.betType 
+    this.logger.debug('🔮 Generating prediction for market', {
+      marketId: market.id,
+      betType: market.betType,
     });
 
     const predictionStartTime = Date.now();
@@ -185,11 +185,11 @@ export class PredictionEngine {
         betType: market.betType,
         features,
         context: market,
-        confidenceThreshold: this.confidenceThresholds.get(market.betType) || 0.6
+        confidenceThreshold: this.confidenceThresholds.get(market.betType) || 0.6,
       };
 
       // 2. Validate request
-      if (!await this.validatePredictionRequest(request)) {
+      if (!(await this.validatePredictionRequest(request))) {
         this.logger.warn('⚠️ Prediction request validation failed', { marketId: market.id });
         return null;
       }
@@ -197,31 +197,37 @@ export class PredictionEngine {
       // 3. Select and prepare models
       const selectedModels = await this.selectModels(request);
       if (selectedModels.length < this.ensembleConfig.minimumModels) {
-        this.logger.warn('⚠️ Insufficient models available for prediction', { 
+        this.logger.warn('⚠️ Insufficient models available for prediction', {
           available: selectedModels.length,
-          required: this.ensembleConfig.minimumModels
+          required: this.ensembleConfig.minimumModels,
         });
         return null;
       }
 
       // 4. Generate ensemble predictions
       const modelContributions = await this.generateEnsemblePredictions(request, selectedModels);
-      
+
       // 5. Aggregate predictions
       const aggregatedPrediction = await this.aggregatePredictions(modelContributions, request);
-      
+
       // 6. Calculate uncertainty bounds
       const uncertaintyBounds = await this.calculateUncertaintyBounds(modelContributions);
-      
+
       // 7. Apply calibration
-      const calibratedPrediction = await this.applyCalibration(aggregatedPrediction, request.betType);
-      
+      const calibratedPrediction = await this.applyCalibration(
+        aggregatedPrediction,
+        request.betType
+      );
+
       // 8. Calculate feature importance
       const featureImportance = await this.calculateFeatureImportance(request, modelContributions);
-      
+
       // 9. Assess prediction quality
       const dataQuality = await this.assessDataQuality(request);
-      const expectedAccuracy = await this.estimateAccuracy(calibratedPrediction, modelContributions);
+      const expectedAccuracy = await this.estimateAccuracy(
+        calibratedPrediction,
+        modelContributions
+      );
 
       // 10. Create final prediction result
       const predictionResult: PredictionResult = {
@@ -239,12 +245,12 @@ export class PredictionEngine {
         uncertaintyBounds,
         featureImportance,
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + market.timeToEvent * 60 * 1000)
+        expiresAt: new Date(Date.now() + market.timeToEvent * 60 * 1000),
       };
 
       // 11. Store prediction
       await this.storePrediction(predictionResult);
-      
+
       // 12. Update metrics
       await this.updatePredictionMetrics(predictionResult);
 
@@ -254,25 +260,23 @@ export class PredictionEngine {
         confidence: predictionResult.confidence,
         winProbability: predictionResult.predictedOutcome.winProbability,
         expectedValue: predictionResult.predictedOutcome.expectedValue,
-        processingTimeMs: predictionTime
+        processingTimeMs: predictionTime,
       });
 
       return predictionResult;
-
     } catch (error) {
       this.logger.error('❌ Failed to generate prediction', {
         marketId: market.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return null;
     }
   }
 
   async validatePrediction(
-    predictionId: string, 
+    predictionId: string,
     actualOutcome: any
   ): Promise<{ accuracy: number; calibration: number; sharpness: number }> {
-    
     this.logger.info('🔍 Validating prediction', { predictionId });
 
     try {
@@ -283,34 +287,33 @@ export class PredictionEngine {
 
       // Calculate accuracy
       const accuracy = this.calculateAccuracy(prediction, actualOutcome);
-      
+
       // Update calibration data
       await this.updateCalibrationData(prediction, actualOutcome);
-      
+
       // Calculate calibration metrics
       const calibration = await this.calculateCalibration(prediction.betType);
-      
+
       // Calculate sharpness
       const sharpness = this.calculateSharpness(prediction);
-      
+
       // Update model performance
       await this.updateModelPerformance(prediction, actualOutcome, accuracy);
 
       const validation = { accuracy, calibration, sharpness };
-      
+
       this.logger.info('✅ Prediction validated', {
         predictionId,
         accuracy,
         calibration,
-        sharpness
+        sharpness,
       });
 
       return validation;
-
     } catch (error) {
       this.logger.error('❌ Failed to validate prediction', {
         predictionId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return { accuracy: 0, calibration: 0, sharpness: 0 };
     }
@@ -321,14 +324,15 @@ export class PredictionEngine {
 
     try {
       const allPredictions = Array.from(this.predictionHistory.values()).flat();
-      
+
       if (allPredictions.length === 0) {
         return this.getDefaultMetrics();
       }
 
       const totalPredictions = allPredictions.length;
-      const averageConfidence = allPredictions.reduce((sum, p) => sum + p.confidence, 0) / totalPredictions;
-      
+      const averageConfidence =
+        allPredictions.reduce((sum, p) => sum + p.confidence, 0) / totalPredictions;
+
       // These would be calculated from actual validation results
       const averageAccuracy = 0.72; // Placeholder
       const calibrationScore = 0.85; // Placeholder
@@ -346,12 +350,11 @@ export class PredictionEngine {
         maxDrawdown,
         winRate,
         averageEdge,
-        modelPerformance: this.modelPerformance
+        modelPerformance: this.modelPerformance,
       };
-
     } catch (error) {
       this.logger.error('❌ Failed to calculate ensemble performance', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return this.getDefaultMetrics();
     }
@@ -365,32 +368,32 @@ export class PredictionEngine {
       volume: market.volume,
       liquidity: market.liquidity,
       time_to_event: market.timeToEvent,
-      
+
       // Derived features
       log_odds: Math.log(market.currentOdds),
       log_volume: Math.log(Math.max(1, market.volume)),
       liquidity_score: Math.min(1, market.liquidity / 10000),
       urgency_factor: Math.max(0, 1 - market.timeToEvent / 1440), // 24 hours max
-      
+
       // Market structure
       bid_ask_spread: await this.getBidAskSpread(market.id),
       market_depth: await this.getMarketDepth(market.id),
       order_flow: await this.getOrderFlow(market.id),
-      
+
       // Historical features
       price_momentum: await this.getPriceMomentum(market.id, 10),
       volatility: await this.getVolatility(market.id, 20),
       trend_strength: await this.getTrendStrength(market.id),
-      
+
       // Contextual features
       hour_of_day: new Date().getHours(),
       day_of_week: new Date().getDay(),
       market_type_encoding: this.encodeMarketType(market.betType),
-      
+
       // Risk features
       correlation_risk: await this.getCorrelationRisk(market.id),
       concentration_risk: await this.getConcentrationRisk(market.betType),
-      liquidity_risk: await this.getLiquidityRisk(market.id)
+      liquidity_risk: await this.getLiquidityRisk(market.id),
     };
   }
 
@@ -419,12 +422,13 @@ export class PredictionEngine {
 
   private async selectModels(request: PredictionRequest): Promise<EnsembleModel[]> {
     const availableModels = this.ensembleConfig.models.filter(m => m.enabled);
-    
+
     // Filter models by specialization
-    const specializedModels = availableModels.filter(m => 
-      m.specialization.length === 0 || 
-      m.specialization.includes(request.betType) ||
-      m.specialization.includes('general')
+    const specializedModels = availableModels.filter(
+      m =>
+        m.specialization.length === 0 ||
+        m.specialization.includes(request.betType) ||
+        m.specialization.includes('general')
     );
 
     // Sort by performance and recency
@@ -442,7 +446,6 @@ export class PredictionEngine {
     request: PredictionRequest,
     models: EnsembleModel[]
   ): Promise<ModelContribution[]> {
-    
     const contributions: ModelContribution[] = [];
 
     for (const model of models) {
@@ -457,13 +460,12 @@ export class PredictionEngine {
           confidence: await this.getModelConfidence(model, request),
           weight: model.weight,
           accuracy: model.accuracy,
-          latency: modelLatency
+          latency: modelLatency,
         });
-
       } catch (error) {
         this.logger.warn('⚠️ Model prediction failed', {
           modelId: model.modelId,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
@@ -471,58 +473,61 @@ export class PredictionEngine {
     return contributions;
   }
 
-  private async generateModelPrediction(model: EnsembleModel, request: PredictionRequest): Promise<number> {
+  private async generateModelPrediction(
+    model: EnsembleModel,
+    request: PredictionRequest
+  ): Promise<number> {
     // This would call the actual ML model for prediction
     // For now, simulate model predictions with some variation
-    
+
     const baseProb = this.calculateBaselineProbability(request);
     const modelVariation = this.getModelVariation(model.type);
     const contextAdjustment = this.getContextualAdjustment(request);
-    
+
     let prediction = baseProb + modelVariation + contextAdjustment;
-    
+
     // Ensure prediction is within valid probability range
     prediction = Math.max(0.05, Math.min(0.95, prediction));
-    
+
     return prediction;
   }
 
   private calculateBaselineProbability(request: PredictionRequest): number {
     // Convert odds to implied probability with some adjustments
     const impliedProb = 1 / request.features.current_odds;
-    
+
     // Adjust based on volume and liquidity
     const volumeAdjustment = Math.log(request.features.volume + 1) * 0.01;
     const liquidityAdjustment = request.features.liquidity_score * 0.02;
-    
+
     return impliedProb + volumeAdjustment + liquidityAdjustment;
   }
 
   private getModelVariation(modelType: string): number {
     const variations = {
-      'linear': (Math.random() - 0.5) * 0.1,
-      'tree': (Math.random() - 0.5) * 0.15,
-      'neural': (Math.random() - 0.5) * 0.12,
-      'ensemble': (Math.random() - 0.5) * 0.08,
-      'custom': (Math.random() - 0.5) * 0.1
+      linear: (Math.random() - 0.5) * 0.1,
+      tree: (Math.random() - 0.5) * 0.15,
+      neural: (Math.random() - 0.5) * 0.12,
+      ensemble: (Math.random() - 0.5) * 0.08,
+      custom: (Math.random() - 0.5) * 0.1,
     };
-    
+
     return variations[modelType as keyof typeof variations] || 0;
   }
 
   private getContextualAdjustment(request: PredictionRequest): number {
     let adjustment = 0;
-    
+
     // Time urgency adjustment
     if (request.features.urgency_factor > 0.8) {
       adjustment += 0.02; // Higher urgency = slight increase in probability
     }
-    
+
     // Market type adjustment
     if (request.betType.includes('prop')) {
       adjustment -= 0.01; // Props are generally harder to predict
     }
-    
+
     return adjustment;
   }
 
@@ -530,9 +535,8 @@ export class PredictionEngine {
     contributions: ModelContribution[],
     request: PredictionRequest
   ): Promise<PredictedOutcome> {
-    
     let aggregatedProb: number;
-    
+
     switch (this.ensembleConfig.aggregationMethod) {
       case 'weighted_average':
         aggregatedProb = this.weightedAverage(contributions);
@@ -553,28 +557,33 @@ export class PredictionEngine {
     // Calculate derived outcomes
     const fairOdds = 1 / aggregatedProb;
     const currentOdds = request.features.current_odds;
-    const expectedValue = (aggregatedProb * (currentOdds - 1)) - (1 - aggregatedProb);
+    const expectedValue = aggregatedProb * (currentOdds - 1) - (1 - aggregatedProb);
     const edgePercentage = expectedValue / currentOdds;
-    
+
     // Calculate volatility based on model disagreement
     const predictions = contributions.map(c => c.prediction);
-    const variance = predictions.reduce((sum, pred) => sum + Math.pow(pred - aggregatedProb, 2), 0) / predictions.length;
+    const variance =
+      predictions.reduce((sum, pred) => sum + Math.pow(pred - aggregatedProb, 2), 0) /
+      predictions.length;
     const volatility = Math.sqrt(variance);
-    
+
     // Determine market direction
-    const marketDirection = this.determineMarketDirection(aggregatedProb, request.features.current_odds);
-    
+    const marketDirection = this.determineMarketDirection(
+      aggregatedProb,
+      request.features.current_odds
+    );
+
     // Calculate support and resistance levels
     const supportLevel = await this.calculateSupport(request.marketId);
     const resistanceLevel = await this.calculateResistance(request.marketId);
     const momentum = await this.calculateMomentum(request.marketId);
-    
+
     return {
       winProbability: aggregatedProb,
       expectedValue,
       oddsRange: {
         min: fairOdds * 0.95,
-        max: fairOdds * 1.05
+        max: fairOdds * 1.05,
       },
       volatility,
       marketDirection,
@@ -582,7 +591,7 @@ export class PredictionEngine {
       resistanceLevel,
       momentum,
       fairOdds,
-      edgePercentage
+      edgePercentage,
     };
   }
 
@@ -595,16 +604,17 @@ export class PredictionEngine {
   private async stackingAggregation(contributions: ModelContribution[]): Promise<number> {
     // Simplified stacking - in practice this would use a meta-learner
     const baseAvg = this.weightedAverage(contributions);
-    const confidenceAdj = contributions.reduce((sum, c) => sum + c.confidence, 0) / contributions.length;
+    const confidenceAdj =
+      contributions.reduce((sum, c) => sum + c.confidence, 0) / contributions.length;
     return baseAvg * confidenceAdj;
   }
 
   private votingAggregation(contributions: ModelContribution[]): number {
     // Convert predictions to binary votes and then average
     const threshold = 0.5;
-    const votes = contributions.map(c => c.prediction > threshold ? 1 : 0);
+    const votes = contributions.map(c => (c.prediction > threshold ? 1 : 0));
     const avgVote = votes.reduce((sum, vote) => sum + vote, 0) / votes.length;
-    
+
     // Convert back to probability with some smoothing
     return 0.1 + avgVote * 0.8;
   }
@@ -612,76 +622,80 @@ export class PredictionEngine {
   private async bayesianAggregation(contributions: ModelContribution[]): Promise<number> {
     // Simplified Bayesian aggregation
     let prior = 0.5; // Neutral prior
-    
+
     for (const contribution of contributions) {
       const likelihood = contribution.prediction;
       const evidence = contribution.confidence;
-      
+
       // Bayesian update (simplified)
-      prior = (prior * likelihood * evidence) / 
-              (prior * likelihood * evidence + (1 - prior) * (1 - likelihood) * evidence);
+      prior =
+        (prior * likelihood * evidence) /
+        (prior * likelihood * evidence + (1 - prior) * (1 - likelihood) * evidence);
     }
-    
+
     return prior;
   }
 
   private determineMarketDirection(
-    predictedProb: number, 
+    predictedProb: number,
     currentOdds: number
   ): 'bullish' | 'bearish' | 'neutral' {
-    
     const impliedProb = 1 / currentOdds;
     const diff = predictedProb - impliedProb;
-    
+
     if (diff > 0.05) return 'bullish';
     if (diff < -0.05) return 'bearish';
     return 'neutral';
   }
 
-  private async calculateUncertaintyBounds(contributions: ModelContribution[]): Promise<UncertaintyBounds> {
+  private async calculateUncertaintyBounds(
+    contributions: ModelContribution[]
+  ): Promise<UncertaintyBounds> {
     const predictions = contributions.map(c => c.prediction);
     const mean = predictions.reduce((sum, pred) => sum + pred, 0) / predictions.length;
-    
-    const variance = predictions.reduce((sum, pred) => sum + Math.pow(pred - mean, 2), 0) / predictions.length;
+
+    const variance =
+      predictions.reduce((sum, pred) => sum + Math.pow(pred - mean, 2), 0) / predictions.length;
     const standardError = Math.sqrt(variance);
-    
+
     // 95% confidence interval
     const confidenceInterval = 1.96 * standardError;
     const predictionInterval = 2.0 * standardError; // Slightly wider for prediction
-    
+
     return {
       lower: Math.max(0, mean - confidenceInterval),
       upper: Math.min(1, mean + confidenceInterval),
       standardError,
       confidenceInterval,
-      predictionInterval
+      predictionInterval,
     };
   }
 
   private async applyCalibration(
-    outcome: PredictedOutcome, 
+    outcome: PredictedOutcome,
     betType: string
   ): Promise<PredictedOutcome> {
-    
     const calibrationData = this.calibrationData.get(betType);
     if (!calibrationData || calibrationData.bins.length === 0) {
       return outcome; // No calibration data available
     }
 
     // Find appropriate calibration bin
-    const bin = calibrationData.bins.find(b => 
-      outcome.winProbability >= b.minProb && outcome.winProbability < b.maxProb
+    const bin = calibrationData.bins.find(
+      b => outcome.winProbability >= b.minProb && outcome.winProbability < b.maxProb
     );
 
-    if (bin && bin.count > 10) { // Require sufficient data
+    if (bin && bin.count > 10) {
+      // Require sufficient data
       // Adjust probability based on calibration
       const calibrationAdjustment = bin.actualFreq - bin.predictedProb;
       outcome.winProbability += calibrationAdjustment * 0.5; // Partial adjustment
       outcome.winProbability = Math.max(0.05, Math.min(0.95, outcome.winProbability));
-      
+
       // Recalculate derived values
       outcome.fairOdds = 1 / outcome.winProbability;
-      outcome.expectedValue = (outcome.winProbability * (outcome.fairOdds - 1)) - (1 - outcome.winProbability);
+      outcome.expectedValue =
+        outcome.winProbability * (outcome.fairOdds - 1) - (1 - outcome.winProbability);
       outcome.edgePercentage = outcome.expectedValue / outcome.fairOdds;
     }
 
@@ -692,42 +706,43 @@ export class PredictionEngine {
     request: PredictionRequest,
     contributions: ModelContribution[]
   ): Promise<Record<string, number>> {
-    
     // Simplified feature importance calculation
     const importance: Record<string, number> = {};
     const features = Object.keys(request.features);
-    
+
     // Assign importance based on feature type and contribution variance
     for (const feature of features) {
       let baseImportance = 0.1; // Default importance
-      
+
       // Key features get higher importance
       if (['current_odds', 'volume', 'liquidity'].includes(feature)) {
         baseImportance = 0.3;
       } else if (['time_to_event', 'volatility', 'momentum'].includes(feature)) {
         baseImportance = 0.2;
       }
-      
+
       // Add some randomness based on model contributions
       const contributionVariance = this.calculateContributionVariance(contributions);
       const adjustment = contributionVariance * (Math.random() - 0.5) * 0.1;
-      
+
       importance[feature] = Math.max(0, baseImportance + adjustment);
     }
-    
+
     // Normalize to sum to 1
     const total = Object.values(importance).reduce((sum, imp) => sum + imp, 0);
     for (const feature of features) {
       importance[feature] = importance[feature] / total;
     }
-    
+
     return importance;
   }
 
   private calculateContributionVariance(contributions: ModelContribution[]): number {
     const predictions = contributions.map(c => c.prediction);
     const mean = predictions.reduce((sum, pred) => sum + pred, 0) / predictions.length;
-    return predictions.reduce((sum, pred) => sum + Math.pow(pred - mean, 2), 0) / predictions.length;
+    return (
+      predictions.reduce((sum, pred) => sum + Math.pow(pred - mean, 2), 0) / predictions.length
+    );
   }
 
   private calculateOverallConfidence(contributions: ModelContribution[]): number {
@@ -744,17 +759,17 @@ export class PredictionEngine {
 
   private async assessDataQuality(request: PredictionRequest): Promise<number> {
     let qualityScore = 1.0;
-    
+
     // Check for missing features
     const requiredFeatures = ['current_odds', 'volume', 'liquidity', 'time_to_event'];
     const missingFeatures = requiredFeatures.filter(f => !(f in request.features));
     qualityScore -= missingFeatures.length * 0.1;
-    
+
     // Check for reasonable values
     if (request.features.current_odds <= 1) qualityScore -= 0.2;
     if (request.features.volume < 0) qualityScore -= 0.1;
     if (request.features.time_to_event < 0) qualityScore -= 0.1;
-    
+
     return Math.max(0, qualityScore);
   }
 
@@ -762,44 +777,74 @@ export class PredictionEngine {
     prediction: PredictedOutcome,
     contributions: ModelContribution[]
   ): Promise<number> {
-    
     // Base accuracy on model ensemble performance
-    const avgModelAccuracy = contributions.reduce((sum, c) => sum + c.accuracy, 0) / contributions.length;
-    
+    const avgModelAccuracy =
+      contributions.reduce((sum, c) => sum + c.accuracy, 0) / contributions.length;
+
     // Adjust based on confidence and uncertainty
-    const confidenceBonus = prediction.winProbability > 0.3 && prediction.winProbability < 0.7 ? 0.05 : 0;
+    const confidenceBonus =
+      prediction.winProbability > 0.3 && prediction.winProbability < 0.7 ? 0.05 : 0;
     const volatilityPenalty = prediction.volatility * 0.1;
-    
+
     return Math.max(0.5, Math.min(0.95, avgModelAccuracy + confidenceBonus - volatilityPenalty));
   }
 
   // Placeholder helper methods
-  private async getBidAskSpread(marketId: string): Promise<number> { return 0.02; }
-  private async getMarketDepth(marketId: string): Promise<number> { return 0.5; }
-  private async getOrderFlow(marketId: string): Promise<number> { return 0.3; }
-  private async getPriceMomentum(marketId: string, period: number): Promise<number> { return 0.1; }
-  private async getVolatility(marketId: string, period: number): Promise<number> { return 0.2; }
-  private async getTrendStrength(marketId: string): Promise<number> { return 0.6; }
-  private encodeMarketType(betType: string): number { return betType.length % 10; }
-  private async getCorrelationRisk(marketId: string): Promise<number> { return 0.3; }
-  private async getConcentrationRisk(betType: string): Promise<number> { return 0.2; }
-  private async getLiquidityRisk(marketId: string): Promise<number> { return 0.1; }
-  private getRecencyScore(lastUpdated: Date): number { 
+  private async getBidAskSpread(marketId: string): Promise<number> {
+    return 0.02;
+  }
+  private async getMarketDepth(marketId: string): Promise<number> {
+    return 0.5;
+  }
+  private async getOrderFlow(marketId: string): Promise<number> {
+    return 0.3;
+  }
+  private async getPriceMomentum(marketId: string, period: number): Promise<number> {
+    return 0.1;
+  }
+  private async getVolatility(marketId: string, period: number): Promise<number> {
+    return 0.2;
+  }
+  private async getTrendStrength(marketId: string): Promise<number> {
+    return 0.6;
+  }
+  private encodeMarketType(betType: string): number {
+    return betType.length % 10;
+  }
+  private async getCorrelationRisk(marketId: string): Promise<number> {
+    return 0.3;
+  }
+  private async getConcentrationRisk(betType: string): Promise<number> {
+    return 0.2;
+  }
+  private async getLiquidityRisk(marketId: string): Promise<number> {
+    return 0.1;
+  }
+  private getRecencyScore(lastUpdated: Date): number {
     const hours = (Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60);
     return Math.max(0, 1 - hours / 168); // Decay over 1 week
   }
-  private async getModelConfidence(model: EnsembleModel, request: PredictionRequest): Promise<number> { 
-    return 0.7 + Math.random() * 0.2; 
+  private async getModelConfidence(
+    model: EnsembleModel,
+    request: PredictionRequest
+  ): Promise<number> {
+    return 0.7 + Math.random() * 0.2;
   }
-  private async calculateSupport(marketId: string): Promise<number> { return 95; }
-  private async calculateResistance(marketId: string): Promise<number> { return 105; }
-  private async calculateMomentum(marketId: string): Promise<number> { return 0.3; }
+  private async calculateSupport(marketId: string): Promise<number> {
+    return 95;
+  }
+  private async calculateResistance(marketId: string): Promise<number> {
+    return 105;
+  }
+  private async calculateMomentum(marketId: string): Promise<number> {
+    return 0.3;
+  }
 
   private calculateAccuracy(prediction: PredictionResult, actualOutcome: any): number {
     // Simplified accuracy calculation
     const predictedProb = prediction.predictedOutcome.winProbability;
     const actualResult = actualOutcome.result === 'win' ? 1 : 0;
-    
+
     // Brier professional_score (lower is better, so we return 1 - brier_score)
     const brierScore = Math.pow(predictedProb - actualResult, 2);
     return Math.max(0, 1 - brierScore);
@@ -811,19 +856,22 @@ export class PredictionEngine {
     return Math.abs(prob - 0.5) * 2; // Scale to 0-1
   }
 
-  private async updateCalibrationData(prediction: PredictionResult, actualOutcome: any): Promise<void> {
+  private async updateCalibrationData(
+    prediction: PredictionResult,
+    actualOutcome: any
+  ): Promise<void> {
     const betType = prediction.betType;
     const calibrationData = this.calibrationData.get(betType) || this.createEmptyCalibrationData();
-    
+
     calibrationData.predictedProbabilities.push(prediction.predictedOutcome.winProbability);
     calibrationData.actualOutcomes.push(actualOutcome.result === 'win' ? 1 : 0);
-    
+
     // Recalculate bins
     calibrationData.bins = this.calculateCalibrationBins(
       calibrationData.predictedProbabilities,
       calibrationData.actualOutcomes
     );
-    
+
     this.calibrationData.set(betType, calibrationData);
   }
 
@@ -835,41 +883,43 @@ export class PredictionEngine {
       reliabilityScore: 0,
       bsScore: 0,
       logLoss: 0,
-      calibrationError: 0
+      calibrationError: 0,
     };
   }
 
   private calculateCalibrationBins(predictions: number[], outcomes: number[]): CalibrationBin[] {
     const numBins = 10;
     const bins: CalibrationBin[] = [];
-    
+
     for (let i = 0; i < numBins; i++) {
       const minProb = i / numBins;
       const maxProb = (i + 1) / numBins;
-      
+
       const binIndices = predictions
         .map((pred, idx) => ({ pred, idx }))
         .filter(({ pred }) => pred >= minProb && pred < maxProb)
         .map(({ idx }) => idx);
-      
+
       if (binIndices.length > 0) {
         const binPredictions = binIndices.map(idx => predictions[idx]);
         const binOutcomes = binIndices.map(idx => outcomes[idx]);
-        
-        const predictedProb = binPredictions.reduce((sum, pred) => sum + pred, 0) / binPredictions.length;
-        const actualFreq = binOutcomes.reduce((sum, outcome) => sum + outcome, 0) / binOutcomes.length;
-        
+
+        const predictedProb =
+          binPredictions.reduce((sum, pred) => sum + pred, 0) / binPredictions.length;
+        const actualFreq =
+          binOutcomes.reduce((sum, outcome) => sum + outcome, 0) / binOutcomes.length;
+
         bins.push({
           minProb,
           maxProb,
           predictedProb,
           actualFreq,
           count: binIndices.length,
-          reliability: Math.abs(predictedProb - actualFreq)
+          reliability: Math.abs(predictedProb - actualFreq),
         });
       }
     }
-    
+
     return bins;
   }
 
@@ -878,13 +928,13 @@ export class PredictionEngine {
     if (!calibrationData || calibrationData.bins.length === 0) {
       return 0.5; // Default calibration professional_score
     }
-    
+
     // Calculate expected calibration error
     const totalCount = calibrationData.bins.reduce((sum, bin) => sum + bin.count, 0);
     const ece = calibrationData.bins.reduce((sum, bin) => {
       return sum + (bin.count / totalCount) * bin.reliability;
     }, 0);
-    
+
     return Math.max(0, 1 - ece); // Higher professional_score = better calibration
   }
 
@@ -893,10 +943,9 @@ export class PredictionEngine {
     actualOutcome: any,
     accuracy: number
   ): Promise<void> {
-    
     for (const contribution of prediction.modelEnsemble) {
       const existing = this.modelPerformance.get(contribution.modelId);
-      
+
       if (existing) {
         // Update running averages
         const alpha = 0.1; // Learning rate
@@ -916,7 +965,7 @@ export class PredictionEngine {
           sharpness: 0.6, // Placeholder
           resolution: 0.7, // Placeholder
           totalPredictions: 1,
-          lastEvaluated: new Date()
+          lastEvaluated: new Date(),
         });
       }
     }
@@ -943,7 +992,7 @@ export class PredictionEngine {
       maxDrawdown: 0,
       winRate: 0,
       averageEdge: 0,
-      modelPerformance: new Map()
+      modelPerformance: new Map(),
     };
   }
 
@@ -953,7 +1002,7 @@ export class PredictionEngine {
       JSON.stringify(prediction),
       prediction.timeHorizon * 60 * 1000 // TTL based on time horizon
     );
-    
+
     // Add to history
     const history = this.predictionHistory.get(prediction.marketId) || [];
     history.push(prediction);
@@ -970,7 +1019,7 @@ export class PredictionEngine {
         confidence: prediction.confidence,
         winProbability: prediction.predictedOutcome.winProbability,
         expectedValue: prediction.predictedOutcome.expectedValue,
-        timestamp: prediction.createdAt
+        timestamp: prediction.createdAt,
       }),
       3600 // 1 hour TTL
     );
@@ -991,7 +1040,7 @@ export class PredictionEngine {
             accuracy: 0.65,
             lastUpdated: new Date(),
             specialization: ['general'],
-            enabled: true
+            enabled: true,
           },
           {
             modelId: 'tree_ensemble',
@@ -1000,7 +1049,7 @@ export class PredictionEngine {
             accuracy: 0.72,
             lastUpdated: new Date(),
             specialization: ['general'],
-            enabled: true
+            enabled: true,
           },
           {
             modelId: 'neural_network',
@@ -1009,7 +1058,7 @@ export class PredictionEngine {
             accuracy: 0.68,
             lastUpdated: new Date(),
             specialization: ['general'],
-            enabled: true
+            enabled: true,
           },
           {
             modelId: 'custom_ensemble',
@@ -1018,8 +1067,8 @@ export class PredictionEngine {
             accuracy: 0.75,
             lastUpdated: new Date(),
             specialization: ['general'],
-            enabled: true
-          }
+            enabled: true,
+          },
         ];
       }
     } catch (error) {
@@ -1127,7 +1176,7 @@ export class PredictionEngine {
     this.modelPerformance.clear();
     this.confidenceThresholds.clear();
     this.featureScalers.clear();
-    
+
     this.logger.info('🧹 PredictionEngine cleanup completed');
   }
 }

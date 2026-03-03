@@ -2,7 +2,7 @@
 
 /**
  * Fix Final NaN Issues in GradingEngine
- * 
+ *
  * Focus on the async calculateProfessionalCapperScore method
  * and ensure all calculations are properly handled
  */
@@ -17,15 +17,18 @@ config();
 async function fixFinalNaNIssues() {
   console.log('🔧 FIXING FINAL NaN ISSUES IN GRADING ENGINE');
   console.log('==============================================');
-  
+
   try {
-    const gradingEnginePath = join(process.cwd(), 'src/agents/GradingAgent/scoring/gradingEngine.ts');
-    
+    const gradingEnginePath = join(
+      process.cwd(),
+      'src/agents/GradingAgent/scoring/gradingEngine.ts'
+    );
+
     console.log('📖 Reading gradingEngine.ts...');
     let content = readFileSync(gradingEnginePath, 'utf8');
-    
+
     console.log('🔧 Applying final NaN error fixes...');
-    
+
     // 1. Fix calculateProfessionalCapperScore method to be safer
     console.log('  → Fixing calculateProfessionalCapperScore method');
     const saferProfessionalCapperScore = `
@@ -187,7 +190,7 @@ async function fixFinalNaNIssues() {
     // Write the fixed content back
     console.log('💾 Writing final fixes to gradingEngine.ts...');
     writeFileSync(gradingEnginePath, content);
-    
+
     console.log('✅ Final NaN error fixes applied successfully!');
     console.log('\n🔧 FINAL FIXES APPLIED:');
     console.log('  ✓ Enhanced calculateProfessionalCapperScore with comprehensive error handling');
@@ -195,7 +198,6 @@ async function fixFinalNaNIssues() {
     console.log('  ✓ Added error handling to calculateCompositeScore');
     console.log('  ✓ Ensured all professional_score calculations are safe');
     console.log('  ✓ Added final safety check to return statement');
-    
   } catch (error) {
     console.error('❌ Fix process failed:', error);
     throw error;
@@ -209,7 +211,7 @@ if (require.main === module) {
       console.log('\n✅ Final NaN error fixes completed successfully');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('💥 Fix process failed:', error);
       process.exit(1);
     });

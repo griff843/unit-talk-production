@@ -13,10 +13,10 @@ async function testExternalWorkerStartup(): Promise<void> {
   console.log(`Temporal Address: ${TEMPORAL_ADDRESS}`);
   console.log(`Temporal Namespace: ${TEMPORAL_NAMESPACE}`);
   console.log(`Task Queue: ${TEMPORAL_TASK_QUEUE}`);
-  
+
   return new Promise((resolve, reject) => {
     console.log('🚀 Starting external Temporal worker...');
-    
+
     // Start the worker as a separate process using node directly
     workerProcess = spawn('node', ['./node_modules/tsx/dist/cli.mjs', 'src/worker.ts'], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -27,23 +27,23 @@ async function testExternalWorkerStartup(): Promise<void> {
         TEMPORAL_NAMESPACE,
         TEMPORAL_TASK_QUEUE,
         // Disable native bridge for the worker process
-        TEMPORAL_WORKER_DISABLE_NATIVE_BRIDGE: 'true'
-      }
+        TEMPORAL_WORKER_DISABLE_NATIVE_BRIDGE: 'true',
+      },
     });
 
     let workerStarted = false;
     let nativeBridgeError = false;
 
-    workerProcess.stdout?.on('data', (data) => {
+    workerProcess.stdout?.on('data', data => {
       const output = data.toString();
       console.log('Worker stdout:', output);
-      
+
       // Check for successful worker creation
       if (output.includes('Creating worker') || output.includes('Workflow bundle created')) {
         if (!workerStarted) {
           workerStarted = true;
           console.log('✅ Worker started successfully without native bridge error!');
-          
+
           // Give it a moment to fully initialize, then resolve
           setTimeout(() => {
             resolve();
@@ -52,23 +52,27 @@ async function testExternalWorkerStartup(): Promise<void> {
       }
     });
 
-    workerProcess.stderr?.on('data', (data) => {
+    workerProcess.stderr?.on('data', data => {
       const output = data.toString();
       console.log('Worker stderr:', output);
-      
+
       // Check for native bridge errors
-      if (output.includes('native bridge') || output.includes('ENOENT') || output.includes('node-gyp')) {
+      if (
+        output.includes('native bridge') ||
+        output.includes('ENOENT') ||
+        output.includes('node-gyp')
+      ) {
         nativeBridgeError = true;
         console.error('❌ Native bridge error detected!');
         reject(new Error('Native bridge compatibility issue'));
       }
-      
+
       // Check for successful worker creation in stderr too
       if (output.includes('Creating worker') && !nativeBridgeError) {
         if (!workerStarted) {
           workerStarted = true;
           console.log('✅ Worker started successfully without native bridge error!');
-          
+
           // Give it a moment to fully initialize, then resolve
           setTimeout(() => {
             resolve();
@@ -77,7 +81,7 @@ async function testExternalWorkerStartup(): Promise<void> {
       }
     });
 
-    workerProcess.on('error', (error) => {
+    workerProcess.on('error', error => {
       console.error('❌ Worker process error:', error);
       reject(error);
     });
@@ -101,14 +105,14 @@ async function testExternalWorkerStartup(): Promise<void> {
 
 async function cleanup(): Promise<void> {
   console.log('🧹 Cleaning up...');
-  
+
   if (workerProcess && !workerProcess.killed) {
     console.log('Terminating worker process...');
     workerProcess.kill('SIGTERM');
-    
+
     // Wait a bit for graceful shutdown
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     if (!workerProcess.killed) {
       console.log('Force killing worker process...');
       workerProcess.kill('SIGKILL');
@@ -120,7 +124,9 @@ async function main(): Promise<void> {
   try {
     await testExternalWorkerStartup();
     console.log('🎉 SUCCESS: External worker approach bypasses native bridge issue!');
-    console.log('✅ The Temporal worker can run in a separate process without native bridge errors');
+    console.log(
+      '✅ The Temporal worker can run in a separate process without native bridge errors'
+    );
   } catch (error) {
     console.error('❌ Test failed:', error);
     process.exit(1);

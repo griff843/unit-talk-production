@@ -1,11 +1,11 @@
 import { EnhancedMonitoringSystem } from '../monitoring/enhanced-monitoring';
 import { Logger } from '../shared/logger/index';
-import { 
+import {
   AnalyticsConfig,
   PerformanceMetrics,
   SubscriberMetrics,
   MarketAnalysis,
-  CompetitiveAnalysis
+  CompetitiveAnalysis,
 } from '../types/analytics';
 
 export class EnhancedAnalytics {
@@ -22,23 +22,32 @@ export class EnhancedAnalytics {
 
   private initializeAnalytics(): void {
     // Set up periodic analytics generation
-    setInterval(() => {
-      this.generateDailyAnalytics();
-    }, 24 * 60 * 60 * 1000); // Daily
+    setInterval(
+      () => {
+        this.generateDailyAnalytics();
+      },
+      24 * 60 * 60 * 1000
+    ); // Daily
 
-    setInterval(() => {
-      this.generateWeeklyAnalytics();
-    }, 7 * 24 * 60 * 60 * 1000); // Weekly
+    setInterval(
+      () => {
+        this.generateWeeklyAnalytics();
+      },
+      7 * 24 * 60 * 60 * 1000
+    ); // Weekly
 
-    setInterval(() => {
-      this.generateMonthlyAnalytics();
-    }, 30 * 24 * 60 * 60 * 1000); // Monthly
+    setInterval(
+      () => {
+        this.generateMonthlyAnalytics();
+      },
+      30 * 24 * 60 * 60 * 1000
+    ); // Monthly
   }
 
   public async generatePerformanceAnalytics(): Promise<PerformanceMetrics> {
     try {
       const metrics = await this.calculatePerformanceMetrics();
-      
+
       // Report to monitoring system
       await this.monitoring.monitorMetric('pick_accuracy', metrics.accuracy);
       await this.monitoring.monitorMetric('roi_percentage', metrics.roi);
@@ -48,7 +57,10 @@ export class EnhancedAnalytics {
       this.logger.info('Performance analytics generated', metrics);
       return metrics;
     } catch (error) {
-      this.logger.error('Failed to generate performance analytics', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to generate performance analytics',
+        error instanceof Error ? error : undefined
+      );
       throw error;
     }
   }
@@ -76,8 +88,8 @@ export class EnhancedAnalytics {
         '0.8-0.9': 0.68,
         '0.7-0.8': 0.62,
         '0.6-0.7': 0.55,
-        '0.0-0.6': 0.45
-      }
+        '0.0-0.6': 0.45,
+      },
     };
 
     return metrics;
@@ -86,7 +98,7 @@ export class EnhancedAnalytics {
   public async generateSubscriberAnalytics(): Promise<SubscriberMetrics> {
     try {
       const metrics = await this.calculateSubscriberMetrics();
-      
+
       // Report to monitoring system
       await this.monitoring.monitorMetric('subscriber_count', metrics.totalSubscribers);
       await this.monitoring.monitorMetric('retention_rate', metrics.retentionRate);
@@ -96,7 +108,10 @@ export class EnhancedAnalytics {
       this.logger.info('Subscriber analytics generated', metrics);
       return metrics;
     } catch (error) {
-      this.logger.error('Failed to generate subscriber analytics', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to generate subscriber analytics',
+        error instanceof Error ? error : undefined
+      );
       throw error;
     }
   }
@@ -122,8 +137,8 @@ export class EnhancedAnalytics {
       subscriptionTiers: {
         basic: { count: 800, revenue: 80000 },
         premium: { count: 350, revenue: 35000 },
-        elite: { count: 100, revenue: 10000 }
-      }
+        elite: { count: 100, revenue: 10000 },
+      },
     };
 
     return metrics;
@@ -136,7 +151,10 @@ export class EnhancedAnalytics {
       this.logger.info('Market analysis generated', analysis);
       return analysis;
     } catch (error) {
-      this.logger.error('Failed to generate market analysis', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to generate market analysis',
+        error instanceof Error ? error : undefined
+      );
       throw error;
     }
   }
@@ -150,22 +168,22 @@ export class EnhancedAnalytics {
       marketTrends: {
         sportsBettingGrowth: 0.15,
         mobileBettingGrowth: 0.25,
-        liveBettingGrowth: 0.30,
-        esportsGrowth: 0.40
+        liveBettingGrowth: 0.3,
+        esportsGrowth: 0.4,
       },
       seasonality: {
         nba: { peak: 'winter', low: 'summer' },
         nfl: { peak: 'fall', low: 'spring' },
         mlb: { peak: 'summer', low: 'winter' },
-        nhl: { peak: 'winter', low: 'summer' }
+        nhl: { peak: 'winter', low: 'summer' },
       },
       regulatoryEnvironment: 'favorable',
       technologyTrends: ['AI', 'Mobile', 'Live Betting', 'Social Betting'],
       customerSegments: {
-        casual: { percentage: 0.30, growth: 0.10 },
+        casual: { percentage: 0.3, growth: 0.1 },
         serious: { percentage: 0.45, growth: 0.15 },
-        professional: { percentage: 0.25, growth: 0.20 }
-      }
+        professional: { percentage: 0.25, growth: 0.2 },
+      },
     };
 
     return analysis;
@@ -178,7 +196,10 @@ export class EnhancedAnalytics {
       this.logger.info('Competitive analysis generated', analysis);
       return analysis;
     } catch (error) {
-      this.logger.error('Failed to generate competitive analysis', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to generate competitive analysis',
+        error instanceof Error ? error : undefined
+      );
       throw error;
     }
   }
@@ -192,7 +213,7 @@ export class EnhancedAnalytics {
           accuracy: 0.58,
           pricing: 150,
           strengths: ['Brand recognition', 'Large user base'],
-          weaknesses: ['Lower accuracy', 'Poor customer service']
+          weaknesses: ['Lower accuracy', 'Poor customer service'],
         },
         {
           name: 'Competitor B',
@@ -200,24 +221,20 @@ export class EnhancedAnalytics {
           accuracy: 0.62,
           pricing: 200,
           strengths: ['High accuracy', 'Premium positioning'],
-          weaknesses: ['High price', 'Limited features']
-        }
+          weaknesses: ['High price', 'Limited features'],
+        },
       ],
       competitiveAdvantages: [
         'Superior AI technology',
         'Better user experience',
         'Comprehensive analytics',
-        'Real-time adaptation'
+        'Real-time adaptation',
       ],
-      competitiveThreats: [
-        'New market entrants',
-        'Regulatory changes',
-        'Technology disruption'
-      ],
+      competitiveThreats: ['New market entrants', 'Regulatory changes', 'Technology disruption'],
       marketPosition: 'premium_leader',
       differentiation: 'AI-powered accuracy with real-time adaptation',
       pricingStrategy: 'value_based',
-      growthStrategy: 'technology_leadership'
+      growthStrategy: 'technology_leadership',
     };
 
     return analysis;
@@ -230,7 +247,10 @@ export class EnhancedAnalytics {
       this.logger.info('Predictive analytics generated', predictions);
       return predictions;
     } catch (error) {
-      this.logger.error('Failed to generate predictive analytics', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to generate predictive analytics',
+        error instanceof Error ? error : undefined
+      );
       throw error;
     }
   }
@@ -241,26 +261,26 @@ export class EnhancedAnalytics {
         nextMonth: 1350,
         nextQuarter: 1500,
         nextYear: 2000,
-        confidence: 0.85
+        confidence: 0.85,
       },
       revenueProjections: {
         nextMonth: 135000,
         nextQuarter: 150000,
         nextYear: 200000,
-        confidence: 0.80
+        confidence: 0.8,
       },
       performancePredictions: {
         nextMonthAccuracy: 0.67,
         nextQuarterAccuracy: 0.69,
         nextYearAccuracy: 0.72,
-        confidence: 0.90
+        confidence: 0.9,
       },
       marketPredictions: {
         marketGrowth: 0.15,
         competitiveThreats: 'medium',
         regulatoryChanges: 'low',
-        confidence: 0.75
-      }
+        confidence: 0.75,
+      },
     };
 
     return predictions;
@@ -276,7 +296,7 @@ export class EnhancedAnalytics {
         date: new Date().toISOString(),
         performance,
         subscribers,
-        summary: this.generateDailySummary(performance, subscribers)
+        summary: this.generateDailySummary(performance, subscribers),
       };
 
       this.logger.info('Daily analytics report generated', dailyReport);
@@ -284,7 +304,10 @@ export class EnhancedAnalytics {
       // Store report for historical analysis
       await this.storeAnalyticsReport('daily', dailyReport);
     } catch (error) {
-      this.logger.error('Failed to generate daily analytics', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to generate daily analytics',
+        error instanceof Error ? error : undefined
+      );
     }
   }
 
@@ -300,13 +323,16 @@ export class EnhancedAnalytics {
         subscribers,
         market,
         trends: await this.identifyTrends('weekly'),
-        summary: this.generateWeeklySummary(performance, subscribers, market)
+        summary: this.generateWeeklySummary(performance, subscribers, market),
       };
 
       this.logger.info('Weekly analytics report generated', weeklyReport);
       await this.storeAnalyticsReport('weekly', weeklyReport);
     } catch (error) {
-      this.logger.error('Failed to generate weekly analytics', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to generate weekly analytics',
+        error instanceof Error ? error : undefined
+      );
     }
   }
 
@@ -327,25 +353,40 @@ export class EnhancedAnalytics {
         competitive,
         predictions,
         trends: await this.identifyTrends('monthly'),
-        summary: this.generateMonthlySummary(performance, subscribers, market, competitive)
+        summary: this.generateMonthlySummary(performance, subscribers, market, competitive),
       };
 
       this.logger.info('Monthly analytics report generated', monthlyReport);
       await this.storeAnalyticsReport('monthly', monthlyReport);
     } catch (error) {
-      this.logger.error('Failed to generate monthly analytics', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to generate monthly analytics',
+        error instanceof Error ? error : undefined
+      );
     }
   }
 
-  private generateDailySummary(performance: PerformanceMetrics, subscribers: SubscriberMetrics): string {
+  private generateDailySummary(
+    performance: PerformanceMetrics,
+    subscribers: SubscriberMetrics
+  ): string {
     return `Daily Summary: ${performance.totalPicks} picks with ${(performance.accuracy * 100).toFixed(1)}% accuracy. ${subscribers.newSubscribers} new subscribers, ${subscribers.churnedSubscribers} churned.`;
   }
 
-  private generateWeeklySummary(performance: PerformanceMetrics, subscribers: SubscriberMetrics, market: MarketAnalysis): string {
+  private generateWeeklySummary(
+    performance: PerformanceMetrics,
+    subscribers: SubscriberMetrics,
+    market: MarketAnalysis
+  ): string {
     return `Weekly Summary: ${(performance.roi * 100).toFixed(1)}% ROI, ${(subscribers.retentionRate * 100).toFixed(1)}% retention rate. Market growing at ${(market.marketGrowth * 100).toFixed(1)}%.`;
   }
 
-  private generateMonthlySummary(performance: PerformanceMetrics, subscribers: SubscriberMetrics, _market: MarketAnalysis, _competitive: CompetitiveAnalysis): string {
+  private generateMonthlySummary(
+    performance: PerformanceMetrics,
+    subscribers: SubscriberMetrics,
+    _market: MarketAnalysis,
+    _competitive: CompetitiveAnalysis
+  ): string {
     return `Monthly Summary: ${subscribers.totalSubscribers} total subscribers, $${subscribers.monthlyRecurringRevenue.toLocaleString()} MRR. ${(performance.accuracy * 100).toFixed(1)}% accuracy maintains competitive advantage.`;
   }
 
@@ -355,7 +396,7 @@ export class EnhancedAnalytics {
       performanceTrend: 'improving',
       subscriberTrend: 'growing',
       marketTrend: 'expanding',
-      competitiveTrend: 'stable'
+      competitiveTrend: 'stable',
     };
   }
 
@@ -378,7 +419,7 @@ export class EnhancedAnalytics {
         this.generateSubscriberAnalytics(),
         this.generateMarketAnalysis(),
         this.generateCompetitiveAnalysis(),
-        this.generatePredictiveAnalytics()
+        this.generatePredictiveAnalytics(),
       ]);
 
       return {
@@ -388,15 +429,22 @@ export class EnhancedAnalytics {
         market,
         competitive,
         predictions,
-        kpis: this.calculateKPIs(performance, subscribers, market)
+        kpis: this.calculateKPIs(performance, subscribers, market),
       };
     } catch (error) {
-      this.logger.error('Failed to generate analytics dashboard', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to generate analytics dashboard',
+        error instanceof Error ? error : undefined
+      );
       throw error;
     }
   }
 
-  private calculateKPIs(performance: PerformanceMetrics, subscribers: SubscriberMetrics, market: MarketAnalysis): any {
+  private calculateKPIs(
+    performance: PerformanceMetrics,
+    subscribers: SubscriberMetrics,
+    market: MarketAnalysis
+  ): any {
     return {
       accuracy: performance.accuracy,
       roi: performance.roi,
@@ -404,7 +452,7 @@ export class EnhancedAnalytics {
       growth: subscribers.subscriberGrowth,
       marketShare: market.marketShare,
       satisfaction: subscribers.satisfactionScore,
-      engagement: subscribers.engagementScore
+      engagement: subscribers.engagementScore,
     };
   }
-} 
+}

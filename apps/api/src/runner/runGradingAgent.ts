@@ -6,12 +6,12 @@ import { gradingAgentConfig } from '../config/agentConfig';
 async function main() {
   try {
     console.log('🚀 Starting GradingAgent...');
-    
+
     const deps = await loadBaseAgentDependencies();
     const agent = new GradingAgent(gradingAgentConfig, deps);
-    
+
     await agent.run();
-    
+
     console.log('✅ GradingAgent completed successfully');
     process.exit(0);
   } catch (error) {

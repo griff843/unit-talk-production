@@ -156,6 +156,11 @@ jobs:
       - name: Format check
         run: npm run format:check
 
+      - name: Build shared packages (required for cross-workspace type-check)
+        run: |
+          npm run build --workspace=@unit-talk/shared-types
+          npm run build --workspace=@unit-talk/shared-utils
+
       - name: Type check
         run: npm run type-check
 
@@ -290,7 +295,7 @@ jobs:
         run: npm run build --workspace=@unit-talk/shared-utils
 
       - name: Type-check smoke test script
-        run: npx tsc --noEmit scripts/e2e-smoke/run-full-smoke.ts
+        run: npx tsc --project scripts/e2e-smoke/tsconfig.json
         env:
           NODE_ENV: test
 

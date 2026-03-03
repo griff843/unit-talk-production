@@ -12,10 +12,16 @@ export async function execute(
   try {
     // Check if user has VIP role
     const member = interaction.member;
-    if (!member?.roles || (typeof member.roles === 'object' && 'cache' in member.roles && !member.roles.cache.has(config.roles.vip)) || (Array.isArray(member.roles) && !member.roles.includes(config.roles.vip))) {
+    if (
+      !member?.roles ||
+      (typeof member.roles === 'object' &&
+        'cache' in member.roles &&
+        !member.roles.cache.has(config.roles.vip)) ||
+      (Array.isArray(member.roles) && !member.roles.includes(config.roles.vip))
+    ) {
       await interaction.reply({
         content: 'This command is only available to VIP members.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -28,7 +34,7 @@ export async function execute(
     if (!sport || !VALID_SPORTS.includes(sport)) {
       await interaction.reply({
         content: `Please specify a valid sport: ${VALID_SPORTS.join(', ')}`,
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -46,7 +52,9 @@ export async function execute(
     const analysis = await trendService.analyzeTrends();
 
     // Filter trends by confidence
-    const significantTrends = analysis.trendBreaks.filter((trend: any) => trend.confidence >= minConfidence);
+    const significantTrends = analysis.trendBreaks.filter(
+      (trend: any) => trend.confidence >= minConfidence
+    );
 
     if (significantTrends.length === 0) {
       await interaction.editReply('No significant trend breaks found at this time.');
@@ -64,9 +72,10 @@ export async function execute(
     significantTrends.forEach((trend: any, index: number) => {
       embed.addFields({
         name: `Trend ${index + 1}: ${trend.player}`,
-        value: `${trend.stat} (${trend.line})\n` +
+        value:
+          `${trend.stat} (${trend.line})\n` +
           `Confidence: ${(trend.confidence * 100).toFixed(1)}%\n` +
-          `Historical: ${trend.historicalData.hitRate * 100}% over ${trend.historicalData.totalGames} games`
+          `Historical: ${trend.historicalData.hitRate * 100}% over ${trend.historicalData.totalGames} games`,
       });
     });
 
@@ -77,16 +86,18 @@ export async function execute(
     deps.logger.info('Trend analysis generated successfully', {
       userId: interaction.user.id,
       sport,
-      totalTrends: significantTrends.length
+      totalTrends: significantTrends.length,
     });
   } catch (error) {
     // Log error
     deps.logger.error('Failed to generate trend analysis', {
       error,
-      userId: interaction.user.id
+      userId: interaction.user.id,
     });
 
     // Send error message
-    await interaction.editReply('Sorry, I encountered an error while analyzing trends. Please try again later.');
+    await interaction.editReply(
+      'Sorry, I encountered an error while analyzing trends. Please try again later.'
+    );
   }
-} 
+}

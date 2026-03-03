@@ -13,13 +13,29 @@ export async function processAlert(): Promise<void> {
     enabled: true,
     logLevel: 'info',
     metrics: { enabled: true, interval: 60, endpoint: '/metrics' },
-    health: { enabled: true, interval: 30, timeout: 5000, checkDb: true, checkExternal: false, endpoint: '/health' },
-    retry: { enabled: true, maxRetries: 3, maxAttempts: 3, backoffMs: 200, backoff: 200, maxBackoffMs: 5000, exponential: true, jitter: true }
+    health: {
+      enabled: true,
+      interval: 30,
+      timeout: 5000,
+      checkDb: true,
+      checkExternal: false,
+      endpoint: '/health',
+    },
+    retry: {
+      enabled: true,
+      maxRetries: 3,
+      maxAttempts: 3,
+      backoffMs: 200,
+      backoff: 200,
+      maxBackoffMs: 5000,
+      exponential: true,
+      jitter: true,
+    },
   };
 
   const deps: BaseAgentDependencies = {
     logger: makeLogger('AlertAgent'),
-    supabase: undefined as any // Will be injected by the agent
+    supabase: undefined as any, // Will be injected by the agent
   };
 
   const agent = new AlertAgent(config, deps);
@@ -36,13 +52,29 @@ export async function evaluateConditions(): Promise<void> {
     enabled: true,
     logLevel: 'info',
     metrics: { enabled: true, interval: 60, endpoint: '/metrics' },
-    health: { enabled: true, interval: 30, timeout: 5000, checkDb: true, checkExternal: false, endpoint: '/health' },
-    retry: { enabled: true, maxRetries: 3, maxAttempts: 3, backoffMs: 200, backoff: 200, maxBackoffMs: 5000, exponential: true, jitter: true }
+    health: {
+      enabled: true,
+      interval: 30,
+      timeout: 5000,
+      checkDb: true,
+      checkExternal: false,
+      endpoint: '/health',
+    },
+    retry: {
+      enabled: true,
+      maxRetries: 3,
+      maxAttempts: 3,
+      backoffMs: 200,
+      backoff: 200,
+      maxBackoffMs: 5000,
+      exponential: true,
+      jitter: true,
+    },
   };
 
   const deps: BaseAgentDependencies = {
     logger: makeLogger('AlertAgent'),
-    supabase: null as any
+    supabase: null as any,
   };
 
   const agent = new AlertAgent(config, deps);
@@ -59,13 +91,29 @@ export async function sendNotification(): Promise<void> {
     enabled: true,
     logLevel: 'info',
     metrics: { enabled: true, interval: 60, endpoint: '/metrics' },
-    health: { enabled: true, interval: 30, timeout: 5000, checkDb: true, checkExternal: false, endpoint: '/health' },
-    retry: { enabled: true, maxRetries: 3, maxAttempts: 3, backoffMs: 200, backoff: 200, maxBackoffMs: 5000, exponential: true, jitter: true }
+    health: {
+      enabled: true,
+      interval: 30,
+      timeout: 5000,
+      checkDb: true,
+      checkExternal: false,
+      endpoint: '/health',
+    },
+    retry: {
+      enabled: true,
+      maxRetries: 3,
+      maxAttempts: 3,
+      backoffMs: 200,
+      backoff: 200,
+      maxBackoffMs: 5000,
+      exponential: true,
+      jitter: true,
+    },
   };
 
   const deps: BaseAgentDependencies = {
     logger: makeLogger('AlertAgent'),
-    supabase: null as any
+    supabase: null as any,
   };
 
   const agent = new AlertAgent(config, deps);
@@ -82,13 +130,29 @@ export async function escalateAlert(): Promise<void> {
     enabled: true,
     logLevel: 'info',
     metrics: { enabled: true, interval: 60, endpoint: '/metrics' },
-    health: { enabled: true, interval: 30, timeout: 5000, checkDb: true, checkExternal: false, endpoint: '/health' },
-    retry: { enabled: true, maxRetries: 3, maxAttempts: 3, backoffMs: 200, backoff: 200, maxBackoffMs: 5000, exponential: true, jitter: true }
+    health: {
+      enabled: true,
+      interval: 30,
+      timeout: 5000,
+      checkDb: true,
+      checkExternal: false,
+      endpoint: '/health',
+    },
+    retry: {
+      enabled: true,
+      maxRetries: 3,
+      maxAttempts: 3,
+      backoffMs: 200,
+      backoff: 200,
+      maxBackoffMs: 5000,
+      exponential: true,
+      jitter: true,
+    },
   };
 
   const deps: BaseAgentDependencies = {
     logger: makeLogger('AlertAgent'),
-    supabase: null as any
+    supabase: null as any,
   };
 
   const agent = new AlertAgent(config, deps);

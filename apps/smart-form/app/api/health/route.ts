@@ -48,10 +48,7 @@ export async function GET() {
   // Check Supabase connectivity
   try {
     const supabase = supabaseServer();
-    const { error } = await supabase
-      .from('users')
-      .select('count')
-      .limit(1);
+    const { error } = await supabase.from('users').select('count').limit(1);
 
     if (error) {
       checks.push({

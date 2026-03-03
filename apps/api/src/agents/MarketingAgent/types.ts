@@ -14,7 +14,7 @@ export interface Campaign {
   notifications: NotificationConfig[];
 }
 
-export type CampaignType = 
+export type CampaignType =
   | 'email'
   | 'social'
   | 'push'
@@ -23,7 +23,7 @@ export type CampaignType =
   | 'contest'
   | 'custom';
 
-export type CampaignStatus = 
+export type CampaignStatus =
   | 'draft'
   | 'scheduled'
   | 'active'
@@ -161,4 +161,4 @@ export interface MarketingAgentEvent {
   details: Record<string, any>;
   severity: 'info' | 'warn' | 'error';
   correlationId: string;
-} 
+}

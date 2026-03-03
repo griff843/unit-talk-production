@@ -40,7 +40,6 @@ interface NhlPlayerResponse {
   }>;
 }
 
-
 /**
  * NHL Player from roster API
  */
@@ -95,11 +94,13 @@ export async function getNhlHeadshot(playerName: string): Promise<string | null>
     const searchResponse = await fetch(searchUrl);
 
     if (!searchResponse.ok) {
-      console.log(`NHL search API failed for ${playerName}: ${searchResponse.status} ${searchResponse.statusText}`);
+      console.log(
+        `NHL search API failed for ${playerName}: ${searchResponse.status} ${searchResponse.statusText}`
+      );
       return null;
     }
 
-    const searchData = await searchResponse.json() as { suggestions: string[] };
+    const searchData = (await searchResponse.json()) as { suggestions: string[] };
 
     if (!searchData.suggestions || searchData.suggestions.length === 0) {
       console.log(`No NHL player suggestions found for: ${playerName}`);
@@ -127,7 +128,6 @@ export async function getNhlHeadshot(playerName: string): Promise<string | null>
 
     console.log(`Found NHL headshot for ${playerName} (ID: ${playerId}): ${headshotUrl}`);
     return headshotUrl;
-
   } catch (error) {
     console.error(`Error fetching NHL headshot for ${playerName}:`, error);
     return null;
@@ -148,11 +148,13 @@ export async function getNhlPhysicals(playerName: string): Promise<PlayerPhysica
     const searchResponse = await fetch(searchUrl);
 
     if (!searchResponse.ok) {
-      console.log(`NHL search API failed for ${playerName}: ${searchResponse.status} ${searchResponse.statusText}`);
+      console.log(
+        `NHL search API failed for ${playerName}: ${searchResponse.status} ${searchResponse.statusText}`
+      );
       return { height_cm: null, weight_kg: null, birthday: null };
     }
 
-    const searchData = await searchResponse.json() as { suggestions: string[] };
+    const searchData = (await searchResponse.json()) as { suggestions: string[] };
 
     if (!searchData.suggestions || searchData.suggestions.length === 0) {
       console.log(`No NHL player suggestions found for: ${playerName}`);
@@ -180,11 +182,13 @@ export async function getNhlPhysicals(playerName: string): Promise<PlayerPhysica
     const playerResponse = await fetch(playerUrl);
 
     if (!playerResponse.ok) {
-      console.log(`NHL player API failed for ID ${playerId}: ${playerResponse.status} ${playerResponse.statusText}`);
+      console.log(
+        `NHL player API failed for ID ${playerId}: ${playerResponse.status} ${playerResponse.statusText}`
+      );
       return { height_cm: null, weight_kg: null, birthday: null };
     }
 
-    const playerData = await playerResponse.json() as NhlPlayerResponse;
+    const playerData = (await playerResponse.json()) as NhlPlayerResponse;
 
     if (!playerData.people || playerData.people.length === 0) {
       console.log(`No NHL player data found for ID: ${playerId}`);
@@ -198,32 +202,25 @@ export async function getNhlPhysicals(playerName: string): Promise<PlayerPhysica
     }
 
     // Parse physical attributes
-    const height_cm = player.height
-      ? PlayerPhysicalUtils.parseHeightToCm(player.height)
-      : null;
+    const height_cm = player.height ? PlayerPhysicalUtils.parseHeightToCm(player.height) : null;
 
-    const weight_kg = player.weight
-      ? PlayerPhysicalUtils.poundsToKg(player.weight)
-      : null;
+    const weight_kg = player.weight ? PlayerPhysicalUtils.poundsToKg(player.weight) : null;
 
-    const birthday = player.birthDate
-      ? PlayerPhysicalUtils.parseBirthday(player.birthDate)
-      : null;
+    const birthday = player.birthDate ? PlayerPhysicalUtils.parseBirthday(player.birthDate) : null;
 
     const result: PlayerPhysicals = {
       height_cm,
       weight_kg,
-      birthday
+      birthday,
     };
 
     console.log(`Found NHL physicals for ${playerName}:`, {
       height: player.height ? `${player.height} (${height_cm}cm)` : 'N/A',
       weight: player.weight ? `${player.weight}lbs (${weight_kg}kg)` : 'N/A',
-      birthday: birthday || 'N/A'
+      birthday: birthday || 'N/A',
     });
 
     return result;
-
   } catch (error) {
     console.error(`Error fetching NHL physicals for ${playerName}:`, error);
     return { height_cm: null, weight_kg: null, birthday: null };
@@ -261,7 +258,6 @@ export async function getNhlRosters(): Promise<NhlRosterPlayer[]> {
 
         // Rate limiting
         await new Promise(resolve => setTimeout(resolve, 150));
-
       } catch (error) {
         logger.error(`Error fetching NHL roster for team ${team.id}:`, error);
       }
@@ -269,7 +265,6 @@ export async function getNhlRosters(): Promise<NhlRosterPlayer[]> {
 
     logger.info(`Fetched ${allPlayers.length} NHL players from rosters`);
     return allPlayers;
-
   } catch (error) {
     logger.error('Error fetching NHL rosters:', error);
     throw error;
@@ -293,7 +288,7 @@ export function convertNhlRosterPlayer(player: NhlRosterPlayer) {
     photo_url: null, // Will be enriched separately
     position: player.primaryPosition?.name || null,
     jersey_number: player.primaryNumber || null,
-    active: player.active
+    active: player.active,
   };
 }
 

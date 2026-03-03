@@ -86,10 +86,7 @@ export async function captureBetLineSnapshot(
     if (error) {
       // Duplicate key errors are OK (already captured)
       if (error.code === '23505') {
-        log.info(
-          { pickId: capture.pickId, propRef },
-          'CLV-CAPTURE: Bet snapshot already exists'
-        );
+        log.info({ pickId: capture.pickId, propRef }, 'CLV-CAPTURE: Bet snapshot already exists');
         return { success: true };
       }
 
@@ -136,9 +133,7 @@ export async function captureBetLineSnapshots(
     captures.map(capture => captureBetLineSnapshot(supabase, capture, logger))
   );
 
-  const captured = results.filter(
-    r => r.status === 'fulfilled' && r.value.success
-  ).length;
+  const captured = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
   const failed = results.length - captured;
 
   log.info(

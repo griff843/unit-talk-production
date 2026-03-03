@@ -1,6 +1,6 @@
 // /utils/validateInput.ts
 
-import type { AgentTaskInput } from '../types/agent'
+import type { AgentTaskInput } from '../types/agent';
 
 interface InputCandidate {
   task_id?: unknown;
@@ -16,5 +16,5 @@ export function validateInput(input: unknown): input is AgentTaskInput {
     typeof candidate.task_id === 'string' &&
     typeof candidate.agent === 'string' &&
     'data' in input
-  )
+  );
 }

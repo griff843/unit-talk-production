@@ -1,9 +1,12 @@
-import { ContestAgentActivities , ActivityParams } from '../../../types/activities';
+import { ContestAgentActivities, ActivityParams } from '../../../types/activities';
 import { ActivityResult } from '../../../types/shared/activity-results';
 import { BaseAgentActivitiesImpl } from '../../BaseAgent/activities';
 import { BaseAgentConfig, BaseAgentDependencies } from '../../BaseAgent/types';
 
-export class ContestAgentActivitiesImpl extends BaseAgentActivitiesImpl implements ContestAgentActivities {
+export class ContestAgentActivitiesImpl
+  extends BaseAgentActivitiesImpl
+  implements ContestAgentActivities
+{
   private agent: any; // Using any to avoid circular dependency
   private config: BaseAgentConfig;
   private deps: BaseAgentDependencies;
@@ -24,7 +27,7 @@ export class ContestAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
       const { ContestAgent } = await import('../index');
       this.agent = new ContestAgent(this.config, {
         ...this.deps,
-        logger: this.deps.logger!
+        logger: this.deps.logger!,
       });
     }
     return this.agent;
@@ -37,7 +40,7 @@ export class ContestAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
         type: 'CREATE_CONTEST',
         payload: params,
         timestamp: new Date().toISOString(),
-        source: 'temporal-activity'
+        source: 'temporal-activity',
       });
     } catch (error) {
       throw error instanceof Error ? error : new Error(String(error));
@@ -51,13 +54,13 @@ export class ContestAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
         type: 'PROCESS_ENTRIES',
         payload: params,
         timestamp: new Date().toISOString(),
-        source: 'temporal-activity'
+        source: 'temporal-activity',
       });
       return { success: true };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error : new Error(String(error))
+        error: error instanceof Error ? error : new Error(String(error)),
       };
     }
   }
@@ -69,13 +72,13 @@ export class ContestAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
         type: 'DETERMINE_WINNERS',
         payload: params,
         timestamp: new Date().toISOString(),
-        source: 'temporal-activity'
+        source: 'temporal-activity',
       });
       return { success: true };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error : new Error(String(error))
+        error: error instanceof Error ? error : new Error(String(error)),
       };
     }
   }
@@ -111,4 +114,3 @@ export class ContestAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
     }
   }
 }
-

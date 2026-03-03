@@ -11,7 +11,10 @@ export class RedisEnhancedCache {
     try {
       return await this.redis.get(key);
     } catch (error) {
-      logger.error('Cache GET error', { key, error: error instanceof Error ? error.message : String(error) });
+      logger.error('Cache GET error', {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
   }
@@ -21,7 +24,10 @@ export class RedisEnhancedCache {
       await this.redis.set(key, value, ttl);
       return true;
     } catch (error) {
-      logger.error('Cache SET error', { key, error: error instanceof Error ? error.message : String(error) });
+      logger.error('Cache SET error', {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -31,7 +37,10 @@ export class RedisEnhancedCache {
       await this.redis.del(key);
       return true;
     } catch (error) {
-      logger.error('Cache DEL error', { key, error: error instanceof Error ? error.message : String(error) });
+      logger.error('Cache DEL error', {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -40,7 +49,10 @@ export class RedisEnhancedCache {
     try {
       return await this.redis.exists(key);
     } catch (error) {
-      logger.error('Cache EXISTS error', { key, error: error instanceof Error ? error.message : String(error) });
+      logger.error('Cache EXISTS error', {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -65,7 +77,10 @@ export class RedisEnhancedCache {
       logger.warn('getPattern method called but pattern matching not implemented', { pattern });
       return result;
     } catch (error) {
-      logger.error('Cache getPattern error', { pattern, error: error instanceof Error ? error.message : String(error) });
+      logger.error('Cache getPattern error', {
+        pattern,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return new Map();
     }
   }
@@ -74,7 +89,9 @@ export class RedisEnhancedCache {
     try {
       return await this.redis.healthCheck();
     } catch (error) {
-      logger.error('Cache ping error', { error: error instanceof Error ? error.message : String(error) });
+      logger.error('Cache ping error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -95,7 +112,10 @@ export class MLPredictionCache extends RedisEnhancedCache {
       const result = await this.get(`${this.mlPrefix}${key}`);
       return result ? JSON.parse(result) : null;
     } catch (error) {
-      logger.error('ML Cache GET error', { key, error: error instanceof Error ? error.message : String(error) });
+      logger.error('ML Cache GET error', {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
   }
@@ -104,7 +124,10 @@ export class MLPredictionCache extends RedisEnhancedCache {
     try {
       return await this.set(`${this.mlPrefix}${key}`, JSON.stringify(prediction), ttl);
     } catch (error) {
-      logger.error('ML Cache SET error', { key, error: error instanceof Error ? error.message : String(error) });
+      logger.error('ML Cache SET error', {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }

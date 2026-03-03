@@ -21,8 +21,8 @@ export function BuildInfo() {
 
   useEffect(() => {
     fetch('/api/version')
-      .then((res) => res.json())
-      .then((data) => setVersionInfo(data))
+      .then(res => res.json())
+      .then(data => setVersionInfo(data))
       .catch(() => {
         // Fallback to env vars
         setVersionInfo({

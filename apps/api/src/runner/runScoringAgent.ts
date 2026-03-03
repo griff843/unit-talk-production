@@ -11,7 +11,7 @@ async function main(): Promise<void> {
 
     // Load dependencies
     const deps = await loadBaseAgentDependencies();
-    
+
     // Start metrics server if enabled
     if (scoringAgentConfig.metrics?.enabled) {
       const port = scoringAgentConfig.metrics.port || 9004;
@@ -22,37 +22,37 @@ async function main(): Promise<void> {
     // Create and run agent
     const agent = new ScoringAgent(scoringAgentConfig, deps);
     await agent.run();
-    
+
     logger.info('✅ ScoringAgent completed successfully');
     process.exit(0);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
-    logger.error('❌ ScoringAgent execution failed', { 
+
+    logger.error('❌ ScoringAgent execution failed', {
       err: errorMessage,
       stack: errorStack,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     process.exit(1);
   }
 }
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', { 
-    promise: promise.toString(), 
-    reason: reason instanceof Error ? reason.message : String(reason)
+  logger.error('Unhandled Rejection at:', {
+    promise: promise.toString(),
+    reason: reason instanceof Error ? reason.message : String(reason),
   });
   process.exit(1);
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', { 
-    error: error.message, 
-    stack: error.stack 
+process.on('uncaughtException', error => {
+  logger.error('Uncaught Exception:', {
+    error: error.message,
+    stack: error.stack,
   });
   process.exit(1);
 });

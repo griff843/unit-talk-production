@@ -24,29 +24,29 @@ export class Metrics {
     activityExecutions: {
       name: 'activity_executions_total',
       help: 'Total number of activity executions',
-      labelNames: ['agent', 'activity', 'status'] as const
+      labelNames: ['agent', 'activity', 'status'] as const,
     },
     activityDuration: {
       name: 'activity_duration_seconds',
       help: 'Duration of activity executions',
       labelNames: ['agent', 'activity'] as const,
-      buckets: [0.1, 0.5, 1, 2, 5, 10, 30]
+      buckets: [0.1, 0.5, 1, 2, 5, 10, 30],
     },
     errorCount: {
       name: 'error_count_total',
       help: 'Total number of errors',
-      labelNames: ['agent', 'error_type'] as const
+      labelNames: ['agent', 'error_type'] as const,
     },
     healthStatus: {
       name: 'health_status',
       help: 'Current health status (1 for healthy, 0 for unhealthy)',
-      labelNames: ['agent'] as const
+      labelNames: ['agent'] as const,
     },
     lastActivityTimestamp: {
       name: 'last_activity_timestamp',
       help: 'Timestamp of last activity execution',
-      labelNames: ['agent', 'activity'] as const
-    }
+      labelNames: ['agent', 'activity'] as const,
+    },
   };
 
   private constructor() {
@@ -65,64 +65,90 @@ export class Metrics {
 
   private initializeStandardMetrics(): void {
     try {
-      this.registerMetric('activityExecutions', new Counter(this.standardMetrics.activityExecutions));
+      this.registerMetric(
+        'activityExecutions',
+        new Counter(this.standardMetrics.activityExecutions)
+      );
       this.registerMetric('activityDuration', new Histogram(this.standardMetrics.activityDuration));
       this.registerMetric('errorCount', new Counter(this.standardMetrics.errorCount));
       this.registerMetric('healthStatus', new Gauge(this.standardMetrics.healthStatus));
-      this.registerMetric('lastActivityTimestamp', new Gauge(this.standardMetrics.lastActivityTimestamp));
+      this.registerMetric(
+        'lastActivityTimestamp',
+        new Gauge(this.standardMetrics.lastActivityTimestamp)
+      );
 
       this.registry.setDefaultLabels({ app: 'unit-talk' });
       this.logger.info('Standard metrics initialized');
     } catch (error) {
-      this.logger.error('Failed to initialize standard metrics:', { err: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Failed to initialize standard metrics:', {
+        err: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
 
   private initializeCustomMetrics(): void {
     // Operation metrics
-    this.collectors.set('operations_total', new Counter({
-      name: 'operations_total',
-      help: 'Total number of operations processed',
-      labelNames: ['operation', 'status'],
-      registers: [this.registry]
-    }));
+    this.collectors.set(
+      'operations_total',
+      new Counter({
+        name: 'operations_total',
+        help: 'Total number of operations processed',
+        labelNames: ['operation', 'status'],
+        registers: [this.registry],
+      })
+    );
 
-    this.collectors.set('operation_duration_seconds', new Histogram({
-      name: 'operation_duration_seconds',
-      help: 'Duration of operations in seconds',
-      labelNames: ['operation'],
-      buckets: [0.1, 0.5, 1, 2, 5, 10],
-      registers: [this.registry]
-    }));
+    this.collectors.set(
+      'operation_duration_seconds',
+      new Histogram({
+        name: 'operation_duration_seconds',
+        help: 'Duration of operations in seconds',
+        labelNames: ['operation'],
+        buckets: [0.1, 0.5, 1, 2, 5, 10],
+        registers: [this.registry],
+      })
+    );
 
-    this.collectors.set('errors_total', new Counter({
-      name: 'errors_total',
-      help: 'Total number of errors',
-      labelNames: ['operation', 'error_type'],
-      registers: [this.registry]
-    }));
+    this.collectors.set(
+      'errors_total',
+      new Counter({
+        name: 'errors_total',
+        help: 'Total number of errors',
+        labelNames: ['operation', 'error_type'],
+        registers: [this.registry],
+      })
+    );
 
-    this.collectors.set('queue_size', new Gauge({
-      name: 'queue_size',
-      help: 'Current size of the processing queue',
-      labelNames: ['queue_type'],
-      registers: [this.registry]
-    }));
+    this.collectors.set(
+      'queue_size',
+      new Gauge({
+        name: 'queue_size',
+        help: 'Current size of the processing queue',
+        labelNames: ['queue_type'],
+        registers: [this.registry],
+      })
+    );
 
-    this.collectors.set('resource_usage', new Gauge({
-      name: 'resource_usage',
-      help: 'Resource usage metrics',
-      labelNames: ['resource_type'],
-      registers: [this.registry]
-    }));
+    this.collectors.set(
+      'resource_usage',
+      new Gauge({
+        name: 'resource_usage',
+        help: 'Resource usage metrics',
+        labelNames: ['resource_type'],
+        registers: [this.registry],
+      })
+    );
 
-    this.collectors.set('business_metrics', new Gauge({
-      name: 'business_metrics',
-      help: 'Business-related metrics',
-      labelNames: ['metric_type'],
-      registers: [this.registry]
-    }));
+    this.collectors.set(
+      'business_metrics',
+      new Gauge({
+        name: 'business_metrics',
+        help: 'Business-related metrics',
+        labelNames: ['metric_type'],
+        registers: [this.registry],
+      })
+    );
   }
 
   private registerMetric(name: string, metric: any): void {
@@ -142,7 +168,9 @@ export class Metrics {
         res.set('Content-Type', this.registry.contentType);
         res.end(await this.registry.metrics());
       } catch (error) {
-        this.logger.error('Failed to serve metrics:', { err: error instanceof Error ? error.message : String(error) });
+        this.logger.error('Failed to serve metrics:', {
+          err: error instanceof Error ? error.message : String(error),
+        });
         res.status(500).end();
       }
     });
@@ -185,9 +213,12 @@ export class Metrics {
   public async shutdown(): Promise<void> {
     if (this.server) {
       await new Promise<void>((resolve, reject) => {
-        this.server?.close((err) => {
-          if (err) {reject(err);}
-          else {resolve();}
+        this.server?.close(err => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
         });
       });
     }

@@ -1,14 +1,14 @@
 // src/agents/PlayerEnrichmentAgent.ts
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
 
-import { PlayerEnrichmentData } from "../types/player";
-import { logger } from "../utils/logger";
+import { PlayerEnrichmentData } from '../types/player';
+import { logger } from '../utils/logger';
 
-import { getMlbHeadshot, getMlbPhysicals } from "./enrichment/mlbEnrichment";
-import { getNbaHeadshot, getNbaPhysicals } from "./enrichment/nbaEnrichment";
-import { getNflHeadshot, getNflPhysicals } from "./enrichment/nflEnrichment";
-import { getNhlHeadshot, getNhlPhysicals } from "./enrichment/nhlEnrichment";
+import { getMlbHeadshot, getMlbPhysicals } from './enrichment/mlbEnrichment';
+import { getNbaHeadshot, getNbaPhysicals } from './enrichment/nbaEnrichment';
+import { getNflHeadshot, getNflPhysicals } from './enrichment/nflEnrichment';
+import { getNhlHeadshot, getNhlPhysicals } from './enrichment/nhlEnrichment';
 
 /**
  * Supported leagues for player enrichment
@@ -92,14 +92,14 @@ function createEmptyEnrichmentSummary(): EnrichmentSummary {
     processed: 0,
     successful: 0,
     notFound: 0,
-    errors: 0
+    errors: 0,
   };
 
   const emptyFieldBreakdown: FieldBreakdown = {
     processed: 0,
     successful: 0,
     notFound: 0,
-    errors: 0
+    errors: 0,
   };
 
   return {
@@ -112,14 +112,14 @@ function createEmptyEnrichmentSummary(): EnrichmentSummary {
       MLB: { ...emptyBreakdown },
       NBA: { ...emptyBreakdown },
       NFL: { ...emptyBreakdown },
-      NHL: { ...emptyBreakdown }
+      NHL: { ...emptyBreakdown },
     },
     fieldBreakdown: {
       headshot: { ...emptyFieldBreakdown },
       height_cm: { ...emptyFieldBreakdown },
       weight_kg: { ...emptyFieldBreakdown },
-      birthday: { ...emptyFieldBreakdown }
-    }
+      birthday: { ...emptyFieldBreakdown },
+    },
   };
 }
 
@@ -145,14 +145,11 @@ function getLeagueEnrichmentFunctions(league: SupportedLeague) {
  * Check if player needs enrichment for any field
  */
 function needsEnrichment(player: PlayerData, forceUpdate: boolean = false): boolean {
-  if (forceUpdate) {return true;}
+  if (forceUpdate) {
+    return true;
+  }
 
-  return (
-    !player.photo_url ||
-    !player.height_cm ||
-    !player.weight_kg ||
-    !player.birthday
-  );
+  return !player.photo_url || !player.height_cm || !player.weight_kg || !player.birthday;
 }
 
 /**
@@ -161,11 +158,19 @@ function needsEnrichment(player: PlayerData, forceUpdate: boolean = false): bool
 function getFieldsToEnrich(player: PlayerData, forceUpdate: boolean = false): EnrichmentField[] {
   const fields: EnrichmentField[] = [];
 
-  if (forceUpdate || !player.photo_url) {fields.push('headshot');}
-  if (forceUpdate || !player.height_cm) {fields.push('height_cm');}
-  if (forceUpdate || !player.weight_kg) {fields.push('weight_kg');}
-  if (forceUpdate || !player.birthday) {fields.push('birthday');}
-  
+  if (forceUpdate || !player.photo_url) {
+    fields.push('headshot');
+  }
+  if (forceUpdate || !player.height_cm) {
+    fields.push('height_cm');
+  }
+  if (forceUpdate || !player.weight_kg) {
+    fields.push('weight_kg');
+  }
+  if (forceUpdate || !player.birthday) {
+    fields.push('birthday');
+  }
+
   return fields;
 }
 
@@ -217,13 +222,15 @@ async function enrichSinglePlayer(
       return false;
     }
 
-    logger.info(`Enriching ${player.player_name} (${league}) for fields: ${fieldsToEnrich.join(', ')}`);
+    logger.info(
+      `Enriching ${player.player_name} (${league}) for fields: ${fieldsToEnrich.join(', ')}`
+    );
 
     const enrichmentData: PlayerEnrichmentData = {
       headshot_url: player.photo_url,
       height_cm: player.height_cm,
       weight_kg: player.weight_kg,
-      birthday: player.birthday
+      birthday: player.birthday,
     };
 
     let hasNewData = false;
@@ -250,7 +257,9 @@ async function enrichSinglePlayer(
     }
 
     // Enrich physical attributes if needed
-    const physicalFields = fieldsToEnrich.filter(f => ['height_cm', 'weight_kg', 'birthday'].includes(f));
+    const physicalFields = fieldsToEnrich.filter(f =>
+      ['height_cm', 'weight_kg', 'birthday'].includes(f)
+    );
     if (physicalFields.length > 0) {
       try {
         const physicals = await getPhysicals(player.player_name || '');
@@ -282,7 +291,9 @@ async function enrichSinglePlayer(
           updateFieldBreakdown(summary, 'birthday', 'notFound');
         }
       } catch (error) {
-        physicalFields.forEach(field => updateFieldBreakdown(summary, field as EnrichmentField, 'error'));
+        physicalFields.forEach(field =>
+          updateFieldBreakdown(summary, field as EnrichmentField, 'error')
+        );
         const errorMsg = `Error getting physical attributes for ${player.player_name}: ${error instanceof Error ? error.message : String(error)}`;
         logger.error(errorMsg);
         summary.errorDetails.push(errorMsg);
@@ -328,7 +339,6 @@ async function enrichSinglePlayer(
     updateLeagueBreakdown(summary, league, 'notFound');
     logger.info(`No new enrichment data found for ${player.player_name}`);
     return false;
-
   } catch (error) {
     updateLeagueBreakdown(summary, league, 'error');
     const errorMsg = `Error enriching player ${player.player_name}: ${error instanceof Error ? error.message : String(error)}`;
@@ -346,7 +356,9 @@ export async function enrichAllPlayers(league?: SupportedLeague): Promise<Enrich
   const summary = createEmptyEnrichmentSummary();
 
   try {
-    logger.info(`Starting player enrichment${league ? ` for ${league}` : ' for all leagues'}${forceUpdate ? ' (FORCE_UPDATE=true)' : ''}`);
+    logger.info(
+      `Starting player enrichment${league ? ` for ${league}` : ' for all leagues'}${forceUpdate ? ' (FORCE_UPDATE=true)' : ''}`
+    );
 
     // Build query
     let query = supabase
@@ -394,9 +406,10 @@ export async function enrichAllPlayers(league?: SupportedLeague): Promise<Enrich
     // Calculate final totals
     summary.notFound = summary.totalProcessed - summary.successfulEnrichments - summary.errors;
 
-    logger.info(`Enrichment completed: ${summary.successfulEnrichments}/${summary.totalProcessed} players enriched`);
+    logger.info(
+      `Enrichment completed: ${summary.successfulEnrichments}/${summary.totalProcessed} players enriched`
+    );
     return summary;
-
   } catch (error) {
     const errorMsg = `Fatal error during enrichment: ${error instanceof Error ? error.message : String(error)}`;
     logger.error(errorMsg);
@@ -447,7 +460,6 @@ export async function enrichPlayerById(playerId: string): Promise<boolean> {
       logger.info(`No new enrichment data found for ${playerData.player_name}`);
       return false;
     }
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(`Error enriching player ${playerId}:`, errorMessage);

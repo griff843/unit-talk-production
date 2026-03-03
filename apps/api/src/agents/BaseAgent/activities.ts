@@ -7,9 +7,6 @@ import { AgentStatus } from '../../types/shared';
 import { ErrorHandler } from '../../utils/errorHandling';
 import { Logger, makeLogger } from '../../utils/logger';
 
-
-
-
 interface AgentTaskInput {
   command: any;
 }
@@ -20,22 +17,22 @@ interface ActivityResult {
   error?: Error;
 }
 
-
-
-
 const activities = proxyActivities<BaseAgentActivities>({
-  startToCloseTimeout: '1 minute'
+  startToCloseTimeout: '1 minute',
 });
 
 export async function runHealthCheck(): Promise<HealthCheckResult> {
   const result = await activities.healthCheck({});
   return {
     ...result,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
 
-export async function collectMetrics(): Promise<{ timestamp: Date; metrics: Record<string, number> }> {
+export async function collectMetrics(): Promise<{
+  timestamp: Date;
+  metrics: Record<string, number>;
+}> {
   return await activities.collectMetrics({});
 }
 
@@ -77,10 +74,13 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
       await this.logActivity({
         level: 'info',
         message: 'Agent initialized',
-        metadata: { status: this.status }
+        metadata: { status: this.status },
       });
     } catch (error) {
-      await this.handleError(error instanceof Error ? error : new Error(String(error)), 'initialization');
+      await this.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        'initialization'
+      );
       throw error;
     }
   }
@@ -92,7 +92,7 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
       await this.logActivity({
         level: 'info',
         message: 'Agent started',
-        metadata: { status: this.status }
+        metadata: { status: this.status },
       });
     } catch (error) {
       await this.handleError(error instanceof Error ? error : new Error(String(error)), 'start');
@@ -107,7 +107,7 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
       await this.logActivity({
         level: 'info',
         message: 'Agent stopped',
-        metadata: { status: this.status }
+        metadata: { status: this.status },
       });
     } catch (error) {
       await this.handleError(error instanceof Error ? error : new Error(String(error)), 'stop');
@@ -127,25 +127,28 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
           info: {
             agentName: this.name,
             agentStatus: this.status,
-          }
-        }
+          },
+        },
       };
       await this.logActivity({
         level: 'info',
         message: 'Health check completed',
-        metadata: { status: health.status, timestamp: health.timestamp }
+        metadata: { status: health.status, timestamp: health.timestamp },
       });
       return health;
     } catch (error) {
-      await this.handleError(error instanceof Error ? error : new Error(String(error)), 'health_check');
+      await this.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        'health_check'
+      );
       return {
         status: 'unhealthy', // Changed from 'error' to match AgentStatus type
         timestamp: new Date().toISOString(),
         details: {
           errors: [error instanceof Error ? error.message : String(error)],
           warnings: [],
-          info: {}
-        }
+          info: {},
+        },
       };
     }
   }
@@ -159,17 +162,17 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
     await this.errorHandler.handleError(error, {
       agent: this.name,
       context,
-      status: this.status
+      status: this.status,
     });
-    
+
     await this.logActivity({
       level: 'error',
       message: 'Error occurred',
       metadata: {
         context,
         error: error.message,
-        stack: error.stack
-      }
+        stack: error.stack,
+      },
     });
   }
 
@@ -189,13 +192,13 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
 
       const result: ActivityResult = {
         success: true,
-        data
+        data,
       };
 
       await this.logActivity({
         level: 'info',
         message: `Activity ${activityName} completed successfully`,
-        metadata: { ...params, startTime }
+        metadata: { ...params, startTime },
       });
 
       return result;
@@ -205,11 +208,14 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
         message: `Activity ${activityName} failed`,
         metadata: { error: error instanceof Error ? error.message : String(error) },
       });
-      await this.handleError(error instanceof Error ? error : new Error(String(error)), activityName);
+      await this.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        activityName
+      );
 
       return {
         success: false,
-        error: error instanceof Error ? error : new Error(String(error))
+        error: error instanceof Error ? error : new Error(String(error)),
       };
     }
   }
@@ -229,9 +235,9 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
         {
           name: 'database',
           status: 'pass',
-          message: 'Database connection is healthy'
-        }
-      ]
+          message: 'Database connection is healthy',
+        },
+      ],
     };
   }
 
@@ -246,8 +252,8 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
         errorCount: 0,
         warningCount: 0,
         processingTimeMs: 0,
-        memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-      }
+        memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
+      },
     };
   }
 
@@ -262,10 +268,10 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
         level: params.level,
         message: params.message,
         metadata: params.metadata || {},
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       this.logger.error('Failed to log activity', { error });
     }
   }
-} 
+}

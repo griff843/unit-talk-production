@@ -50,7 +50,7 @@ async function main() {
           .update({
             result,
             status: 'settled',
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq('id', pick.id);
 
@@ -60,15 +60,13 @@ async function main() {
         }
 
         console.log(`Successfully grading_status pick ${pick.id} with result ${result}`);
-
       } catch (error) {
         console.error(`Failed to grade pick ${pick.id}:`, error);
       }
     }
-
   } catch (error) {
     console.error('Error:', error);
   }
 }
 
-main().catch(console.error); 
+main().catch(console.error);

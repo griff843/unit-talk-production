@@ -32,7 +32,7 @@ interface CanaryPick {
   bet_slip_id: string;
   sport: string;
   stat_type: string;
-  selection: string;  // direction (over/under) stored here
+  selection: string; // direction (over/under) stored here
   line: number;
   odds: number;
   player_name?: string;
@@ -58,7 +58,10 @@ function buildCanaryEmbed(pick: CanaryPick) {
     marketLabel = pick.stat_type || 'Player Prop';
   } else if (pick.team) {
     // Team total or spread
-    if (pick.stat_type?.toLowerCase().includes('total') || pick.stat_type?.toLowerCase().includes('team_total')) {
+    if (
+      pick.stat_type?.toLowerCase().includes('total') ||
+      pick.stat_type?.toLowerCase().includes('team_total')
+    ) {
       title = `${pick.team} ${direction} ${pick.line}`;
       marketLabel = 'Team Total';
     } else {
@@ -134,10 +137,10 @@ async function main() {
     bet_slip_id: betSlipId,
     sport: 'NBA',
     stat_type: 'team_total',
-    selection: 'over',  // DIRECTION - this is what we're testing!
+    selection: 'over', // DIRECTION - this is what we're testing!
     line: 115.5,
     odds: -110,
-    team: 'Lakers',     // TEAM - this is what we're testing!
+    team: 'Lakers', // TEAM - this is what we're testing!
     matchup: 'Lakers @ Warriors',
     tier: 'A',
     unit_size: 1,

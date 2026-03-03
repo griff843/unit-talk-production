@@ -70,21 +70,17 @@ export class DistributedTracer {
   /**
    * Start a new trace with a root span
    */
-  public startTrace(
-    operation: string,
-    service: string,
-    metadata?: Record<string, any>
-  ): string {
+  public startTrace(operation: string, service: string, metadata?: Record<string, any>): string {
     const traceId = this.generateTraceId();
     const spanId = this.generateSpanId();
-    
+
     const context: TraceContext = {
       traceId,
       spanId,
       operation,
       service,
       startTime: Date.now(),
-      metadata
+      metadata,
     };
 
     const span: TraceSpan = {
@@ -94,17 +90,17 @@ export class DistributedTracer {
       service,
       startTime: context.startTime,
       tags: metadata || {},
-      events: []
+      events: [],
     };
 
     this.activeSpans.set(spanId, span);
-    
+
     logger.info('🚀 Trace started', {
       traceId,
       spanId,
       operation,
       service,
-      metadata
+      metadata,
     });
 
     return traceId;
@@ -113,14 +109,10 @@ export class DistributedTracer {
   /**
    * Start a new span within the current trace context
    */
-  public startSpan(
-    operation: string,
-    service?: string,
-    tags?: Record<string, any>
-  ): string {
+  public startSpan(operation: string, service?: string, tags?: Record<string, any>): string {
     const currentContext = this.getCurrentContext();
     const spanId = this.generateSpanId();
-    
+
     const context: TraceContext = {
       traceId: currentContext?.traceId || this.generateTraceId(),
       spanId,
@@ -128,7 +120,7 @@ export class DistributedTracer {
       operation,
       service: service || currentContext?.service || 'unknown',
       startTime: Date.now(),
-      metadata: tags
+      metadata: tags,
     };
 
     const span: TraceSpan = {
@@ -139,17 +131,17 @@ export class DistributedTracer {
       service: context.service,
       startTime: context.startTime,
       tags: tags || {},
-      events: []
+      events: [],
     };
 
     this.activeSpans.set(spanId, span);
-    
+
     logger.debug('📊 Span started', {
       traceId: context.traceId,
       spanId,
       parentSpanId: context.parentSpanId,
       operation,
-      service: context.service
+      service: context.service,
     });
 
     return spanId;
@@ -166,7 +158,7 @@ export class DistributedTracer {
   ): Promise<T> {
     const traceId = this.startTrace(operation, service, metadata);
     const context = this.getTraceContext(traceId);
-    
+
     if (!context) {
       throw new Error('Failed to create trace context');
     }
@@ -180,7 +172,7 @@ export class DistributedTracer {
     } catch (error) {
       this.finishSpan(context.spanId, {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -197,7 +189,7 @@ export class DistributedTracer {
   ): Promise<T> {
     const spanId = this.startSpan(operation, service, tags);
     const span = this.activeSpans.get(spanId);
-    
+
     if (!span) {
       throw new Error('Failed to create span');
     }
@@ -209,7 +201,7 @@ export class DistributedTracer {
       operation,
       service: span.service,
       startTime: span.startTime,
-      metadata: tags
+      metadata: tags,
     };
 
     try {
@@ -221,7 +213,7 @@ export class DistributedTracer {
     } catch (error) {
       this.finishSpan(spanId, {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -244,18 +236,18 @@ export class DistributedTracer {
     span.duration = duration;
     span.success = metrics?.success ?? true;
     span.error = metrics?.error;
-    
+
     if (metrics?.tags) {
       span.tags = { ...span.tags, ...metrics.tags };
     }
 
     // Move from active to completed
     this.activeSpans.delete(spanId);
-    
+
     if (!this.completedSpans.has(span.traceId)) {
       this.completedSpans.set(span.traceId, []);
     }
-    
+
     const traceSpans = this.completedSpans.get(span.traceId)!;
     traceSpans.push(span);
 
@@ -271,17 +263,18 @@ export class DistributedTracer {
       service: span.service,
       duration,
       success: span.success,
-      error: span.error
+      error: span.error,
     });
 
     // Log slow operations
-    if (duration > 5000) { // 5 seconds
+    if (duration > 5000) {
+      // 5 seconds
       logger.warn('🐌 Slow operation detected', {
         traceId: span.traceId,
         spanId,
         operation: span.operation,
         service: span.service,
-        duration
+        duration,
       });
     }
   }
@@ -303,14 +296,14 @@ export class DistributedTracer {
     span.events.push({
       timestamp: Date.now(),
       name,
-      attributes: attributes || {}
+      attributes: attributes || {},
     });
 
     logger.debug('📝 Span event added', {
       traceId: context.traceId,
       spanId: context.spanId,
       event: name,
-      attributes
+      attributes,
     });
   }
 
@@ -350,7 +343,7 @@ export class DistributedTracer {
 
     this.addEvent('error', {
       error_message: span.error,
-      error_type: error instanceof Error ? error.constructor.name : 'string'
+      error_type: error instanceof Error ? error.constructor.name : 'string',
     });
   }
 
@@ -391,7 +384,7 @@ export class DistributedTracer {
           operation: span.operation,
           service: span.service,
           startTime: span.startTime,
-          metadata: span.tags
+          metadata: span.tags,
         };
       }
     }
@@ -403,9 +396,10 @@ export class DistributedTracer {
    */
   public getTraceSpans(traceId: string): TraceSpan[] {
     const completedSpans = this.completedSpans.get(traceId) || [];
-    const activeSpans = Array.from(this.activeSpans.values())
-      .filter(span => span.traceId === traceId);
-    
+    const activeSpans = Array.from(this.activeSpans.values()).filter(
+      span => span.traceId === traceId
+    );
+
     return [...completedSpans, ...activeSpans];
   }
 
@@ -433,8 +427,10 @@ export class DistributedTracer {
       totalDuration,
       avgDuration: completedSpans.length > 0 ? totalDuration / completedSpans.length : 0,
       errorCount,
-      successRate: completedSpans.length > 0 ? 
-        (completedSpans.length - errorCount) / completedSpans.length : 1
+      successRate:
+        completedSpans.length > 0
+          ? (completedSpans.length - errorCount) / completedSpans.length
+          : 1,
     };
   }
 
@@ -451,7 +447,7 @@ export class DistributedTracer {
       'x-trace-id': context.traceId,
       'x-span-id': context.spanId,
       'x-parent-span-id': context.parentSpanId || '',
-      'x-correlation-id': context.traceId // Alias for compatibility
+      'x-correlation-id': context.traceId, // Alias for compatibility
     };
   }
 
@@ -461,7 +457,7 @@ export class DistributedTracer {
   public injectHeaders(headers: Record<string, string> = {}): Record<string, string> {
     return {
       ...headers,
-      ...this.getCorrelationHeaders()
+      ...this.getCorrelationHeaders(),
     };
   }
 
@@ -483,7 +479,7 @@ export class DistributedTracer {
       parentSpanId: parentSpanId || undefined,
       operation: 'http_request',
       service: 'unknown',
-      startTime: Date.now()
+      startTime: Date.now(),
     };
   }
 
@@ -506,7 +502,7 @@ export class DistributedTracer {
       parentSpanId: parentContext.spanId,
       operation,
       service,
-      startTime: Date.now()
+      startTime: Date.now(),
     };
   }
 
@@ -531,7 +527,7 @@ export class DistributedTracer {
     let removedTraces = 0;
 
     for (const [traceId, spans] of this.completedSpans.entries()) {
-      const oldestSpan = spans.reduce((oldest, span) => 
+      const oldestSpan = spans.reduce((oldest, span) =>
         span.startTime < oldest.startTime ? span : oldest
       );
 
@@ -556,14 +552,12 @@ export function Traced(operation?: string, service?: string) {
     const method = descriptor.value;
     const spanOperation = operation || `${target.constructor.name}.${propertyName}`;
     const spanService = service || target.constructor.name.toLowerCase().replace(/agent$/, '');
-    
+
     descriptor.value = async function (...args: any[]) {
-      return tracer.runInSpan(
-        spanOperation,
-        () => method.apply(this, args),
-        spanService,
-        { method: propertyName, args: args.length }
-      );
+      return tracer.runInSpan(spanOperation, () => method.apply(this, args), spanService, {
+        method: propertyName,
+        args: args.length,
+      });
     };
   };
 }
@@ -576,35 +570,35 @@ export const tracedLogger: any = {
     logger.info(message, {
       ...meta,
       traceId: context?.traceId,
-      spanId: context?.spanId
+      spanId: context?.spanId,
     });
   },
-  
+
   warn: (message: string, meta?: any) => {
     const context = tracer.getCurrentContext();
     logger.warn(message, {
       ...meta,
       traceId: context?.traceId,
-      spanId: context?.spanId
+      spanId: context?.spanId,
     });
   },
-  
+
   error: (message: string, meta?: any) => {
     const context = tracer.getCurrentContext();
     tracer.setError(message);
     logger.error(message, {
       ...meta,
       traceId: context?.traceId,
-      spanId: context?.spanId
+      spanId: context?.spanId,
     });
   },
-  
+
   debug: (message: string, meta?: any) => {
     const context = tracer.getCurrentContext();
     logger.debug(message, {
       ...meta,
       traceId: context?.traceId,
-      spanId: context?.spanId
+      spanId: context?.spanId,
     });
-  }
+  },
 };

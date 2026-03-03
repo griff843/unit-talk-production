@@ -10,19 +10,14 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import {
-  AgentControlPlane,
-  createAgentControlPlane,
-} from '../../temporal/AgentControlPlane';
-import {
-  AgentInstrumentation,
-  createAgentInstrumentation,
-} from '../../lib/AgentInstrumentation';
+
 import {
   AgentControlService,
   AgentControlRole,
   createAgentControlService,
 } from '../../lib/AgentControlService';
+import { AgentInstrumentation, createAgentInstrumentation } from '../../lib/AgentInstrumentation';
+import { AgentControlPlane, createAgentControlPlane } from '../../temporal/AgentControlPlane';
 
 // Test configuration
 const TEST_AGENT_ID = 'test-agent-e2e';
@@ -48,49 +43,29 @@ describe('Agent Control Plane E2E Tests', () => {
     supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // Initialize control plane
-    controlPlane = createAgentControlPlane(
-      supabase,
-      mockLogger as any,
-      TEST_AGENT_ID
-    );
+    controlPlane = createAgentControlPlane(supabase, mockLogger as any, TEST_AGENT_ID);
 
     // Initialize instrumentation
     instrumentation = createAgentInstrumentation(TEST_AGENT_ID);
 
     // Initialize control service with operator role
-    controlService = createAgentControlService(
-      supabase,
-      mockLogger as any,
-      {
-        userId: 'test-operator',
-        role: AgentControlRole.ADMIN,
-        correlationId: 'e2e-test-run',
-      }
-    );
+    controlService = createAgentControlService(supabase, mockLogger as any, {
+      userId: 'test-operator',
+      role: AgentControlRole.ADMIN,
+      correlationId: 'e2e-test-run',
+    });
 
     // Clean up any existing test data
-    await supabase
-      .from('agent_registry')
-      .delete()
-      .eq('agent_id', TEST_AGENT_ID);
+    await supabase.from('agent_registry').delete().eq('agent_id', TEST_AGENT_ID);
 
-    await supabase
-      .from('agent_lifecycle_events')
-      .delete()
-      .eq('agent_id', TEST_AGENT_ID);
+    await supabase.from('agent_lifecycle_events').delete().eq('agent_id', TEST_AGENT_ID);
   });
 
   afterAll(async () => {
     // Clean up test data
-    await supabase
-      .from('agent_registry')
-      .delete()
-      .eq('agent_id', TEST_AGENT_ID);
+    await supabase.from('agent_registry').delete().eq('agent_id', TEST_AGENT_ID);
 
-    await supabase
-      .from('agent_lifecycle_events')
-      .delete()
-      .eq('agent_id', TEST_AGENT_ID);
+    await supabase.from('agent_lifecycle_events').delete().eq('agent_id', TEST_AGENT_ID);
   });
 
   beforeEach(() => {
@@ -148,10 +123,7 @@ describe('Agent Control Plane E2E Tests', () => {
       await controlPlane.updateHeartbeat('running', { runCount: 10 });
 
       // Act - pause the agent
-      const pauseResult = await controlService.pauseAgent(
-        TEST_AGENT_ID,
-        'E2E test pause'
-      );
+      const pauseResult = await controlService.pauseAgent(TEST_AGENT_ID, 'E2E test pause');
 
       expect(pauseResult.success).toBe(true);
 
@@ -164,10 +136,7 @@ describe('Agent Control Plane E2E Tests', () => {
 
     it('should resume processing when unpaused', async () => {
       // Act - resume the agent
-      const resumeResult = await controlService.resumeAgent(
-        TEST_AGENT_ID,
-        'E2E test resume'
-      );
+      const resumeResult = await controlService.resumeAgent(TEST_AGENT_ID, 'E2E test resume');
 
       expect(resumeResult.success).toBe(true);
 
@@ -203,10 +172,7 @@ describe('Agent Control Plane E2E Tests', () => {
       controlPlane.clearCache();
 
       // Act - stop the agent
-      const stopResult = await controlService.stopAgent(
-        TEST_AGENT_ID,
-        'E2E test stop'
-      );
+      const stopResult = await controlService.stopAgent(TEST_AGENT_ID, 'E2E test stop');
 
       expect(stopResult.success).toBe(true);
 
@@ -224,10 +190,7 @@ describe('Agent Control Plane E2E Tests', () => {
       controlPlane.clearCache();
 
       // Act - drain the agent
-      const drainResult = await controlService.drainAgent(
-        TEST_AGENT_ID,
-        'E2E test drain'
-      );
+      const drainResult = await controlService.drainAgent(TEST_AGENT_ID, 'E2E test drain');
 
       expect(drainResult.success).toBe(true);
 
@@ -345,14 +308,10 @@ describe('Agent Control Plane E2E Tests', () => {
   describe('Phase 6: RBAC Enforcement', () => {
     it('should deny kill to viewer role', async () => {
       // Arrange - create viewer service
-      const viewerService = createAgentControlService(
-        supabase,
-        mockLogger as any,
-        {
-          userId: 'test-viewer',
-          role: AgentControlRole.VIEWER,
-        }
-      );
+      const viewerService = createAgentControlService(supabase, mockLogger as any, {
+        userId: 'test-viewer',
+        role: AgentControlRole.VIEWER,
+      });
 
       // Act
       const result = await viewerService.requestKillConfirmation(
@@ -367,14 +326,10 @@ describe('Agent Control Plane E2E Tests', () => {
 
     it('should deny pause to viewer role', async () => {
       // Arrange
-      const viewerService = createAgentControlService(
-        supabase,
-        mockLogger as any,
-        {
-          userId: 'test-viewer',
-          role: AgentControlRole.VIEWER,
-        }
-      );
+      const viewerService = createAgentControlService(supabase, mockLogger as any, {
+        userId: 'test-viewer',
+        role: AgentControlRole.VIEWER,
+      });
 
       // Act
       const result = await viewerService.pauseAgent(TEST_AGENT_ID, 'Unauthorized');
@@ -388,20 +343,13 @@ describe('Agent Control Plane E2E Tests', () => {
       // Arrange - resume agent first with admin
       await controlService.resumeAgent(TEST_AGENT_ID, 'Reset for RBAC test');
 
-      const operatorService = createAgentControlService(
-        supabase,
-        mockLogger as any,
-        {
-          userId: 'test-operator',
-          role: AgentControlRole.OPERATOR,
-        }
-      );
+      const operatorService = createAgentControlService(supabase, mockLogger as any, {
+        userId: 'test-operator',
+        role: AgentControlRole.OPERATOR,
+      });
 
       // Act
-      const result = await operatorService.pauseAgent(
-        TEST_AGENT_ID,
-        'Operator pause'
-      );
+      const result = await operatorService.pauseAgent(TEST_AGENT_ID, 'Operator pause');
 
       // Assert
       expect(result.success).toBe(true);
@@ -431,9 +379,7 @@ describe('Agent Control Plane E2E Tests', () => {
       expect(result.success).toBe(true);
 
       // Filter for control operations
-      const controlEvents = result.data!.filter(
-        e => e.eventType === 'state_change_requested'
-      );
+      const controlEvents = result.data!.filter(e => e.eventType === 'state_change_requested');
 
       // All control operations should have requestedBy
       controlEvents.forEach(event => {
@@ -490,9 +436,7 @@ export async function generateProofReport(): Promise<{
       lifecycleEventCount: events?.length || 0,
       metricsSnapshotCount: metrics?.length || 0,
       latestEvents: events?.slice(0, 10),
-      stateTransitions: events?.filter(e =>
-        e.event_type.includes('state_change')
-      ),
+      stateTransitions: events?.filter(e => e.event_type.includes('state_change')),
     },
   };
 }

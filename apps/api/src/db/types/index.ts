@@ -6,19 +6,15 @@ export * from './capper';
 
 // Re-export commonly used types
 export type { Database } from './supabase';
-export type { 
-  UnifiedPick, 
-  UnifiedPickInsert, 
+export type {
+  UnifiedPick,
+  UnifiedPickInsert,
   UnifiedPickUpdate,
   UnifiedPicksResponse,
   UnifiedPicksInsert,
-  UnifiedPicksUpdate
+  UnifiedPicksUpdate,
 } from './unified_picks';
-export type {
-  AnalyticsSummary,
-  ROIByTier,
-  TrendAnalysis
-} from './analytics';
+export type { AnalyticsSummary, ROIByTier, TrendAnalysis } from './analytics';
 export type {
   DailyPick,
   DailyPickInsert,
@@ -33,5 +29,5 @@ export type {
   AnalyticsEventInsert,
   SportsGameOdds,
   GameMarkets,
-  PlayerProps
+  PlayerProps,
 } from './capper';

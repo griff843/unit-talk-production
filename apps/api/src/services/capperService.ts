@@ -72,7 +72,7 @@ export class CapperService {
     queryCount: 0,
     averageResponseTime: 0,
     errorCount: 0,
-    lastHealthCheck: new Date().toISOString()
+    lastHealthCheck: new Date().toISOString(),
   };
 
   /**
@@ -80,13 +80,10 @@ export class CapperService {
    */
   async testConnection(): Promise<boolean> {
     try {
-      const { data, error } = await getCapperSupabase()
-        .from('users')
-        .select('id')
-        .limit(1);
-      
+      const { data, error } = await getCapperSupabase().from('users').select('id').limit(1);
+
       if (error) throw error;
-      
+
       logger.info('Capper service connection test successful');
       return true;
     } catch (error) {
@@ -101,7 +98,7 @@ export class CapperService {
   async getCapperByDiscordId(discordId: string): Promise<CapperData | null> {
     try {
       this.performanceMetrics.queryCount++;
-      
+
       const { data, error } = await getCapperSupabase()
         .from('users')
         .select('*')
@@ -114,7 +111,7 @@ export class CapperService {
 
       return {
         ...data,
-        name: data.display_name || data.username
+        name: data.display_name || data.username,
       } as CapperData;
     } catch (error) {
       this.performanceMetrics.errorCount++;
@@ -135,7 +132,7 @@ export class CapperService {
   }): Promise<CapperData | null> {
     try {
       this.performanceMetrics.queryCount++;
-      
+
       const insertData = {
         discord_id: capperData.discordId,
         username: capperData.username,
@@ -151,7 +148,7 @@ export class CapperService {
         win_rate: 0,
         current_streak: 0,
         best_streak: 0,
-        worst_streak: 0
+        worst_streak: 0,
       };
 
       const { data, error } = await getCapperSupabase()
@@ -165,7 +162,7 @@ export class CapperService {
       logger.info('Capper profile created successfully', { capperId: data.id });
       return {
         ...data,
-        name: data.display_name || data.username
+        name: data.display_name || data.username,
       } as CapperData;
     } catch (error) {
       this.performanceMetrics.errorCount++;
@@ -180,7 +177,7 @@ export class CapperService {
   async getCapperPicks(capperId: string, date?: string, status?: string): Promise<PickData[]> {
     try {
       this.performanceMetrics.queryCount++;
-      
+
       let query = getCapperSupabase()
         .from('unified_picks')
         .select('*')
@@ -198,7 +195,7 @@ export class CapperService {
       }
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
 
       return (data || []) as PickData[];
@@ -215,14 +212,14 @@ export class CapperService {
   async submitPick(pickData: PickData): Promise<PickData | null> {
     try {
       this.performanceMetrics.queryCount++;
-      
+
       const enhancedPickData = {
         ...pickData,
         status: pickData.status || 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         confidence: pickData.confidence || 'medium',
-        units: pickData.units || 1
+        units: pickData.units || 1,
       };
 
       const { data, error } = await getCapperSupabase()
@@ -248,12 +245,12 @@ export class CapperService {
   async updatePick(pickId: string, updates: Partial<PickData>): Promise<PickData | null> {
     try {
       this.performanceMetrics.queryCount++;
-      
+
       const { data, error } = await getCapperSupabase()
         .from('unified_picks')
         .update({
           ...updates,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', pickId)
         .select()
@@ -275,11 +272,8 @@ export class CapperService {
   async deletePick(pickId: string): Promise<boolean> {
     try {
       this.performanceMetrics.queryCount++;
-      
-      const { error } = await getCapperSupabase()
-        .from('unified_picks')
-        .delete()
-        .eq('id', pickId);
+
+      const { error } = await getCapperSupabase().from('unified_picks').delete().eq('id', pickId);
 
       if (error) throw error;
 
@@ -319,12 +313,12 @@ export class CapperService {
   async finalizePicks(pickIds: string[]): Promise<boolean> {
     try {
       this.performanceMetrics.queryCount++;
-      
+
       const { error } = await getCapperSupabase()
         .from('unified_picks')
-        .update({ 
+        .update({
           status: 'published',
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .in('id', pickIds);
 
@@ -345,7 +339,7 @@ export class CapperService {
   async getCapperById(capperId: string): Promise<CapperData | null> {
     try {
       this.performanceMetrics.queryCount++;
-      
+
       const { data, error } = await getCapperSupabase()
         .from('users')
         .select('*')
@@ -358,7 +352,7 @@ export class CapperService {
 
       return {
         ...data,
-        name: data.display_name || data.username
+        name: data.display_name || data.username,
       } as CapperData;
     } catch (error) {
       this.performanceMetrics.errorCount++;
@@ -385,7 +379,7 @@ export class CapperService {
         roi: capper.roi,
         currentStreak: capper.current_streak,
         bestStreak: capper.best_streak,
-        worstStreak: capper.worst_streak
+        worstStreak: capper.worst_streak,
       };
     } catch (error) {
       this.performanceMetrics.errorCount++;

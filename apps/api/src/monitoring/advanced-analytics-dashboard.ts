@@ -1,12 +1,12 @@
 /**
  * PHASE D: ADVANCED ANALYTICS DASHBOARD & LIVE MONITORING SYSTEM
- * 
+ *
  * Fortune 100-grade analytics platform with predictive intelligence,
  * real-time performance monitoring, and business intelligence dashboards.
- * 
+ *
  * Features:
  * - Real-time agent performance analytics
- * - Predictive betting intelligence insights  
+ * - Predictive betting intelligence insights
  * - Live monitoring with automated alerting
  * - Business KPI tracking and forecasting
  * - Interactive data visualization dashboards
@@ -14,11 +14,14 @@
  */
 
 import { EventEmitter } from 'events';
-import { createClient } from '@supabase/supabase-js';
-import { metrics, UnitTalkMetrics } from './Dashboard';
-import { logger } from '../shared/logger';
 import * as http from 'http';
+
+import { createClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
+
+import { logger } from '../shared/logger';
+
+import { metrics, UnitTalkMetrics } from './Dashboard';
 
 // Advanced Analytics Interfaces
 export interface AnalyticsConfig {
@@ -34,12 +37,12 @@ export interface AnalyticsConfig {
 }
 
 export interface AlertThresholds {
-  agentResponseTime: number;        // ms
-  errorRate: number;                // percentage
-  pickAccuracy: number;             // percentage
-  userEngagement: number;           // professional_score
-  systemLoad: number;               // percentage
-  diskUsage: number;               // percentage
+  agentResponseTime: number; // ms
+  errorRate: number; // percentage
+  pickAccuracy: number; // percentage
+  userEngagement: number; // professional_score
+  systemLoad: number; // percentage
+  diskUsage: number; // percentage
 }
 
 export interface BusinessMetrics {
@@ -168,12 +171,9 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
     super();
     this.config = config;
     this.metrics = metrics;
-    
+
     // Initialize Supabase client
-    this.supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    this.supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   }
 
   /**
@@ -181,32 +181,31 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
    */
   public async initialize(): Promise<void> {
     logger.info('🚀 Initializing Phase D Advanced Analytics Dashboard');
-    
+
     try {
       // Verify database connections
       await this.verifyConnections();
-      
+
       // Start the analytics server
       await this.startAnalyticsServer();
-      
+
       // Initialize real-time monitoring
       if (this.config.realTimeUpdates) {
         await this.startRealTimeMonitoring();
       }
-      
+
       // Start predictive analytics engine
       if (this.config.predictiveAnalytics) {
         await this.startPredictiveAnalytics();
       }
-      
+
       // Initialize business intelligence
       if (this.config.businessIntelligence) {
         await this.startBusinessIntelligence();
       }
-      
+
       logger.info('✅ Advanced Analytics Dashboard initialized successfully');
       this.emit('initialized');
-      
     } catch (error) {
       logger.error('💥 Failed to initialize Advanced Analytics Dashboard:', error);
       throw error;
@@ -218,7 +217,7 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
    */
   private async startAnalyticsServer(): Promise<void> {
     const port = parseInt(process.env.ANALYTICS_PORT || '3005');
-    
+
     return new Promise((resolve, reject) => {
       this.server = http.createServer(async (req, res) => {
         // Set CORS headers
@@ -243,7 +242,7 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
 
       // Setup WebSocket server for real-time updates
       this.wsServer = new WebSocket.Server({ server: this.server });
-      this.wsServer.on('connection', (ws) => {
+      this.wsServer.on('connection', ws => {
         this.handleWebSocketConnection(ws);
       });
 
@@ -261,7 +260,10 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
   /**
    * Handle HTTP requests for analytics data
    */
-  private async handleHttpRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  private async handleHttpRequest(
+    req: http.IncomingMessage,
+    res: http.ServerResponse
+  ): Promise<void> {
     const url = req.url || '/';
     const method = req.method || 'GET';
 
@@ -308,18 +310,20 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
 
       case url === '/health':
         res.writeHead(200);
-        res.end(JSON.stringify({
-          status: 'healthy',
-          timestamp: new Date().toISOString(),
-          version: '1.0.0',
-          uptime: process.uptime(),
-          components: {
-            analytics: 'operational',
-            realtime: this.config.realTimeUpdates ? 'operational' : 'disabled',
-            predictive: this.config.predictiveAnalytics ? 'operational' : 'disabled',
-            business: this.config.businessIntelligence ? 'operational' : 'disabled'
-          }
-        }));
+        res.end(
+          JSON.stringify({
+            status: 'healthy',
+            timestamp: new Date().toISOString(),
+            version: '1.0.0',
+            uptime: process.uptime(),
+            components: {
+              analytics: 'operational',
+              realtime: this.config.realTimeUpdates ? 'operational' : 'disabled',
+              predictive: this.config.predictiveAnalytics ? 'operational' : 'disabled',
+              business: this.config.businessIntelligence ? 'operational' : 'disabled',
+            },
+          })
+        );
         break;
 
       default:
@@ -337,10 +341,12 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
 
     // Send initial data
     if (this.currentData) {
-      ws.send(JSON.stringify({
-        type: 'initial_data',
-        data: this.currentData
-      }));
+      ws.send(
+        JSON.stringify({
+          type: 'initial_data',
+          data: this.currentData,
+        })
+      );
     }
 
     ws.on('close', () => {
@@ -348,7 +354,7 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
       logger.info(`📡 WebSocket client disconnected (${this.connectedClients.size} remaining)`);
     });
 
-    ws.on('error', (error) => {
+    ws.on('error', error => {
       logger.error('WebSocket error:', error);
       this.connectedClients.delete(ws);
     });
@@ -359,18 +365,17 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
    */
   private async startRealTimeMonitoring(): Promise<void> {
     logger.info('🔄 Starting real-time monitoring system');
-    
+
     this.updateInterval = setInterval(async () => {
       try {
         this.currentData = await this.collectLiveData();
         this.broadcastToClients({
           type: 'live_update',
-          data: this.currentData
+          data: this.currentData,
         });
-        
+
         // Check for alerts
         await this.checkAlertConditions(this.currentData);
-        
       } catch (error) {
         logger.error('Real-time monitoring update failed:', error);
       }
@@ -382,34 +387,34 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
    */
   private async collectLiveData(): Promise<LiveMonitoringData> {
     const timestamp = new Date().toISOString();
-    
+
     // Collect system metrics
     const memUsage = process.memoryUsage();
     const cpuUsage = process.cpuUsage();
-    
+
     // Collect agent metrics (mock data for now)
     const agents = {
-      'AlertAgent': {
+      AlertAgent: {
         status: 'online' as const,
         responseTime: Math.random() * 100 + 50,
         throughput: Math.random() * 1000 + 500,
         errorRate: Math.random() * 2,
-        lastUpdate: timestamp
+        lastUpdate: timestamp,
       },
-      'GradingAgent': {
+      GradingAgent: {
         status: 'online' as const,
         responseTime: Math.random() * 200 + 100,
         throughput: Math.random() * 500 + 200,
         errorRate: Math.random() * 1,
-        lastUpdate: timestamp
+        lastUpdate: timestamp,
       },
-      'RecapAgent': {
+      RecapAgent: {
         status: 'online' as const,
         responseTime: Math.random() * 150 + 75,
         throughput: Math.random() * 300 + 150,
         errorRate: Math.random() * 1.5,
-        lastUpdate: timestamp
-      }
+        lastUpdate: timestamp,
+      },
     };
 
     // Collect business metrics
@@ -422,11 +427,11 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
         load: Math.random() * 70 + 10,
         memory: (memUsage.heapUsed / memUsage.heapTotal) * 100,
         disk: Math.random() * 60 + 20,
-        network: Math.random() * 50 + 10
+        network: Math.random() * 50 + 10,
       },
       agents,
       business,
-      alerts: await this.getActiveAlerts()
+      alerts: await this.getActiveAlerts(),
     };
   }
 
@@ -441,29 +446,29 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
         weekly: Math.random() * 70000 + 35000,
         monthly: Math.random() * 300000 + 150000,
         trend: 'up',
-        forecast: Math.random() * 350000 + 175000
+        forecast: Math.random() * 350000 + 175000,
       },
       users: {
         active: Math.floor(Math.random() * 5000 + 2500),
         new: Math.floor(Math.random() * 500 + 100),
         retained: Math.floor(Math.random() * 4000 + 2000),
         churnRate: Math.random() * 5 + 2,
-        engagement: Math.random() * 30 + 70
+        engagement: Math.random() * 30 + 70,
       },
       picks: {
         total: Math.floor(Math.random() * 10000 + 5000),
         accuracy: Math.random() * 20 + 65,
         avgROI: Math.random() * 10 + 5,
         topTier: Math.floor(Math.random() * 2000 + 1000),
-        conversionRate: Math.random() * 15 + 25
+        conversionRate: Math.random() * 15 + 25,
       },
       agents: {
         totalOperations: Math.floor(Math.random() * 100000 + 50000),
         avgResponseTime: Math.random() * 200 + 100,
         errorRate: Math.random() * 2 + 0.5,
         healthScore: Math.random() * 20 + 80,
-        efficiency: Math.random() * 15 + 85
-      }
+        efficiency: Math.random() * 15 + 85,
+      },
     };
   }
 
@@ -478,28 +483,28 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
           prediction: 'bullish',
           confidence: 0.85,
           timeframe: 'next_week',
-          factors: ['playoff_season', 'high_engagement', 'favorable_odds']
+          factors: ['playoff_season', 'high_engagement', 'favorable_odds'],
         },
         {
           sport: 'NBA',
           prediction: 'neutral',
           confidence: 0.72,
           timeframe: 'next_month',
-          factors: ['mid_season', 'stable_performance', 'regular_volume']
-        }
+          factors: ['mid_season', 'stable_performance', 'regular_volume'],
+        },
       ],
       userBehavior: {
         churnRisk: 15.2,
         engagementTrend: 'increasing',
         valueSegment: 'high',
-        predictedActions: ['increase_betting', 'upgrade_tier', 'refer_friends']
+        predictedActions: ['increase_betting', 'upgrade_tier', 'refer_friends'],
       },
       systemPerformance: {
         loadForecast: 78.5,
         bottleneckRisk: ['database_connections', 'api_rate_limits'],
         recommendedActions: ['scale_database', 'implement_caching', 'optimize_queries'],
-        maintenanceWindow: '2025-08-01T02:00:00Z'
-      }
+        maintenanceWindow: '2025-08-01T02:00:00Z',
+      },
     };
   }
 
@@ -514,19 +519,19 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
         activeUsers: 2847,
         picksToday: 156,
         accuracy24h: 73.2,
-        systemHealth: 98.5
+        systemHealth: 98.5,
       },
       trends: {
         userGrowth: '+12.3%',
         pickAccuracy: '+2.1%',
         systemUptime: '99.9%',
-        revenueGrowth: '+18.7%'
+        revenueGrowth: '+18.7%',
       },
       topPerformers: {
         agents: ['GradingAgent', 'AlertAgent', 'RecapAgent'],
         cappers: ['Elite_Picks', 'Pro_Analytics', 'Sharp_Insights'],
-        sports: ['NFL', 'NBA', 'MLB']
-      }
+        sports: ['NFL', 'NBA', 'MLB'],
+      },
     };
   }
 
@@ -546,25 +551,25 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
         avgResponseTime: '127ms',
         throughput: '1,247 ops/min',
         errorRate: '0.12%',
-        successRate: '99.88%'
+        successRate: '99.88%',
       },
       performance: {
         last24h: {
           operations: 45623,
           errors: 23,
-          avgLatency: 89.5
+          avgLatency: 89.5,
         },
         trends: {
           responseTime: 'improving',
           throughput: 'stable',
-          errorRate: 'decreasing'
-        }
+          errorRate: 'decreasing',
+        },
       },
       businessImpact: {
         usersServed: 1247,
         valueGenerated: '$12,450',
-        satisfaction: 4.7
-      }
+        satisfaction: 4.7,
+      },
     };
   }
 
@@ -582,8 +587,8 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
         timestamp: new Date().toISOString(),
         acknowledged: false,
         source: 'SystemMonitor',
-        metadata: { currentUsage: '87.3%', threshold: '85%' }
-      }
+        metadata: { currentUsage: '87.3%', threshold: '85%' },
+      },
     ];
   }
 
@@ -604,7 +609,7 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
         timestamp: new Date().toISOString(),
         acknowledged: false,
         source: 'AdvancedAnalytics',
-        metadata: { usage: data.system.memory, threshold: this.config.alertThresholds.systemLoad }
+        metadata: { usage: data.system.memory, threshold: this.config.alertThresholds.systemLoad },
       });
     }
 
@@ -620,7 +625,11 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
           timestamp: new Date().toISOString(),
           acknowledged: false,
           source: 'AdvancedAnalytics',
-          metadata: { agentName, responseTime: agentData.responseTime, threshold: this.config.alertThresholds.agentResponseTime }
+          metadata: {
+            agentName,
+            responseTime: agentData.responseTime,
+            threshold: this.config.alertThresholds.agentResponseTime,
+          },
         });
       }
     });
@@ -629,7 +638,7 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
     if (alerts.length > 0) {
       this.broadcastToClients({
         type: 'alerts',
-        data: alerts
+        data: alerts,
       });
     }
   }
@@ -651,20 +660,16 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
    */
   private async verifyConnections(): Promise<void> {
     logger.info('🔍 Verifying analytics system connections');
-    
+
     try {
       // Test Supabase connection
-      const { data, error } = await this.supabase
-        .from('picks')
-        .select('id')
-        .limit(1);
-      
+      const { data, error } = await this.supabase.from('picks').select('id').limit(1);
+
       if (error) {
         throw new Error(`Supabase connection failed: ${error.message}`);
       }
-      
+
       logger.info('✅ Database connection verified');
-      
     } catch (error) {
       logger.error('❌ Connection verification failed:', error);
       throw error;
@@ -676,16 +681,16 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
    */
   private async startPredictiveAnalytics(): Promise<void> {
     logger.info('🤖 Starting predictive analytics engine');
-    
+
     // Initialize ML models and prediction pipelines
     // This would integrate with ML services in a real implementation
-    
+
     setInterval(async () => {
       try {
         const insights = await this.getPredictiveInsights();
         this.broadcastToClients({
           type: 'predictive_update',
-          data: insights
+          data: insights,
         });
       } catch (error) {
         logger.error('Predictive analytics update failed:', error);
@@ -698,14 +703,14 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
    */
   private async startBusinessIntelligence(): Promise<void> {
     logger.info('📊 Starting business intelligence engine');
-    
+
     // Initialize BI dashboard and reporting
     setInterval(async () => {
       try {
         const metrics = await this.getBusinessMetrics();
         this.broadcastToClients({
           type: 'business_update',
-          data: metrics
+          data: metrics,
         });
       } catch (error) {
         logger.error('Business intelligence update failed:', error);
@@ -1145,21 +1150,21 @@ export class AdvancedAnalyticsDashboard extends EventEmitter {
    */
   public async stop(): Promise<void> {
     logger.info('🛑 Stopping Advanced Analytics Dashboard');
-    
+
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
     }
-    
+
     if (this.wsServer) {
       this.wsServer.close();
     }
-    
+
     if (this.server) {
       this.server.close();
     }
-    
+
     this.connectedClients.clear();
-    
+
     logger.info('✅ Advanced Analytics Dashboard stopped');
   }
 }
@@ -1172,16 +1177,16 @@ export const DEFAULT_ANALYTICS_CONFIG: AnalyticsConfig = {
   businessIntelligence: true,
   customDashboards: true,
   automaticReporting: true,
-  updateInterval: 30000,      // 30 seconds
+  updateInterval: 30000, // 30 seconds
   retentionDays: 90,
   alertThresholds: {
-    agentResponseTime: 500,   // 500ms
-    errorRate: 5,             // 5%
-    pickAccuracy: 60,         // 60%
-    userEngagement: 70,       // 70%
-    systemLoad: 85,           // 85%
-    diskUsage: 90            // 90%
-  }
+    agentResponseTime: 500, // 500ms
+    errorRate: 5, // 5%
+    pickAccuracy: 60, // 60%
+    userEngagement: 70, // 70%
+    systemLoad: 85, // 85%
+    diskUsage: 90, // 90%
+  },
 };
 
 // Factory function for easy initialization

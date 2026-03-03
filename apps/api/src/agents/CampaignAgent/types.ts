@@ -25,4 +25,4 @@ export interface CampaignParams extends CampaignConfig {
   id?: string;
   active?: boolean;
   applied_count?: number;
-} 
+}

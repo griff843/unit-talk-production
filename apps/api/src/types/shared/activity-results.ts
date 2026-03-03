@@ -75,16 +75,18 @@ export const HealthCheckResultSchema = z.object({
   data: z.object({
     status: z.enum(['healthy', 'degraded', 'unhealthy']),
     healthScore: z.number(),
-    components: z.array(z.object({
-      name: z.string(),
-      status: z.enum(['healthy', 'degraded', 'unhealthy']),
-      message: z.string().optional()
-    })),
-    timestamp: z.string()
+    components: z.array(
+      z.object({
+        name: z.string(),
+        status: z.enum(['healthy', 'degraded', 'unhealthy']),
+        message: z.string().optional(),
+      })
+    ),
+    timestamp: z.string(),
   }),
   error: z.instanceof(Error).optional(),
   timestamp: z.string().optional(),
-  duration: z.number().optional()
+  duration: z.number().optional(),
 });
 
 export const ApiQuotaResultSchema = z.object({
@@ -93,11 +95,11 @@ export const ApiQuotaResultSchema = z.object({
     provider: z.string(),
     remainingQuota: z.number(),
     resetTime: z.string(),
-    status: z.enum(['healthy', 'warning', 'critical'])
+    status: z.enum(['healthy', 'warning', 'critical']),
   }),
   error: z.instanceof(Error).optional(),
   timestamp: z.string().optional(),
-  duration: z.number().optional()
+  duration: z.number().optional(),
 });
 
 export const MaintenanceResultSchema = z.object({
@@ -106,11 +108,11 @@ export const MaintenanceResultSchema = z.object({
     operation: z.string(),
     itemsProcessed: z.number(),
     duration: z.number(),
-    timestamp: z.string()
+    timestamp: z.string(),
   }),
   error: z.instanceof(Error).optional(),
   timestamp: z.string().optional(),
-  duration: z.number().optional()
+  duration: z.number().optional(),
 });
 
 export const PlayerEnrichmentResultSchema = z.object({
@@ -118,11 +120,11 @@ export const PlayerEnrichmentResultSchema = z.object({
   data: z.object({
     playerId: z.string(),
     enrichedFields: z.array(z.string()),
-    timestamp: z.string()
+    timestamp: z.string(),
   }),
   error: z.instanceof(Error).optional(),
   timestamp: z.string().optional(),
-  duration: z.number().optional()
+  duration: z.number().optional(),
 });
 
 export const HeadshotResultSchema = z.object({
@@ -130,11 +132,11 @@ export const HeadshotResultSchema = z.object({
   data: z.object({
     playerId: z.string(),
     url: z.string().url(),
-    timestamp: z.string()
+    timestamp: z.string(),
   }),
   error: z.instanceof(Error).optional(),
   timestamp: z.string().optional(),
-  duration: z.number().optional()
+  duration: z.number().optional(),
 });
 
 export const FeedIngestionResultSchema = z.object({
@@ -144,11 +146,11 @@ export const FeedIngestionResultSchema = z.object({
     itemsIngested: z.number(),
     newItems: z.number(),
     updatedItems: z.number(),
-    timestamp: z.string()
+    timestamp: z.string(),
   }),
   error: z.instanceof(Error).optional(),
   timestamp: z.string().optional(),
-  duration: z.number().optional()
+  duration: z.number().optional(),
 });
 
 export const GradingResultSchema = z.object({
@@ -158,11 +160,11 @@ export const GradingResultSchema = z.object({
     grade: z.string(),
     confidence: z.number(),
     features: z.record(z.number()),
-    timestamp: z.string()
+    timestamp: z.string(),
   }),
   error: z.instanceof(Error).optional(),
   timestamp: z.string().optional(),
-  duration: z.number().optional()
+  duration: z.number().optional(),
 });
 
 export const AlertResultSchema = z.object({
@@ -172,9 +174,9 @@ export const AlertResultSchema = z.object({
     type: z.string(),
     severity: z.enum(['info', 'warning', 'error', 'critical']),
     channels: z.array(z.string()),
-    timestamp: z.string()
+    timestamp: z.string(),
   }),
   error: z.instanceof(Error).optional(),
   timestamp: z.string().optional(),
-  duration: z.number().optional()
-}); 
+  duration: z.number().optional(),
+});

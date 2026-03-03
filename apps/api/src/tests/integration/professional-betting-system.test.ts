@@ -1,13 +1,13 @@
 /**
  * Professional Betting System Integration Tests
- * 
+ *
  * Tests the complete integration between:
  * - Devigging Service
- * - CLV Tracking Service  
+ * - CLV Tracking Service
  * - Feedback Loop Service
  * - CLV Alert Service
  * - Professional Betting Scheduler
- * 
+ *
  * This ensures all professional features work together as intended.
  */
 
@@ -30,7 +30,7 @@ describe('Professional Betting System Integration', () => {
   // Test data
   const testUserId = '550e8400-e29b-41d4-a716-446655440000';
   const testPropId = 'test-prop-001';
-  
+
   beforeAll(async () => {
     // Initialize services
     deviggingService = DeviggingService.getInstance();
@@ -46,7 +46,7 @@ describe('Professional Betting System Integration', () => {
   afterAll(async () => {
     // Clean up test data
     await cleanupTestData();
-    
+
     // Stop scheduler if running
     scheduler.stop();
   });
@@ -65,7 +65,7 @@ describe('Professional Betting System Integration', () => {
     test('should correctly devig two-way market odds', () => {
       const market = {
         odds1: -110,
-        odds2: -110
+        odds2: -110,
       };
 
       const result = deviggingService.devigTwoWay(market);
@@ -79,17 +79,17 @@ describe('Professional Betting System Integration', () => {
 
     test('should handle three-way markets correctly', () => {
       const market = {
-        odds: [150, 300, 400]  // Favorite, Underdog, Longshot
+        odds: [150, 300, 400], // Favorite, Underdog, Longshot
       };
 
       const result = deviggingService.devigMultiWay(market);
 
       expect(result.totalVig).toBeGreaterThan(0);
       expect(result.outcomes).toHaveLength(3);
-      
+
       const totalProb = result.outcomes.reduce((sum, outcome) => sum + outcome.trueProb, 0);
       expect(totalProb).toBeCloseTo(1.0, 3);
-      
+
       // Favorite should have highest probability
       expect(result.outcomes[0].trueProb).toBeGreaterThan(result.outcomes[1].trueProb);
       expect(result.outcomes[1].trueProb).toBeGreaterThan(result.outcomes[2].trueProb);
@@ -97,10 +97,10 @@ describe('Professional Betting System Integration', () => {
 
     test('should calculate edge correctly using devigged odds', () => {
       const modelProb = 0.55; // Our model thinks 55% chance
-      const marketOdds = -110;  // Market implies ~52.4% after devig
+      const marketOdds = -110; // Market implies ~52.4% after devig
 
       const edge = deviggingService.calculateEdge(modelProb, marketOdds, false);
-      
+
       // Should be positive edge since our model > devigged market
       expect(edge).toBeGreaterThan(0);
     });
@@ -119,7 +119,7 @@ describe('Professional Betting System Integration', () => {
         betLine: 10.5,
         betOdds: -110,
         gameTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
-        modelEdge: 2.5
+        modelEdge: 2.5,
       };
 
       // 1. Track initial pick
@@ -127,9 +127,9 @@ describe('Professional Betting System Integration', () => {
 
       // 2. Update closing line (simulate line movement)
       const clvEntry = await clvTrackingService.updateClosingLine(
-        testPropId, 
-        11.0,  // Line moved up
-        -120   // Odds got worse
+        testPropId,
+        11.0, // Line moved up
+        -120 // Odds got worse
       );
 
       // 3. Verify CLV calculation
@@ -144,7 +144,7 @@ describe('Professional Betting System Integration', () => {
         { propId: 'pick-1', clv: 2.5, sport: 'NFL', book: 'DraftKings' },
         { propId: 'pick-2', clv: -1.0, sport: 'NFL', book: 'DraftKings' },
         { propId: 'pick-3', clv: 3.0, sport: 'NBA', book: 'FanDuel' },
-        { propId: 'pick-4', clv: 1.5, sport: 'NBA', book: 'FanDuel' }
+        { propId: 'pick-4', clv: 1.5, sport: 'NBA', book: 'FanDuel' },
       ];
 
       // Insert test picks
@@ -162,13 +162,13 @@ describe('Professional Betting System Integration', () => {
           game_time: new Date(),
           clv: pick.clv,
           clv_percentage: pick.clv,
-          beats_closing: pick.clv > 0
+          beats_closing: pick.clv > 0,
         });
       }
 
       // Get stats
       const stats = await clvTrackingService.getCLVStats({
-        startDate: new Date(Date.now() - 24 * 60 * 60 * 1000)
+        startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
       });
 
       expect(stats.totalBets).toBe(4);
@@ -212,7 +212,7 @@ describe('Professional Betting System Integration', () => {
           bet_odds: -110,
           game_time: new Date(),
           clv_percentage: 3.0, // Excellent CLV
-          beats_closing: true
+          beats_closing: true,
         },
         {
           prop_id: 'fd-1',
@@ -224,12 +224,12 @@ describe('Professional Betting System Integration', () => {
           bet_odds: -110,
           game_time: new Date(),
           clv_percentage: -2.0, // Poor CLV
-          beats_closing: false
-        }
+          beats_closing: false,
+        },
       ]);
 
       const results = await feedbackLoopService.runFeedbackLoop();
-      
+
       const dkPerf = results.bookAdjustments.find(b => b.book === 'DraftKings');
       const fdPerf = results.bookAdjustments.find(b => b.book === 'FanDuel');
 
@@ -254,7 +254,7 @@ describe('Professional Betting System Integration', () => {
         game_time: new Date(),
         bet_time: new Date(Date.now() - i * 60 * 60 * 1000), // Spread over hours
         clv_percentage: -3.0, // Consistently poor CLV
-        beats_closing: false
+        beats_closing: false,
       }));
 
       await supabaseClient.from('clv_tracking').insert(poorPicks);
@@ -275,7 +275,7 @@ describe('Professional Betting System Integration', () => {
       await clvAlertService.monitorCLV();
 
       const alerts = await clvAlertService.getActiveAlerts();
-      
+
       // Should not have duplicate alerts for same issue
       const uniqueMessages = new Set(alerts.map(a => a.message));
       expect(uniqueMessages.size).toBe(alerts.length);
@@ -298,7 +298,7 @@ describe('Professional Betting System Integration', () => {
 
     test('should provide scheduler status', () => {
       const status = scheduler.getStatus();
-      
+
       expect(status).toHaveProperty('isRunning');
       expect(status).toHaveProperty('scheduledTasks');
       expect(status).toHaveProperty('lastRunTimes');
@@ -310,7 +310,7 @@ describe('Professional Betting System Integration', () => {
       // 1. Devig market odds
       const market = { odds1: -108, odds2: -112 };
       const devigged = deviggingService.devigTwoWay(market);
-      
+
       expect(devigged.totalVig).toBeGreaterThan(0);
       expect(devigged.totalVig).toBeLessThan(5); // Reasonable vig
 
@@ -326,7 +326,7 @@ describe('Professional Betting System Integration', () => {
         betLine: 10.5,
         betOdds: -108,
         gameTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-        modelEdge: deviggingService.calculateEdge(0.54, -108, false).edge // Use devigged edge
+        modelEdge: deviggingService.calculateEdge(0.54, -108, false).edge, // Use devigged edge
       };
 
       await clvTrackingService.trackPick(pickData);
@@ -336,7 +336,7 @@ describe('Professional Betting System Integration', () => {
 
       // 4. Get CLV stats
       const stats = await clvTrackingService.getCLVStats({
-        startDate: new Date(Date.now() - 60 * 60 * 1000)
+        startDate: new Date(Date.now() - 60 * 60 * 1000),
       });
 
       expect(stats.totalBets).toBe(1);
@@ -344,14 +344,14 @@ describe('Professional Betting System Integration', () => {
 
       // 5. Run feedback loop (should process the CLV data)
       const feedback = await feedbackLoopService.runFeedbackLoop();
-      
+
       expect(feedback).toBeDefined();
       expect(feedback.bookAdjustments.some(b => b.book === 'DraftKings')).toBe(true);
 
       // 6. Check monitoring doesn't trigger alerts (good CLV)
       await clvAlertService.monitorCLV();
       const alerts = await clvAlertService.getActiveAlerts();
-      
+
       // Should not have critical alerts with positive CLV
       const criticalAlerts = alerts.filter(a => a.level === 'critical');
       expect(criticalAlerts.length).toBe(0);
@@ -360,12 +360,7 @@ describe('Professional Betting System Integration', () => {
 
   // Helper functions
   async function cleanupTestData() {
-    const tables = [
-      'clv_tracking',
-      'clv_alerts', 
-      'feedback_loop_history',
-      'graded_props'
-    ];
+    const tables = ['clv_tracking', 'clv_alerts', 'feedback_loop_history', 'graded_props'];
 
     for (const table of tables) {
       await supabaseClient
@@ -378,14 +373,15 @@ describe('Professional Betting System Integration', () => {
 
   async function setupTestData() {
     // Insert test user if needed (most tests need this)
-    await supabaseClient
-      .from('users')
-      .upsert({
+    await supabaseClient.from('users').upsert(
+      {
         id: testUserId,
         username: 'test-user',
         discord_id: '123456789',
-        tier: 'premium'
-      }, { onConflict: 'id' });
+        tier: 'premium',
+      },
+      { onConflict: 'id' }
+    );
   }
 
   async function setupTestGradedProps() {
@@ -399,12 +395,12 @@ describe('Professional Betting System Integration', () => {
         market: 'player_props',
         created_at: new Date().toISOString(),
         feature_contributions: {
-          'volume_score': 0.15,
-          'matchup_score': 0.25,
-          'trend_score': 0.20,
-          'line_value_score': 0.40
-        }
-      }
+          volume_score: 0.15,
+          matchup_score: 0.25,
+          trend_score: 0.2,
+          line_value_score: 0.4,
+        },
+      },
     ];
 
     await supabaseClient.from('graded_props').insert(testProps);
@@ -421,8 +417,8 @@ describe('Professional Betting System Integration', () => {
         bet_odds: -110,
         game_time: new Date(),
         clv_percentage: 2.5,
-        beats_closing: true
-      }
+        beats_closing: true,
+      },
     ];
 
     await supabaseClient.from('clv_tracking').insert(clvData);

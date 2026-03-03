@@ -80,14 +80,8 @@ export function getBuildInfo(serviceName: string): BuildInfo {
  * Format build info for embed footer
  * Format: build:<shortsha> | env:<env> | run:<gauntlet_id>
  */
-export function formatEmbedFooter(
-  buildInfo: BuildInfo,
-  gauntletRunId?: string
-): string {
-  const parts = [
-    `build:${buildInfo.commitShort}`,
-    `env:${buildInfo.environment}`,
-  ];
+export function formatEmbedFooter(buildInfo: BuildInfo, gauntletRunId?: string): string {
+  const parts = [`build:${buildInfo.commitShort}`, `env:${buildInfo.environment}`];
 
   if (gauntletRunId) {
     parts.push(`run:${gauntletRunId}`);

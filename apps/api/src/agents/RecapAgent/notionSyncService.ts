@@ -39,7 +39,7 @@ export class NotionSyncService {
         code: 'NOTION_INIT_FAILED',
         message: `Failed to initialize Notion sync: ${error}`,
         timestamp: new Date().toISOString(),
-        severity: 'high'
+        severity: 'high',
       });
     }
   }
@@ -63,42 +63,42 @@ export class NotionSyncService {
       const response = await this.notion.pages.create({
         parent: { database_id: this.databaseId },
         properties: {
-          'Title': {
+          Title: {
             title: [
               {
                 text: {
-                  content: entry.title
-                }
-              }
-            ]
+                  content: entry.title,
+                },
+              },
+            ],
           },
-          'Date': {
+          Date: {
             date: {
-              start: entry.date
-            }
+              start: entry.date,
+            },
           },
-          'Period': {
+          Period: {
             select: {
-              name: entry.period
-            }
+              name: entry.period,
+            },
           },
           'Net Units': {
-            number: entry.summary.netUnits
+            number: entry.summary.netUnits,
           },
-          'ROI': {
-            number: entry.summary.roi
+          ROI: {
+            number: entry.summary.roi,
           },
           'Win Rate': {
-            number: entry.summary.winRate
+            number: entry.summary.winRate,
           },
           'Total Picks': {
-            number: entry.summary.totalPicks
+            number: entry.summary.totalPicks,
           },
           'Created At': {
             date: {
-              start: entry.createdAt
-            }
-          }
+              start: entry.createdAt,
+            },
+          },
         },
         children: [
           {
@@ -109,11 +109,11 @@ export class NotionSyncService {
                 {
                   type: 'text',
                   text: {
-                    content: 'Recap Summary'
-                  }
-                }
-              ]
-            }
+                    content: 'Recap Summary',
+                  },
+                },
+              ],
+            },
           },
           {
             object: 'block',
@@ -123,11 +123,11 @@ export class NotionSyncService {
                 {
                   type: 'text',
                   text: {
-                    content: `Period: ${entry.period}\nTotal Picks: ${entry.summary.totalPicks}\nRecord: ${entry.summary.wins}W-${entry.summary.losses}L\nNet Units: ${entry.summary.netUnits.toFixed(1)}U\nROI: ${entry.summary.roi.toFixed(1)}%\nWin Rate: ${entry.summary.winRate.toFixed(1)}%`
-                  }
-                }
-              ]
-            }
+                    content: `Period: ${entry.period}\nTotal Picks: ${entry.summary.totalPicks}\nRecord: ${entry.summary.wins}W-${entry.summary.losses}L\nNet Units: ${entry.summary.netUnits.toFixed(1)}U\nROI: ${entry.summary.roi.toFixed(1)}%\nWin Rate: ${entry.summary.winRate.toFixed(1)}%`,
+                  },
+                },
+              ],
+            },
           },
           {
             object: 'block',
@@ -137,11 +137,11 @@ export class NotionSyncService {
                 {
                   type: 'text',
                   text: {
-                    content: 'Capper Breakdown'
-                  }
-                }
-              ]
-            }
+                    content: 'Capper Breakdown',
+                  },
+                },
+              ],
+            },
           },
           {
             object: 'block',
@@ -151,13 +151,16 @@ export class NotionSyncService {
                 {
                   type: 'text',
                   text: {
-                    content: entry.summary.capperBreakdown.map(capper => 
-                      `${capper.capper}: ${capper.wins}W-${capper.losses}L, ${capper.netUnits.toFixed(1)}U, ${capper.roi.toFixed(1)}% ROI`
-                    ).join('\n')
-                  }
-                }
-              ]
-            }
+                    content: entry.summary.capperBreakdown
+                      .map(
+                        capper =>
+                          `${capper.capper}: ${capper.wins}W-${capper.losses}L, ${capper.netUnits.toFixed(1)}U, ${capper.roi.toFixed(1)}% ROI`
+                      )
+                      .join('\n'),
+                  },
+                },
+              ],
+            },
           },
           {
             object: 'block',
@@ -168,13 +171,13 @@ export class NotionSyncService {
                 {
                   type: 'text',
                   text: {
-                    content: JSON.stringify(entry.embedData, null, 2)
-                  }
-                }
-              ]
-            }
-          }
-        ]
+                    content: JSON.stringify(entry.embedData, null, 2),
+                  },
+                },
+              ],
+            },
+          },
+        ],
       });
 
       return response.id;
@@ -184,7 +187,7 @@ export class NotionSyncService {
         message: `Failed to sync recap to Notion: ${error}`,
         timestamp: new Date().toISOString(),
         context: { entryTitle: entry.title },
-        severity: 'medium'
+        severity: 'medium',
       });
     }
   }
@@ -192,17 +195,21 @@ export class NotionSyncService {
   /**
    * Search recaps in Notion database
    */
-  async searchRecaps(period?: string, startDate?: string, endDate?: string): Promise<NotionRecapEntry[]> {
+  async searchRecaps(
+    period?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<NotionRecapEntry[]> {
     try {
       const filter: any = {};
-      
+
       if (period) {
         filter.and = filter.and || [];
         filter.and.push({
           property: 'Period',
           select: {
-            equals: period
-          }
+            equals: period,
+          },
         });
       }
 
@@ -211,8 +218,8 @@ export class NotionSyncService {
         filter.and.push({
           property: 'Date',
           date: {
-            on_or_after: startDate
-          }
+            on_or_after: startDate,
+          },
         });
       }
 
@@ -221,8 +228,8 @@ export class NotionSyncService {
         filter.and.push({
           property: 'Date',
           date: {
-            on_or_before: endDate
-          }
+            on_or_before: endDate,
+          },
         });
       }
 
@@ -232,9 +239,9 @@ export class NotionSyncService {
         sorts: [
           {
             property: 'Date',
-            direction: 'descending'
-          }
-        ]
+            direction: 'descending',
+          },
+        ],
       });
 
       return response.results.map(this.mapNotionPageToRecapEntry);
@@ -244,7 +251,7 @@ export class NotionSyncService {
         message: `Failed to search Notion recaps: ${error}`,
         timestamp: new Date().toISOString(),
         context: { period, startDate, endDate },
-        severity: 'low'
+        severity: 'low',
       });
     }
   }
@@ -271,7 +278,7 @@ export class NotionSyncService {
 
       if (updates.title) {
         properties['Title'] = {
-          title: [{ text: { content: updates.title } }]
+          title: [{ text: { content: updates.title } }],
         };
       }
 
@@ -289,7 +296,7 @@ export class NotionSyncService {
 
       await this.notion.pages.update({
         page_id: id,
-        properties
+        properties,
       });
     } catch (error) {
       throw new RecapError({
@@ -297,7 +304,7 @@ export class NotionSyncService {
         message: `Failed to update Notion recap: ${error}`,
         timestamp: new Date().toISOString(),
         context: { id },
-        severity: 'medium'
+        severity: 'medium',
       });
     }
   }
@@ -309,7 +316,7 @@ export class NotionSyncService {
     try {
       await this.notion.pages.update({
         page_id: id,
-        archived: true
+        archived: true,
       });
     } catch (error) {
       throw new RecapError({
@@ -317,7 +324,7 @@ export class NotionSyncService {
         message: `Failed to delete Notion recap: ${error}`,
         timestamp: new Date().toISOString(),
         context: { id },
-        severity: 'medium'
+        severity: 'medium',
       });
     }
   }
@@ -327,15 +334,15 @@ export class NotionSyncService {
    */
   private mapNotionPageToRecapEntry(page: any): NotionRecapEntry {
     const properties = page.properties;
-    
+
     return {
       id: page.id,
       title: properties.Title?.title?.[0]?.text?.content || '',
       date: properties.Date?.date?.start || '',
-      period: properties.Period?.select?.name as 'daily' | 'weekly' | 'monthly' || 'daily',
+      period: (properties.Period?.select?.name as 'daily' | 'weekly' | 'monthly') || 'daily',
       summary: {
         date: properties.Date?.date?.start || '',
-        period: properties.Period?.select?.name as 'daily' | 'weekly' | 'monthly' || 'daily',
+        period: (properties.Period?.select?.name as 'daily' | 'weekly' | 'monthly') || 'daily',
         totalPicks: properties['Total Picks']?.number || 0,
         wins: 0, // Would need to be stored separately or calculated
         losses: 0,
@@ -347,11 +354,11 @@ export class NotionSyncService {
         avgEdge: 0,
         capperBreakdown: [],
         tierBreakdown: [],
-        hotStreaks: []
+        hotStreaks: [],
       },
       embedData: {}, // Would need to be extracted from page content
       createdAt: properties['Created At']?.date?.start || page.created_time,
-      updatedAt: page.last_edited_time
+      updatedAt: page.last_edited_time,
     };
   }
 
@@ -360,8 +367,8 @@ export class NotionSyncService {
    */
   async getDatabaseSchema(): Promise<any> {
     try {
-      const response = await this.notion.databases.retrieve({ 
-        database_id: this.databaseId 
+      const response = await this.notion.databases.retrieve({
+        database_id: this.databaseId,
       });
       return response.properties;
     } catch (error) {
@@ -369,7 +376,7 @@ export class NotionSyncService {
         code: 'NOTION_SCHEMA_FAILED',
         message: `Failed to get database schema: ${error}`,
         timestamp: new Date().toISOString(),
-        severity: 'low'
+        severity: 'low',
       });
     }
   }

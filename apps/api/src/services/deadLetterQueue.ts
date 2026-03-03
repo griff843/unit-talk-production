@@ -32,8 +32,6 @@ export interface DLQConfig {
   processingIntervalMs: number;
 }
 
-
-
 export class DeadLetterQueue extends EventEmitter {
   private static instance: DeadLetterQueue;
   private readonly logger: ReturnType<typeof createLogger>;
@@ -47,10 +45,7 @@ export class DeadLetterQueue extends EventEmitter {
     this.logger = createLogger('DLQ');
   }
 
-  public static getInstance(
-    supabase: SupabaseClient,
-    config: DLQConfig
-  ): DeadLetterQueue {
+  public static getInstance(supabase: SupabaseClient, config: DLQConfig): DeadLetterQueue {
     if (!DeadLetterQueue.instance) {
       DeadLetterQueue.instance = new DeadLetterQueue(supabase, config);
     }
@@ -81,13 +76,11 @@ export class DeadLetterQueue extends EventEmitter {
         retry_count: 0,
         max_retries: this.config.maxRetries,
         status: 'pending',
-        next_retry: new Date(
-          Date.now() + this.config.initialRetryDelayMs
-        ).toISOString(),
+        next_retry: new Date(Date.now() + this.config.initialRetryDelayMs).toISOString(),
       };
 
       await this.supabase.from('dead_letter_queue').insert(deadLetter);
-      
+
       this.logger.info('Message enqueued to DLQ', {
         agent,
         operation,
@@ -116,7 +109,9 @@ export class DeadLetterQueue extends EventEmitter {
         .order('next_retry', { ascending: true })
         .limit(10);
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
       for (const letter of deadLetters || []) {
         await this.processDeadLetter(letter);
@@ -140,9 +135,9 @@ export class DeadLetterQueue extends EventEmitter {
       // Mark as resolved if successful
       await this.supabase
         .from('dead_letter_queue')
-        .update({ 
+        .update({
           status: 'resolved',
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', letter.id);
 
@@ -154,7 +149,7 @@ export class DeadLetterQueue extends EventEmitter {
     } catch (error) {
       const retryCount = letter.retry_count + 1;
       const status = retryCount >= letter.max_retries ? 'failed' : 'pending';
-      
+
       await this.supabase
         .from('dead_letter_queue')
         .update({
@@ -189,7 +184,7 @@ export class DeadLetterQueue extends EventEmitter {
       this.config.initialRetryDelayMs * Math.pow(2, retryCount),
       this.config.maxRetryDelayMs
     );
-    
+
     return new Date(Date.now() + delay).toISOString();
   }
 
@@ -210,4 +205,4 @@ export const dlq = DeadLetterQueue.getInstance(
     maxRetryDelayMs: 1000 * 60 * 60, // 1 hour
     processingIntervalMs: 1000 * 30, // 30 seconds
   }
-); 
+);

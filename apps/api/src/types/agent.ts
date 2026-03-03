@@ -11,7 +11,9 @@ export type AgentStatus = 'idle' | 'healthy' | 'unhealthy' | 'degraded';
 export const AgentStatusSchema = z.enum(['idle', 'healthy', 'unhealthy', 'degraded']);
 
 export function isValidAgentStatus(status: unknown): status is AgentStatus {
-  return typeof status === 'string' && ['idle', 'healthy', 'unhealthy', 'degraded'].includes(status);
+  return (
+    typeof status === 'string' && ['idle', 'healthy', 'unhealthy', 'degraded'].includes(status)
+  );
 }
 
 // Timer Types are now handled by @types/node
@@ -91,28 +93,36 @@ export const agentConfigSchema = z.object({
   name: z.string(),
   enabled: z.boolean(),
   healthCheckInterval: z.number().optional(),
-  metricsConfig: z.object({
-    interval: z.number(),
-    prefix: z.string()
-  }).optional()
+  metricsConfig: z
+    .object({
+      interval: z.number(),
+      prefix: z.string(),
+    })
+    .optional(),
 });
 
 export const healthCheckResultSchema = z.object({
   status: AgentStatusSchema,
   timestamp: z.string(),
-  details: z.object({
-    errors: z.array(z.string()),
-    warnings: z.array(z.string()),
-    info: z.record(z.any())
-  }).optional()
+  details: z
+    .object({
+      errors: z.array(z.string()),
+      warnings: z.array(z.string()),
+      info: z.record(z.any()),
+    })
+    .optional(),
 });
 
-export const agentMetricsSchema = z.object({
-  agentName: z.string(),
-  status: AgentStatusSchema,
-  successCount: z.number(),
-  warningCount: z.number(),
-  errorCount: z.number(),
-  timestamp: z.string()
-}).catchall(z.any()); // DRAGON PATCH: add name field if missing
-export interface FeedAgentConfig { name: string; }
+export const agentMetricsSchema = z
+  .object({
+    agentName: z.string(),
+    status: AgentStatusSchema,
+    successCount: z.number(),
+    warningCount: z.number(),
+    errorCount: z.number(),
+    timestamp: z.string(),
+  })
+  .catchall(z.any()); // DRAGON PATCH: add name field if missing
+export interface FeedAgentConfig {
+  name: string;
+}

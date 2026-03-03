@@ -178,7 +178,9 @@ export function Step1TicketSetup({ data, onUpdate, onNext, errors }: Step1Ticket
     <div className="space-y-6">
       {/* Section A: Capper */}
       <section>
-        <label className="block text-sm font-semibold text-foreground mb-2">Capper <span className="text-red-500">*</span></label>
+        <label className="block text-sm font-semibold text-foreground mb-2">
+          Capper <span className="text-red-500">*</span>
+        </label>
         {isLoadingCappers ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="animate-spin h-4 w-4 border-2 border-primary rounded-full border-t-transparent" />
@@ -213,7 +215,9 @@ export function Step1TicketSetup({ data, onUpdate, onNext, errors }: Step1Ticket
 
       {/* Section B: Ticket Type */}
       <section>
-        <label className="block text-sm font-semibold text-foreground mb-2">Ticket Type <span className="text-red-500">*</span></label>
+        <label className="block text-sm font-semibold text-foreground mb-2">
+          Ticket Type <span className="text-red-500">*</span>
+        </label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {TICKET_TYPES.map(type => (
             <button
@@ -238,7 +242,9 @@ export function Step1TicketSetup({ data, onUpdate, onNext, errors }: Step1Ticket
 
       {/* Section C: Sport */}
       <section>
-        <label className="block text-sm font-semibold text-foreground mb-2">Sport <span className="text-red-500">*</span></label>
+        <label className="block text-sm font-semibold text-foreground mb-2">
+          Sport <span className="text-red-500">*</span>
+        </label>
         <div className="flex flex-wrap gap-2">
           {PRIMARY_SPORTS.map(sport => (
             <button
@@ -340,7 +346,9 @@ export function Step1TicketSetup({ data, onUpdate, onNext, errors }: Step1Ticket
 
       {/* Section F: Market Type */}
       <section>
-        <label className="block text-sm font-semibold text-foreground mb-2">Market Type <span className="text-red-500">*</span></label>
+        <label className="block text-sm font-semibold text-foreground mb-2">
+          Market Type <span className="text-red-500">*</span>
+        </label>
         <div className="grid grid-cols-3 gap-2">
           {MARKET_OPTIONS.map(opt => (
             <button

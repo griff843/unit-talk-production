@@ -2,7 +2,7 @@
 
 /**
  * Execute Migration Directly
- * 
+ *
  * Creates tables and migrates data using direct SQL approach since Supabase RPC is limited.
  * This addresses the critical performance issue: 512,537 old props (99.5% stale data) in raw_props.
  */
@@ -24,20 +24,22 @@ async function executeMigrationDirect() {
   try {
     // 1. Current state analysis
     console.log('\n📊 Step 1: Analyzing current data state...');
-    const { count: totalProps } = await supabaseClient
+    const { count: totalProps } = (await supabaseClient
       .from('raw_props')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
 
     const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const { count: oldProps } = await supabaseClient
+    const { count: oldProps } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .lt('game_date', cutoffDate) || { count: 0 };
+      .lt('game_date', cutoffDate)) || { count: 0 };
 
     console.log(`📈 Current state:`);
     console.log(`  🔥 Total props: ${totalProps}`);
     console.log(`  📦 Old props (>${cutoffDate}): ${oldProps}`);
-    console.log(`  💥 Performance impact: ${((oldProps || 0) / (totalProps || 1) * 100).toFixed(1)}% stale data`);
+    console.log(
+      `  💥 Performance impact: ${(((oldProps || 0) / (totalProps || 1)) * 100).toFixed(1)}% stale data`
+    );
 
     if ((oldProps || 0) === 0) {
       console.log('✅ No migration needed - system already optimized');
@@ -51,7 +53,7 @@ async function executeMigrationDirect() {
     console.log('1. Go to Supabase Dashboard → SQL Editor');
     console.log('2. Create a new query');
     console.log('3. Copy and paste the following SQL:');
-    
+
     console.log('\n--- COPY THIS SQL TO SUPABASE SQL EDITOR ---');
     console.log(`
 -- Create historical tables for data lifecycle management
@@ -120,7 +122,7 @@ ORDER BY table_name;
 
     // 3. Check if tables exist (retry mechanism)
     console.log('🔍 Step 3: Checking if tables were created...');
-    
+
     let tablesExist = false;
     try {
       await supabaseClient.from('raw_props_historical').select('id').limit(1);
@@ -134,19 +136,19 @@ ORDER BY table_name;
     if (tablesExist) {
       // 4. Verify migration if tables exist
       console.log('\n📊 Step 4: Verifying migration results...');
-      
-      const { count: finalTotal } = await supabaseClient
-        .from('raw_props')
-        .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-      const { count: finalOld } = await supabaseClient
+      const { count: finalTotal } = (await supabaseClient
+        .from('raw_props')
+        .select('*', { count: 'exact', head: true })) || { count: 0 };
+
+      const { count: finalOld } = (await supabaseClient
         .from('raw_props')
         .select('*', { count: 'exact', head: true })
-        .lt('game_date', cutoffDate) || { count: 0 };
+        .lt('game_date', cutoffDate)) || { count: 0 };
 
-      const { count: historicalCount } = await supabaseClient
+      const { count: historicalCount } = (await supabaseClient
         .from('raw_props_historical')
-        .select('*', { count: 'exact', head: true }) || { count: 0 };
+        .select('*', { count: 'exact', head: true })) || { count: 0 };
 
       console.log('\n🎉 MIGRATION RESULTS:');
       console.log(`🔥 Hot tier (raw_props): ${finalTotal} records`);
@@ -155,7 +157,9 @@ ORDER BY table_name;
 
       const migratedCount = (totalProps || 0) - (finalTotal || 0);
       console.log(`📦 Records migrated: ${migratedCount}`);
-      console.log(`📈 Performance improvement: ${((migratedCount / (totalProps || 1)) * 100).toFixed(1)}%`);
+      console.log(
+        `📈 Performance improvement: ${((migratedCount / (totalProps || 1)) * 100).toFixed(1)}%`
+      );
 
       if (migratedCount > 0) {
         console.log('\n🎊 SUCCESS! Data lifecycle migration completed!');
@@ -170,11 +174,13 @@ ORDER BY table_name;
     console.log('2. Test FeedAgent performance with optimized database');
     console.log('3. Deploy DataLifecycleAgent for automated maintenance');
     console.log('4. Set up monitoring for tier sizes and query performance');
-
   } catch (error) {
-    console.error('\n❌ Migration execution failed:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      '\n❌ Migration execution failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
-    
+
     console.log('\n🛠️ TROUBLESHOOTING:');
     console.log('1. Check Supabase connection in .env file');
     console.log('2. Verify database permissions');
@@ -190,7 +196,7 @@ if (require.main === module) {
       console.log('\n✅ Migration execution completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Migration execution crashed:', error);
       process.exit(1);
     });

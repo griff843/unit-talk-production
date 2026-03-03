@@ -36,22 +36,21 @@ async function runSQL(sqlFile: string) {
     console.log('✅ Connected\n');
 
     const sqlContent = fs.readFileSync(sqlFile, 'utf-8');
-    
+
     // Execute the entire SQL file as one transaction
     console.log('Executing SQL...\n');
     const result = await client.query(sqlContent);
-    
+
     console.log('✅ SQL executed successfully\n');
-    
+
     if (result.rows && result.rows.length > 0) {
       console.log('Results:');
       console.log(JSON.stringify(result.rows, null, 2));
     }
-    
+
     if (result.rowCount !== null) {
       console.log(`\nRows affected: ${result.rowCount}\n`);
     }
-
   } catch (error: any) {
     console.error('❌ Error:', error.message);
     throw error;
@@ -66,4 +65,3 @@ runSQL(sqlFile).catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

@@ -32,7 +32,7 @@ async function main() {
             finalized: true,
             status: 'finalized',
             finalized_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq('id', pick.id);
 
@@ -42,15 +42,13 @@ async function main() {
         }
 
         console.log(`Successfully promoted pick ${pick.id} with tier ${pick.tier}`);
-
       } catch (error) {
         console.error(`Failed to promote pick ${pick.id}:`, error);
       }
     }
-
   } catch (error) {
     console.error('Error:', error);
   }
 }
 
-main().catch(console.error); 
+main().catch(console.error);

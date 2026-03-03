@@ -11,13 +11,10 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
 import { makeLogger } from '../../utils/logger';
-import {
-  IPlaybook,
-  PlaybookDefinition,
-  PlaybookId,
-  PlaybookStatus,
-} from './types';
+
+import { IPlaybook, PlaybookDefinition, PlaybookId, PlaybookStatus } from './types';
 
 const logger = makeLogger('PlaybookRegistry');
 
@@ -342,7 +339,8 @@ export class PlaybookRegistry {
       initialized: this.initialized,
       registeredPlaybooks: this.playbooks.size,
       definedPlaybooks: this.definitions.size,
-      activePlaybooks: Array.from(this.definitions.values()).filter(d => d.status === 'active').length,
+      activePlaybooks: Array.from(this.definitions.values()).filter(d => d.status === 'active')
+        .length,
     };
   }
 

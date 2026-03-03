@@ -12,7 +12,7 @@ export interface DashboardData {
     activePicks: number;
     pendingResults: number;
   };
-  
+
   // Current Picks
   currentPicks: Array<{
     id: string;
@@ -31,7 +31,7 @@ export interface DashboardData {
     actualResult?: number;
     profit?: number;
   }>;
-  
+
   // Performance Metrics
   performance: {
     overall: AdvancedPerformanceMetrics;
@@ -39,43 +39,52 @@ export interface DashboardData {
     last30Days: AdvancedPerformanceMetrics;
     thisMonth: AdvancedPerformanceMetrics;
   };
-  
+
   // Tier Analysis
   tierAnalysis: {
     distribution: Record<string, number>;
-    performance: Record<string, {
-      count: number;
-      winRate: number;
-      roi: number;
-      avgConfidence: number;
-      profitFactor: number;
-    }>;
+    performance: Record<
+      string,
+      {
+        count: number;
+        winRate: number;
+        roi: number;
+        avgConfidence: number;
+        profitFactor: number;
+      }
+    >;
   };
-  
+
   // Sport Analysis
   sportAnalysis: {
     distribution: Record<string, number>;
-    performance: Record<string, {
-      count: number;
-      winRate: number;
-      roi: number;
-      bestTier: string;
-      recentForm: number;
-    }>;
+    performance: Record<
+      string,
+      {
+        count: number;
+        winRate: number;
+        roi: number;
+        bestTier: string;
+        recentForm: number;
+      }
+    >;
   };
-  
+
   // Market Analysis
   marketAnalysis: {
     distribution: Record<string, number>;
-    performance: Record<string, {
-      count: number;
-      winRate: number;
-      roi: number;
-      avgOdds: number;
-      profitability: number;
-    }>;
+    performance: Record<
+      string,
+      {
+        count: number;
+        winRate: number;
+        roi: number;
+        avgOdds: number;
+        profitability: number;
+      }
+    >;
   };
-  
+
   // Risk Metrics
   riskMetrics: {
     currentExposure: number;
@@ -91,7 +100,7 @@ export interface DashboardData {
       timestamp: string;
     }>;
   };
-  
+
   // Charts Data
   charts: {
     profitChart: Array<{ date: string; profit: number; cumulative: number }>;
@@ -101,7 +110,7 @@ export interface DashboardData {
     confidenceChart: Array<{ range: string; count: number; winRate: number; roi: number }>;
     oddsChart: Array<{ range: string; count: number; winRate: number; roi: number }>;
   };
-  
+
   // Streaks & Trends
   streaks: {
     current: { type: 'win' | 'loss'; count: number };
@@ -110,7 +119,7 @@ export interface DashboardData {
     recentTrend: 'UP' | 'DOWN' | 'STABLE';
     momentum: number;
   };
-  
+
   // Top Performers
   topPerformers: {
     players: Array<{
@@ -136,7 +145,7 @@ export interface DashboardData {
       profit: number;
     }>;
   };
-  
+
   // Alerts & Notifications
   alerts: Array<{
     id: string;
@@ -148,7 +157,7 @@ export interface DashboardData {
     actionRequired: boolean;
     recommendation?: string;
   }>;
-  
+
   // System Status
   systemStatus: {
     lastUpdate: string;
@@ -168,7 +177,7 @@ export class DashboardAPI {
   private cachedData: DashboardData | null = null;
   private lastUpdate: string = new Date().toISOString();
   private updateInterval: number = 5 * 60 * 1000; // 5 minutes
-  
+
   constructor() {
     // Initialize dashboard API
     this.startAutoUpdate();
@@ -177,13 +186,14 @@ export class DashboardAPI {
   /**
    * Get comprehensive dashboard data
    */
-  public async getDashboardData(_timeframe: '24h' | '7d' | '30d' | 'all' = '30d'): Promise<DashboardData> {
+  public async getDashboardData(
+    _timeframe: '24h' | '7d' | '30d' | 'all' = '30d'
+  ): Promise<DashboardData> {
     if (this.shouldRefreshCache()) {
       await this.refreshDashboardData();
-     
-}
-    
-    return this.cachedData || await this.generateDefaultDashboardData();
+    }
+
+    return this.cachedData || (await this.generateDefaultDashboardData());
   }
 
   /**
@@ -197,7 +207,7 @@ export class DashboardAPI {
       todayROI: 8.5,
       todayProfit: 1250,
       activePicks: 8,
-      pendingResults: 3
+      pendingResults: 3,
     };
   }
 
@@ -220,7 +230,7 @@ export class DashboardAPI {
         positionSize: 0.03,
         expectedValue: 8.2,
         gameTime: '2025-07-08T20:00:00Z',
-        status: 'PENDING'
+        status: 'PENDING',
       },
       {
         id: 'pick_002',
@@ -235,8 +245,8 @@ export class DashboardAPI {
         positionSize: 0.04,
         expectedValue: 15.7,
         gameTime: '2025-07-08T21:00:00Z',
-        status: 'PENDING'
-      }
+        status: 'PENDING',
+      },
     ];
   }
 
@@ -246,19 +256,19 @@ export class DashboardAPI {
   public async getTierAnalysis(): Promise<DashboardData['tierAnalysis']> {
     return {
       distribution: {
-        'S': 15,
-        'A': 45,
-        'B': 78,
-        'C': 32,
-        'D': 8
+        S: 15,
+        A: 45,
+        B: 78,
+        C: 32,
+        D: 8,
       },
       performance: {
-        'S': { count: 15, winRate: 0.87, roi: 18.5, avgConfidence: 88, profitFactor: 3.2 },
-        'A': { count: 45, winRate: 0.78, roi: 12.3, avgConfidence: 82, profitFactor: 2.1 },
-        'B': { count: 78, winRate: 0.68, roi: 8.7, avgConfidence: 72, profitFactor: 1.6 },
-        'C': { count: 32, winRate: 0.56, roi: 3.2, avgConfidence: 62, profitFactor: 1.1 },
-        'D': { count: 8, winRate: 0.38, roi: -5.5, avgConfidence: 45, profitFactor: 0.7 }
-      }
+        S: { count: 15, winRate: 0.87, roi: 18.5, avgConfidence: 88, profitFactor: 3.2 },
+        A: { count: 45, winRate: 0.78, roi: 12.3, avgConfidence: 82, profitFactor: 2.1 },
+        B: { count: 78, winRate: 0.68, roi: 8.7, avgConfidence: 72, profitFactor: 1.6 },
+        C: { count: 32, winRate: 0.56, roi: 3.2, avgConfidence: 62, profitFactor: 1.1 },
+        D: { count: 8, winRate: 0.38, roi: -5.5, avgConfidence: 45, profitFactor: 0.7 },
+      },
     };
   }
 
@@ -268,19 +278,19 @@ export class DashboardAPI {
   public async getSportAnalysis(): Promise<DashboardData['sportAnalysis']> {
     return {
       distribution: {
-        'NBA': 65,
-        'NFL': 48,
-        'MLB': 32,
-        'NHL': 28,
-        'NCAAB': 15
+        NBA: 65,
+        NFL: 48,
+        MLB: 32,
+        NHL: 28,
+        NCAAB: 15,
       },
       performance: {
-        'NBA': { count: 65, winRate: 0.72, roi: 11.5, bestTier: 'A', recentForm: 0.78 },
-        'NFL': { count: 48, winRate: 0.69, roi: 9.8, bestTier: 'S', recentForm: 0.71 },
-        'MLB': { count: 32, winRate: 0.66, roi: 7.2, bestTier: 'B', recentForm: 0.69 },
-        'NHL': { count: 28, winRate: 0.64, roi: 6.5, bestTier: 'A', recentForm: 0.67 },
-        'NCAAB': { count: 15, winRate: 0.60, roi: 4.8, bestTier: 'B', recentForm: 0.63 }
-      }
+        NBA: { count: 65, winRate: 0.72, roi: 11.5, bestTier: 'A', recentForm: 0.78 },
+        NFL: { count: 48, winRate: 0.69, roi: 9.8, bestTier: 'S', recentForm: 0.71 },
+        MLB: { count: 32, winRate: 0.66, roi: 7.2, bestTier: 'B', recentForm: 0.69 },
+        NHL: { count: 28, winRate: 0.64, roi: 6.5, bestTier: 'A', recentForm: 0.67 },
+        NCAAB: { count: 15, winRate: 0.6, roi: 4.8, bestTier: 'B', recentForm: 0.63 },
+      },
     };
   }
 
@@ -300,9 +310,9 @@ export class DashboardAPI {
           type: 'EXPOSURE',
           severity: 'MEDIUM',
           message: 'NBA exposure at 35% of portfolio',
-          timestamp: new Date().toISOString()
-        }
-      ]
+          timestamp: new Date().toISOString(),
+        },
+      ],
     };
   }
 
@@ -316,7 +326,7 @@ export class DashboardAPI {
       tierChart: this.generateTierChartData(),
       sportChart: this.generateSportChartData(),
       confidenceChart: this.generateConfidenceChartData(),
-      oddsChart: this.generateOddsChartData()
+      oddsChart: this.generateOddsChartData(),
     };
   }
 
@@ -329,7 +339,7 @@ export class DashboardAPI {
       longestWin: 12,
       longestLoss: 4,
       recentTrend: 'UP',
-      momentum: 0.15
+      momentum: 0.15,
     };
   }
 
@@ -341,18 +351,18 @@ export class DashboardAPI {
       players: [
         { name: 'LeBron James', sport: 'NBA', picks: 8, winRate: 0.88, roi: 15.2, profit: 1250 },
         { name: 'Josh Allen', sport: 'NFL', picks: 6, winRate: 0.83, roi: 12.8, profit: 980 },
-        { name: 'Connor McDavid', sport: 'NHL', picks: 5, winRate: 0.80, roi: 11.5, profit: 750 }
+        { name: 'Connor McDavid', sport: 'NHL', picks: 5, winRate: 0.8, roi: 11.5, profit: 750 },
       ],
       sports: [
         { sport: 'NBA', picks: 65, winRate: 0.72, roi: 11.5, profit: 5250 },
         { sport: 'NFL', picks: 48, winRate: 0.69, roi: 9.8, profit: 3850 },
-        { sport: 'MLB', picks: 32, winRate: 0.66, roi: 7.2, profit: 2100 }
+        { sport: 'MLB', picks: 32, winRate: 0.66, roi: 7.2, profit: 2100 },
       ],
       markets: [
         { marketType: 'Points', picks: 45, winRate: 0.73, roi: 12.1, profit: 3200 },
         { marketType: 'Assists', picks: 32, winRate: 0.69, roi: 9.5, profit: 2100 },
-        { marketType: 'Rebounds', picks: 28, winRate: 0.68, roi: 8.8, profit: 1850 }
-      ]
+        { marketType: 'Rebounds', picks: 28, winRate: 0.68, roi: 8.8, profit: 1850 },
+      ],
     };
   }
 
@@ -369,7 +379,7 @@ export class DashboardAPI {
         message: 'S-tier picks showing 87% win rate over last 7 days',
         timestamp: new Date().toISOString(),
         actionRequired: false,
-        recommendation: 'Consider increasing S-tier allocation'
+        recommendation: 'Consider increasing S-tier allocation',
       },
       {
         id: 'alert_002',
@@ -379,8 +389,8 @@ export class DashboardAPI {
         message: 'NBA exposure at 35% of total portfolio',
         timestamp: new Date().toISOString(),
         actionRequired: true,
-        recommendation: 'Diversify into other sports or reduce position sizes'
-      }
+        recommendation: 'Diversify into other sports or reduce position sizes',
+      },
     ];
   }
 
@@ -394,7 +404,7 @@ export class DashboardAPI {
       systemHealth: 'HEALTHY',
       activeModels: ['Neural Network', 'Gradient Boosting', 'Random Forest', 'Ensemble'],
       processingQueue: 3,
-      uptime: '99.8%'
+      uptime: '99.8%',
     };
   }
 
@@ -412,7 +422,7 @@ export class DashboardAPI {
       streaks,
       topPerformers,
       alerts,
-      systemStatus
+      systemStatus,
     ] = await Promise.all([
       this.getLivePerformance(),
       this.getCurrentPicks(),
@@ -423,7 +433,7 @@ export class DashboardAPI {
       this.getStreakData(),
       this.getTopPerformers(),
       this.getAlerts(),
-      this.getSystemStatus()
+      this.getSystemStatus(),
     ]);
 
     // Generate performance metrics (simplified)
@@ -431,24 +441,23 @@ export class DashboardAPI {
       overall: await this.generatePerformanceMetrics('all'),
       last7Days: await this.generatePerformanceMetrics('7d'),
       last30Days: await this.generatePerformanceMetrics('30d'),
-      thisMonth: await this.generatePerformanceMetrics('month')
-     
-};
+      thisMonth: await this.generatePerformanceMetrics('month'),
+    };
 
     // Generate market analysis
     const marketAnalysis = {
       distribution: {
-        'Points': 45,
-        'Assists': 32,
-        'Rebounds': 28,
+        Points: 45,
+        Assists: 32,
+        Rebounds: 28,
         'Passing Yards': 25,
-        'Rushing Yards': 18
+        'Rushing Yards': 18,
       },
       performance: {
-        'Points': { count: 45, winRate: 0.73, roi: 12.1, avgOdds: -115, profitability: 3200 },
-        'Assists': { count: 32, winRate: 0.69, roi: 9.5, avgOdds: -108, profitability: 2100 },
-        'Rebounds': { count: 28, winRate: 0.68, roi: 8.8, avgOdds: -112, profitability: 1850 }
-      }
+        Points: { count: 45, winRate: 0.73, roi: 12.1, avgOdds: -115, profitability: 3200 },
+        Assists: { count: 32, winRate: 0.69, roi: 9.5, avgOdds: -108, profitability: 2100 },
+        Rebounds: { count: 28, winRate: 0.68, roi: 8.8, avgOdds: -112, profitability: 1850 },
+      },
     };
 
     this.cachedData = {
@@ -463,7 +472,7 @@ export class DashboardAPI {
       streaks,
       topPerformers,
       alerts,
-      systemStatus
+      systemStatus,
     };
 
     this.lastUpdate = new Date().toISOString();
@@ -473,8 +482,9 @@ export class DashboardAPI {
    * Check if cache should be refreshed
    */
   private shouldRefreshCache(): boolean {
-    return !this.cachedData || 
-           (Date.now() - new Date(this.lastUpdate).getTime()) > this.updateInterval;
+    return (
+      !this.cachedData || Date.now() - new Date(this.lastUpdate).getTime() > this.updateInterval
+    );
   }
 
   /**
@@ -502,14 +512,14 @@ export class DashboardAPI {
         todayROI: 0,
         todayProfit: 0,
         activePicks: 0,
-        pendingResults: 0
+        pendingResults: 0,
       },
       currentPicks: [],
       performance: {
         overall: await this.generatePerformanceMetrics('all'),
         last7Days: await this.generatePerformanceMetrics('7d'),
         last30Days: await this.generatePerformanceMetrics('30d'),
-        thisMonth: await this.generatePerformanceMetrics('month')
+        thisMonth: await this.generatePerformanceMetrics('month'),
       },
       tierAnalysis: { distribution: {}, performance: {} },
       sportAnalysis: { distribution: {}, performance: {} },
@@ -521,7 +531,7 @@ export class DashboardAPI {
         sharpeRatio: 0,
         correlationRisk: 0,
         portfolioRisk: 0,
-        riskAlerts: []
+        riskAlerts: [],
       },
       charts: {
         profitChart: [],
@@ -529,19 +539,19 @@ export class DashboardAPI {
         tierChart: [],
         sportChart: [],
         confidenceChart: [],
-        oddsChart: []
+        oddsChart: [],
       },
       streaks: {
         current: { type: 'win', count: 0 },
         longestWin: 0,
         longestLoss: 0,
         recentTrend: 'STABLE',
-        momentum: 0
+        momentum: 0,
       },
       topPerformers: {
         players: [],
         sports: [],
-        markets: []
+        markets: [],
       },
       alerts: [],
       systemStatus: {
@@ -550,8 +560,8 @@ export class DashboardAPI {
         systemHealth: 'HEALTHY',
         activeModels: [],
         processingQueue: 0,
-        uptime: '100%'
-      }
+        uptime: '100%',
+      },
     };
   }
 
@@ -569,7 +579,7 @@ export class DashboardAPI {
       data.push({
         date: date.toISOString().split('T')[0] || date.toDateString(),
         profit: Math.round(profit),
-        cumulative: Math.round(cumulative)
+        cumulative: Math.round(cumulative),
       });
     }
 
@@ -585,54 +595,76 @@ export class DashboardAPI {
 
       data.push({
         date: date.toISOString().split('T')[0] || date.toDateString(),
-        winRate: 0.6 + (Math.random() * 0.3), // 60-90% range
-        picks: Math.floor(Math.random() * 10) + 1
+        winRate: 0.6 + Math.random() * 0.3, // 60-90% range
+        picks: Math.floor(Math.random() * 10) + 1,
       });
     }
 
     return data;
   }
 
-  private generateTierChartData(): Array<{ tier: string; count: number; winRate: number; roi: number }> {
+  private generateTierChartData(): Array<{
+    tier: string;
+    count: number;
+    winRate: number;
+    roi: number;
+  }> {
     return [
       { tier: 'S', count: 15, winRate: 0.87, roi: 18.5 },
       { tier: 'A', count: 45, winRate: 0.78, roi: 12.3 },
       { tier: 'B', count: 78, winRate: 0.68, roi: 8.7 },
       { tier: 'C', count: 32, winRate: 0.56, roi: 3.2 },
-      { tier: 'D', count: 8, winRate: 0.38, roi: -5.5 }
+      { tier: 'D', count: 8, winRate: 0.38, roi: -5.5 },
     ];
   }
 
-  private generateSportChartData(): Array<{ sport: string; count: number; winRate: number; roi: number }> {
+  private generateSportChartData(): Array<{
+    sport: string;
+    count: number;
+    winRate: number;
+    roi: number;
+  }> {
     return [
       { sport: 'NBA', count: 65, winRate: 0.72, roi: 11.5 },
       { sport: 'NFL', count: 48, winRate: 0.69, roi: 9.8 },
       { sport: 'MLB', count: 32, winRate: 0.66, roi: 7.2 },
       { sport: 'NHL', count: 28, winRate: 0.64, roi: 6.5 },
-      { sport: 'NCAAB', count: 15, winRate: 0.60, roi: 4.8 }
+      { sport: 'NCAAB', count: 15, winRate: 0.6, roi: 4.8 },
     ];
   }
 
-  private generateConfidenceChartData(): Array<{ range: string; count: number; winRate: number; roi: number }> {
+  private generateConfidenceChartData(): Array<{
+    range: string;
+    count: number;
+    winRate: number;
+    roi: number;
+  }> {
     return [
       { range: '80%+', count: 25, winRate: 0.84, roi: 15.2 },
       { range: '70-80%', count: 45, winRate: 0.73, roi: 10.8 },
       { range: '60-70%', count: 65, winRate: 0.65, roi: 6.5 },
-      { range: '<60%', count: 23, winRate: 0.48, roi: -2.1 }
+      { range: '<60%', count: 23, winRate: 0.48, roi: -2.1 },
     ];
   }
 
-  private generateOddsChartData(): Array<{ range: string; count: number; winRate: number; roi: number }> {
+  private generateOddsChartData(): Array<{
+    range: string;
+    count: number;
+    winRate: number;
+    roi: number;
+  }> {
     return [
       { range: '-200 to -150', count: 18, winRate: 0.78, roi: 8.5 },
       { range: '-150 to -110', count: 52, winRate: 0.71, roi: 9.2 },
       { range: '-110 to +110', count: 68, winRate: 0.68, roi: 10.1 },
       { range: '+110 to +200', count: 35, winRate: 0.63, roi: 11.8 },
-      { range: '+200+', count: 15, winRate: 0.53, roi: 15.2 }
+      { range: '+200+', count: 15, winRate: 0.53, roi: 15.2 },
     ];
   }
 
-  private async generatePerformanceMetrics(_timeframe: string): Promise<AdvancedPerformanceMetrics> {
+  private async generatePerformanceMetrics(
+    _timeframe: string
+  ): Promise<AdvancedPerformanceMetrics> {
     // Simplified performance metrics generation
     return {
       totalPicks: 178,
@@ -656,28 +688,28 @@ export class DashboardAPI {
         longestLoseStreak: 4,
         currentStreak: { type: 'win', count: 5 },
         avgWinStreak: 6.2,
-        avgLoseStreak: 2.8
+        avgLoseStreak: 2.8,
       },
       oddsAnalysis: {
         favoritePerformance: { winRate: 0.74, roi: 8.5, count: 85 },
         underdogPerformance: { winRate: 0.68, roi: 12.8, count: 93 },
-        sweetSpot: { oddsRange: '-110 to +110', winRate: 0.68, roi: 10.1 }
+        sweetSpot: { oddsRange: '-110 to +110', winRate: 0.68, roi: 10.1 },
       },
       confidenceAnalysis: {
         highConfidence: { winRate: 0.84, roi: 15.2, count: 25 },
         mediumConfidence: { winRate: 0.73, roi: 10.8, count: 45 },
-        lowConfidence: { winRate: 0.48, roi: -2.1, count: 23 }
+        lowConfidence: { winRate: 0.48, roi: -2.1, count: 23 },
       },
       modelAccuracy: {
         neuralNetwork: 0.82,
         gradientBoosting: 0.85,
         randomForest: 0.78,
         ensemble: 0.87,
-        overallAgreement: 0.83
+        overallAgreement: 0.83,
       },
       topFeatures: [
         { feature: 'expectedValue', importance: 0.25, correlation: 0.78, performance: 0.82 },
-        { feature: 'marketIntelligence', importance: 0.20, correlation: 0.72, performance: 0.79 }
+        { feature: 'marketIntelligence', importance: 0.2, correlation: 0.72, performance: 0.79 },
       ],
       projectedPerformance: {
         nextMonth: { expectedROI: 11.2, confidence: 0.75 },
@@ -685,9 +717,9 @@ export class DashboardAPI {
         riskAdjustedTargets: {
           conservative: 7.5,
           moderate: 10.5,
-          aggressive: 13.8
-        }
-      }
+          aggressive: 13.8,
+        },
+      },
     };
   }
 
@@ -701,14 +733,14 @@ export class DashboardAPI {
     minConfidence?: number;
   }): Promise<Partial<DashboardData>> {
     const fullData = await this.getDashboardData();
-    
+
     // Apply filters to current picks
     let filteredPicks = fullData.currentPicks;
-    
+
     if (filters.sport) {
       filteredPicks = filteredPicks.filter(pick => pick.sport === filters.sport);
     }
-    
+
     if (filters.tier) {
       filteredPicks = filteredPicks.filter(pick => pick.tier === filters.tier);
     }
@@ -719,7 +751,7 @@ export class DashboardAPI {
 
     return {
       ...fullData,
-      currentPicks: filteredPicks
+      currentPicks: filteredPicks,
     };
   }
 
@@ -728,11 +760,11 @@ export class DashboardAPI {
    */
   public async exportData(format: 'json' | 'csv' = 'json'): Promise<string> {
     const data = await this.getDashboardData();
-    
+
     if (format === 'json') {
       return JSON.stringify(data, null, 2);
     }
-    
+
     // CSV export would be implemented here
     return 'CSV export not implemented yet';
   }

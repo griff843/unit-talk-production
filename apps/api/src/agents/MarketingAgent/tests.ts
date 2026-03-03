@@ -13,23 +13,26 @@ describe('MarketingAgent', () => {
     // Initialize MarketingAgent for testing
     const mockLogger = makeLogger('TestMarketingAgent');
     const mockErrorHandler = new ErrorHandler('TestMarketingAgent', {} as any);
-    
+
     const mockDependencies: BaseAgentDependencies = {
       supabase: {} as any,
       logger: mockLogger,
-      errorHandler: mockErrorHandler
+      errorHandler: mockErrorHandler,
     };
 
-    marketingAgent = new MarketingAgent({
-      name: 'TestMarketingAgent',
-      version: '1.0.0',
-      enabled: true,
-      logLevel: 'info',
-      metrics: {
+    marketingAgent = new MarketingAgent(
+      {
+        name: 'TestMarketingAgent',
+        version: '1.0.0',
         enabled: true,
-        interval: 60000
-      }
-    }, mockDependencies);
+        logLevel: 'info',
+        metrics: {
+          enabled: true,
+          interval: 60000,
+        },
+      },
+      mockDependencies
+    );
   });
 
   it('should initialize correctly', () => {

@@ -3,20 +3,14 @@
 /**
  * Tenant Analytics Component
  * Multi-tenant usage metrics, cost analysis, and performance tracking
- * 
+ *
  * Phase 15: Analytics & Monetization Layer - Data Systems Engineering Approach
  * Date: 2025-01-25
  */
 
-import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Loader2, Users, DollarSign, Activity, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -32,7 +26,9 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { Loader2, Users, DollarSign, Activity, TrendingUp } from 'lucide-react';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
 
 interface TenantMetrics {
   tenantId: string;
@@ -105,7 +101,9 @@ export function TenantAnalytics() {
 
     const { data, error } = await supabase
       .from('tenant_usage')
-      .select('tenant_id, user_id, event_type, cost_cents, timestamp, users!tenant_usage_user_id_fkey (username)')
+      .select(
+        'tenant_id, user_id, event_type, cost_cents, timestamp, users!tenant_usage_user_id_fkey (username)'
+      )
       .gte('timestamp', startTime)
       .order('timestamp', { ascending: false });
 
@@ -143,7 +141,9 @@ export function TenantAnalytics() {
       }
     });
 
-    setTenantMetrics(Array.from(tenantMap.values()).sort((a, b) => b.totalCostCents - a.totalCostCents));
+    setTenantMetrics(
+      Array.from(tenantMap.values()).sort((a, b) => b.totalCostCents - a.totalCostCents)
+    );
   }
 
   async function loadAPIMetrics() {
@@ -205,7 +205,14 @@ export function TenantAnalytics() {
         ? apiMetrics.reduce((sum, m) => sum + m.avgLatencyMs, 0) / apiMetrics.length
         : 0;
 
-    setStats({ activeTenants, totalEvents, totalRevenueCents, avgCostPerTenant, errorRate, avgLatencyMs });
+    setStats({
+      activeTenants,
+      totalEvents,
+      totalRevenueCents,
+      avgCostPerTenant,
+      errorRate,
+      avgLatencyMs,
+    });
   }
 
   if (loading && tenantMetrics.length === 0) {
@@ -220,7 +227,7 @@ export function TenantAnalytics() {
     <div className="space-y-6">
       {/* Period Selector */}
       <div className="flex justify-end gap-2">
-        {(['24h', '7d', '30d'] as const).map((period) => (
+        {(['24h', '7d', '30d'] as const).map(period => (
           <button
             key={period}
             onClick={() => setSelectedPeriod(period)}
@@ -304,7 +311,7 @@ export function TenantAnalytics() {
                 </tr>
               </thead>
               <tbody>
-                {tenantMetrics.map((tenant) => (
+                {tenantMetrics.map(tenant => (
                   <tr key={tenant.tenantId} className="border-b hover:bg-muted/50">
                     <td className="p-2 font-medium">{tenant.username}</td>
                     <td className="text-right p-2">{tenant.totalEvents.toLocaleString()}</td>
@@ -335,7 +342,15 @@ export function TenantAnalytics() {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-                <Pie data={usageBreakdown} dataKey="count" nameKey="eventType" cx="50%" cy="50%" outerRadius={100} label>
+                <Pie
+                  data={usageBreakdown}
+                  dataKey="count"
+                  nameKey="eventType"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label
+                >
                   {usageBreakdown.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
@@ -355,9 +370,9 @@ export function TenantAnalytics() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={apiMetrics}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" tickFormatter={(v) => new Date(v).toLocaleTimeString()} />
+                <XAxis dataKey="hour" tickFormatter={v => new Date(v).toLocaleTimeString()} />
                 <YAxis label={{ value: 'ms', angle: -90, position: 'insideLeft' }} />
-                <Tooltip labelFormatter={(v) => new Date(v).toLocaleString()} />
+                <Tooltip labelFormatter={v => new Date(v).toLocaleString()} />
                 <Legend />
                 <Line type="monotone" dataKey="avgLatencyMs" stroke="#8884d8" name="Avg" />
                 <Line type="monotone" dataKey="p95LatencyMs" stroke="#82ca9d" name="P95" />
@@ -369,4 +384,3 @@ export function TenantAnalytics() {
     </div>
   );
 }
-

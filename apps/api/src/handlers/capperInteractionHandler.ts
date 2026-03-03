@@ -1,8 +1,8 @@
-import { 
-  Interaction, 
-  StringSelectMenuInteraction, 
-  ModalSubmitInteraction, 
-  ButtonInteraction 
+import {
+  Interaction,
+  StringSelectMenuInteraction,
+  ModalSubmitInteraction,
+  ButtonInteraction,
 } from 'discord.js';
 
 import * as capperOnboardCommand from '../commands/capper-onboard';
@@ -22,11 +22,11 @@ export async function handleCapperInteraction(interaction: Interaction) {
     }
   } catch (error) {
     logger.error('Error handling capper interaction', { error });
-    
+
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
       await interaction.reply({
         content: '❌ An error occurred while processing your request.',
-        ephemeral: true
+        ephemeral: true,
       });
     }
   }
@@ -46,7 +46,7 @@ async function handleSelectMenuInteraction(interaction: StringSelectMenuInteract
       logger.warn('Unknown select menu interaction', { customId });
       await interaction.reply({
         content: '❌ Unknown selection menu.',
-        ephemeral: true
+        ephemeral: true,
       });
   }
 }
@@ -64,7 +64,7 @@ async function handleModalSubmitInteraction(interaction: ModalSubmitInteraction)
     logger.warn('Unknown modal submit interaction', { customId });
     await interaction.reply({
       content: '❌ Unknown modal submission.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }
@@ -78,7 +78,7 @@ async function handleButtonInteraction(interaction: ButtonInteraction) {
     logger.warn('Unknown button interaction', { customId });
     await interaction.reply({
       content: '❌ Unknown button interaction.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }

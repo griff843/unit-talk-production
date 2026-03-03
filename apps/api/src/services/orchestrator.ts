@@ -2,10 +2,10 @@ import { EnhancedMLPipeline } from '../ml/enhanced-pipeline';
 import { EnhancedMonitoringSystem } from '../monitoring/enhanced-monitoring';
 import { EnhancedRiskManager } from '../risk/enhanced-risk-manager';
 import { logger } from '../shared/logger';
-import { 
+import {
   PortfolioPositionType as PortfolioPosition,
   PredictionResult,
-  SystemStatus
+  SystemStatus,
 } from '../types';
 import { RiskMetrics } from '../types/risk';
 
@@ -31,17 +31,13 @@ export class SystemOrchestrator {
         components: {
           monitoring: 'initializing',
           ml: 'initializing',
-          risk: 'initializing'
+          risk: 'initializing',
         },
-        lastUpdate: new Date().toISOString()
+        lastUpdate: new Date().toISOString(),
       };
 
       // Initialize core systems
-      await Promise.all([
-        this.initializeMonitoring(),
-        this.initializeML(),
-        this.initializeRisk()
-      ]);
+      await Promise.all([this.initializeMonitoring(), this.initializeML(), this.initializeRisk()]);
 
       this.systemStatus.status = 'ready';
       this.logger.info('System initialization complete');
@@ -67,11 +63,11 @@ export class SystemOrchestrator {
       // 2. Enhance position with prediction
       const enhancedPosition: PortfolioPosition = {
         ...position,
-        confidence: prediction.confidence
+        confidence: prediction.confidence,
       };
 
       // 3. Evaluate risk
-      const riskMetrics = await this.riskManager.validatePosition(enhancedPosition as any) as any;
+      const riskMetrics = (await this.riskManager.validatePosition(enhancedPosition as any)) as any;
 
       // 4. Generate recommendation
       const recommendation = this.generateRecommendation(prediction, riskMetrics as any);
@@ -84,7 +80,7 @@ export class SystemOrchestrator {
       return {
         prediction,
         risk: riskMetrics,
-        recommendation
+        recommendation,
       };
     } catch (error) {
       this.logger.error('Position evaluation failed', error);
@@ -100,27 +96,31 @@ export class SystemOrchestrator {
       const monitoringHealth = { status: 'healthy' };
 
       this.systemStatus = {
-        status: this.determineOverallStatus(mlHealth.status, riskHealth.status, monitoringHealth.status),
+        status: this.determineOverallStatus(
+          mlHealth.status,
+          riskHealth.status,
+          monitoringHealth.status
+        ),
         components: {
           monitoring: monitoringHealth.status,
           ml: mlHealth.status,
-          risk: riskHealth.status
+          risk: riskHealth.status,
         },
         lastUpdate: new Date().toISOString(),
         metrics: {
           prediction: {
             accuracy: mlHealth.metrics.accuracy,
-            latency: mlHealth.metrics.latency
+            latency: mlHealth.metrics.latency,
           },
           risk: {
             exposure: riskHealth.metrics.totalExposure,
-            violations: riskHealth.metrics.limitViolations
+            violations: riskHealth.metrics.limitViolations,
           },
           system: {
             uptime: process.uptime(),
-            memory: process.memoryUsage()
-          }
-        }
+            memory: process.memoryUsage(),
+          },
+        },
       };
 
       return this.systemStatus;
@@ -140,10 +140,7 @@ export class SystemOrchestrator {
     return 'healthy';
   }
 
-  private generateRecommendation(
-    prediction: PredictionResult,
-    risk: RiskMetrics
-  ): string {
+  private generateRecommendation(prediction: PredictionResult, risk: RiskMetrics): string {
     // Implement sophisticated recommendation logic
     if (prediction.confidence > 0.85 && (risk as any).totalRisk < 0.1) {
       return 'STRONG_BUY';
@@ -188,4 +185,4 @@ export class SystemOrchestrator {
       throw error;
     }
   }
-} 
+}

@@ -13,11 +13,7 @@
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import {
-  OpsIncidentRouter,
-  IncidentRecord,
-  RoutingDecision,
-} from '../../services/ops/OpsIncidentRouter';
+
 import {
   buildIncidentEmbed,
   buildDigestEmbed,
@@ -25,6 +21,11 @@ import {
   buildDigestContent,
   OpsDigestData,
 } from '../../services/ops/OpsDiscordEmbedBuilder';
+import {
+  OpsIncidentRouter,
+  IncidentRecord,
+  RoutingDecision,
+} from '../../services/ops/OpsIncidentRouter';
 
 // ============================================================================
 // Test Data
@@ -74,8 +75,20 @@ const createMockDigestData = (overrides?: Partial<OpsDigestData>): OpsDigestData
     error_rate: 0.5,
   },
   sloHealthSummary: [
-    { slo_id: 'slo-1', slo_name: 'API Latency', current_status: 'GREEN', last_evaluation: new Date().toISOString(), week_incidents: 2 },
-    { slo_id: 'slo-2', slo_name: 'Error Rate', current_status: 'YELLOW', last_evaluation: new Date().toISOString(), week_incidents: 3 },
+    {
+      slo_id: 'slo-1',
+      slo_name: 'API Latency',
+      current_status: 'GREEN',
+      last_evaluation: new Date().toISOString(),
+      week_incidents: 2,
+    },
+    {
+      slo_id: 'slo-2',
+      slo_name: 'Error Rate',
+      current_status: 'YELLOW',
+      last_evaluation: new Date().toISOString(),
+      week_incidents: 3,
+    },
   ],
   ...overrides,
 });
@@ -109,7 +122,11 @@ describe('OpsIncidentRouter', () => {
             }
           }
 
-          if (this.config.notionEnabled && this.config.notionApiKey && this.config.notionDatabaseId) {
+          if (
+            this.config.notionEnabled &&
+            this.config.notionApiKey &&
+            this.config.notionDatabaseId
+          ) {
             destinations.push('notion');
           }
 
@@ -151,7 +168,11 @@ describe('OpsIncidentRouter', () => {
             }
           }
 
-          if (this.config.notionEnabled && this.config.notionApiKey && this.config.notionDatabaseId) {
+          if (
+            this.config.notionEnabled &&
+            this.config.notionApiKey &&
+            this.config.notionDatabaseId
+          ) {
             destinations.push('notion');
           }
 
@@ -193,7 +214,11 @@ describe('OpsIncidentRouter', () => {
             }
           }
 
-          if (this.config.notionEnabled && this.config.notionApiKey && this.config.notionDatabaseId) {
+          if (
+            this.config.notionEnabled &&
+            this.config.notionApiKey &&
+            this.config.notionDatabaseId
+          ) {
             destinations.push('notion');
           }
 
@@ -234,7 +259,11 @@ describe('OpsIncidentRouter', () => {
             }
           }
 
-          if (this.config.notionEnabled && this.config.notionApiKey && this.config.notionDatabaseId) {
+          if (
+            this.config.notionEnabled &&
+            this.config.notionApiKey &&
+            this.config.notionDatabaseId
+          ) {
             destinations.push('notion');
           }
 
@@ -275,7 +304,11 @@ describe('OpsIncidentRouter', () => {
             }
           }
 
-          if (this.config.notionEnabled && this.config.notionApiKey && this.config.notionDatabaseId) {
+          if (
+            this.config.notionEnabled &&
+            this.config.notionApiKey &&
+            this.config.notionDatabaseId
+          ) {
             destinations.push('notion');
           }
 
@@ -327,7 +360,7 @@ describe('OpsDiscordEmbedBuilder', () => {
       });
 
       const embedData = embed.toJSON();
-      expect(embedData.color).toBe(0xFF0000); // Red
+      expect(embedData.color).toBe(0xff0000); // Red
     });
 
     it('should use orange color for warning incidents', () => {
@@ -339,7 +372,7 @@ describe('OpsDiscordEmbedBuilder', () => {
       });
 
       const embedData = embed.toJSON();
-      expect(embedData.color).toBe(0xFFA500); // Orange
+      expect(embedData.color).toBe(0xffa500); // Orange
     });
 
     it('should use green color for resolved incidents', () => {
@@ -355,7 +388,7 @@ describe('OpsDiscordEmbedBuilder', () => {
       });
 
       const embedData = embed.toJSON();
-      expect(embedData.color).toBe(0x00FF00); // Green
+      expect(embedData.color).toBe(0x00ff00); // Green
     });
 
     it('should include traceability in footer', () => {

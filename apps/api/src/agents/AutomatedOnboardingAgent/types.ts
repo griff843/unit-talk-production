@@ -115,7 +115,12 @@ export interface ConversionSignal {
 }
 
 export interface InterventionType {
-  type: 'confusion_help' | 'engagement_boost' | 'conversion_prompt' | 'churn_prevention' | 'learning_acceleration';
+  type:
+    | 'confusion_help'
+    | 'engagement_boost'
+    | 'conversion_prompt'
+    | 'churn_prevention'
+    | 'learning_acceleration';
   urgency: 'low' | 'medium' | 'high' | 'critical';
   timing: 'immediate' | 'scheduled' | 'optimal_moment';
   method: 'dm' | 'channel_mention' | 'guided_tutorial' | 'human_handoff';

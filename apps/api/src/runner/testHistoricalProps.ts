@@ -1,9 +1,9 @@
 /**
  * Historical Props Testing Framework
- * 
+ *
  * Tests the professional betting system against historical props to validate
  * scoring accuracy and ensure all Non-Negotiable Sharp Grading Rules are followed.
- * 
+ *
  * Usage: npx tsx src/runner/testHistoricalProps.ts
  */
 
@@ -59,43 +59,37 @@ class HistoricalPropsTester {
   private testResults: HistoricalTestResult[] = [];
 
   constructor() {
-    this.supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
+    this.supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
   }
 
   async initialize(): Promise<void> {
     logger.info('🧪 Initializing Historical Props Testing Framework');
-    
+
     // Initialize grading agent for testing
     this.gradingAgent = new GradingAgent(
       { name: 'TestGradingAgent', enabled: true },
       { supabase: this.supabase, logger }
     );
-    
+
     await this.gradingAgent.initialize();
     logger.info('✅ Testing framework initialized');
   }
 
-  async runFullTest(options: {
-    sampleSize?: number;
-    minDaysOld?: number;
-    onlySettled?: boolean;
-    testParlays?: boolean;
-  } = {}): Promise<TestSummary> {
-    const {
-      sampleSize = 200,
-      minDaysOld = 7,
-      onlySettled = true,
-      testParlays = true
-    } = options;
+  async runFullTest(
+    options: {
+      sampleSize?: number;
+      minDaysOld?: number;
+      onlySettled?: boolean;
+      testParlays?: boolean;
+    } = {}
+  ): Promise<TestSummary> {
+    const { sampleSize = 200, minDaysOld = 7, onlySettled = true, testParlays = true } = options;
 
     logger.info('🚀 Starting comprehensive historical props test', {
       sampleSize,
       minDaysOld,
       onlySettled,
-      testParlays
+      testParlays,
     });
 
     console.log('\n' + '='.repeat(80));
@@ -109,7 +103,7 @@ class HistoricalPropsTester {
       const historicalProps = await this.fetchHistoricalProps({
         sampleSize,
         minDaysOld,
-        onlySettled
+        onlySettled,
       });
 
       if (historicalProps.length === 0) {
@@ -118,7 +112,9 @@ class HistoricalPropsTester {
       }
 
       console.log(`📊 Testing ${historicalProps.length} historical props`);
-      console.log(`🎯 Validating against ${this.getNonNegotiableRules().length} Sharp Grading Rules\n`);
+      console.log(
+        `🎯 Validating against ${this.getNonNegotiableRules().length} Sharp Grading Rules\n`
+      );
 
       // 2. Process each prop through professional system
       const startTime = Date.now();
@@ -126,16 +122,19 @@ class HistoricalPropsTester {
 
       for (const prop of historicalProps) {
         try {
-          console.log(`Processing ${++processed}/${historicalProps.length}: ${prop.id.slice(0, 8)}...`);
-          
+          console.log(
+            `Processing ${++processed}/${historicalProps.length}: ${prop.id.slice(0, 8)}...`
+          );
+
           const testResult = await this.testSingleProp(prop);
           this.testResults.push(testResult);
 
           // Show progress every 25 props
           if (processed % 25 === 0) {
-            console.log(`✅ Progress: ${processed}/${historicalProps.length} (${((processed/historicalProps.length)*100).toFixed(1)}%)`);
+            console.log(
+              `✅ Progress: ${processed}/${historicalProps.length} (${((processed / historicalProps.length) * 100).toFixed(1)}%)`
+            );
           }
-
         } catch (error) {
           logger.error('Failed to test prop', { propId: prop.id, error });
           console.log(`❌ Failed to test prop ${prop.id}: ${error}`);
@@ -143,10 +142,10 @@ class HistoricalPropsTester {
       }
 
       const totalTime = Date.now() - startTime;
-      
+
       // 3. Analyze results and generate comprehensive summary
       const summary = await this.analyzeResults();
-      
+
       // 4. Display detailed results
       this.displayDetailedResults(summary, totalTime);
 
@@ -156,7 +155,6 @@ class HistoricalPropsTester {
       }
 
       return summary;
-
     } catch (error) {
       logger.error('Historical props test failed', error);
       console.error('❌ TEST FAILED:', error);
@@ -170,7 +168,7 @@ class HistoricalPropsTester {
     onlySettled: boolean;
   }): Promise<any[]> {
     const { sampleSize, minDaysOld, onlySettled } = options;
-    
+
     let query = this.supabase
       .from('raw_props_historical')
       .select('*')
@@ -197,15 +195,14 @@ class HistoricalPropsTester {
 
     // 🆕 CRITICAL: Process through professional system (Rule #1)
     const professionalResults = await professionalPropProcessor.processRawProps({
-        max_batch_size: 1,
-        auto_approve_threshold: 3.0,
-        timeout_ms: 10000
-      }
-    );
+      max_batch_size: 1,
+      auto_approve_threshold: 3.0,
+      timeout_ms: 10000,
+    });
 
     // Extract first result (array of results)
     const professionalResult = professionalResults[0];
-    
+
     // Validate rule compliance
     const ruleCompliance = await this.checkRuleCompliance(propForProcessing, professionalResult);
 
@@ -222,7 +219,7 @@ class HistoricalPropsTester {
       scoreAccuracy,
       edgeAccuracy,
       clvPerformance,
-      ruleCompliance
+      ruleCompliance,
     };
   }
 
@@ -230,21 +227,22 @@ class HistoricalPropsTester {
     const rules = {
       // Rule 1: Devigging applied to ALL odds
       deviggingApplied: result.devigged_edge !== undefined && result.devigged_edge !== 0,
-      
+
       // Rule 2: CLV tracking started for every pick
       clvTrackingStarted: result.clv_tracking_id !== undefined && result.clv_tracking_id !== null,
-      
+
       // Rule 3: Professional grading used (not basic grading)
-      professionalGradingUsed: result.professionalScore !== undefined && result.feature_contributions !== undefined,
-      
+      professionalGradingUsed:
+        result.professionalScore !== undefined && result.feature_contributions !== undefined,
+
       // Rule 4: Kelly fraction calculated
       kellyFractionCalculated: result.kelly_fraction !== undefined && result.kelly_fraction > 0,
-      
+
       // Rule 5: All odds processed (over/under if available)
       allOddsProcessed: this.validateAllOddsProcessed(prop, result),
-      
+
       // Rule 6: Universal processing (no bypassing)
-      universalProcessing: result.processing_time !== undefined && result.processing_time > 0
+      universalProcessing: result.processing_time !== undefined && result.processing_time > 0,
     };
 
     const passedRules = Object.values(rules).filter(Boolean).length;
@@ -253,7 +251,7 @@ class HistoricalPropsTester {
 
     return {
       ...rules,
-      complianceScore
+      complianceScore,
     };
   }
 
@@ -261,66 +259,67 @@ class HistoricalPropsTester {
     // Check if both over/under odds were processed if available
     const hasOverOdds = prop.over_odds && prop.over_odds !== 0;
     const hasUnderOdds = prop.under_odds && prop.under_odds !== 0;
-    
+
     if (hasOverOdds && hasUnderOdds) {
       // Both odds should be reflected in devigged calculations
-      return result.professional_insights?.devigging?.over_implied_prob !== undefined &&
-             result.professional_insights?.devigging?.under_implied_prob !== undefined;
+      return (
+        result.professional_insights?.devigging?.over_implied_prob !== undefined &&
+        result.professional_insights?.devigging?.under_implied_prob !== undefined
+      );
     }
-    
+
     return true; // Single-sided markets are acceptable
   }
 
   private calculateScoreAccuracy(result: any, historical: any): number {
     if (!historical.outcome) return 0;
-    
+
     // Higher professional scores should correlate with winning picks
     const isWin = historical.outcome === 'win';
     const professional_score = result.professionalScore || 0;
-    
+
     // Score accuracy: how well does professional_score predict outcomes
     if (isWin && professional_score >= 3.0) return 100; // High professional_score, win = excellent
     if (!isWin && professional_score <= 2.0) return 100; // Low professional_score, loss = excellent
     if (isWin && professional_score >= 2.5) return 75; // Decent professional_score, win = good
     if (!isWin && professional_score <= 2.5) return 75; // Decent professional_score, loss = good
-    
+
     return 25; // Poor correlation
   }
 
   private calculateEdgeAccuracy(result: any, historical: any): number {
     if (!historical.outcome || !result.devigged_edge) return 0;
-    
+
     const edge = result.devigged_edge;
     const isWin = historical.outcome === 'win';
-    
+
     // Edge accuracy: positive edge should lead to wins
     if (edge > 0.05 && isWin) return 100; // Strong positive edge, win
     if (edge < -0.05 && !isWin) return 100; // Strong negative edge, loss
     if (edge > 0.02 && isWin) return 75; // Moderate positive edge, win
     if (edge < -0.02 && !isWin) return 75; // Moderate negative edge, loss
-    
+
     return Math.max(0, 50 - Math.abs(edge * 1000)); // Diminishing returns
   }
 
   private async calculateCLVPerformance(result: any, historical: any): Promise<number> {
     if (!result.clv_tracking_id) return 0;
-    
+
     try {
       // Simulate CLV calculation (would normally come from CLV service)
       const openingLine = historical.line || result.professional_insights?.opening_line;
       const closingLine = historical.closing_line || openingLine;
-      
+
       if (!openingLine || !closingLine) return 50;
-      
+
       const clv = (closingLine - openingLine) / openingLine;
-      
+
       // Positive CLV indicates we got better than closing line
       if (clv > 0.05) return 100; // Excellent CLV
-      if (clv > 0.02) return 80;  // Good CLV
+      if (clv > 0.02) return 80; // Good CLV
       if (clv > -0.02) return 60; // Neutral CLV
       if (clv > -0.05) return 40; // Poor CLV
       return 20; // Very poor CLV
-      
     } catch (error) {
       logger.warn('Failed to calculate CLV performance', { error });
       return 0;
@@ -343,7 +342,7 @@ class HistoricalPropsTester {
       // Add required fields with defaults
       source: 'historical_test',
       market_type: historical.market_type || 'player_props',
-      book: historical.book || 'aggregated'
+      book: historical.book || 'aggregated',
     };
   }
 
@@ -353,27 +352,32 @@ class HistoricalPropsTester {
     }
 
     const results = this.testResults;
-    
+
     // Calculate averages
     const avgScoreAccuracy = results.reduce((sum, r) => sum + r.scoreAccuracy, 0) / results.length;
     const avgEdgeAccuracy = results.reduce((sum, r) => sum + r.edgeAccuracy, 0) / results.length;
-    const avgCLVPerformance = results.reduce((sum, r) => sum + r.clvPerformance, 0) / results.length;
-    const ruleComplianceRate = results.reduce((sum, r) => sum + r.ruleCompliance.complianceScore, 0) / results.length;
+    const avgCLVPerformance =
+      results.reduce((sum, r) => sum + r.clvPerformance, 0) / results.length;
+    const ruleComplianceRate =
+      results.reduce((sum, r) => sum + r.ruleCompliance.complianceScore, 0) / results.length;
 
     // Calculate performance metrics
     const settledResults = results.filter(r => r.actualOutcome);
-    const winRate = settledResults.length > 0 ? 
-      (settledResults.filter(r => r.actualOutcome === 'win').length / settledResults.length) * 100 : 0;
+    const winRate =
+      settledResults.length > 0
+        ? (settledResults.filter(r => r.actualOutcome === 'win').length / settledResults.length) *
+          100
+        : 0;
 
     // Calculate profitability (simplified)
     const profitability = settledResults.reduce((profit, result) => {
       if (!result.actualOutcome) return profit;
-      
+
       const kellyFraction = result.professionalResult.kelly_fraction || 0.02;
       const odds = result.originalData.over_odds || result.originalData.under_odds || 100;
-      
+
       if (result.actualOutcome === 'win') {
-        return profit + (kellyFraction * (odds - 100) / 100);
+        return profit + (kellyFraction * (odds - 100)) / 100;
       } else if (result.actualOutcome === 'loss') {
         return profit - kellyFraction;
       }
@@ -391,36 +395,47 @@ class HistoricalPropsTester {
       ruleComplianceRate,
       winRate,
       profitability: profitability * 100, // Convert to percentage
-      recommendations
+      recommendations,
     };
   }
 
   private generateRecommendations(results: HistoricalTestResult[]): string[] {
     const recommendations: string[] = [];
-    
-    const avgCompliance = results.reduce((sum, r) => sum + r.ruleCompliance.complianceScore, 0) / results.length;
+
+    const avgCompliance =
+      results.reduce((sum, r) => sum + r.ruleCompliance.complianceScore, 0) / results.length;
     if (avgCompliance < 90) {
-      recommendations.push('Improve rule compliance - some props not receiving full professional treatment');
+      recommendations.push(
+        'Improve rule compliance - some props not receiving full professional treatment'
+      );
     }
-    
+
     const avgScoreAccuracy = results.reduce((sum, r) => sum + r.scoreAccuracy, 0) / results.length;
     if (avgScoreAccuracy < 60) {
-      recommendations.push('Professional scoring accuracy needs improvement - consider weight adjustments');
+      recommendations.push(
+        'Professional scoring accuracy needs improvement - consider weight adjustments'
+      );
     }
-    
+
     const avgCLV = results.reduce((sum, r) => sum + r.clvPerformance, 0) / results.length;
     if (avgCLV < 60) {
-      recommendations.push('CLV performance below target - review line shopping and timing strategies');
+      recommendations.push(
+        'CLV performance below target - review line shopping and timing strategies'
+      );
     }
-    
+
     const deviggingFailures = results.filter(r => !r.ruleCompliance.deviggingApplied).length;
     if (deviggingFailures > 0) {
-      recommendations.push(`${deviggingFailures} props did not receive devigging - critical rule violation`);
+      recommendations.push(
+        `${deviggingFailures} props did not receive devigging - critical rule violation`
+      );
     }
-    
+
     const clvFailures = results.filter(r => !r.ruleCompliance.clvTrackingStarted).length;
     if (clvFailures > 0) {
-      recommendations.push(`${clvFailures} props missing CLV tracking - implement universal tracking`);
+      recommendations.push(
+        `${clvFailures} props missing CLV tracking - implement universal tracking`
+      );
     }
 
     if (recommendations.length === 0) {
@@ -444,7 +459,7 @@ class HistoricalPropsTester {
 
     console.log('\n📋 RULE COMPLIANCE:');
     console.log(`Overall Compliance: ${summary.ruleComplianceRate.toFixed(1)}%`);
-    
+
     // Show individual rule compliance
     const ruleBreakdown = this.calculateRuleBreakdown();
     Object.entries(ruleBreakdown).forEach(([rule, percentage]) => {
@@ -454,7 +469,9 @@ class HistoricalPropsTester {
 
     console.log('\n💰 PERFORMANCE METRICS:');
     console.log(`Win Rate: ${summary.winRate.toFixed(1)}%`);
-    console.log(`Profitability: ${summary.profitability > 0 ? '+' : ''}${summary.profitability.toFixed(2)}%`);
+    console.log(
+      `Profitability: ${summary.profitability > 0 ? '+' : ''}${summary.profitability.toFixed(2)}%`
+    );
 
     console.log('\n💡 RECOMMENDATIONS:');
     summary.recommendations.forEach(rec => {
@@ -466,7 +483,9 @@ class HistoricalPropsTester {
     if (violations.length > 0) {
       console.log('\n⚠️ RULE VIOLATIONS DETECTED:');
       violations.slice(0, 5).forEach(violation => {
-        console.log(`• Prop ${violation.propId.slice(0, 8)}: ${violation.ruleCompliance.complianceScore.toFixed(0)}% compliance`);
+        console.log(
+          `• Prop ${violation.propId.slice(0, 8)}: ${violation.ruleCompliance.complianceScore.toFixed(0)}% compliance`
+        );
       });
       if (violations.length > 5) {
         console.log(`  ... and ${violations.length - 5} more violations`);
@@ -491,7 +510,7 @@ class HistoricalPropsTester {
       'Professional Grading': 0,
       'Kelly Fraction Calculated': 0,
       'All Odds Processed': 0,
-      'Universal Processing': 0
+      'Universal Processing': 0,
     };
 
     this.testResults.forEach(result => {
@@ -515,7 +534,7 @@ class HistoricalPropsTester {
   private async testParlayProcessing(): Promise<void> {
     console.log('\n🎲 TESTING PARLAY PROCESSING:');
     console.log('='.repeat(40));
-    
+
     // Create mock parlay from historical props
     const sampleProps = this.testResults.slice(0, 3);
     if (sampleProps.length < 2) {
@@ -524,19 +543,22 @@ class HistoricalPropsTester {
     }
 
     console.log(`Testing ${sampleProps.length}-leg parlay professional processing...`);
-    
+
     // Simulate parlay processing
     const parlayLegs = sampleProps.map(prop => ({
       propId: prop.propId,
       professionalScore: prop.professionalResult.professionalScore,
       devigged_edge: prop.professionalResult.devigged_edge,
-      kelly_fraction: prop.professionalResult.kelly_fraction
+      kelly_fraction: prop.professionalResult.kelly_fraction,
     }));
 
     // Calculate combined parlay metrics
-    const combinedEdge = parlayLegs.reduce((sum, leg) => sum + leg.devigged_edge, 0) / parlayLegs.length;
-    const avgScore = parlayLegs.reduce((sum, leg) => sum + leg.professionalScore, 0) / parlayLegs.length;
-    const combinedKelly = parlayLegs.reduce((sum, leg) => sum + leg.kelly_fraction, 0) / parlayLegs.length * 0.5; // Reduce for correlation
+    const combinedEdge =
+      parlayLegs.reduce((sum, leg) => sum + leg.devigged_edge, 0) / parlayLegs.length;
+    const avgScore =
+      parlayLegs.reduce((sum, leg) => sum + leg.professionalScore, 0) / parlayLegs.length;
+    const combinedKelly =
+      (parlayLegs.reduce((sum, leg) => sum + leg.kelly_fraction, 0) / parlayLegs.length) * 0.5; // Reduce for correlation
 
     console.log(`✅ Parlay professional processing validated`);
     console.log(`Combined Devigged Edge: ${(combinedEdge * 100).toFixed(2)}%`);
@@ -554,7 +576,7 @@ class HistoricalPropsTester {
       ruleComplianceRate: 0,
       winRate: 0,
       profitability: 0,
-      recommendations: ['No historical props available for testing']
+      recommendations: ['No historical props available for testing'],
     };
   }
 
@@ -569,7 +591,7 @@ class HistoricalPropsTester {
       'Parlay legs receive individual professional treatment',
       'Round robin combinations get full analysis',
       'Risk assessment includes correlation analysis',
-      'Performance feedback loops active'
+      'Performance feedback loops active',
     ];
   }
 }
@@ -577,15 +599,15 @@ class HistoricalPropsTester {
 // Main execution
 async function main() {
   const tester = new HistoricalPropsTester();
-  
+
   try {
     await tester.initialize();
-    
+
     const summary = await tester.runFullTest({
       sampleSize: 100, // Start with 100 props for initial validation
-      minDaysOld: 7,   // Props at least 7 days old (settled)
+      minDaysOld: 7, // Props at least 7 days old (settled)
       onlySettled: true,
-      testParlays: true
+      testParlays: true,
     });
 
     // Final status
@@ -593,10 +615,11 @@ async function main() {
     console.log(`📊 Total Props: ${summary.totalTested}`);
     console.log(`📈 Rule Compliance: ${summary.ruleComplianceRate.toFixed(1)}%`);
     console.log(`🎯 Score Accuracy: ${summary.avgScoreAccuracy.toFixed(1)}%`);
-    console.log(`💰 Profitability: ${summary.profitability > 0 ? '+' : ''}${summary.profitability.toFixed(2)}%`);
+    console.log(
+      `💰 Profitability: ${summary.profitability > 0 ? '+' : ''}${summary.profitability.toFixed(2)}%`
+    );
 
     process.exit(summary.ruleComplianceRate >= 95 ? 0 : 1);
-
   } catch (error) {
     logger.error('Historical props testing failed', error);
     console.error('❌ TESTING FAILED:', error);

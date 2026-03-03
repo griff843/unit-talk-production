@@ -1,8 +1,9 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+
 import { deriveLifecycleStage, type LifecycleStage } from '@/lib/lifecycleDisplay';
+import { createClient } from '@/lib/supabase';
 
 /**
  * STUCK PICKS API
@@ -14,9 +15,9 @@ import { deriveLifecycleStage, type LifecycleStage } from '@/lib/lifecycleDispla
 
 // Fixed stuck thresholds (in minutes) - non-configurable per sprint constraints
 const STUCK_THRESHOLDS = {
-  submittedToQueued: 5,      // 5 minutes
-  queuedToPosted: 15,        // 15 minutes
-  postedToSettled: 1440,     // 24 hours (1440 minutes)
+  submittedToQueued: 5, // 5 minutes
+  queuedToPosted: 15, // 15 minutes
+  postedToSettled: 1440, // 24 hours (1440 minutes)
 };
 
 interface StuckPick {
@@ -98,7 +99,8 @@ export async function GET(request: NextRequest) {
     const submittedThreshold = new Date(now.getTime() - STUCK_THRESHOLDS.submittedToQueued * 60000);
     const { data: submittedData, error: err1 } = await supabase
       .from('unified_picks')
-      .select(`
+      .select(
+        `
         id,
         selection,
         sport,
@@ -110,7 +112,8 @@ export async function GET(request: NextRequest) {
         posted_to_discord,
         discord_message_id,
         users!unified_picks_user_id_fkey (username)
-      `)
+      `
+      )
       .eq('promotion_status', 'not_promoted')
       .is('blocked_reason', null)
       .is('failed_reason', null)
@@ -133,7 +136,9 @@ export async function GET(request: NextRequest) {
         });
 
         if (stage === 'SUBMITTED') {
-          const stuckMinutes = Math.floor((now.getTime() - new Date(pick.created_at).getTime()) / 60000);
+          const stuckMinutes = Math.floor(
+            (now.getTime() - new Date(pick.created_at).getTime()) / 60000
+          );
           stuckPicks.push({
             pickId: pick.id,
             stage: 'SUBMITTED',
@@ -152,7 +157,8 @@ export async function GET(request: NextRequest) {
     const queuedThreshold = new Date(now.getTime() - STUCK_THRESHOLDS.queuedToPosted * 60000);
     const { data: queuedData, error: err2 } = await supabase
       .from('unified_picks')
-      .select(`
+      .select(
+        `
         id,
         selection,
         sport,
@@ -162,7 +168,8 @@ export async function GET(request: NextRequest) {
         blocked_reason,
         failed_reason,
         users!unified_picks_user_id_fkey (username)
-      `)
+      `
+      )
       .eq('promotion_status', 'queued')
       .eq('posted_to_discord', false)
       .is('blocked_reason', null)
@@ -175,7 +182,9 @@ export async function GET(request: NextRequest) {
 
     if (!err2 && queuedStuck) {
       for (const pick of queuedStuck) {
-        const stuckMinutes = Math.floor((now.getTime() - new Date(pick.promotion_queued_at).getTime()) / 60000);
+        const stuckMinutes = Math.floor(
+          (now.getTime() - new Date(pick.promotion_queued_at).getTime()) / 60000
+        );
         stuckPicks.push({
           pickId: pick.id,
           stage: 'QUEUED',
@@ -193,7 +202,8 @@ export async function GET(request: NextRequest) {
     const postedThreshold = new Date(now.getTime() - STUCK_THRESHOLDS.postedToSettled * 60000);
     const { data: postedData, error: err3 } = await supabase
       .from('unified_picks')
-      .select(`
+      .select(
+        `
         id,
         selection,
         sport,
@@ -203,7 +213,8 @@ export async function GET(request: NextRequest) {
         blocked_reason,
         failed_reason,
         users!unified_picks_user_id_fkey (username)
-      `)
+      `
+      )
       .eq('posted_to_discord', true)
       .eq('settlement_status', 'pending')
       .is('blocked_reason', null)
@@ -216,7 +227,9 @@ export async function GET(request: NextRequest) {
 
     if (!err3 && postedStuck) {
       for (const pick of postedStuck) {
-        const stuckMinutes = Math.floor((now.getTime() - new Date(pick.promotion_posted_at).getTime()) / 60000);
+        const stuckMinutes = Math.floor(
+          (now.getTime() - new Date(pick.promotion_posted_at).getTime()) / 60000
+        );
         stuckPicks.push({
           pickId: pick.id,
           stage: 'POSTED',
@@ -236,10 +249,13 @@ export async function GET(request: NextRequest) {
     // Calculate summary
     const summary: StuckSummary = {
       total: stuckPicks.length,
-      byStage: stuckPicks.reduce((acc, p) => {
-        acc[p.stage] = (acc[p.stage] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
+      byStage: stuckPicks.reduce(
+        (acc, p) => {
+          acc[p.stage] = (acc[p.stage] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      ),
     };
 
     return NextResponse.json({

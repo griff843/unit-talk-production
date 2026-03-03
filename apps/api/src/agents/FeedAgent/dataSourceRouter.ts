@@ -1,9 +1,9 @@
 /**
  * Unified Data Source Router for Unit Talk Platform
- * 
+ *
  * Intelligently routes data requests between The Odds API and Optimal API
  * based on sport, market type, and data requirements.
- * 
+ *
  * Routing Strategy:
  * - Odds API: Primary for NCAAF, settlement data, spreads, totals, moneylines
  * - Optimal API: Secondary for specialized player props in major sports
@@ -20,69 +20,69 @@ export type DataSource = 'odds-api' | 'optimal-api' | 'unified';
 // Enhanced sport mapping with routing logic
 const SPORT_ROUTING_CONFIG = {
   // Odds API Primary (comprehensive coverage)
-  'NCAAF': {
+  NCAAF: {
     primary: 'odds-api' as const,
     secondary: null,
     oddsApiKey: 'americanfootball_ncaaf',
-    supports: ['spreads', 'totals', 'moneylines', 'futures', 'settlement']
+    supports: ['spreads', 'totals', 'moneylines', 'futures', 'settlement'],
   },
-  
-  'NFL': {
+
+  NFL: {
     primary: 'optimal-api' as const,
     secondary: 'odds-api' as const,
     oddsApiKey: 'americanfootball_nfl',
-    supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement']
+    supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement'],
   },
-  
-  'NBA': {
+
+  NBA: {
     primary: 'optimal-api' as const,
     secondary: 'odds-api' as const,
     oddsApiKey: 'basketball_nba',
-    supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement']
+    supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement'],
   },
-  
-  'MLB': {
+
+  MLB: {
     primary: 'optimal-api' as const,
     secondary: 'odds-api' as const,
     oddsApiKey: 'baseball_mlb',
-    supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement']
+    supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement'],
   },
-  
-  'NHL': {
+
+  NHL: {
     primary: 'optimal-api' as const,
     secondary: 'odds-api' as const,
     oddsApiKey: 'icehockey_nhl',
-    supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement']
+    supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement'],
   },
-  
+
   // Odds API Exclusive (new sports)
-  'NCAAB': {
+  NCAAB: {
     primary: 'odds-api' as const,
     secondary: null,
     oddsApiKey: 'basketball_ncaab',
-    supports: ['spreads', 'totals', 'moneylines', 'futures', 'settlement']
+    supports: ['spreads', 'totals', 'moneylines', 'futures', 'settlement'],
   },
-  
-  'WNBA': {
+
+  WNBA: {
     primary: 'odds-api' as const,
     secondary: null,
     oddsApiKey: 'basketball_wnba',
-    supports: ['spreads', 'totals', 'moneylines', 'settlement']
+    supports: ['spreads', 'totals', 'moneylines', 'settlement'],
   },
-  
-  'EPL': {
+
+  EPL: {
     primary: 'odds-api' as const,
     secondary: null,
     oddsApiKey: 'soccer_epl',
-    supports: ['moneylines', 'totals', 'settlement']
+    supports: ['moneylines', 'totals', 'settlement'],
   },
-  
-  'ATP': {
+
+  ATP: {
     primary: 'odds-api' as const,
     secondary: null,
     oddsApiKey: 'tennis_atp',
-    supports: ['moneylines', 'settlement']
-  }
+    supports: ['moneylines', 'settlement'],
+  },
 } as const;
 
 type SupportedSport = keyof typeof SPORT_ROUTING_CONFIG;
@@ -132,57 +132,57 @@ function determineDataSource(request: DataRequest): {
   if (request.forceSource) {
     return {
       source: request.forceSource,
-      reason: 'User-specified force override'
+      reason: 'User-specified force override',
     };
   }
-  
+
   const config = getRoutingConfig(request.sport);
-  
+
   // Unknown sport - default to Odds API for broader coverage
   if (!config) {
     return {
       source: 'odds-api',
-      reason: `Unknown sport ${request.sport}, defaulting to Odds API for coverage`
+      reason: `Unknown sport ${request.sport}, defaulting to Odds API for coverage`,
     };
   }
-  
+
   // Settlement data always goes to Odds API (Optimal doesn't support it)
   if (request.marketType === 'settlement' || request.includeSettlement) {
     return {
       source: 'odds-api',
-      reason: 'Settlement data required - only available via Odds API'
+      reason: 'Settlement data required - only available via Odds API',
     };
   }
-  
+
   // Player props preference
   if (request.marketType === 'player-props') {
     if ([...config.supports].includes('player-props') && config.primary === 'optimal-api') {
       return {
         source: 'optimal-api',
         fallback: config.secondary || undefined,
-        reason: 'Player props specialist - Optimal API preferred'
+        reason: 'Player props specialist - Optimal API preferred',
       };
     } else {
       return {
         source: 'odds-api',
-        reason: 'Player props requested but Optimal API not available for this sport'
+        reason: 'Player props requested but Optimal API not available for this sport',
       };
     }
   }
-  
+
   // NCAAF always goes to Odds API (Optimal doesn't support)
   if (request.sport.toUpperCase() === 'NCAAF') {
     return {
       source: 'odds-api',
-      reason: 'NCAAF only available via Odds API'
+      reason: 'NCAAF only available via Odds API',
     };
   }
-  
+
   // Use configured primary source
   return {
     source: config.primary,
     fallback: config.secondary || undefined,
-    reason: `Using configured primary source for ${request.sport}`
+    reason: `Using configured primary source for ${request.sport}`,
   };
 }
 
@@ -191,7 +191,7 @@ function determineDataSource(request: DataRequest): {
  */
 async function fetchFromOptimal(request: DataRequest): Promise<RawProp[]> {
   console.log(`[DataRouter] Fetching from Optimal API: ${request.sport}`);
-  
+
   try {
     return await fetchOptimalProps(request.sport, request.date);
   } catch (error) {
@@ -205,16 +205,16 @@ async function fetchFromOptimal(request: DataRequest): Promise<RawProp[]> {
  */
 async function fetchFromOddsApi(request: DataRequest): Promise<RawProp[]> {
   console.log(`[DataRouter] Fetching from Odds API: ${request.sport}`);
-  
+
   const config = getRoutingConfig(request.sport);
   if (!config) {
     throw new Error(`No Odds API configuration found for sport: ${request.sport}`);
   }
-  
+
   try {
     // Determine markets to fetch
     const markets: any[] = [];
-    
+
     if (!request.marketType || request.marketType === 'spreads') {
       markets.push('spreads');
     }
@@ -227,12 +227,12 @@ async function fetchFromOddsApi(request: DataRequest): Promise<RawProp[]> {
     if (request.marketType === 'futures') {
       markets.push('outrights');
     }
-    
+
     // Default to comprehensive markets if none specified
     if (markets.length === 0) {
       markets.push('h2h', 'spreads', 'totals');
     }
-    
+
     return await fetchOddsApiProps(config.oddsApiKey as any, markets);
   } catch (error) {
     console.error(`[DataRouter] Odds API error for ${request.sport}:`, error);
@@ -246,21 +246,21 @@ async function fetchFromOddsApi(request: DataRequest): Promise<RawProp[]> {
 export async function fetchUnifiedData(request: DataRequest): Promise<DataResponse> {
   const startTime = Date.now();
   const errors: string[] = [];
-  
+
   console.log(`[DataRouter] Processing request:`, {
     sport: request.sport,
     marketType: request.marketType,
     date: request.date,
-    forceSource: request.forceSource
+    forceSource: request.forceSource,
   });
-  
+
   // Determine routing strategy
   const routing = determineDataSource(request);
   console.log(`[DataRouter] Routing decision: ${routing.source} (${routing.reason})`);
-  
+
   let data: RawProp[] = [];
   let actualSource: DataSource = routing.source;
-  
+
   try {
     // Attempt primary source
     if (routing.source === 'optimal-api') {
@@ -268,45 +268,49 @@ export async function fetchUnifiedData(request: DataRequest): Promise<DataRespon
     } else if (routing.source === 'odds-api') {
       data = await fetchFromOddsApi(request);
     }
-    
+
     console.log(`[DataRouter] Successfully fetched ${data.length} records from ${routing.source}`);
-    
   } catch (primaryError) {
-    errors.push(`Primary source (${routing.source}) failed: ${primaryError instanceof Error ? primaryError.message : 'Unknown error'}`);
+    errors.push(
+      `Primary source (${routing.source}) failed: ${primaryError instanceof Error ? primaryError.message : 'Unknown error'}`
+    );
     console.warn(`[DataRouter] Primary source failed, attempting fallback:`, primaryError);
-    
+
     // Attempt fallback if available
     if (routing.fallback) {
       try {
         actualSource = routing.fallback;
-        
+
         if (routing.fallback === 'optimal-api') {
           data = await fetchFromOptimal(request);
         } else if (routing.fallback === 'odds-api') {
           data = await fetchFromOddsApi(request);
         }
-        
-        console.log(`[DataRouter] Fallback successful: ${data.length} records from ${routing.fallback}`);
-        
+
+        console.log(
+          `[DataRouter] Fallback successful: ${data.length} records from ${routing.fallback}`
+        );
       } catch (fallbackError) {
-        errors.push(`Fallback source (${routing.fallback}) failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
+        errors.push(
+          `Fallback source (${routing.fallback}) failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`
+        );
         console.error(`[DataRouter] Both primary and fallback sources failed`);
-        
+
         // Return empty result with errors
         actualSource = routing.source; // Keep original for error reporting
       }
     }
   }
-  
+
   const processingTime = Date.now() - startTime;
-  
+
   // Get credit usage info if from Odds API
   let creditsUsed: number | undefined;
   if (actualSource === 'odds-api') {
     getCreditUsageStatus(); // Credit status tracking
     creditsUsed = 1; // Each request typically uses 1 credit
   }
-  
+
   const response: DataResponse = {
     data,
     source: actualSource,
@@ -317,17 +321,17 @@ export async function fetchUnifiedData(request: DataRequest): Promise<DataRespon
       totalRecords: data.length,
       processingTimeMs: processingTime,
       creditsUsed,
-      errors
-    }
+      errors,
+    },
   };
-  
+
   console.log(`[DataRouter] Request completed:`, {
     source: actualSource,
     records: data.length,
     timeMs: processingTime,
-    hasErrors: errors.length > 0
+    hasErrors: errors.length > 0,
   });
-  
+
   return response;
 }
 
@@ -339,21 +343,21 @@ export async function fetchUnifiedSettlement(
   daysFrom: number = 1
 ): Promise<DataResponse> {
   const startTime = Date.now();
-  
+
   console.log(`[DataRouter] Fetching settlement data for ${sport} (${daysFrom} days)`);
-  
+
   const config = getRoutingConfig(sport);
   if (!config) {
     throw new Error(`No settlement configuration found for sport: ${sport}`);
   }
-  
+
   try {
     const settlementData = await fetchSettlementData(config.oddsApiKey as any, daysFrom);
-    
+
     // Convert settlement data to RawProp format for consistency
     // Note: This would need additional conversion logic for settlement-specific data
     const data: RawProp[] = []; // Placeholder - settlement data has different structure
-    
+
     const response: DataResponse = {
       data,
       source: 'odds-api',
@@ -364,13 +368,12 @@ export async function fetchUnifiedSettlement(
         totalRecords: settlementData.length,
         processingTimeMs: Date.now() - startTime,
         creditsUsed: 1,
-        errors: []
-      }
+        errors: [],
+      },
     };
-    
+
     console.log(`[DataRouter] Settlement data fetched: ${settlementData.length} games`);
     return response;
-    
   } catch (error) {
     console.error(`[DataRouter] Settlement fetch failed for ${sport}:`, error);
     throw error;
@@ -382,14 +385,14 @@ export async function fetchUnifiedSettlement(
  */
 export function getRoutingInfo(sport: string) {
   const config = getRoutingConfig(sport);
-  
+
   if (!config) {
     return {
       supported: false,
-      message: `Sport ${sport} not found in routing configuration`
+      message: `Sport ${sport} not found in routing configuration`,
     };
   }
-  
+
   return {
     supported: true,
     sport: sport.toUpperCase(),
@@ -397,9 +400,10 @@ export function getRoutingInfo(sport: string) {
     secondary: config.secondary,
     oddsApiKey: config.oddsApiKey,
     supportedMarkets: config.supports,
-    recommendation: config.primary === 'odds-api' 
-      ? 'Use Odds API for comprehensive market coverage' 
-      : 'Use Optimal API for specialized player props, Odds API for settlement'
+    recommendation:
+      config.primary === 'odds-api'
+        ? 'Use Odds API for comprehensive market coverage'
+        : 'Use Optimal API for specialized player props, Odds API for settlement',
   };
 }
 
@@ -408,27 +412,31 @@ export function getRoutingInfo(sport: string) {
  */
 export async function getSystemStatus() {
   const creditStatus = getCreditUsageStatus();
-  
+
   return {
     timestamp: new Date().toISOString(),
     oddsApi: {
       available: true, // Would test connectivity in production
       creditStatus,
       supportedSports: Object.keys(SPORT_ROUTING_CONFIG).filter(
-        sport => SPORT_ROUTING_CONFIG[sport as SupportedSport].primary === 'odds-api' ||
-                SPORT_ROUTING_CONFIG[sport as SupportedSport].secondary === 'odds-api'
-      ).length
+        sport =>
+          SPORT_ROUTING_CONFIG[sport as SupportedSport].primary === 'odds-api' ||
+          SPORT_ROUTING_CONFIG[sport as SupportedSport].secondary === 'odds-api'
+      ).length,
     },
     optimalApi: {
-      available: true, // Would test connectivity in production  
+      available: true, // Would test connectivity in production
       supportedSports: Object.keys(SPORT_ROUTING_CONFIG).filter(
         sport => SPORT_ROUTING_CONFIG[sport as SupportedSport].primary === 'optimal-api'
-      ).length
+      ).length,
     },
     routing: {
       totalSports: Object.keys(SPORT_ROUTING_CONFIG).length,
-      oddsApiPrimary: Object.values(SPORT_ROUTING_CONFIG).filter(c => c.primary === 'odds-api').length,
-      optimalApiPrimary: Object.values(SPORT_ROUTING_CONFIG).filter(c => c.primary === 'optimal-api').length
-    }
+      oddsApiPrimary: Object.values(SPORT_ROUTING_CONFIG).filter(c => c.primary === 'odds-api')
+        .length,
+      optimalApiPrimary: Object.values(SPORT_ROUTING_CONFIG).filter(
+        c => c.primary === 'optimal-api'
+      ).length,
+    },
   };
 }

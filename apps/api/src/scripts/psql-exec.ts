@@ -10,7 +10,7 @@ import * as fs from 'fs';
 
 async function executePSQL() {
   const args = process.argv.slice(2);
-  
+
   if (args.length < 2) {
     console.error('Usage: npx tsx psql-exec.ts <connection-string> [-f <file> | -c <command>]');
     process.exit(1);
@@ -52,19 +52,18 @@ async function executePSQL() {
 
     // Execute SQL
     const result = await client.query(sql);
-    
+
     if (result.rows && result.rows.length > 0) {
       console.log('\nResults:');
       console.table(result.rows);
     }
-    
+
     if (result.rowCount !== null && result.rowCount !== undefined) {
       console.log(`\nRows affected: ${result.rowCount}`);
     }
 
     console.log('\nSuccess');
     process.exit(0);
-
   } catch (error: any) {
     console.error('\nError:', error.message);
     if (error.position) {
@@ -77,4 +76,3 @@ async function executePSQL() {
 }
 
 executePSQL();
-

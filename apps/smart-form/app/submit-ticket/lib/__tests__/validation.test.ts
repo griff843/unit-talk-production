@@ -114,7 +114,12 @@ describe('validateStep3', () => {
   });
 
   it('should require direction for player_prop', () => {
-    const pick: PickState = { ...emptyPick, betCategory: 'player_prop', odds: '-110', line: '24.5' };
+    const pick: PickState = {
+      ...emptyPick,
+      betCategory: 'player_prop',
+      odds: '-110',
+      line: '24.5',
+    };
     const errors = validateStep3(pick);
     expect(errors.direction).toBe('Direction (Over/Under) is required');
   });

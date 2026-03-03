@@ -43,7 +43,9 @@ async function main() {
   // We need to compute coverage manually since RPC might not be available
   const { data: allPicks, error: picksErr } = await supabase
     .from('unified_picks')
-    .select('id, sport, stat_type, pick_type, selection_type, matchup, game_start_time, units, odds, odds_decimal, leg_index, total_ticket_odds_american, total_ticket_odds_decimal, total_units, ticket_type, source, player_id, player_name, team_id, home_team_id, away_team_id, game_id, created_at, selection');
+    .select(
+      'id, sport, stat_type, pick_type, selection_type, matchup, game_start_time, units, odds, odds_decimal, leg_index, total_ticket_odds_american, total_ticket_odds_decimal, total_units, ticket_type, source, player_id, player_name, team_id, home_team_id, away_team_id, game_id, created_at, selection'
+    );
 
   if (picksErr) {
     console.error('❌ Failed to fetch picks:', picksErr.message);
@@ -60,43 +62,75 @@ async function main() {
     total_picks: total,
     pick_type: {
       filled: picks.filter(p => p.pick_type != null).length,
-      pct: total > 0 ? Math.round(1000 * picks.filter(p => p.pick_type != null).length / total) / 10 : 0,
+      pct:
+        total > 0
+          ? Math.round((1000 * picks.filter(p => p.pick_type != null).length) / total) / 10
+          : 0,
     },
     selection_type: {
       filled: picks.filter(p => p.selection_type != null).length,
-      pct: total > 0 ? Math.round(1000 * picks.filter(p => p.selection_type != null).length / total) / 10 : 0,
+      pct:
+        total > 0
+          ? Math.round((1000 * picks.filter(p => p.selection_type != null).length) / total) / 10
+          : 0,
     },
     matchup: {
       filled: picks.filter(p => p.matchup != null).length,
-      pct: total > 0 ? Math.round(1000 * picks.filter(p => p.matchup != null).length / total) / 10 : 0,
+      pct:
+        total > 0
+          ? Math.round((1000 * picks.filter(p => p.matchup != null).length) / total) / 10
+          : 0,
     },
     game_start_time: {
       filled: picks.filter(p => p.game_start_time != null).length,
-      pct: total > 0 ? Math.round(1000 * picks.filter(p => p.game_start_time != null).length / total) / 10 : 0,
+      pct:
+        total > 0
+          ? Math.round((1000 * picks.filter(p => p.game_start_time != null).length) / total) / 10
+          : 0,
     },
     units: {
       filled: picks.filter(p => p.units != null).length,
-      pct: total > 0 ? Math.round(1000 * picks.filter(p => p.units != null).length / total) / 10 : 0,
+      pct:
+        total > 0 ? Math.round((1000 * picks.filter(p => p.units != null).length) / total) / 10 : 0,
     },
     odds_decimal: {
       filled: picks.filter(p => p.odds_decimal != null).length,
-      pct: total > 0 ? Math.round(1000 * picks.filter(p => p.odds_decimal != null).length / total) / 10 : 0,
+      pct:
+        total > 0
+          ? Math.round((1000 * picks.filter(p => p.odds_decimal != null).length) / total) / 10
+          : 0,
     },
     leg_index: {
       filled: picks.filter(p => p.leg_index != null).length,
-      pct: total > 0 ? Math.round(1000 * picks.filter(p => p.leg_index != null).length / total) / 10 : 0,
+      pct:
+        total > 0
+          ? Math.round((1000 * picks.filter(p => p.leg_index != null).length) / total) / 10
+          : 0,
     },
     total_ticket_odds_american: {
       filled: picks.filter(p => p.total_ticket_odds_american != null).length,
-      pct: total > 0 ? Math.round(1000 * picks.filter(p => p.total_ticket_odds_american != null).length / total) / 10 : 0,
+      pct:
+        total > 0
+          ? Math.round(
+              (1000 * picks.filter(p => p.total_ticket_odds_american != null).length) / total
+            ) / 10
+          : 0,
     },
     total_ticket_odds_decimal: {
       filled: picks.filter(p => p.total_ticket_odds_decimal != null).length,
-      pct: total > 0 ? Math.round(1000 * picks.filter(p => p.total_ticket_odds_decimal != null).length / total) / 10 : 0,
+      pct:
+        total > 0
+          ? Math.round(
+              (1000 * picks.filter(p => p.total_ticket_odds_decimal != null).length) / total
+            ) / 10
+          : 0,
     },
     total_units: {
       filled: picks.filter(p => p.total_units != null).length,
-      pct: total > 0 ? Math.round(1000 * picks.filter(p => p.total_units != null).length / total) / 10 : 0,
+      pct:
+        total > 0
+          ? Math.round((1000 * picks.filter(p => p.total_units != null).length) / total) / 10
+          : 0,
     },
   };
 
@@ -109,7 +143,9 @@ async function main() {
     if (field === 'total_picks') continue;
     const d = data as { filled: number; pct: number };
     const status = d.pct >= 95 ? '✅' : d.pct >= 50 ? '⚠️' : '❌';
-    console.log(`   ${status} ${field.padEnd(30)} ${String(d.filled).padStart(5)}/${total} (${d.pct}%)`);
+    console.log(
+      `   ${status} ${field.padEnd(30)} ${String(d.filled).padStart(5)}/${total} (${d.pct}%)`
+    );
   }
 
   // 2. Coverage by sport
@@ -126,19 +162,34 @@ async function main() {
     const n = sportPicks.length;
     bySport[sport] = {
       total: n,
-      pick_type_pct: n > 0 ? Math.round(1000 * sportPicks.filter(p => p.pick_type != null).length / n) / 10 : 0,
-      selection_type_pct: n > 0 ? Math.round(1000 * sportPicks.filter(p => p.selection_type != null).length / n) / 10 : 0,
-      matchup_pct: n > 0 ? Math.round(1000 * sportPicks.filter(p => p.matchup != null).length / n) / 10 : 0,
-      units_pct: n > 0 ? Math.round(1000 * sportPicks.filter(p => p.units != null).length / n) / 10 : 0,
-      odds_decimal_pct: n > 0 ? Math.round(1000 * sportPicks.filter(p => p.odds_decimal != null).length / n) / 10 : 0,
+      pick_type_pct:
+        n > 0
+          ? Math.round((1000 * sportPicks.filter(p => p.pick_type != null).length) / n) / 10
+          : 0,
+      selection_type_pct:
+        n > 0
+          ? Math.round((1000 * sportPicks.filter(p => p.selection_type != null).length) / n) / 10
+          : 0,
+      matchup_pct:
+        n > 0 ? Math.round((1000 * sportPicks.filter(p => p.matchup != null).length) / n) / 10 : 0,
+      units_pct:
+        n > 0 ? Math.round((1000 * sportPicks.filter(p => p.units != null).length) / n) / 10 : 0,
+      odds_decimal_pct:
+        n > 0
+          ? Math.round((1000 * sportPicks.filter(p => p.odds_decimal != null).length) / n) / 10
+          : 0,
     };
   }
   results.by_sport = bySport;
 
   console.log('   ' + '-'.repeat(60));
-  for (const [sport, data] of Object.entries(bySport).sort((a, b) => (b[1] as any).total - (a[1] as any).total)) {
+  for (const [sport, data] of Object.entries(bySport).sort(
+    (a, b) => (b[1] as any).total - (a[1] as any).total
+  )) {
     const d = data as any;
-    console.log(`   ${sport.padEnd(10)} n=${String(d.total).padStart(4)} | pick_type=${d.pick_type_pct}% | units=${d.units_pct}%`);
+    console.log(
+      `   ${sport.padEnd(10)} n=${String(d.total).padStart(4)} | pick_type=${d.pick_type_pct}% | units=${d.units_pct}%`
+    );
   }
 
   // 3. Coverage by inferred pick type
@@ -165,10 +216,18 @@ async function main() {
     const n = typePicks.length;
     byInferredType[itype] = {
       total: n,
-      pick_type_pct: n > 0 ? Math.round(1000 * typePicks.filter(p => p.pick_type != null).length / n) / 10 : 0,
-      selection_type_pct: n > 0 ? Math.round(1000 * typePicks.filter(p => p.selection_type != null).length / n) / 10 : 0,
-      units_pct: n > 0 ? Math.round(1000 * typePicks.filter(p => p.units != null).length / n) / 10 : 0,
-      odds_decimal_pct: n > 0 ? Math.round(1000 * typePicks.filter(p => p.odds_decimal != null).length / n) / 10 : 0,
+      pick_type_pct:
+        n > 0 ? Math.round((1000 * typePicks.filter(p => p.pick_type != null).length) / n) / 10 : 0,
+      selection_type_pct:
+        n > 0
+          ? Math.round((1000 * typePicks.filter(p => p.selection_type != null).length) / n) / 10
+          : 0,
+      units_pct:
+        n > 0 ? Math.round((1000 * typePicks.filter(p => p.units != null).length) / n) / 10 : 0,
+      odds_decimal_pct:
+        n > 0
+          ? Math.round((1000 * typePicks.filter(p => p.odds_decimal != null).length) / n) / 10
+          : 0,
     };
   }
   results.by_inferred_pick_type = byInferredType;
@@ -187,10 +246,16 @@ async function main() {
     const n = srcPicks.length;
     bySource[src] = {
       total: n,
-      pick_type_pct: n > 0 ? Math.round(1000 * srcPicks.filter(p => p.pick_type != null).length / n) / 10 : 0,
-      matchup_pct: n > 0 ? Math.round(1000 * srcPicks.filter(p => p.matchup != null).length / n) / 10 : 0,
-      game_start_time_pct: n > 0 ? Math.round(1000 * srcPicks.filter(p => p.game_start_time != null).length / n) / 10 : 0,
-      game_id_pct: n > 0 ? Math.round(1000 * srcPicks.filter(p => p.game_id != null).length / n) / 10 : 0,
+      pick_type_pct:
+        n > 0 ? Math.round((1000 * srcPicks.filter(p => p.pick_type != null).length) / n) / 10 : 0,
+      matchup_pct:
+        n > 0 ? Math.round((1000 * srcPicks.filter(p => p.matchup != null).length) / n) / 10 : 0,
+      game_start_time_pct:
+        n > 0
+          ? Math.round((1000 * srcPicks.filter(p => p.game_start_time != null).length) / n) / 10
+          : 0,
+      game_id_pct:
+        n > 0 ? Math.round((1000 * srcPicks.filter(p => p.game_id != null).length) / n) / 10 : 0,
     };
   }
   results.by_source = bySource;
@@ -209,11 +274,24 @@ async function main() {
     const n = ttPicks.length;
     byTicketType[tt] = {
       total: n,
-      pick_type_pct: n > 0 ? Math.round(1000 * ttPicks.filter(p => p.pick_type != null).length / n) / 10 : 0,
-      leg_index_pct: n > 0 ? Math.round(1000 * ttPicks.filter(p => p.leg_index != null).length / n) / 10 : 0,
-      total_odds_american_pct: n > 0 ? Math.round(1000 * ttPicks.filter(p => p.total_ticket_odds_american != null).length / n) / 10 : 0,
-      total_odds_decimal_pct: n > 0 ? Math.round(1000 * ttPicks.filter(p => p.total_ticket_odds_decimal != null).length / n) / 10 : 0,
-      total_units_pct: n > 0 ? Math.round(1000 * ttPicks.filter(p => p.total_units != null).length / n) / 10 : 0,
+      pick_type_pct:
+        n > 0 ? Math.round((1000 * ttPicks.filter(p => p.pick_type != null).length) / n) / 10 : 0,
+      leg_index_pct:
+        n > 0 ? Math.round((1000 * ttPicks.filter(p => p.leg_index != null).length) / n) / 10 : 0,
+      total_odds_american_pct:
+        n > 0
+          ? Math.round(
+              (1000 * ttPicks.filter(p => p.total_ticket_odds_american != null).length) / n
+            ) / 10
+          : 0,
+      total_odds_decimal_pct:
+        n > 0
+          ? Math.round(
+              (1000 * ttPicks.filter(p => p.total_ticket_odds_decimal != null).length) / n
+            ) / 10
+          : 0,
+      total_units_pct:
+        n > 0 ? Math.round((1000 * ttPicks.filter(p => p.total_units != null).length) / n) / 10 : 0,
     };
   }
   results.by_ticket_type = byTicketType;
@@ -260,7 +338,9 @@ async function main() {
 
   console.log('   ' + '-'.repeat(80));
   for (const p of recent) {
-    console.log(`   ${p.id.substring(0, 8)}... | ${(p.sport || '').padEnd(6)} | pick_type=${(p.pick_type || 'null').padEnd(12)} | units=${p.units || 'null'}`);
+    console.log(
+      `   ${p.id.substring(0, 8)}... | ${(p.sport || '').padEnd(6)} | pick_type=${(p.pick_type || 'null').padEnd(12)} | units=${p.units || 'null'}`
+    );
   }
 
   // Save results
@@ -284,7 +364,9 @@ async function main() {
   console.log(`  units:           ${overallCoverage.units.pct}%`);
   console.log(`  odds_decimal:    ${overallCoverage.odds_decimal.pct}%`);
   console.log(`  leg_index:       ${overallCoverage.leg_index.pct}% (parlay-specific)`);
-  console.log(`  total_odds_*:    ${overallCoverage.total_ticket_odds_decimal.pct}% (parlay-specific)`);
+  console.log(
+    `  total_odds_*:    ${overallCoverage.total_ticket_odds_decimal.pct}% (parlay-specific)`
+  );
   console.log(`  total_units:     ${overallCoverage.total_units.pct}% (parlay-specific)`);
 }
 

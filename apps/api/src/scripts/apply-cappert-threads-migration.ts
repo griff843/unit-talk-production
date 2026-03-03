@@ -21,7 +21,10 @@ function parsePooler(urlStr: string) {
 }
 
 async function applyMigration() {
-  const poolerUrl = process.env.SUPABASE_DB_URL_POOLER || process.env.DATABASE_DIRECT_URL || process.env.DATABASE_URL;
+  const poolerUrl =
+    process.env.SUPABASE_DB_URL_POOLER ||
+    process.env.DATABASE_DIRECT_URL ||
+    process.env.DATABASE_URL;
   if (!poolerUrl) {
     console.error('❌ SUPABASE_DB_URL_POOLER (or DATABASE_URL) not set.');
     process.exit(1);
@@ -41,7 +44,10 @@ async function applyMigration() {
   await client.connect();
   console.log('✅ Connected to Supabase pooler:', cfg.host);
 
-  const sqlPath = path.resolve(process.cwd(), '../../supabase/overrides/20251016_capper_threads.sql');
+  const sqlPath = path.resolve(
+    process.cwd(),
+    '../../supabase/overrides/20251016_capper_threads.sql'
+  );
   if (!fs.existsSync(sqlPath)) {
     console.error('❌ Migration file not found:', sqlPath);
     process.exit(1);
@@ -91,8 +97,7 @@ async function applyMigration() {
   console.log('\n✅ Capper threads migration complete');
 }
 
-applyMigration().catch((e) => {
+applyMigration().catch(e => {
   console.error('Fatal:', e);
   process.exit(1);
 });
-

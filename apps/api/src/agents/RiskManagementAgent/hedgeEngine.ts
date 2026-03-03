@@ -92,12 +92,12 @@ export class HedgeEngine {
 
   async initialize(): Promise<void> {
     this.logger.info('🛡️ Initializing HedgeEngine');
-    
+
     await this.loadHedgeStrategies();
     await this.loadMarketData();
     await this.loadHedgeHistory();
     await this.loadPerformanceData();
-    
+
     this.logger.info('✅ HedgeEngine initialized');
   }
 
@@ -105,10 +105,9 @@ export class HedgeEngine {
     positions: Position[],
     correlations: Map<string, number>
   ): Promise<HedgeOpportunity[]> {
-    
     this.logger.info('🔍 Identifying hedge opportunities', {
       positionCount: positions.length,
-      correlationPairs: correlations.size
+      correlationPairs: correlations.size,
     });
 
     try {
@@ -141,17 +140,16 @@ export class HedgeEngine {
       this.logger.info('✅ Hedge opportunities identified', {
         totalOpportunities: opportunities.length,
         viableOpportunities: viableOpportunities.length,
-        highPriority: rankedOpportunities.filter(h => h.priority === 'high').length
+        highPriority: rankedOpportunities.filter(h => h.priority === 'high').length,
       });
 
       // Cache opportunities
       await this.cacheHedgeOpportunities(positions[0]?.userId || 'unknown', rankedOpportunities);
 
       return rankedOpportunities;
-
     } catch (error) {
       this.logger.error('❌ Failed to identify hedge opportunities', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
@@ -161,20 +159,19 @@ export class HedgeEngine {
     positions: Position[],
     riskTolerance: number = 0.1
   ): Promise<HedgeAnalysis> {
-    
     this.logger.info('📊 Analyzing hedging need', {
       positionCount: positions.length,
-      riskTolerance
+      riskTolerance,
     });
 
     try {
       // Calculate portfolio risk
       const portfolioRisk = await this.calculatePortfolioRisk(positions);
-      
+
       // Identify all hedge opportunities
       const correlations = await this.calculateCorrelations(positions);
       const hedgeOpportunities = await this.identifyHedgeOpportunities(positions, correlations);
-      
+
       // Select recommended hedges based on risk tolerance
       const recommendedHedges = await this.selectOptimalHedges(
         hedgeOpportunities,
@@ -183,12 +180,13 @@ export class HedgeEngine {
       );
 
       // Calculate metrics
-      const totalPotentialRiskReduction = recommendedHedges
-        .reduce((sum, hedge) => sum + hedge.riskReduction, 0);
-      
-      const hedgingCost = recommendedHedges
-        .reduce((sum, hedge) => sum + hedge.cost, 0);
-      
+      const totalPotentialRiskReduction = recommendedHedges.reduce(
+        (sum, hedge) => sum + hedge.riskReduction,
+        0
+      );
+
+      const hedgingCost = recommendedHedges.reduce((sum, hedge) => sum + hedge.cost, 0);
+
       const netBenefit = totalPotentialRiskReduction - hedgingCost;
 
       const analysis: HedgeAnalysis = {
@@ -198,23 +196,22 @@ export class HedgeEngine {
         recommendedHedges,
         hedgingCost,
         netBenefit,
-        riskProfile: this.determineRiskProfile(portfolioRisk, riskTolerance)
+        riskProfile: this.determineRiskProfile(portfolioRisk, riskTolerance),
       };
 
       this.logger.info('✅ Hedge analysis completed', {
         portfolioRisk: portfolioRisk.toFixed(3),
         opportunities: hedgeOpportunities.length,
         recommended: recommendedHedges.length,
-        netBenefit: netBenefit.toFixed(3)
+        netBenefit: netBenefit.toFixed(3),
       });
 
       return analysis;
-
     } catch (error) {
       this.logger.error('❌ Failed to analyze hedging need', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       return {
         portfolioRisk: 0,
         hedgeOpportunities: [],
@@ -222,7 +219,7 @@ export class HedgeEngine {
         recommendedHedges: [],
         hedgingCost: 0,
         netBenefit: 0,
-        riskProfile: 'moderate'
+        riskProfile: 'moderate',
       };
     }
   }
@@ -231,11 +228,10 @@ export class HedgeEngine {
     hedgeOpportunity: HedgeOpportunity,
     userId: string
   ): Promise<boolean> {
-    
     this.logger.info('⚡ Executing hedge recommendation', {
       hedgeId: hedgeOpportunity.id,
       type: hedgeOpportunity.type,
-      userId
+      userId,
     });
 
     try {
@@ -249,29 +245,30 @@ export class HedgeEngine {
       // Check user permissions and limits
       const canExecute = await this.checkExecutionPermissions(hedgeOpportunity, userId);
       if (!canExecute) {
-        this.logger.warn('⚠️ Cannot execute hedge - permission denied', { hedgeId: hedgeOpportunity.id });
+        this.logger.warn('⚠️ Cannot execute hedge - permission denied', {
+          hedgeId: hedgeOpportunity.id,
+        });
         return false;
       }
 
       // Execute the hedge (this would integrate with actual trading/betting systems)
       const executionResult = await this.executeHedge(hedgeOpportunity, userId);
-      
+
       if (executionResult) {
         // Record execution for performance tracking
         await this.recordHedgeExecution(hedgeOpportunity, userId);
-        
+
         this.logger.info('✅ Hedge executed successfully', {
           hedgeId: hedgeOpportunity.id,
-          type: hedgeOpportunity.type
+          type: hedgeOpportunity.type,
         });
       }
 
       return executionResult;
-
     } catch (error) {
       this.logger.error('❌ Failed to execute hedge', {
         hedgeId: hedgeOpportunity.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }
@@ -287,7 +284,7 @@ export class HedgeEngine {
       for (const hedge of activeHedges) {
         // Update hedge effectiveness based on current market conditions
         const updatedHedge = await this.updateHedgeEffectiveness(hedge);
-        
+
         // Check if hedge should be adjusted or closed
         if (await this.shouldAdjustHedge(updatedHedge)) {
           updatedHedge.recommendation = await this.generateAdjustmentRecommendation(updatedHedge);
@@ -300,11 +297,10 @@ export class HedgeEngine {
       await this.cacheActiveHedges(userId, updatedHedges);
 
       return updatedHedges;
-
     } catch (error) {
       this.logger.error('❌ Failed to monitor active hedges', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
@@ -347,7 +343,7 @@ export class HedgeEngine {
       timeDecay: await this.calculateTimeDecay(position),
       recommendation: await this.generateDirectHedgeRecommendation(effectiveness, cost),
       priority: this.determinePriority(effectiveness, cost, riskReduction),
-      expirationTime: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+      expirationTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
     };
   }
 
@@ -361,7 +357,7 @@ export class HedgeEngine {
       suggestedOdds: await this.getOppositeOdds(position),
       description: `Opposite ${position.betType} for ${position.gameId}`,
       availability: 'high',
-      liquidityScore: 0.8
+      liquidityScore: 0.8,
     };
 
     return oppositeHedge;
@@ -370,12 +366,12 @@ export class HedgeEngine {
   private getOppositeBetType(betType: string): string {
     // Map bet types to their opposites
     const oppositeMap: Record<string, string> = {
-      'moneyline_home': 'moneyline_away',
-      'moneyline_away': 'moneyline_home',
-      'spread_over': 'spread_under',
-      'spread_under': 'spread_over',
-      'total_over': 'total_under',
-      'total_under': 'total_over'
+      moneyline_home: 'moneyline_away',
+      moneyline_away: 'moneyline_home',
+      spread_over: 'spread_under',
+      spread_under: 'spread_over',
+      total_over: 'total_under',
+      total_under: 'total_over',
     };
 
     return oppositeMap[betType] || `opposite_${betType}`;
@@ -393,7 +389,6 @@ export class HedgeEngine {
     positions: Position[],
     correlations: Map<string, number>
   ): Promise<HedgeOpportunity[]> {
-    
     const correlationHedges: HedgeOpportunity[] = [];
 
     // Find highly correlated position pairs
@@ -420,7 +415,6 @@ export class HedgeEngine {
     pos2: Position,
     correlation: number
   ): Promise<HedgeOpportunity | null> {
-    
     // Create hedge to reduce correlation risk
     const hedgeInstrument: HedgeInstrument = {
       type: 'correlated_bet',
@@ -430,7 +424,7 @@ export class HedgeEngine {
       suggestedOdds: 2.0, // Estimated
       description: `Hedge to reduce correlation between ${pos1.id} and ${pos2.id}`,
       availability: 'medium',
-      liquidityScore: 0.6
+      liquidityScore: 0.6,
     };
 
     const effectiveness = correlation * 0.8; // High correlation = high hedge effectiveness
@@ -449,7 +443,7 @@ export class HedgeEngine {
       timeDecay: 0.05, // Low time decay for correlation hedges
       recommendation: await this.generateCorrelationHedgeRecommendation(correlation, effectiveness),
       priority: correlation > 0.8 ? 'high' : 'medium',
-      expirationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+      expirationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     };
   }
 
@@ -469,27 +463,29 @@ export class HedgeEngine {
       suggestedOdds: 1.5,
       description: 'Portfolio-wide insurance hedge',
       availability: 'medium',
-      liquidityScore: 0.5
+      liquidityScore: 0.5,
     };
 
     const effectiveness = 0.7;
     const cost = hedgeInstrument.suggestedStake * 0.1;
     const riskReduction = totalRisk * effectiveness;
 
-    return [{
-      id: `portfolio_${Date.now()}`,
-      type: 'portfolio_hedge',
-      originalPosition: positions.map(p => p.id).join(','),
-      hedgeInstrument,
-      effectiveness,
-      cost,
-      riskReduction,
-      returnImpact: -cost,
-      timeDecay: 0.02,
-      recommendation: await this.generatePortfolioHedgeRecommendation(totalRisk, effectiveness),
-      priority: totalRisk > 0.3 ? 'high' : 'medium',
-      expirationTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days
-    }];
+    return [
+      {
+        id: `portfolio_${Date.now()}`,
+        type: 'portfolio_hedge',
+        originalPosition: positions.map(p => p.id).join(','),
+        hedgeInstrument,
+        effectiveness,
+        cost,
+        riskReduction,
+        returnImpact: -cost,
+        timeDecay: 0.02,
+        recommendation: await this.generatePortfolioHedgeRecommendation(totalRisk, effectiveness),
+        priority: totalRisk > 0.3 ? 'high' : 'medium',
+        expirationTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
+      },
+    ];
   }
 
   private async identifyInsuranceHedges(positions: Position[]): Promise<HedgeOpportunity[]> {
@@ -517,7 +513,7 @@ export class HedgeEngine {
       suggestedOdds: 2.5,
       description: `Insurance hedge for high-value position ${position.id}`,
       availability: 'medium',
-      liquidityScore: 0.7
+      liquidityScore: 0.7,
     };
 
     const effectiveness = 0.8;
@@ -536,17 +532,17 @@ export class HedgeEngine {
       timeDecay: await this.calculateTimeDecay(position),
       recommendation: await this.generateInsuranceHedgeRecommendation(position, effectiveness),
       priority: 'high',
-      expirationTime: new Date(Date.now() + 12 * 60 * 60 * 1000) // 12 hours
+      expirationTime: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours
     };
   }
 
   private async identifyDynamicHedges(positions: Position[]): Promise<HedgeOpportunity[]> {
     // Dynamic hedges based on market conditions and volatility
     const dynamicHedges: HedgeOpportunity[] = [];
-    
+
     for (const position of positions) {
       const marketConditions = await this.getMarketConditions(position.gameId);
-      
+
       // High volatility or adverse market conditions trigger dynamic hedges
       if (marketConditions.volatility > 0.3 || marketConditions.momentum < -0.2) {
         const hedge = await this.createDynamicHedge(position, marketConditions);
@@ -563,9 +559,8 @@ export class HedgeEngine {
     position: Position,
     marketConditions: MarketConditions
   ): Promise<HedgeOpportunity | null> {
-    
     const hedgeSize = position.stake * Math.min(0.5, marketConditions.volatility);
-    
+
     const hedgeInstrument: HedgeInstrument = {
       type: 'spread_adjustment',
       gameId: position.gameId,
@@ -574,7 +569,7 @@ export class HedgeEngine {
       suggestedOdds: 1.8,
       description: `Dynamic hedge based on market volatility (${(marketConditions.volatility * 100).toFixed(1)}%)`,
       availability: 'high',
-      liquidityScore: marketConditions.liquidity
+      liquidityScore: marketConditions.liquidity,
     };
 
     const effectiveness = Math.min(0.9, marketConditions.volatility * 2);
@@ -591,9 +586,12 @@ export class HedgeEngine {
       riskReduction,
       returnImpact: -cost,
       timeDecay: marketConditions.timeToEvent / 24, // Higher time decay closer to event
-      recommendation: await this.generateDynamicHedgeRecommendation(marketConditions, effectiveness),
+      recommendation: await this.generateDynamicHedgeRecommendation(
+        marketConditions,
+        effectiveness
+      ),
       priority: marketConditions.volatility > 0.4 ? 'high' : 'medium',
-      expirationTime: new Date(Date.now() + 6 * 60 * 60 * 1000) // 6 hours
+      expirationTime: new Date(Date.now() + 6 * 60 * 60 * 1000), // 6 hours
     };
   }
 
@@ -604,7 +602,7 @@ export class HedgeEngine {
 
   private async calculateCorrelations(positions: Position[]): Promise<Map<string, number>> {
     const correlations = new Map<string, number>();
-    
+
     for (let i = 0; i < positions.length; i++) {
       for (let j = i + 1; j < positions.length; j++) {
         const pos1 = positions[i];
@@ -613,20 +611,20 @@ export class HedgeEngine {
         correlations.set(`${pos1.id}_${pos2.id}`, correlation);
       }
     }
-    
+
     return correlations;
   }
 
   private async calculatePairwiseCorrelation(pos1: Position, pos2: Position): Promise<number> {
     // Same game = high correlation
     if (pos1.gameId === pos2.gameId) return 0.8;
-    
+
     // Same sport, same day = medium correlation
     if (this.isSameSport(pos1, pos2) && this.isSameDay(pos1, pos2)) return 0.4;
-    
+
     // Same sport, different day = low correlation
     if (this.isSameSport(pos1, pos2)) return 0.2;
-    
+
     // Different sports = minimal correlation
     return 0.05;
   }
@@ -645,9 +643,8 @@ export class HedgeEngine {
     position: Position,
     hedgeInstrument: HedgeInstrument
   ): Promise<number> {
-    
     let baseEffectiveness = 0.7; // Default effectiveness
-    
+
     // Adjust based on hedge type
     switch (hedgeInstrument.type) {
       case 'opposite_bet':
@@ -663,12 +660,16 @@ export class HedgeEngine {
         baseEffectiveness = 0.5; // Partially effective
         break;
     }
-    
+
     // Adjust for liquidity and availability
     const liquidityAdjustment = hedgeInstrument.liquidityScore;
-    const availabilityAdjustment = hedgeInstrument.availability === 'high' ? 1.0 :
-                                  hedgeInstrument.availability === 'medium' ? 0.8 : 0.6;
-    
+    const availabilityAdjustment =
+      hedgeInstrument.availability === 'high'
+        ? 1.0
+        : hedgeInstrument.availability === 'medium'
+          ? 0.8
+          : 0.6;
+
     return baseEffectiveness * liquidityAdjustment * availabilityAdjustment;
   }
 
@@ -676,14 +677,13 @@ export class HedgeEngine {
     position: Position,
     hedgeInstrument: HedgeInstrument
   ): Promise<number> {
-    
     // Base cost as percentage of hedge stake
     let baseCost = 0.05; // 5% base cost
-    
+
     // Adjust based on availability and liquidity
     if (hedgeInstrument.availability === 'low') baseCost *= 2;
     if (hedgeInstrument.liquidityScore < 0.5) baseCost *= 1.5;
-    
+
     // Calculate absolute cost
     return hedgeInstrument.suggestedStake * baseCost;
   }
@@ -692,11 +692,11 @@ export class HedgeEngine {
     // Time decay increases as we get closer to the event
     const timeToEvent = this.getTimeToEvent(position);
     const hoursToEvent = timeToEvent / (60 * 60 * 1000);
-    
+
     if (hoursToEvent > 48) return 0.01; // Low decay for distant events
     if (hoursToEvent > 24) return 0.02; // Medium decay
     if (hoursToEvent > 12) return 0.05; // Higher decay
-    if (hoursToEvent > 2) return 0.1;   // High decay
+    if (hoursToEvent > 2) return 0.1; // High decay
     return 0.2; // Very high decay for imminent events
   }
 
@@ -717,14 +717,16 @@ export class HedgeEngine {
       spread: 0.05,
       momentum: 0.0,
       timeToEvent: 24 * 60 * 60 * 1000,
-      marketSentiment: 'neutral'
+      marketSentiment: 'neutral',
     };
 
     this.marketData.set(gameId, conditions);
     return conditions;
   }
 
-  private async filterViableOpportunities(opportunities: HedgeOpportunity[]): Promise<HedgeOpportunity[]> {
+  private async filterViableOpportunities(
+    opportunities: HedgeOpportunity[]
+  ): Promise<HedgeOpportunity[]> {
     return opportunities.filter(hedge => {
       // Filter out ineffective or too expensive hedges
       const benefitCostRatio = hedge.riskReduction / hedge.cost;
@@ -738,11 +740,11 @@ export class HedgeEngine {
       const priorityOrder = { high: 3, medium: 2, low: 1 };
       const aPriority = priorityOrder[a.priority];
       const bPriority = priorityOrder[b.priority];
-      
+
       if (aPriority !== bPriority) {
         return bPriority - aPriority;
       }
-      
+
       const aBenefit = a.riskReduction / a.cost;
       const bBenefit = b.riskReduction / b.cost;
       return bBenefit - aBenefit;
@@ -754,55 +756,65 @@ export class HedgeEngine {
     portfolioRisk: number,
     riskTolerance: number
   ): Promise<HedgeOpportunity[]> {
-    
     const selected: HedgeOpportunity[] = [];
     let remainingRisk = portfolioRisk;
     let totalCost = 0;
     const maxCost = portfolioRisk * 0.3; // Max 30% of risk value for hedging
-    
+
     for (const opportunity of opportunities) {
       // Only add hedge if it improves risk-adjusted returns
       const benefitCostRatio = opportunity.riskReduction / opportunity.cost;
-      
-      if (benefitCostRatio > 2.0 && 
-          totalCost + opportunity.cost <= maxCost &&
-          remainingRisk > riskTolerance) {
-        
+
+      if (
+        benefitCostRatio > 2.0 &&
+        totalCost + opportunity.cost <= maxCost &&
+        remainingRisk > riskTolerance
+      ) {
         selected.push(opportunity);
         remainingRisk -= opportunity.riskReduction;
         totalCost += opportunity.cost;
       }
     }
-    
+
     return selected;
   }
 
-  private determineRiskProfile(portfolioRisk: number, riskTolerance: number): 'conservative' | 'moderate' | 'aggressive' {
+  private determineRiskProfile(
+    portfolioRisk: number,
+    riskTolerance: number
+  ): 'conservative' | 'moderate' | 'aggressive' {
     const riskRatio = portfolioRisk / riskTolerance;
-    
+
     if (riskRatio > 3) return 'conservative';
     if (riskRatio > 1.5) return 'moderate';
     return 'aggressive';
   }
 
-  private determinePriority(effectiveness: number, cost: number, riskReduction: number): 'high' | 'medium' | 'low' {
+  private determinePriority(
+    effectiveness: number,
+    cost: number,
+    riskReduction: number
+  ): 'high' | 'medium' | 'low' {
     const benefitCostRatio = riskReduction / cost;
-    
+
     if (effectiveness > 0.8 && benefitCostRatio > 3) return 'high';
     if (effectiveness > 0.6 && benefitCostRatio > 2) return 'medium';
     return 'low';
   }
 
   // Recommendation Generation Methods
-  private async generateDirectHedgeRecommendation(effectiveness: number, cost: number): Promise<HedgeRecommendation> {
+  private async generateDirectHedgeRecommendation(
+    effectiveness: number,
+    cost: number
+  ): Promise<HedgeRecommendation> {
     const benefitCostRatio = effectiveness / (cost / 100); // Normalize cost
-    
+
     if (benefitCostRatio > 3) {
       return {
         action: 'hedge_now',
         reason: 'High effectiveness, low cost hedge available',
         timeframe: 'immediate',
-        confidence: 0.9
+        confidence: 0.9,
       };
     } else if (benefitCostRatio > 1.5) {
       return {
@@ -810,25 +822,28 @@ export class HedgeEngine {
         reason: 'Good hedge opportunity with reasonable cost',
         conditions: ['Market conditions remain stable'],
         timeframe: 'within 2 hours',
-        confidence: 0.7
+        confidence: 0.7,
       };
     } else {
       return {
         action: 'monitor',
         reason: 'Hedge available but cost may be too high',
         timeframe: 'monitor for better opportunities',
-        confidence: 0.5
+        confidence: 0.5,
       };
     }
   }
 
-  private async generateCorrelationHedgeRecommendation(correlation: number, effectiveness: number): Promise<HedgeRecommendation> {
+  private async generateCorrelationHedgeRecommendation(
+    correlation: number,
+    effectiveness: number
+  ): Promise<HedgeRecommendation> {
     if (correlation > 0.8 && effectiveness > 0.7) {
       return {
         action: 'hedge_now',
         reason: 'High correlation risk requires immediate hedging',
         timeframe: 'immediate',
-        confidence: 0.85
+        confidence: 0.85,
       };
     } else {
       return {
@@ -836,46 +851,55 @@ export class HedgeEngine {
         reason: 'Moderate correlation risk, hedge if correlation increases',
         conditions: ['Correlation remains above 0.7'],
         timeframe: 'within 4 hours',
-        confidence: 0.6
+        confidence: 0.6,
       };
     }
   }
 
-  private async generatePortfolioHedgeRecommendation(totalRisk: number, effectiveness: number): Promise<HedgeRecommendation> {
+  private async generatePortfolioHedgeRecommendation(
+    totalRisk: number,
+    effectiveness: number
+  ): Promise<HedgeRecommendation> {
     if (totalRisk > 0.3) {
       return {
         action: 'hedge_now',
         reason: 'Portfolio risk exceeds safe limits',
         timeframe: 'immediate',
-        confidence: 0.8
+        confidence: 0.8,
       };
     } else {
       return {
         action: 'monitor',
         reason: 'Portfolio risk manageable, monitor for changes',
         timeframe: 'continuous monitoring',
-        confidence: 0.6
+        confidence: 0.6,
       };
     }
   }
 
-  private async generateInsuranceHedgeRecommendation(position: Position, effectiveness: number): Promise<HedgeRecommendation> {
+  private async generateInsuranceHedgeRecommendation(
+    position: Position,
+    effectiveness: number
+  ): Promise<HedgeRecommendation> {
     return {
       action: 'hedge_conditional',
       reason: `High-value position (${position.stake}) needs insurance`,
       conditions: ['Position remains above risk threshold'],
       timeframe: 'within 1 hour',
-      confidence: 0.75
+      confidence: 0.75,
     };
   }
 
-  private async generateDynamicHedgeRecommendation(marketConditions: MarketConditions, effectiveness: number): Promise<HedgeRecommendation> {
+  private async generateDynamicHedgeRecommendation(
+    marketConditions: MarketConditions,
+    effectiveness: number
+  ): Promise<HedgeRecommendation> {
     if (marketConditions.volatility > 0.4) {
       return {
         action: 'hedge_now',
         reason: 'High market volatility requires immediate hedging',
         timeframe: 'immediate',
-        confidence: 0.8
+        confidence: 0.8,
       };
     } else {
       return {
@@ -883,7 +907,7 @@ export class HedgeEngine {
         reason: 'Moderate volatility, monitor market conditions',
         triggerEvents: ['Volatility increase', 'Negative momentum'],
         timeframe: 'continuous monitoring',
-        confidence: 0.6
+        confidence: 0.6,
       };
     }
   }
@@ -894,7 +918,10 @@ export class HedgeEngine {
     return Date.now() < hedge.expirationTime.getTime() && hedge.effectiveness > 0.3;
   }
 
-  private async checkExecutionPermissions(hedge: HedgeOpportunity, userId: string): Promise<boolean> {
+  private async checkExecutionPermissions(
+    hedge: HedgeOpportunity,
+    userId: string
+  ): Promise<boolean> {
     // Check user permissions, available funds, risk limits, etc.
     return true; // Simplified for now
   }
@@ -904,9 +931,9 @@ export class HedgeEngine {
     this.logger.info('💼 Executing hedge (simulated)', {
       hedgeId: hedge.id,
       type: hedge.type,
-      stake: hedge.hedgeInstrument.suggestedStake
+      stake: hedge.hedgeInstrument.suggestedStake,
     });
-    
+
     return true; // Simulated success
   }
 
@@ -918,7 +945,7 @@ export class HedgeEngine {
       type: hedge.type,
       stake: hedge.hedgeInstrument.suggestedStake,
       expectedEffectiveness: hedge.effectiveness,
-      expectedCost: hedge.cost
+      expectedCost: hedge.cost,
     };
 
     await redisCache.set(
@@ -935,12 +962,14 @@ export class HedgeEngine {
 
   private async updateHedgeEffectiveness(hedge: HedgeOpportunity): Promise<HedgeOpportunity> {
     // Update effectiveness based on current market conditions
-    const currentConditions = await this.getMarketConditions(hedge.hedgeInstrument.gameId || 'default');
-    
+    const currentConditions = await this.getMarketConditions(
+      hedge.hedgeInstrument.gameId || 'default'
+    );
+
     // Adjust effectiveness based on time decay and market changes
-    hedge.effectiveness *= (1 - hedge.timeDecay);
-    hedge.effectiveness *= (1 + currentConditions.volatility * 0.1); // Volatility can increase effectiveness
-    
+    hedge.effectiveness *= 1 - hedge.timeDecay;
+    hedge.effectiveness *= 1 + currentConditions.volatility * 0.1; // Volatility can increase effectiveness
+
     return hedge;
   }
 
@@ -949,17 +978,25 @@ export class HedgeEngine {
     return hedge.effectiveness < 0.4 || hedge.cost > hedge.riskReduction * 2;
   }
 
-  private async generateAdjustmentRecommendation(hedge: HedgeOpportunity): Promise<HedgeRecommendation> {
+  private async generateAdjustmentRecommendation(
+    hedge: HedgeOpportunity
+  ): Promise<HedgeRecommendation> {
     return {
       action: 'monitor',
       reason: 'Hedge effectiveness declining, consider adjustment',
-      conditions: ['Monitor market conditions', 'Consider closing if effectiveness drops below 30%'],
+      conditions: [
+        'Monitor market conditions',
+        'Consider closing if effectiveness drops below 30%',
+      ],
       timeframe: 'within 2 hours',
-      confidence: 0.6
+      confidence: 0.6,
     };
   }
 
-  private async cacheHedgeOpportunities(userId: string, opportunities: HedgeOpportunity[]): Promise<void> {
+  private async cacheHedgeOpportunities(
+    userId: string,
+    opportunities: HedgeOpportunity[]
+  ): Promise<void> {
     await redisCache.set(
       `hedge:opportunities:${userId}`,
       JSON.stringify(opportunities),
@@ -980,7 +1017,7 @@ export class HedgeEngine {
       direct_hedge: { effectiveness_factor: 0.9, cost_factor: 0.05, time_decay: 0.1 },
       correlation_hedge: { effectiveness_factor: 0.6, cost_factor: 0.08, time_decay: 0.05 },
       portfolio_hedge: { effectiveness_factor: 0.7, cost_factor: 0.1, time_decay: 0.02 },
-      insurance_hedge: { effectiveness_factor: 0.8, cost_factor: 0.15, time_decay: 0.05 }
+      insurance_hedge: { effectiveness_factor: 0.8, cost_factor: 0.15, time_decay: 0.05 },
     };
 
     for (const [strategyName, strategy] of Object.entries(strategies)) {
@@ -996,7 +1033,7 @@ export class HedgeEngine {
       spread: 0.05,
       momentum: 0.0,
       timeToEvent: 24 * 60 * 60 * 1000,
-      marketSentiment: 'neutral'
+      marketSentiment: 'neutral',
     };
 
     this.marketData.set('default', defaultConditions);
@@ -1005,7 +1042,7 @@ export class HedgeEngine {
   private async loadHedgeHistory(): Promise<void> {
     try {
       const cachedHistory = await redisCache.getPattern('hedge:history:*');
-      
+
       for (const [key, data] of cachedHistory) {
         const userId = key.split(':').pop();
         if (userId) {
@@ -1022,15 +1059,17 @@ export class HedgeEngine {
 
   private async loadPerformanceData(): Promise<void> {
     // Load hedge performance data for continuous improvement
-    const defaultPerformance: HedgePerformance[] = [{
-      hedgeId: 'sample',
-      effectiveness: 0.75,
-      cost: 0.08,
-      actualRiskReduction: 0.12,
-      returnImpact: -0.08,
-      accuracy: 0.8,
-      lessons: ['Higher effectiveness in volatile markets', 'Cost increased with low liquidity']
-    }];
+    const defaultPerformance: HedgePerformance[] = [
+      {
+        hedgeId: 'sample',
+        effectiveness: 0.75,
+        cost: 0.08,
+        actualRiskReduction: 0.12,
+        returnImpact: -0.08,
+        accuracy: 0.8,
+        lessons: ['Higher effectiveness in volatile markets', 'Cost increased with low liquidity'],
+      },
+    ];
 
     this.hedgePerformance.set('default', defaultPerformance);
   }
@@ -1053,7 +1092,7 @@ export class HedgeEngine {
     this.marketData.clear();
     this.hedgePerformance.clear();
     this.hedgeStrategies.clear();
-    
+
     this.logger.info('🧹 HedgeEngine cleanup completed');
   }
 }

@@ -31,7 +31,9 @@ export interface OddsValidationResult {
  * - Accepts: "-110", "+150", "100", " +110 "
  * - Rejects: "1.91", "0", "50", "", "abc"
  */
-export function validateAmericanOdds(input: string | number | null | undefined): OddsValidationResult {
+export function validateAmericanOdds(
+  input: string | number | null | undefined
+): OddsValidationResult {
   // Handle empty/null/undefined
   if (input === null || input === undefined || input === '') {
     return {
@@ -155,9 +157,9 @@ export function validateOddsInteger(input: number): OddsValidationResult {
  */
 export function americanToDecimal(americanOdds: number): number {
   if (americanOdds > 0) {
-    return (americanOdds / 100) + 1;
+    return americanOdds / 100 + 1;
   } else {
-    return 1 - (100 / americanOdds);
+    return 1 - 100 / americanOdds;
   }
 }
 
@@ -181,7 +183,9 @@ export function decimalToAmerican(decimalOdds: number): number {
  * 2. Multiply all decimals
  * 3. Convert final decimal to American (round once)
  */
-export function calculateParlayOdds(legOdds: number[]): OddsValidationResult & { combinedOdds?: number } {
+export function calculateParlayOdds(
+  legOdds: number[]
+): OddsValidationResult & { combinedOdds?: number } {
   if (legOdds.length < 2) {
     return {
       valid: false,

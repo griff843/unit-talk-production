@@ -69,7 +69,10 @@ async function main() {
   const phase65Migration = migrationFiles.find(f => f.includes('phase65'));
   if (phase65Migration) {
     const migrationContent = fs.readFileSync(path.join(migrationsDir, phase65Migration), 'utf-8');
-    if (migrationContent.includes('autopilot_decisions') && migrationContent.includes('workflow_registry')) {
+    if (
+      migrationContent.includes('autopilot_decisions') &&
+      migrationContent.includes('workflow_registry')
+    ) {
       log('Phase 6.5 migration', 'PASS', 'Migration found: ' + phase65Migration);
     } else {
       log('Phase 6.5 migration', 'WARN', 'Migration found but may be incomplete');
@@ -90,9 +93,15 @@ async function main() {
 
     if (grepResult.trim()) {
       const lines = grepResult.trim().split('\n');
-      const violations = lines.filter(l => !l.includes('AutopilotGuard.ts') && !l.includes('// DEPRECATED'));
+      const violations = lines.filter(
+        l => !l.includes('AutopilotGuard.ts') && !l.includes('// DEPRECATED')
+      );
       if (violations.length > 0) {
-        log('Legacy shadowMode gates', 'FAIL', `Found ${violations.length} direct shadowMode.shouldSkipPublicAction() calls`);
+        log(
+          'Legacy shadowMode gates',
+          'FAIL',
+          `Found ${violations.length} direct shadowMode.shouldSkipPublicAction() calls`
+        );
         violations.forEach(v => console.log(`   └── ${v}`));
       } else {
         log('Legacy shadowMode gates', 'PASS', 'No legacy gates in production code');
@@ -113,7 +122,7 @@ async function main() {
     { path: 'services/VIPPlusChannelService.ts', required: true },
     { path: 'agents/DiscordPromotionAgent/index.ts', required: true },
     { path: 'agents/NotificationAgent/NotificationAgent.ts', required: true },
-    { path: 'promotion/PublishGuard.ts', required: true }
+    { path: 'promotion/PublishGuard.ts', required: true },
   ];
 
   for (const service of servicesToCheck) {
@@ -126,9 +135,17 @@ async function main() {
       if (hasAutopilotGuard && hasAssertMayPerform) {
         log(`Service: ${service.path}`, 'PASS', 'Uses AutopilotGuard.assertMayPerformSideEffect()');
       } else if (hasAutopilotGuard) {
-        log(`Service: ${service.path}`, 'WARN', 'Imports AutopilotGuard but may not use assertMayPerformSideEffect()');
+        log(
+          `Service: ${service.path}`,
+          'WARN',
+          'Imports AutopilotGuard but may not use assertMayPerformSideEffect()'
+        );
       } else if (service.required) {
-        log(`Service: ${service.path}`, 'FAIL', 'MISSING AutopilotGuard - REQUIRED for Phase 6.5 compliance');
+        log(
+          `Service: ${service.path}`,
+          'FAIL',
+          'MISSING AutopilotGuard - REQUIRED for Phase 6.5 compliance'
+        );
       } else {
         log(`Service: ${service.path}`, 'PASS', 'No direct side-effect gating (internal service)');
       }

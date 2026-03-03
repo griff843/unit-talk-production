@@ -3,7 +3,7 @@
 
 /**
  * Fix Team Totals Classification Issue
- * 
+ *
  * Problem: 228 team total props have "Over"/"Under" in player_name field
  * These should be classified as team props, not player props
  */
@@ -24,7 +24,7 @@ async function fixTeamTotalsClassification() {
   try {
     console.log('\n📊 PHASE 1: ANALYZE TEAM TOTAL PROPS');
     console.log('====================================');
-    
+
     // Count team total props with Over/Under in player_name
     const { count: teamTotalCount, error: countError } = await supabaseClient
       .from('raw_props')
@@ -36,7 +36,9 @@ async function fixTeamTotalsClassification() {
       throw new Error(`Failed to count team totals: ${countError.message}`);
     }
 
-    console.log(`❌ Team total props with Over/Under in player_name: ${teamTotalCount?.toLocaleString()}`);
+    console.log(
+      `❌ Team total props with Over/Under in player_name: ${teamTotalCount?.toLocaleString()}`
+    );
 
     // Show examples
     const { data: examples, error: exampleError } = await supabaseClient
@@ -55,7 +57,7 @@ async function fixTeamTotalsClassification() {
 
     console.log('\n🔧 PHASE 2: FIX TEAM TOTAL CLASSIFICATION');
     console.log('=========================================');
-    
+
     // Fix Over props (team totals)
     console.log('Fixing "Over" team total props...');
     const { data: overResults, error: overError } = await supabaseClient
@@ -65,7 +67,7 @@ async function fixTeamTotalsClassification() {
         market_type: 'team_total',
         stat_type: 'team_total_points',
         // Add outcome field if it exists in schema
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('stat_type', 'total')
       .eq('player_name', 'Over')
@@ -78,7 +80,7 @@ async function fixTeamTotalsClassification() {
       console.log(`✅ Fixed ${overCount} "Over" team total props`);
     }
 
-    // Fix Under props (team totals)  
+    // Fix Under props (team totals)
     console.log('Fixing "Under" team total props...');
     const { data: underResults, error: underError } = await supabaseClient
       .from('raw_props')
@@ -86,7 +88,7 @@ async function fixTeamTotalsClassification() {
         player_name: null,
         market_type: 'team_total',
         stat_type: 'team_total_points',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('stat_type', 'total')
       .eq('player_name', 'Under')
@@ -101,7 +103,7 @@ async function fixTeamTotalsClassification() {
 
     console.log('\n✅ PHASE 3: VALIDATION');
     console.log('======================');
-    
+
     // Verify the fix
     const { count: remainingCount, error: validateError } = await supabaseClient
       .from('raw_props')
@@ -112,8 +114,10 @@ async function fixTeamTotalsClassification() {
     if (validateError) {
       console.error(`⚠️ Validation failed: ${validateError.message}`);
     } else {
-      console.log(`📊 Remaining team totals with Over/Under in player_name: ${remainingCount || 0}`);
-      
+      console.log(
+        `📊 Remaining team totals with Over/Under in player_name: ${remainingCount || 0}`
+      );
+
       if ((remainingCount || 0) === 0) {
         console.log('🎉 ALL TEAM TOTALS FIXED!');
       } else {
@@ -138,7 +142,7 @@ async function fixTeamTotalsClassification() {
 
     console.log('\n🎯 PHASE 4: API CREDIT TRACKING INVESTIGATION');
     console.log('=============================================');
-    
+
     console.log('\n💡 Credit Tracking Analysis:');
     console.log('============================');
     console.log('Issue: Credit usage shows 0/500 despite API calls');
@@ -147,7 +151,7 @@ async function fixTeamTotalsClassification() {
     console.log('2. Using different API key than tracked');
     console.log('3. Credit monitoring logic has bugs');
     console.log('4. API might not be consuming credits as expected');
-    
+
     console.log('\n🔍 Investigation needed:');
     console.log('========================');
     console.log('1. Check actual API response headers for credit usage');
@@ -162,7 +166,7 @@ async function fixTeamTotalsClassification() {
     console.log('  - 1 call gets ALL markets (h2h, spreads, totals)');
     console.log('  - 1 call gets ALL bookmakers');
     console.log('  - Much better than calling per game/event');
-    
+
     console.log('\n📊 Example: NCAAF');
     console.log('  - 1 API call = 132 games = 3,220 props');
     console.log('  - Alternative: 132 calls (1 per game) = same data');
@@ -182,7 +186,6 @@ async function fixTeamTotalsClassification() {
     console.log('2. Create test script to verify credit tracking');
     console.log('3. Switch to Optimal API for major sports (NFL/NBA/MLB/NHL)');
     console.log('4. Keep efficient Odds API usage for NCAAF/settlement');
-
   } catch (error) {
     console.error('\n❌ Fix failed:', error instanceof Error ? error.message : 'Unknown error');
     throw error;
@@ -196,7 +199,7 @@ if (require.main === module) {
       console.log('\n🎉 Team totals classification fix completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Fix crashed:', error);
       process.exit(1);
     });

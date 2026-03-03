@@ -4,7 +4,7 @@ import { supabaseClient } from '../services/supabaseClient.js';
 export async function createSOP(title: string, content: string): Promise<string> {
   try {
     logger.info(`Creating SOP: ${title}`);
-    
+
     // For now, we'll create a structured SOP document
     // In the future, this could integrate with Notion API
     const sop = {
@@ -13,15 +13,11 @@ export async function createSOP(title: string, content: string): Promise<string>
       content,
       created_at: new Date().toISOString(),
       status: 'active',
-      version: '1.0'
+      version: '1.0',
     };
 
     // Store in database
-    const { data, error } = await supabaseClient
-      .from('sops')
-      .insert(sop)
-      .select()
-      .single();
+    const { data, error } = await supabaseClient.from('sops').insert(sop).select().single();
 
     if (error) {
       throw new Error(`Failed to create SOP: ${error.message}`);
@@ -35,10 +31,15 @@ export async function createSOP(title: string, content: string): Promise<string>
   }
 }
 
-export async function createKPI(name: string, target: number, current: number, unit: string): Promise<string> {
+export async function createKPI(
+  name: string,
+  target: number,
+  current: number,
+  unit: string
+): Promise<string> {
   try {
     logger.info(`Creating KPI: ${name}`);
-    
+
     const kpi = {
       id: `kpi_${Date.now()}`,
       name,
@@ -47,15 +48,11 @@ export async function createKPI(name: string, target: number, current: number, u
       unit,
       created_at: new Date().toISOString(),
       status: 'active',
-      progress: current > 0 ? (current / target) * 100 : 0
+      progress: current > 0 ? (current / target) * 100 : 0,
     };
 
     // Store in database
-    const { data, error } = await supabaseClient
-      .from('kpis')
-      .insert(kpi)
-      .select()
-      .single();
+    const { data, error } = await supabaseClient.from('kpis').insert(kpi).select().single();
 
     if (error) {
       throw new Error(`Failed to create KPI: ${error.message}`);
@@ -86,12 +83,10 @@ export async function sendDiscordAlert(message: string, channel?: string): Promi
       channel: channel || 'general',
       created_at: new Date().toISOString(),
       type: 'discord',
-      status: 'sent'
+      status: 'sent',
     };
 
-    const { error } = await supabaseClient
-      .from('alerts')
-      .insert(alert);
+    const { error } = await supabaseClient.from('alerts').insert(alert);
 
     if (error) {
       throw new Error(`Failed to send Discord alert: ${error.message}`);
@@ -105,7 +100,11 @@ export async function sendDiscordAlert(message: string, channel?: string): Promi
 }
 
 // Notion log function
-export async function sendNotionLog(title: string, content: string, type: string = 'info'): Promise<void> {
+export async function sendNotionLog(
+  title: string,
+  content: string,
+  type: string = 'info'
+): Promise<void> {
   try {
     logger.info(`Sending Notion log: ${title}`);
 
@@ -117,12 +116,10 @@ export async function sendNotionLog(title: string, content: string, type: string
       content,
       type,
       created_at: new Date().toISOString(),
-      source: 'operator_agent'
+      source: 'operator_agent',
     };
 
-    const { error } = await supabaseClient
-      .from('logs')
-      .insert(log);
+    const { error } = await supabaseClient.from('logs').insert(log);
 
     if (error) {
       throw new Error(`Failed to send Notion log: ${error.message}`);

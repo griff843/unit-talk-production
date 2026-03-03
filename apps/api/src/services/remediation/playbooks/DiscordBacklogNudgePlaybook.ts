@@ -9,7 +9,6 @@
  * @module services/remediation/playbooks/DiscordBacklogNudgePlaybook
  */
 
-import { BasePlaybook } from './BasePlaybook';
 import {
   ActionRecord,
   ExecutionContext,
@@ -17,6 +16,8 @@ import {
   ExecutionType,
   PlaybookId,
 } from '../types';
+
+import { BasePlaybook } from './BasePlaybook';
 
 // ============================================================================
 // DiscordBacklogNudgePlaybook Class
@@ -55,10 +56,12 @@ export class DiscordBacklogNudgePlaybook extends BasePlaybook {
       if (dryRun) {
         this.logger.info('DRY RUN: Would send Discord notification', { embed });
 
-        actions.push(this.createAction('send_discord_notification', true, {
-          targetKnob: 'DISCORD_WEBHOOK',
-          newValue: 'Discord notification (dry run)',
-        }));
+        actions.push(
+          this.createAction('send_discord_notification', true, {
+            targetKnob: 'DISCORD_WEBHOOK',
+            newValue: 'Discord notification (dry run)',
+          })
+        );
 
         return this.createSuccessResult(actions, dryRun, context);
       }
@@ -67,10 +70,12 @@ export class DiscordBacklogNudgePlaybook extends BasePlaybook {
       if (!this.discordWebhookUrl) {
         this.logger.warn('Discord webhook URL not configured');
 
-        actions.push(this.createAction('send_discord_notification', false, {
-          targetKnob: 'DISCORD_WEBHOOK',
-          error: 'OPS_DISCORD_WEBHOOK_URL not configured',
-        }));
+        actions.push(
+          this.createAction('send_discord_notification', false, {
+            targetKnob: 'DISCORD_WEBHOOK',
+            error: 'OPS_DISCORD_WEBHOOK_URL not configured',
+          })
+        );
 
         // Return recommendations instead
         return {
@@ -102,10 +107,12 @@ export class DiscordBacklogNudgePlaybook extends BasePlaybook {
         throw new Error(`Discord webhook failed: ${response.status} ${response.statusText}`);
       }
 
-      actions.push(this.createAction('send_discord_notification', true, {
-        targetKnob: 'DISCORD_WEBHOOK',
-        newValue: 'Discord notification sent',
-      }));
+      actions.push(
+        this.createAction('send_discord_notification', true, {
+          targetKnob: 'DISCORD_WEBHOOK',
+          newValue: 'Discord notification sent',
+        })
+      );
 
       this.logger.info('Discord backlog nudge sent', {
         incidentId: context.incident_id,
@@ -116,10 +123,12 @@ export class DiscordBacklogNudgePlaybook extends BasePlaybook {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to send Discord notification', { error: errorMessage });
 
-      actions.push(this.createAction('send_discord_notification', false, {
-        targetKnob: 'DISCORD_WEBHOOK',
-        error: errorMessage,
-      }));
+      actions.push(
+        this.createAction('send_discord_notification', false, {
+          targetKnob: 'DISCORD_WEBHOOK',
+          error: errorMessage,
+        })
+      );
 
       return this.createFailedResult(errorMessage, dryRun);
     }
@@ -134,7 +143,7 @@ export class DiscordBacklogNudgePlaybook extends BasePlaybook {
     return {
       title: '⚠️ Discord Notification Backlog Alert',
       description: 'The Discord notification queue is backing up. Please investigate.',
-      color: 0xFFA500, // Orange
+      color: 0xffa500, // Orange
       fields: [
         {
           name: 'Incident ID',
@@ -146,16 +155,24 @@ export class DiscordBacklogNudgePlaybook extends BasePlaybook {
           value: context.triggered_by,
           inline: true,
         },
-        ...(context.trigger_value !== undefined ? [{
-          name: 'Backlog Size',
-          value: `${context.trigger_value} notifications pending`,
-          inline: true,
-        }] : []),
-        ...(context.trigger_threshold !== undefined ? [{
-          name: 'Threshold',
-          value: `${context.trigger_threshold} notifications`,
-          inline: true,
-        }] : []),
+        ...(context.trigger_value !== undefined
+          ? [
+              {
+                name: 'Backlog Size',
+                value: `${context.trigger_value} notifications pending`,
+                inline: true,
+              },
+            ]
+          : []),
+        ...(context.trigger_threshold !== undefined
+          ? [
+              {
+                name: 'Threshold',
+                value: `${context.trigger_threshold} notifications`,
+                inline: true,
+              },
+            ]
+          : []),
         {
           name: 'Action Required',
           value: [
@@ -198,7 +215,7 @@ export class DiscordBacklogNudgePlaybook extends BasePlaybook {
       '1. Check notification backlog:',
       '   SELECT COUNT(*), status',
       '   FROM incident_notifications',
-      '   WHERE sent_at IS NULL OR sent_at > NOW() - INTERVAL \'1 hour\'',
+      "   WHERE sent_at IS NULL OR sent_at > NOW() - INTERVAL '1 hour'",
       '   GROUP BY status;',
       '',
       '2. Check OpsNotificationWorker health:',

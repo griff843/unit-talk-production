@@ -2,7 +2,7 @@
  * Automated Feedback Loop Service
  * Uses CLV/ROI data to continuously optimize weights and features
  * This is what separates sharp systems from static models
- * 
+ *
  * @module FeedbackLoopService
  */
 
@@ -28,7 +28,7 @@ export interface BookPerformance {
   betCount: number;
   roi: number;
   reliability: number; // 0-1 professional_score
-  weight: number;     // Current weight
+  weight: number; // Current weight
   suggestedWeight: number;
 }
 
@@ -52,13 +52,13 @@ export class FeedbackLoopService {
   private static instance: FeedbackLoopService;
   private logger: any;
   private gradingEngine: SyndicateGradingEngine;
-  
+
   // Configuration
-  private readonly MIN_SAMPLE_SIZE = 50;          // Min bets before adjusting
-  private readonly ADJUSTMENT_RATE = 0.1;         // Max 10% change per update
-  private readonly CLV_TARGET = 2.5;              // Target 2.5% CLV
-  private readonly PRUNE_THRESHOLD = 0.01;        // Prune features < 1% importance
-  
+  private readonly MIN_SAMPLE_SIZE = 50; // Min bets before adjusting
+  private readonly ADJUSTMENT_RATE = 0.1; // Max 10% change per update
+  private readonly CLV_TARGET = 2.5; // Target 2.5% CLV
+  private readonly PRUNE_THRESHOLD = 0.01; // Prune features < 1% importance
+
   private constructor() {
     this.logger = createLogger('FeedbackLoopService');
     this.gradingEngine = new SyndicateGradingEngine();
@@ -82,41 +82,41 @@ export class FeedbackLoopService {
     prunedFeatures: string[];
   }> {
     this.logger.info('Starting automated feedback loop...');
-    
+
     try {
       // 1. Analyze recent CLV performance
       const clvData = await this.analyzeRecentCLV();
-      
+
       // 2. Adjust feature weights based on CLV correlation
       const weightAdjustments = await this.adjustFeatureWeights(clvData);
-      
+
       // 3. Adjust sportsbook weights based on performance
       const bookAdjustments = await this.adjustBookWeights();
-      
+
       // 4. Adjust market-specific confidence
       const marketAdjustments = await this.adjustMarketConfidence();
-      
+
       // 5. Prune underperforming features
       const prunedFeatures = await this.pruneFeatures(clvData);
-      
+
       // 6. Apply adjustments to grading engine
       await this.applyAdjustments(weightAdjustments, bookAdjustments, marketAdjustments);
-      
+
       // 7. Log results
       await this.logFeedbackResults({
         weightAdjustments,
         bookAdjustments,
         marketAdjustments,
-        prunedFeatures
+        prunedFeatures,
       });
-      
+
       this.logger.info('Feedback loop completed successfully');
-      
+
       return {
         weightAdjustments,
         bookAdjustments,
         marketAdjustments,
-        prunedFeatures
+        prunedFeatures,
       };
     } catch (error) {
       this.logger.error('Feedback loop failed', error);
@@ -131,14 +131,16 @@ export class FeedbackLoopService {
     // Get recent picks with CLV data
     const { data: recentPicks, error } = await supabaseClient
       .from('graded_props')
-      .select(`
+      .select(
+        `
         *,
         clv_tracking!inner(
           clv,
           clvPercentage,
           beatsClosing
         )
-      `)
+      `
+      )
       .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
       .not('clv_tracking.clv', 'is', null);
 
@@ -154,14 +156,15 @@ export class FeedbackLoopService {
         recentPicks || [],
         feature as keyof ScoringWeights
       );
-      
+
       const importance = weight * Math.abs(correlation);
-      
+
       featureImportance.set(feature, {
         feature: feature as keyof ScoringWeights,
         importance,
         clvCorrelation: correlation,
-        shouldPrune: importance < this.PRUNE_THRESHOLD && recentPicks!.length > this.MIN_SAMPLE_SIZE
+        shouldPrune:
+          importance < this.PRUNE_THRESHOLD && recentPicks!.length > this.MIN_SAMPLE_SIZE,
       });
     }
 
@@ -171,10 +174,7 @@ export class FeedbackLoopService {
   /**
    * Calculate correlation between feature values and CLV
    */
-  private calculateFeatureCLVCorrelation(
-    picks: any[],
-    feature: keyof ScoringWeights
-  ): number {
+  private calculateFeatureCLVCorrelation(picks: any[], feature: keyof ScoringWeights): number {
     if (picks.length < 10) return 0;
 
     // Extract feature values and CLV values
@@ -189,8 +189,8 @@ export class FeedbackLoopService {
     const sumX2 = featureValues.reduce((total, x) => total + x * x, 0);
     const sumY2 = clvValues.reduce((total, y) => total + y * y, 0);
 
-    const correlation = (n * sumXY - sumX * sumY) / 
-      Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+    const correlation =
+      (n * sumXY - sumX * sumY) / Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
 
     return isNaN(correlation) ? 0 : correlation;
   }
@@ -207,7 +207,7 @@ export class FeedbackLoopService {
 
     // Get current CLV performance
     const recentStats = await clvTrackingService.getCLVStats({
-      startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     });
 
     const currentCLV = recentStats.avgCLVPercentage;
@@ -216,7 +216,7 @@ export class FeedbackLoopService {
     for (const [feature, importance] of featureImportance) {
       const featureKey = feature as keyof ScoringWeights;
       const currentWeight = currentWeights[featureKey];
-      
+
       // Skip if no current weight
       if (!currentWeight) continue;
 
@@ -237,14 +237,14 @@ export class FeedbackLoopService {
 
       if (Math.abs(adjustment) > 0.01) {
         const newWeight = Math.max(0, currentWeight * (1 + adjustment));
-        
+
         adjustments.push({
           feature: featureKey,
           oldWeight: currentWeight,
           newWeight,
           reason: `CLV correlation: ${importance.clvCorrelation.toFixed(3)}`,
           clvImpact: importance.clvCorrelation,
-          confidence: Math.min(1, recentStats.totalBets / 100)
+          confidence: Math.min(1, recentStats.totalBets / 100),
         });
 
         currentWeights[featureKey] = newWeight;
@@ -254,7 +254,7 @@ export class FeedbackLoopService {
     // Normalize weights to sum to previous total
     const oldTotal = Object.values(currentConfig.weights).reduce((a, b) => a + b, 0);
     const newTotal = Object.values(currentWeights).reduce((a, b) => a + b, 0);
-    
+
     if (newTotal > 0) {
       const scale = oldTotal / newTotal;
       Object.keys(currentWeights).forEach(key => {
@@ -270,30 +270,26 @@ export class FeedbackLoopService {
    */
   private async adjustBookWeights(): Promise<BookPerformance[]> {
     const stats = await clvTrackingService.getCLVStats({
-      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     });
 
     const bookPerformance: BookPerformance[] = [];
-    
-    // Get current book weights from database
-    const { data: currentWeights } = await supabaseClient
-      .from('sportsbook_weights')
-      .select('*');
 
-    const weightMap = new Map(
-      currentWeights?.map(w => [w.book, w.weight]) || []
-    );
+    // Get current book weights from database
+    const { data: currentWeights } = await supabaseClient.from('sportsbook_weights').select('*');
+
+    const weightMap = new Map(currentWeights?.map(w => [w.book, w.weight]) || []);
 
     // Analyze each book
     for (const [book, metrics] of stats.byBook) {
       const currentWeight = weightMap.get(book) || 1.0;
-      
+
       // Calculate reliability professional_score based on CLV consistency
       const reliability = this.calculateReliability(metrics);
-      
+
       // Suggest new weight based on CLV performance
       let suggestedWeight = currentWeight;
-      
+
       if (metrics.avgCLV > this.CLV_TARGET && metrics.count > this.MIN_SAMPLE_SIZE) {
         // Book consistently provides value
         suggestedWeight = Math.min(1.5, currentWeight * (1 + this.ADJUSTMENT_RATE));
@@ -309,7 +305,7 @@ export class FeedbackLoopService {
         roi: metrics.roi,
         reliability,
         weight: currentWeight,
-        suggestedWeight
+        suggestedWeight,
       });
     }
 
@@ -325,8 +321,8 @@ export class FeedbackLoopService {
     const sampleScore = Math.min(1, metrics.count / 100);
     const consistencyScore = metrics.stdDev > 0 ? Math.max(0, 1 - metrics.stdDev / 10) : 0.5;
     const clvScore = Math.max(0, Math.min(1, (metrics.avgCLV + 5) / 10));
-    
-    return (sampleScore * 0.2 + consistencyScore * 0.4 + clvScore * 0.4);
+
+    return sampleScore * 0.2 + consistencyScore * 0.4 + clvScore * 0.4;
   }
 
   /**
@@ -334,11 +330,11 @@ export class FeedbackLoopService {
    */
   private async adjustMarketConfidence(): Promise<MarketPerformance[]> {
     const stats = await clvTrackingService.getCLVStats({
-      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     });
 
     const marketPerformance: MarketPerformance[] = [];
-    
+
     // Analyze sport+market combinations
     const { data: recentPicks } = await supabaseClient
       .from('graded_props')
@@ -361,22 +357,22 @@ export class FeedbackLoopService {
       const [sport, market] = key.split(':');
       const avgCLV = picks.reduce((sum, p) => sum + p.clv_tracking.clvPercentage, 0) / picks.length;
       const betCount = picks.length;
-      
+
       // Calculate confidence based on CLV and sample size
       const clvScore = Math.max(0, Math.min(1, avgCLV / 5)); // 5% CLV = max professional_score
       const sampleScore = Math.min(1, betCount / 50);
       const confidence = clvScore * 0.7 + sampleScore * 0.3;
-      
+
       // Edge multiplier: boost edges in high-CLV markets
       const edgeMultiplier = avgCLV > 2 ? 1.1 : avgCLV > 0 ? 1.0 : 0.9;
-      
+
       marketPerformance.push({
         sport,
         market,
         avgCLV,
         betCount,
         confidence,
-        edgeMultiplier
+        edgeMultiplier,
       });
     }
 
@@ -391,16 +387,18 @@ export class FeedbackLoopService {
   ): Promise<string[]> {
     const prunedFeatures: string[] = [];
     const currentConfig = this.gradingEngine.getCurrentConfig();
-    
+
     for (const [feature, importance] of featureImportance) {
       if (importance.shouldPrune) {
         // Mark feature for pruning (set weight to 0)
         const updatedWeights = { ...currentConfig.weights };
         updatedWeights[feature as keyof ScoringWeights] = 0;
-        
+
         prunedFeatures.push(feature);
-        
-        this.logger.warn(`Pruning feature ${feature}: importance=${importance.importance.toFixed(4)}`);
+
+        this.logger.warn(
+          `Pruning feature ${feature}: importance=${importance.importance.toFixed(4)}`
+        );
       }
     }
 
@@ -419,46 +417,42 @@ export class FeedbackLoopService {
     if (weightAdjustments.length > 0) {
       const currentConfig = this.gradingEngine.getCurrentConfig();
       const newWeights = { ...currentConfig.weights };
-      
+
       weightAdjustments.forEach(adj => {
         newWeights[adj.feature] = adj.newWeight;
       });
-      
+
       this.gradingEngine.updateScoringConfig('optimized', {
         ...currentConfig,
         name: 'Auto-Optimized',
         version: new Date().toISOString(),
-        weights: newWeights
+        weights: newWeights,
       });
-      
+
       this.gradingEngine.setActiveConfig('optimized');
     }
 
     // 2. Update sportsbook weights in database
     for (const bookAdj of bookAdjustments) {
       if (Math.abs(bookAdj.weight - bookAdj.suggestedWeight) > 0.01) {
-        await supabaseClient
-          .from('sportsbook_weights')
-          .upsert({
-            book: bookAdj.book,
-            weight: bookAdj.suggestedWeight,
-            reliability: bookAdj.reliability,
-            last_updated: new Date().toISOString()
-          });
+        await supabaseClient.from('sportsbook_weights').upsert({
+          book: bookAdj.book,
+          weight: bookAdj.suggestedWeight,
+          reliability: bookAdj.reliability,
+          last_updated: new Date().toISOString(),
+        });
       }
     }
 
     // 3. Update market confidence in database
     for (const marketAdj of marketAdjustments) {
-      await supabaseClient
-        .from('market_confidence')
-        .upsert({
-          sport: marketAdj.sport,
-          market: marketAdj.market,
-          confidence: marketAdj.confidence,
-          edge_multiplier: marketAdj.edgeMultiplier,
-          last_updated: new Date().toISOString()
-        });
+      await supabaseClient.from('market_confidence').upsert({
+        sport: marketAdj.sport,
+        market: marketAdj.market,
+        confidence: marketAdj.confidence,
+        edge_multiplier: marketAdj.edgeMultiplier,
+        last_updated: new Date().toISOString(),
+      });
     }
   }
 
@@ -466,22 +460,20 @@ export class FeedbackLoopService {
    * Log feedback loop results for monitoring
    */
   private async logFeedbackResults(results: any): Promise<void> {
-    await supabaseClient
-      .from('feedback_loop_history')
-      .insert({
-        timestamp: new Date().toISOString(),
-        weight_adjustments: results.weightAdjustments,
-        book_adjustments: results.bookAdjustments,
-        market_adjustments: results.marketAdjustments,
-        pruned_features: results.prunedFeatures,
-        summary: {
-          total_adjustments: results.weightAdjustments.length,
-          books_adjusted: results.bookAdjustments.filter(
-            (b: BookPerformance) => Math.abs(b.weight - b.suggestedWeight) > 0.01
-          ).length,
-          features_pruned: results.prunedFeatures.length
-        }
-      });
+    await supabaseClient.from('feedback_loop_history').insert({
+      timestamp: new Date().toISOString(),
+      weight_adjustments: results.weightAdjustments,
+      book_adjustments: results.bookAdjustments,
+      market_adjustments: results.marketAdjustments,
+      pruned_features: results.prunedFeatures,
+      summary: {
+        total_adjustments: results.weightAdjustments.length,
+        books_adjusted: results.bookAdjustments.filter(
+          (b: BookPerformance) => Math.abs(b.weight - b.suggestedWeight) > 0.01
+        ).length,
+        features_pruned: results.prunedFeatures.length,
+      },
+    });
   }
 
   /**

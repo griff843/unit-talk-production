@@ -109,7 +109,13 @@ function StatusFilter({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
-function LifecycleStageFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function LifecycleStageFilter({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger>

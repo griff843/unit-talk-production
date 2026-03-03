@@ -25,7 +25,7 @@ export function validateRawPropDetailed(prop: unknown): ValidationResult {
     return {
       isValid: true,
       errors: [],
-      warnings: []
+      warnings: [],
     };
   } catch (error) {
     const errors: string[] = [];
@@ -43,7 +43,7 @@ export function validateRawPropDetailed(prop: unknown): ValidationResult {
     // Add business logic warnings
     if (prop && typeof prop === 'object') {
       const p = prop as any;
-      
+
       // Check for missing critical fields
       if (!p.player_name) {
         warnings.push('Missing player name');
@@ -62,7 +62,7 @@ export function validateRawPropDetailed(prop: unknown): ValidationResult {
     return {
       isValid: false,
       errors,
-      warnings
+      warnings,
     };
   }
 }
@@ -74,14 +74,14 @@ export function validateRawPropDetailed(prop: unknown): ValidationResult {
  */
 export function validateRequiredFields(prop: RawProp): boolean {
   const requiredFields = ['player_name', 'stat_type', 'line', 'sport'];
-  
+
   for (const field of requiredFields) {
     const value = (prop as any)[field];
     if (value === null || value === undefined || value === '') {
       return false;
     }
   }
-  
+
   return true;
 }
 
@@ -122,7 +122,7 @@ export function validateBusinessRules(prop: RawProp): ValidationResult {
     const gameTime = new Date(prop.game_time);
     const now = new Date();
     const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    
+
     if (gameTime < hourAgo) {
       warnings.push('Game time appears to be in the past');
     }
@@ -131,6 +131,6 @@ export function validateBusinessRules(prop: RawProp): ValidationResult {
   return {
     isValid: errors.length === 0,
     errors,
-    warnings
+    warnings,
   };
 }

@@ -13,7 +13,7 @@ import { Client, GatewayIntentBits, TextChannel, EmbedBuilder } from 'discord.js
 
 /**
  * DIRECT INTEGRATION TEST: Game Day Live Thread Creation
- * 
+ *
  * This bypasses the config loading issue and directly tests:
  * 1. Creating a thread in Game Day Live channel (1291234713213734912)
  * 2. Posting content TO the thread (not main channel)
@@ -29,20 +29,22 @@ async function directGameDayTest() {
 
   try {
     console.log('🎯 DIRECT GAME DAY LIVE INTEGRATION TEST');
-    console.log('=' .repeat(60));
-    
+    console.log('='.repeat(60));
+
     console.log('\\n📋 CONFIGURATION:');
     console.log(`🆔 Game Day Live Channel: ${GAME_DAY_LIVE_CHANNEL_ID}`);
     console.log(`🌍 Env THREADS_CHANNEL_ID: ${process.env.THREADS_CHANNEL_ID}`);
-    console.log(`🔑 Discord Token Present: ${!!(process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN)}`);
+    console.log(
+      `🔑 Discord Token Present: ${!!(process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN)}`
+    );
 
     // Step 1: Initialize Discord client directly
     const client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-      ]
+        GatewayIntentBits.MessageContent,
+      ],
     });
 
     const discordToken = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
@@ -52,9 +54,9 @@ async function directGameDayTest() {
 
     console.log('\\n🔗 CONNECTING TO DISCORD...');
     await client.login(discordToken);
-    
+
     // Wait for ready
-    await new Promise((resolve) => {
+    await new Promise(resolve => {
       if (client.isReady()) {
         resolve(void 0);
       } else {
@@ -66,19 +68,21 @@ async function directGameDayTest() {
 
     // Step 2: Get the Game Day Live channel
     console.log('\\n📍 ACCESSING GAME DAY LIVE CHANNEL...');
-    const gameDayChannel = await client.channels.fetch(GAME_DAY_LIVE_CHANNEL_ID) as TextChannel;
-    
+    const gameDayChannel = (await client.channels.fetch(GAME_DAY_LIVE_CHANNEL_ID)) as TextChannel;
+
     if (!gameDayChannel) {
       throw new Error('Game Day Live channel not found');
     }
 
     console.log(`✅ Found channel: #${gameDayChannel.name}`);
-    console.log(`   📊 Type: ${gameDayChannel.type} (${gameDayChannel.type === 0 ? 'TEXT_CHANNEL' : 'OTHER'})`);
+    console.log(
+      `   📊 Type: ${gameDayChannel.type} (${gameDayChannel.type === 0 ? 'TEXT_CHANNEL' : 'OTHER'})`
+    );
     console.log(`   🏰 Guild: ${gameDayChannel.guild.name}`);
 
     // Step 3: Create a real game thread
     console.log('\\n🧵 CREATING GAME THREAD...');
-    
+
     const gameData = {
       id: `afc-championship-test-${Date.now()}`,
       sport: 'NFL',
@@ -86,7 +90,7 @@ async function directGameDayTest() {
       gameTime: new Date().toISOString(),
       description: 'AFC Championship Game',
       spread: 'Bills -2.5',
-      total: 'O/U 51.5'
+      total: 'O/U 51.5',
     };
 
     // Create starter message for thread
@@ -100,12 +104,12 @@ async function directGameDayTest() {
         { name: '📈 Spread', value: gameData.spread, inline: true },
         { name: '🎯 Total', value: gameData.total, inline: true }
       )
-      .setColor(0x1E90FF)
+      .setColor(0x1e90ff)
       .setTimestamp()
       .setFooter({ text: 'Game Thread | Unit Talk VIP+' });
 
     const starterMessage = await gameDayChannel.send({
-      embeds: [gameEmbed]
+      embeds: [gameEmbed],
     });
 
     console.log(`✅ Posted starter message: ${starterMessage.id}`);
@@ -113,7 +117,7 @@ async function directGameDayTest() {
     const thread = await starterMessage.startThread({
       name: `🏈 ${gameData.teams} - ${new Date().toLocaleDateString()}`,
       autoArchiveDuration: 1440, // 24 hours
-      reason: `Test game thread for ${gameData.teams}`
+      reason: `Test game thread for ${gameData.teams}`,
     });
 
     console.log(`✅ Created thread: "${thread.name}"`);
@@ -122,25 +126,26 @@ async function directGameDayTest() {
 
     // Step 4: Test VIP+ service posting TO the thread
     console.log('\\n🎯 TESTING VIP+ PICK ROUTING TO THREAD...');
-    
+
     const vipPlusService = new VIPPlusChannelService();
-    
+
     const testPick = {
       id: `pick-test-${Date.now()}`,
       gameId: gameData.id,
       player: 'Buffalo Bills',
       statType: '-2.5 spread',
-      meta: { 
+      meta: {
         capper: 'KingRo623',
         confidence: 95,
-        stake: 5 
+        stake: 5,
       },
       sport: 'NFL',
       teams: 'Chiefs @ Bills',
       selection: 'Bills -2.5',
       odds: '-110',
       units: 5,
-      reasoning: 'Bills at home in AFC Championship are a different beast. Josh Allen has been elite in playoffs, defense creating turnovers consistently. Cold weather advantage vs Mahomes is real. This is Buffalo\'s year.'
+      reasoning:
+        "Bills at home in AFC Championship are a different beast. Josh Allen has been elite in playoffs, defense creating turnovers consistently. Cold weather advantage vs Mahomes is real. This is Buffalo's year.",
     };
 
     try {
@@ -148,12 +153,14 @@ async function directGameDayTest() {
       console.log('✅ VIP+ pick successfully routed TO thread!');
       console.log('   📍 Content posted INSIDE thread, not main channel');
     } catch (routeError) {
-      console.log(`❌ VIP+ routing failed: ${routeError instanceof Error ? routeError.message : String(routeError)}`);
+      console.log(
+        `❌ VIP+ routing failed: ${routeError instanceof Error ? routeError.message : String(routeError)}`
+      );
     }
 
     // Step 5: Test direct thread posting
     console.log('\\n📨 TESTING DIRECT THREAD POSTING...');
-    
+
     const updateEmbed = new EmbedBuilder()
       .setTitle('🔴 **LIVE UPDATE** | End of Q1')
       .setDescription('Bills controlling the game as expected')
@@ -162,19 +169,21 @@ async function directGameDayTest() {
         { name: '⏱️ Time', value: 'End Q1', inline: true },
         { name: '📈 Impact', value: 'Bills -2.5 tracking perfectly', inline: true }
       )
-      .setColor(0xFF4500)
+      .setColor(0xff4500)
       .setTimestamp();
 
     try {
       await thread.send({ embeds: [updateEmbed] });
       console.log('✅ Live update posted directly to thread!');
     } catch (updateError) {
-      console.log(`❌ Direct thread post failed: ${updateError instanceof Error ? updateError.message : String(updateError)}`);
+      console.log(
+        `❌ Direct thread post failed: ${updateError instanceof Error ? updateError.message : String(updateError)}`
+      );
     }
 
     // Step 6: Show what should be visible in Discord
     console.log('\\n📸 CHECK YOUR DISCORD NOW!');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
     console.log('🎯 Navigate to Game Day Live channel (#game-threads)');
     console.log('🔍 You should see:');
     console.log(`   ✅ NEW THREAD: "${thread.name}"`);
@@ -186,7 +195,7 @@ async function directGameDayTest() {
     console.log('\\n💡 ARCHITECTURE DEMONSTRATION:');
     console.log('-'.repeat(45));
     console.log('✅ Thread created in Game Day Live channel (not wrong channel)');
-    console.log('✅ VIP+ picks route TO threads (not main channel posts)');  
+    console.log('✅ VIP+ picks route TO threads (not main channel posts)');
     console.log('✅ Live updates post INSIDE threads (organized per game)');
     console.log('✅ Each game gets dedicated discussion space');
     console.log('✅ Content stays organized and contextual');
@@ -205,16 +214,15 @@ async function directGameDayTest() {
       threadName: thread.name,
       gameData: gameData.teams,
       pickRouted: true,
-      liveUpdatePosted: true
+      liveUpdatePosted: true,
     });
 
     // Clean shutdown
     await client.destroy();
-
   } catch (error) {
     testLogger.error('Direct Game Day Live test failed', {
       error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
     throw error;
   }

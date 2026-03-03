@@ -82,12 +82,12 @@ export class PositionSizer {
 
   async initialize(): Promise<void> {
     this.logger.info('🎯 Initializing PositionSizer');
-    
+
     await this.loadSizingHistory();
     await this.loadBankrollTracking();
     await this.loadVolatilityModels();
     await this.loadCorrelationData();
-    
+
     this.logger.info('✅ PositionSizer initialized');
   }
 
@@ -97,11 +97,10 @@ export class PositionSizer {
     bankroll: number,
     params?: PositionSizingParams
   ): Promise<PortfolioOptimization> {
-    
     this.logger.info('🎯 Optimizing portfolio position sizes', {
       positionCount: positions.length,
       bankroll,
-      method: params?.method || 'kelly'
+      method: params?.method || 'kelly',
     });
 
     try {
@@ -112,12 +111,12 @@ export class PositionSizer {
         targetVolatility: 0.15,
         correlationAdjustment: true,
         dynamicSizing: true,
-        ...params
+        ...params,
       };
 
       // Calculate optimal sizes for each position
       const optimizedPositions: OptimizedPosition[] = [];
-      
+
       for (const position of positions) {
         const optimizedPos = await this.optimizePosition(
           position,
@@ -150,10 +149,19 @@ export class PositionSizer {
       const result: PortfolioOptimization = {
         positions: portfolioOptimization.positions,
         totalRecommendedExposure: portfolioOptimization.totalExposure,
-        riskReduction: await this.calculateRiskReduction(positions, portfolioOptimization.positions),
-        expectedReturnChange: await this.calculateExpectedReturnChange(positions, portfolioOptimization.positions),
-        diversificationImprovement: await this.calculateDiversificationImprovement(positions, portfolioOptimization.positions),
-        correlationAdjustments
+        riskReduction: await this.calculateRiskReduction(
+          positions,
+          portfolioOptimization.positions
+        ),
+        expectedReturnChange: await this.calculateExpectedReturnChange(
+          positions,
+          portfolioOptimization.positions
+        ),
+        diversificationImprovement: await this.calculateDiversificationImprovement(
+          positions,
+          portfolioOptimization.positions
+        ),
+        correlationAdjustments,
       };
 
       // Store optimization results
@@ -162,14 +170,13 @@ export class PositionSizer {
       this.logger.info('✅ Portfolio optimization completed', {
         positionsOptimized: result.positions.length,
         riskReduction: result.riskReduction,
-        totalExposure: result.totalRecommendedExposure
+        totalExposure: result.totalRecommendedExposure,
       });
 
       return result;
-
     } catch (error) {
       this.logger.error('❌ Portfolio optimization failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -180,40 +187,38 @@ export class PositionSizer {
     bankroll: number,
     riskTolerance: number = 0.25
   ): Promise<number> {
-    
     this.logger.debug('💰 Calculating optimal position size', {
       positionId: position.id,
       currentStake: position.stake,
-      bankroll
+      bankroll,
     });
 
     try {
       // Calculate Kelly Criterion
       const kellyCalculation = await this.calculateKellyFraction(position);
-      
+
       // Apply risk tolerance adjustment
       const adjustedKelly = kellyCalculation.kellyFraction * riskTolerance;
-      
+
       // Calculate volatility-scaled size
       const volatilityScaledSize = await this.calculateVolatilityScaledSize(
         position,
         bankroll,
         0.15 // Target 15% volatility
       );
-      
+
       // Take the more conservative of the two
       const conservativeSize = Math.min(adjustedKelly * bankroll, volatilityScaledSize);
-      
+
       // Apply position limits
       const maxSize = bankroll * 0.05; // 5% max position size
       const optimalSize = Math.min(conservativeSize, maxSize);
 
       return Math.max(0, optimalSize);
-
     } catch (error) {
       this.logger.error('❌ Failed to calculate optimal size', {
         positionId: position.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return position.stake; // Return current stake as fallback
     }
@@ -222,22 +227,23 @@ export class PositionSizer {
   async calculateKellyFraction(position: Position): Promise<KellyCalculation> {
     const p = this.calculateWinProbability(position);
     const b = position.odds - 1; // Net odds
-    
+
     // Basic Kelly formula: f = (bp - q) / b
     const q = 1 - p;
     const kellyFraction = (b * p - q) / b;
-    
+
     // Apply confidence adjustment based on data quality
     const confidence = await this.calculateConfidence(position);
     const confidenceAdjustment = confidence * 0.8 + 0.2; // 20-100% of Kelly
-    
+
     // Apply risk adjustment for bet type volatility
     const riskAdjustment = this.calculateRiskAdjustment(position);
-    
+
     // Apply correlation adjustment
     const correlationAdjustment = await this.calculateCorrelationAdjustment(position);
-    
-    const adjustedFraction = Math.max(0, 
+
+    const adjustedFraction = Math.max(
+      0,
       kellyFraction * confidenceAdjustment * riskAdjustment * correlationAdjustment
     );
 
@@ -246,7 +252,7 @@ export class PositionSizer {
       adjustedFraction,
       confidence,
       riskAdjustment,
-      correlationAdjustment
+      correlationAdjustment,
     };
   }
 
@@ -256,11 +262,10 @@ export class PositionSizer {
     bankroll: number,
     limits: RiskLimits
   ): Promise<number> {
-    
     this.logger.info('🆕 Sizing new position', {
       betType: proposedPosition.betType,
       gameId: proposedPosition.gameId,
-      existingPositions: existingPositions.length
+      existingPositions: existingPositions.length,
     });
 
     try {
@@ -269,22 +274,22 @@ export class PositionSizer {
         ...proposedPosition,
         id: 'temp_position',
         stake: 0,
-        correlation: new Map()
+        correlation: new Map(),
       };
 
       // Calculate base position size
       const baseSize = await this.calculateOptimalSize(tempPosition, bankroll, 0.25);
-      
+
       // Check portfolio-level constraints
       const currentExposure = existingPositions.reduce((sum, pos) => sum + pos.stake, 0);
       const proposedExposure = currentExposure + baseSize;
-      
+
       // Respect daily exposure limit
       const maxAdditionalExposure = bankroll * limits.maxDailyExposure - currentExposure;
       if (maxAdditionalExposure <= 0) {
         this.logger.warn('⚠️ Daily exposure limit reached', {
           currentExposure: currentExposure / bankroll,
-          limit: limits.maxDailyExposure
+          limit: limits.maxDailyExposure,
         });
         return 0;
       }
@@ -310,14 +315,13 @@ export class PositionSizer {
       this.logger.info('✅ New position sized', {
         baseSize,
         finalSize,
-        adjustmentRatio: baseSize > 0 ? finalSize / baseSize : 0
+        adjustmentRatio: baseSize > 0 ? finalSize / baseSize : 0,
       });
 
       return finalSize;
-
     } catch (error) {
       this.logger.error('❌ Failed to size new position', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return 0;
     }
@@ -331,7 +335,6 @@ export class PositionSizer {
     limits: RiskLimits,
     params: PositionSizingParams
   ): Promise<OptimizedPosition> {
-    
     let recommendedSize: number;
     let reason: string;
 
@@ -348,7 +351,11 @@ export class PositionSizer {
         break;
 
       case 'volatility_scaled':
-        recommendedSize = await this.calculateVolatilityScaledSize(position, bankroll, params.targetVolatility);
+        recommendedSize = await this.calculateVolatilityScaledSize(
+          position,
+          bankroll,
+          params.targetVolatility
+        );
         reason = `Volatility scaled (target ${(params.targetVolatility * 100).toFixed(1)}% volatility)`;
         break;
 
@@ -358,7 +365,12 @@ export class PositionSizer {
         break;
 
       case 'adaptive':
-        recommendedSize = await this.calculateAdaptiveSize(position, allPositions, bankroll, params);
+        recommendedSize = await this.calculateAdaptiveSize(
+          position,
+          allPositions,
+          bankroll,
+          params
+        );
         reason = 'Adaptive sizing based on market conditions';
         break;
 
@@ -375,7 +387,7 @@ export class PositionSizer {
     if (params.correlationAdjustment) {
       const correlationFactor = await this.getCorrelationAdjustmentFactor(position, allPositions);
       recommendedSize *= correlationFactor;
-      
+
       if (correlationFactor < 1) {
         reason += ` (reduced ${((1 - correlationFactor) * 100).toFixed(1)}% for correlation)`;
       }
@@ -392,8 +404,11 @@ export class PositionSizer {
       reason,
       changeRequired,
       riskImpact: await this.calculateRiskImpact(position, recommendedSize - position.stake),
-      expectedReturnImpact: await this.calculateReturnImpact(position, recommendedSize - position.stake),
-      priority: this.determinePriority(sizingRatio, position.riskContribution)
+      expectedReturnImpact: await this.calculateReturnImpact(
+        position,
+        recommendedSize - position.stake
+      ),
+      priority: this.determinePriority(sizingRatio, position.riskContribution),
     };
   }
 
@@ -407,11 +422,11 @@ export class PositionSizer {
   private async calculateConfidence(position: Position): Promise<number> {
     // This would analyze data quality, sample size, model accuracy, etc.
     // For now, return a confidence based on bet type and expected value magnitude
-    
+
     const baseConfidence = 0.7;
     const evConfidence = Math.min(0.3, Math.abs(position.expectedValue) * 2);
     const typeConfidence = this.getBetTypeConfidence(position.betType);
-    
+
     return Math.min(0.95, baseConfidence + evConfidence + typeConfidence);
   }
 
@@ -429,14 +444,14 @@ export class PositionSizer {
 
   private getBetTypeConfidence(betType: string): number {
     const confidenceMap: Record<string, number> = {
-      'moneyline': 0.15,
-      'spread': 0.10,
-      'total': 0.10,
-      'prop': 0.05,
-      'live': 0.02,
-      'exotic': 0.0
+      moneyline: 0.15,
+      spread: 0.1,
+      total: 0.1,
+      prop: 0.05,
+      live: 0.02,
+      exotic: 0.0,
     };
-    
+
     return confidenceMap[betType] || 0.05;
   }
 
@@ -445,14 +460,13 @@ export class PositionSizer {
     bankroll: number,
     targetVolatility: number
   ): Promise<number> {
-    
     // Size position to contribute target volatility to portfolio
     const positionVolatility = position.volatility;
     if (positionVolatility <= 0) return bankroll * 0.01; // 1% minimum
-    
+
     const targetContribution = targetVolatility / Math.sqrt(252); // Daily target
     const scalingFactor = targetContribution / positionVolatility;
-    
+
     return bankroll * Math.min(scalingFactor, 0.05); // Max 5% of bankroll
   }
 
@@ -461,15 +475,14 @@ export class PositionSizer {
     allPositions: Position[],
     bankroll: number
   ): Promise<number> {
-    
     // Equal risk contribution from each position
     if (allPositions.length === 0) return bankroll * 0.02;
-    
+
     const targetRiskContribution = 1 / allPositions.length;
     const positionVolatility = position.volatility;
-    
+
     if (positionVolatility <= 0) return bankroll * 0.01;
-    
+
     // Size inversely proportional to volatility
     const riskParityWeight = targetRiskContribution / positionVolatility;
     return bankroll * Math.min(riskParityWeight, 0.05);
@@ -481,20 +494,28 @@ export class PositionSizer {
     bankroll: number,
     params: PositionSizingParams
   ): Promise<number> {
-    
     // Combine multiple sizing methods with adaptive weights
     const kellySize = (await this.calculateKellyFraction(position)).adjustedFraction * bankroll;
-    const volatilitySize = await this.calculateVolatilityScaledSize(position, bankroll, params.targetVolatility);
+    const volatilitySize = await this.calculateVolatilityScaledSize(
+      position,
+      bankroll,
+      params.targetVolatility
+    );
     const riskParitySize = await this.calculateRiskParitySize(position, allPositions, bankroll);
-    
+
     // Dynamic weights based on market conditions and position characteristics
     const kellyWeight = this.getAdaptiveWeight('kelly', position);
     const volatilityWeight = this.getAdaptiveWeight('volatility', position);
     const riskParityWeight = this.getAdaptiveWeight('risk_parity', position);
-    
+
     const totalWeight = kellyWeight + volatilityWeight + riskParityWeight;
-    
-    return (kellySize * kellyWeight + volatilitySize * volatilityWeight + riskParitySize * riskParityWeight) / totalWeight;
+
+    return (
+      (kellySize * kellyWeight +
+        volatilitySize * volatilityWeight +
+        riskParitySize * riskParityWeight) /
+      totalWeight
+    );
   }
 
   private getAdaptiveWeight(method: string, position: Position): number {
@@ -502,9 +523,9 @@ export class PositionSizer {
     const baseWeights = {
       kelly: 0.5,
       volatility: 0.3,
-      risk_parity: 0.2
+      risk_parity: 0.2,
     };
-    
+
     return baseWeights[method as keyof typeof baseWeights] || 0.1;
   }
 
@@ -512,22 +533,21 @@ export class PositionSizer {
     position: Position,
     allPositions: Position[]
   ): Promise<number> {
-    
     if (allPositions.length <= 1) return 1.0;
-    
+
     let totalCorrelation = 0;
     let correlationCount = 0;
-    
+
     for (const otherPosition of allPositions) {
       if (otherPosition.id === position.id) continue;
-      
+
       const correlation = await this.getPositionCorrelation(position, otherPosition);
       totalCorrelation += Math.abs(correlation);
       correlationCount++;
     }
-    
+
     const avgCorrelation = correlationCount > 0 ? totalCorrelation / correlationCount : 0;
-    
+
     // Reduce size based on average correlation
     return Math.max(0.5, 1 - avgCorrelation * 0.5);
   }
@@ -535,13 +555,13 @@ export class PositionSizer {
   private async getPositionCorrelation(pos1: Position, pos2: Position): Promise<number> {
     // Same game = high correlation
     if (pos1.gameId === pos2.gameId) return 0.8;
-    
+
     // Same sport, same day = medium correlation
     if (this.isSameSport(pos1, pos2) && this.isSameDay(pos1, pos2)) return 0.4;
-    
+
     // Same sport, different day = low correlation
     if (this.isSameSport(pos1, pos2)) return 0.2;
-    
+
     // Different sports = minimal correlation
     return 0.05;
   }
@@ -561,22 +581,21 @@ export class PositionSizer {
     bankroll: number,
     limits: RiskLimits
   ): Promise<{ positions: OptimizedPosition[]; totalExposure: number }> {
-    
     let totalExposure = optimizedPositions.reduce((sum, pos) => sum + pos.recommendedSize, 0);
     const maxExposure = bankroll * limits.maxDailyExposure;
-    
+
     // Scale down if total exposure exceeds limit
     if (totalExposure > maxExposure) {
       const scaleFactor = maxExposure / totalExposure;
-      
+
       for (const position of optimizedPositions) {
         position.recommendedSize *= scaleFactor;
         position.reason += ` (scaled ${(scaleFactor * 100).toFixed(1)}% for portfolio limit)`;
       }
-      
+
       totalExposure = maxExposure;
     }
-    
+
     return { positions: optimizedPositions, totalExposure };
   }
 
@@ -584,43 +603,45 @@ export class PositionSizer {
     originalPositions: Position[],
     optimizedPositions: OptimizedPosition[]
   ): Promise<CorrelationAdjustment[]> {
-    
     const adjustments: CorrelationAdjustment[] = [];
-    
+
     for (let i = 0; i < originalPositions.length; i++) {
       for (let j = i + 1; j < originalPositions.length; j++) {
         const pos1 = originalPositions[i];
         const pos2 = originalPositions[j];
         const correlation = await this.getPositionCorrelation(pos1, pos2);
-        
+
         if (correlation > 0.5) {
           const opt1 = optimizedPositions.find(op => op.positionId === pos1.id);
           const opt2 = optimizedPositions.find(op => op.positionId === pos2.id);
-          
+
           if (opt1 && opt2) {
             const avgAdjustment = (opt1.sizingRatio + opt2.sizingRatio) / 2;
-            
+
             adjustments.push({
               positionPair: [pos1.id, pos2.id],
               correlationLevel: correlation,
               recommendedAdjustment: avgAdjustment,
-              impact: correlation > 0.7 ? 'High correlation risk' : 'Medium correlation risk'
+              impact: correlation > 0.7 ? 'High correlation risk' : 'Medium correlation risk',
             });
           }
         }
       }
     }
-    
+
     return adjustments;
   }
 
-  private async applyDynamicScaling(positions: OptimizedPosition[], bankroll: number): Promise<void> {
+  private async applyDynamicScaling(
+    positions: OptimizedPosition[],
+    bankroll: number
+  ): Promise<void> {
     // Apply dynamic scaling based on recent performance and market conditions
     const performanceScaling = await this.getPerformanceScaling();
     const marketConditionScaling = await this.getMarketConditionScaling();
-    
+
     const totalScaling = performanceScaling * marketConditionScaling;
-    
+
     if (totalScaling !== 1.0) {
       for (const position of positions) {
         position.recommendedSize *= totalScaling;
@@ -647,19 +668,19 @@ export class PositionSizer {
     baseSize: number,
     limits: RiskLimits
   ): Promise<number> {
-    
     let correlatedExposure = 0;
-    
+
     for (const existingPos of existingPositions) {
       const correlation = await this.getPositionCorrelation(position, existingPos);
       if (correlation > 0.3) {
         correlatedExposure += existingPos.stake * correlation;
       }
     }
-    
-    const maxCorrelatedExposure = limits.maxCorrelatedExposure * (await this.getUserBankroll(position.userId));
+
+    const maxCorrelatedExposure =
+      limits.maxCorrelatedExposure * (await this.getUserBankroll(position.userId));
     const availableCorrelatedCapacity = Math.max(0, maxCorrelatedExposure - correlatedExposure);
-    
+
     return Math.min(baseSize, availableCorrelatedCapacity);
   }
 
@@ -669,20 +690,19 @@ export class PositionSizer {
     baseSize: number,
     limits: RiskLimits
   ): Promise<number> {
-    
     // Group positions by asset class (sport/bet type)
     const assetClassExposure = this.calculateAssetClassExposure(position, existingPositions);
     const bankroll = await this.getUserBankroll(position.userId);
     const maxConcentration = bankroll * limits.concentrationLimit;
-    
+
     const availableConcentrationCapacity = Math.max(0, maxConcentration - assetClassExposure);
-    
+
     return Math.min(baseSize, availableConcentrationCapacity);
   }
 
   private calculateAssetClassExposure(position: Position, existingPositions: Position[]): number {
     const positionAssetClass = this.getAssetClass(position);
-    
+
     return existingPositions
       .filter(pos => this.getAssetClass(pos) === positionAssetClass)
       .reduce((sum, pos) => sum + pos.stake, 0);
@@ -706,9 +726,11 @@ export class PositionSizer {
   ): Promise<number> {
     // Simplified risk reduction calculation
     const originalRisk = originalPositions.reduce((sum, pos) => sum + pos.riskContribution, 0);
-    const optimizedRisk = optimizedPositions.reduce((sum, pos) => 
-      sum + (pos.recommendedSize / 1000) * 0.05, 0); // Simplified risk calculation
-    
+    const optimizedRisk = optimizedPositions.reduce(
+      (sum, pos) => sum + (pos.recommendedSize / 1000) * 0.05,
+      0
+    ); // Simplified risk calculation
+
     return Math.max(0, (originalRisk - optimizedRisk) / originalRisk);
   }
 
@@ -718,7 +740,7 @@ export class PositionSizer {
   ): Promise<number> {
     // Calculate change in expected returns from optimization
     let returnChange = 0;
-    
+
     for (const optimized of optimizedPositions) {
       const original = originalPositions.find(p => p.id === optimized.positionId);
       if (original) {
@@ -726,7 +748,7 @@ export class PositionSizer {
         returnChange += sizeChange * original.expectedValue;
       }
     }
-    
+
     return returnChange;
   }
 
@@ -747,30 +769,36 @@ export class PositionSizer {
     return sizeChange * position.expectedValue;
   }
 
-  private determinePriority(sizingRatio: number, riskContribution: number): 'high' | 'medium' | 'low' {
+  private determinePriority(
+    sizingRatio: number,
+    riskContribution: number
+  ): 'high' | 'medium' | 'low' {
     const changeAmount = Math.abs(sizingRatio - 1);
-    
+
     if (changeAmount > 0.5 || riskContribution > 0.1) return 'high';
     if (changeAmount > 0.2 || riskContribution > 0.05) return 'medium';
     return 'low';
   }
 
-  private async storeSizingDecision(userId: string, optimization: PortfolioOptimization): Promise<void> {
+  private async storeSizingDecision(
+    userId: string,
+    optimization: PortfolioOptimization
+  ): Promise<void> {
     const history = this.sizingHistory.get(userId) || [];
     history.push({
       timestamp: new Date(),
       optimization,
       positionCount: optimization.positions.length,
-      totalExposure: optimization.totalRecommendedExposure
+      totalExposure: optimization.totalRecommendedExposure,
     });
-    
+
     // Keep only last 30 decisions
     if (history.length > 30) {
       history.shift();
     }
-    
+
     this.sizingHistory.set(userId, history);
-    
+
     // Cache the decision
     await redisCache.set(
       `position_sizer:decision:${userId}:${Date.now()}`,
@@ -782,7 +810,7 @@ export class PositionSizer {
   private async loadSizingHistory(): Promise<void> {
     try {
       const cachedHistory = await redisCache.getPattern('position_sizer:history:*');
-      
+
       for (const [key, data] of cachedHistory) {
         const userId = key.split(':').pop();
         if (userId) {
@@ -809,7 +837,7 @@ export class PositionSizer {
       spread: { base_volatility: 0.35, adjustment_factor: 1.1 },
       total: { base_volatility: 0.32, adjustment_factor: 1.05 },
       prop: { base_volatility: 0.45, adjustment_factor: 1.3 },
-      live: { base_volatility: 0.55, adjustment_factor: 1.5 }
+      live: { base_volatility: 0.55, adjustment_factor: 1.5 },
     };
 
     for (const [betType, model] of Object.entries(models)) {
@@ -848,7 +876,7 @@ export class PositionSizer {
     this.bankrollTracking.clear();
     this.correlationMatrix.clear();
     this.volatilityModels.clear();
-    
+
     this.logger.info('🧹 PositionSizer cleanup completed');
   }
 }

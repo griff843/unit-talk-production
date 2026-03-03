@@ -106,7 +106,9 @@ export async function GET(request: NextRequest) {
         let teamQuery = sb
           .from('mv_search_teams')
           .select('id, name, abbr, sport')
-          .or(`name.ilike.%${searchTerm}%,abbr.ilike.%${searchTerm}%,search_text.ilike.%${searchTerm}%`);
+          .or(
+            `name.ilike.%${searchTerm}%,abbr.ilike.%${searchTerm}%,search_text.ilike.%${searchTerm}%`
+          );
 
         if (sport) {
           teamQuery = teamQuery.eq('sport', sport.toUpperCase());
@@ -229,7 +231,9 @@ export async function GET(request: NextRequest) {
         let gameQuery = sb
           .from('mv_search_games')
           .select('id, sport, display_label, game_date, start_time, home_team, away_team')
-          .or(`display_label.ilike.%${searchTerm}%,home_team.ilike.%${searchTerm}%,away_team.ilike.%${searchTerm}%`)
+          .or(
+            `display_label.ilike.%${searchTerm}%,home_team.ilike.%${searchTerm}%,away_team.ilike.%${searchTerm}%`
+          )
           .gte('game_date', today);
 
         if (sport) {

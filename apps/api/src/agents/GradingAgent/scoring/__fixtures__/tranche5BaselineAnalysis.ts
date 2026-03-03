@@ -17,8 +17,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { calculateConfidenceScore } from '../confidenceScore';
 import { computeScoreV2 } from '../computeScoreV2';
+import { calculateConfidenceScore } from '../confidenceScore';
 import { determineTier } from '../determineTier';
 import { calculateExpectedValue } from '../expectedValue';
 import { calculateLineValueScore } from '../lineValueScore';
@@ -48,49 +48,556 @@ interface PickInput {
 
 const PICKS: PickInput[] = [
   // NBA (10)
-  { id: 'NBA-001', sport: 'NBA', player: 'Luka Doncic', market: 'points', description: 'Elite scorer, strong matchup, +EV', features: { expectedValue: 18, matchupRating: 88, playerForm: 90, sharpMoney: 80, closingLineValue: 6, lineMovement: 3 } },
-  { id: 'NBA-002', sport: 'NBA', player: 'Jayson Tatum', market: 'rebounds', description: 'Above avg rebounder, moderate EV', features: { expectedValue: 8, matchupRating: 65, playerForm: 72, sharpMoney: 60 } },
-  { id: 'NBA-003', sport: 'NBA', player: 'Tyrese Haliburton', market: 'assists', description: 'Pass-first guard, high volume', features: { expectedValue: 12, matchupRating: 75, playerForm: 78, sharpMoney: 70, volumeProfile: 70, closingLineValue: 4 } },
-  { id: 'NBA-004', sport: 'NBA', player: 'Bench Player', market: 'points', description: 'Low-minute player, negative EV', features: { expectedValue: -12, matchupRating: 35, playerForm: 40, sharpMoney: 30, volumeProfile: 25, closingLineValue: -3 } },
-  { id: 'NBA-005', sport: 'NBA', player: 'Anthony Davis', market: 'blocks', description: 'Elite defender, niche market', features: { expectedValue: 15, matchupRating: 80, playerForm: 85, injuryImpact: 6, sharpMoney: 75, correlationRisk: 0.25 } },
-  { id: 'NBA-006', sport: 'NBA', player: 'Shai Gilgeous-Alexander', market: 'points', description: 'MVP candidate, heavy favorite', features: { expectedValue: 20, matchupRating: 92, playerForm: 95, sharpMoney: 85, closingLineValue: 7 } },
-  { id: 'NBA-007', sport: 'NBA', player: "De'Aaron Fox", market: 'steals', description: 'Quick guard, high variance', features: { expectedValue: 4, matchupRating: 58, playerForm: 62, volatility: 7, correlationRisk: 0.3 } },
-  { id: 'NBA-008', sport: 'NBA', player: 'Nikola Jokic', market: 'assists', description: 'Triple-double threat', features: { expectedValue: 14, matchupRating: 82, playerForm: 88, sharpMoney: 78, closingLineValue: 5, paceImpact: 16 } },
-  { id: 'NBA-009', sport: 'NBA', player: 'Random Role Player', market: 'threes', description: 'Minimal data, fallback-heavy', features: { expectedValue: -5, matchupRating: 45 } },
-  { id: 'NBA-010', sport: 'NBA', player: 'Giannis Antetokounmpo', market: 'PRA', description: 'Dominant combo stat', features: { expectedValue: 10, matchupRating: 78, playerForm: 82, sharpMoney: 68, lineMovement: 2 } },
+  {
+    id: 'NBA-001',
+    sport: 'NBA',
+    player: 'Luka Doncic',
+    market: 'points',
+    description: 'Elite scorer, strong matchup, +EV',
+    features: {
+      expectedValue: 18,
+      matchupRating: 88,
+      playerForm: 90,
+      sharpMoney: 80,
+      closingLineValue: 6,
+      lineMovement: 3,
+    },
+  },
+  {
+    id: 'NBA-002',
+    sport: 'NBA',
+    player: 'Jayson Tatum',
+    market: 'rebounds',
+    description: 'Above avg rebounder, moderate EV',
+    features: { expectedValue: 8, matchupRating: 65, playerForm: 72, sharpMoney: 60 },
+  },
+  {
+    id: 'NBA-003',
+    sport: 'NBA',
+    player: 'Tyrese Haliburton',
+    market: 'assists',
+    description: 'Pass-first guard, high volume',
+    features: {
+      expectedValue: 12,
+      matchupRating: 75,
+      playerForm: 78,
+      sharpMoney: 70,
+      volumeProfile: 70,
+      closingLineValue: 4,
+    },
+  },
+  {
+    id: 'NBA-004',
+    sport: 'NBA',
+    player: 'Bench Player',
+    market: 'points',
+    description: 'Low-minute player, negative EV',
+    features: {
+      expectedValue: -12,
+      matchupRating: 35,
+      playerForm: 40,
+      sharpMoney: 30,
+      volumeProfile: 25,
+      closingLineValue: -3,
+    },
+  },
+  {
+    id: 'NBA-005',
+    sport: 'NBA',
+    player: 'Anthony Davis',
+    market: 'blocks',
+    description: 'Elite defender, niche market',
+    features: {
+      expectedValue: 15,
+      matchupRating: 80,
+      playerForm: 85,
+      injuryImpact: 6,
+      sharpMoney: 75,
+      correlationRisk: 0.25,
+    },
+  },
+  {
+    id: 'NBA-006',
+    sport: 'NBA',
+    player: 'Shai Gilgeous-Alexander',
+    market: 'points',
+    description: 'MVP candidate, heavy favorite',
+    features: {
+      expectedValue: 20,
+      matchupRating: 92,
+      playerForm: 95,
+      sharpMoney: 85,
+      closingLineValue: 7,
+    },
+  },
+  {
+    id: 'NBA-007',
+    sport: 'NBA',
+    player: "De'Aaron Fox",
+    market: 'steals',
+    description: 'Quick guard, high variance',
+    features: {
+      expectedValue: 4,
+      matchupRating: 58,
+      playerForm: 62,
+      volatility: 7,
+      correlationRisk: 0.3,
+    },
+  },
+  {
+    id: 'NBA-008',
+    sport: 'NBA',
+    player: 'Nikola Jokic',
+    market: 'assists',
+    description: 'Triple-double threat',
+    features: {
+      expectedValue: 14,
+      matchupRating: 82,
+      playerForm: 88,
+      sharpMoney: 78,
+      closingLineValue: 5,
+      paceImpact: 16,
+    },
+  },
+  {
+    id: 'NBA-009',
+    sport: 'NBA',
+    player: 'Random Role Player',
+    market: 'threes',
+    description: 'Minimal data, fallback-heavy',
+    features: { expectedValue: -5, matchupRating: 45 },
+  },
+  {
+    id: 'NBA-010',
+    sport: 'NBA',
+    player: 'Giannis Antetokounmpo',
+    market: 'PRA',
+    description: 'Dominant combo stat',
+    features: {
+      expectedValue: 10,
+      matchupRating: 78,
+      playerForm: 82,
+      sharpMoney: 68,
+      lineMovement: 2,
+    },
+  },
   // MLB (10)
-  { id: 'MLB-001', sport: 'MLB', player: 'Shohei Ohtani', market: 'strikeouts', description: 'Elite pitcher, high K rate', features: { expectedValue: 16, matchupRating: 90, playerForm: 92, weatherImpact: 8, sharpMoney: 82, closingLineValue: 5 } },
-  { id: 'MLB-002', sport: 'MLB', player: 'Aaron Judge', market: 'total_bases', description: 'Power hitter, strong park', features: { expectedValue: 10, matchupRating: 75, playerForm: 80, weatherImpact: 5, venueAdvantage: 18, sharpMoney: 70 } },
-  { id: 'MLB-003', sport: 'MLB', player: 'Mookie Betts', market: 'hits', description: 'Contact hitter, moderate EV', features: { expectedValue: 6, matchupRating: 68, playerForm: 70, sharpMoney: 58 } },
-  { id: 'MLB-004', sport: 'MLB', player: 'Backup Catcher', market: 'hits', description: 'Low batting avg, negative EV', features: { expectedValue: -15, matchupRating: 30, playerForm: 28, sharpMoney: 25 } },
-  { id: 'MLB-005', sport: 'MLB', player: 'Gerrit Cole', market: 'outs', description: 'Quality start, heavy rain risk', features: { expectedValue: 8, matchupRating: 72, playerForm: 75, weatherImpact: 12, injuryImpact: 4 } },
-  { id: 'MLB-006', sport: 'MLB', player: 'Juan Soto', market: 'walks', description: 'Elite plate discipline', features: { expectedValue: 5, matchupRating: 60, playerForm: 65, volatility: 6, sharpMoney: 55 } },
-  { id: 'MLB-007', sport: 'MLB', player: 'Corbin Burnes', market: 'strikeouts', description: 'Solid pitcher, warm weather', features: { expectedValue: 11, matchupRating: 78, playerForm: 76, weatherImpact: 6, sharpMoney: 72, closingLineValue: 3 } },
-  { id: 'MLB-008', sport: 'MLB', player: 'Ronald Acuna Jr', market: 'stolen_bases', description: 'Speed threat, high variance', features: { expectedValue: 3, matchupRating: 55, playerForm: 58, volatility: 8, correlationRisk: 0.35 } },
-  { id: 'MLB-009', sport: 'MLB', player: 'Zack Wheeler', market: 'earned_runs', description: 'Ace pitcher, opposing strong lineup', features: { expectedValue: -2, matchupRating: 82, playerForm: 80, sharpMoney: 62, closingLineValue: 1 } },
-  { id: 'MLB-010', sport: 'MLB', player: 'Freddie Freeman', market: 'RBI', description: 'Cleanup hitter, Coors boost', features: { expectedValue: 13, matchupRating: 76, playerForm: 78, venueAdvantage: 22, sharpMoney: 74 } },
+  {
+    id: 'MLB-001',
+    sport: 'MLB',
+    player: 'Shohei Ohtani',
+    market: 'strikeouts',
+    description: 'Elite pitcher, high K rate',
+    features: {
+      expectedValue: 16,
+      matchupRating: 90,
+      playerForm: 92,
+      weatherImpact: 8,
+      sharpMoney: 82,
+      closingLineValue: 5,
+    },
+  },
+  {
+    id: 'MLB-002',
+    sport: 'MLB',
+    player: 'Aaron Judge',
+    market: 'total_bases',
+    description: 'Power hitter, strong park',
+    features: {
+      expectedValue: 10,
+      matchupRating: 75,
+      playerForm: 80,
+      weatherImpact: 5,
+      venueAdvantage: 18,
+      sharpMoney: 70,
+    },
+  },
+  {
+    id: 'MLB-003',
+    sport: 'MLB',
+    player: 'Mookie Betts',
+    market: 'hits',
+    description: 'Contact hitter, moderate EV',
+    features: { expectedValue: 6, matchupRating: 68, playerForm: 70, sharpMoney: 58 },
+  },
+  {
+    id: 'MLB-004',
+    sport: 'MLB',
+    player: 'Backup Catcher',
+    market: 'hits',
+    description: 'Low batting avg, negative EV',
+    features: { expectedValue: -15, matchupRating: 30, playerForm: 28, sharpMoney: 25 },
+  },
+  {
+    id: 'MLB-005',
+    sport: 'MLB',
+    player: 'Gerrit Cole',
+    market: 'outs',
+    description: 'Quality start, heavy rain risk',
+    features: {
+      expectedValue: 8,
+      matchupRating: 72,
+      playerForm: 75,
+      weatherImpact: 12,
+      injuryImpact: 4,
+    },
+  },
+  {
+    id: 'MLB-006',
+    sport: 'MLB',
+    player: 'Juan Soto',
+    market: 'walks',
+    description: 'Elite plate discipline',
+    features: {
+      expectedValue: 5,
+      matchupRating: 60,
+      playerForm: 65,
+      volatility: 6,
+      sharpMoney: 55,
+    },
+  },
+  {
+    id: 'MLB-007',
+    sport: 'MLB',
+    player: 'Corbin Burnes',
+    market: 'strikeouts',
+    description: 'Solid pitcher, warm weather',
+    features: {
+      expectedValue: 11,
+      matchupRating: 78,
+      playerForm: 76,
+      weatherImpact: 6,
+      sharpMoney: 72,
+      closingLineValue: 3,
+    },
+  },
+  {
+    id: 'MLB-008',
+    sport: 'MLB',
+    player: 'Ronald Acuna Jr',
+    market: 'stolen_bases',
+    description: 'Speed threat, high variance',
+    features: {
+      expectedValue: 3,
+      matchupRating: 55,
+      playerForm: 58,
+      volatility: 8,
+      correlationRisk: 0.35,
+    },
+  },
+  {
+    id: 'MLB-009',
+    sport: 'MLB',
+    player: 'Zack Wheeler',
+    market: 'earned_runs',
+    description: 'Ace pitcher, opposing strong lineup',
+    features: {
+      expectedValue: -2,
+      matchupRating: 82,
+      playerForm: 80,
+      sharpMoney: 62,
+      closingLineValue: 1,
+    },
+  },
+  {
+    id: 'MLB-010',
+    sport: 'MLB',
+    player: 'Freddie Freeman',
+    market: 'RBI',
+    description: 'Cleanup hitter, Coors boost',
+    features: {
+      expectedValue: 13,
+      matchupRating: 76,
+      playerForm: 78,
+      venueAdvantage: 22,
+      sharpMoney: 74,
+    },
+  },
   // NFL (10)
-  { id: 'NFL-001', sport: 'NFL', player: 'Patrick Mahomes', market: 'passing_yards', description: 'Elite QB, dome game', features: { expectedValue: 15, matchupRating: 88, playerForm: 90, paceImpact: 18, sharpMoney: 80, closingLineValue: 5 } },
-  { id: 'NFL-002', sport: 'NFL', player: 'Derrick Henry', market: 'rushing_yards', description: 'Workhorse RB, plus matchup', features: { expectedValue: 10, matchupRating: 75, playerForm: 78, paceImpact: 12, motivationalFactors: 18, sharpMoney: 65 } },
-  { id: 'NFL-003', sport: 'NFL', player: 'Travis Kelce', market: 'receiving_yards', description: 'Elite TE, injury concern', features: { expectedValue: 7, matchupRating: 70, playerForm: 65, injuryImpact: 8, sharpMoney: 60 } },
-  { id: 'NFL-004', sport: 'NFL', player: 'WR3 Depth Player', market: 'receptions', description: 'Low target share, negative EV', features: { expectedValue: -10, matchupRating: 35, playerForm: 38, sharpMoney: 30, volumeProfile: 20 } },
-  { id: 'NFL-005', sport: 'NFL', player: 'Josh Allen', market: 'rushing_yards', description: 'Dual-threat QB, cold weather', features: { expectedValue: 8, matchupRating: 72, playerForm: 80, weatherImpact: 6, motivationalFactors: 20, volatility: 6 } },
-  { id: 'NFL-006', sport: 'NFL', player: "Ja'Marr Chase", market: 'receiving_yards', description: 'Top WR, primetime, sharp action', features: { expectedValue: 18, matchupRating: 85, playerForm: 88, sharpMoney: 82, closingLineValue: 6, paceImpact: 15 } },
-  { id: 'NFL-007', sport: 'NFL', player: 'Saquon Barkley', market: 'rushing_attempts', description: 'Heavy workload back', features: { expectedValue: 5, matchupRating: 62, playerForm: 68, correlationRisk: 0.3, paceImpact: 8 } },
-  { id: 'NFL-008', sport: 'NFL', player: 'T.J. Watt', market: 'sacks', description: 'Elite pass rusher, high variance', features: { expectedValue: 4, matchupRating: 78, playerForm: 82, volatility: 9, correlationRisk: 0.4, sharpMoney: 55 } },
-  { id: 'NFL-009', sport: 'NFL', player: 'Lamar Jackson', market: 'passing_TDs', description: 'MVP QB, strong at home', features: { expectedValue: 12, matchupRating: 80, playerForm: 84, venueAdvantage: 16, motivationalFactors: 22 } },
-  { id: 'NFL-010', sport: 'NFL', player: 'CeeDee Lamb', market: 'receptions', description: 'Target monster, neg game script', features: { expectedValue: -3, matchupRating: 55, playerForm: 72, sharpMoney: 45, paceImpact: 6 } },
+  {
+    id: 'NFL-001',
+    sport: 'NFL',
+    player: 'Patrick Mahomes',
+    market: 'passing_yards',
+    description: 'Elite QB, dome game',
+    features: {
+      expectedValue: 15,
+      matchupRating: 88,
+      playerForm: 90,
+      paceImpact: 18,
+      sharpMoney: 80,
+      closingLineValue: 5,
+    },
+  },
+  {
+    id: 'NFL-002',
+    sport: 'NFL',
+    player: 'Derrick Henry',
+    market: 'rushing_yards',
+    description: 'Workhorse RB, plus matchup',
+    features: {
+      expectedValue: 10,
+      matchupRating: 75,
+      playerForm: 78,
+      paceImpact: 12,
+      motivationalFactors: 18,
+      sharpMoney: 65,
+    },
+  },
+  {
+    id: 'NFL-003',
+    sport: 'NFL',
+    player: 'Travis Kelce',
+    market: 'receiving_yards',
+    description: 'Elite TE, injury concern',
+    features: {
+      expectedValue: 7,
+      matchupRating: 70,
+      playerForm: 65,
+      injuryImpact: 8,
+      sharpMoney: 60,
+    },
+  },
+  {
+    id: 'NFL-004',
+    sport: 'NFL',
+    player: 'WR3 Depth Player',
+    market: 'receptions',
+    description: 'Low target share, negative EV',
+    features: {
+      expectedValue: -10,
+      matchupRating: 35,
+      playerForm: 38,
+      sharpMoney: 30,
+      volumeProfile: 20,
+    },
+  },
+  {
+    id: 'NFL-005',
+    sport: 'NFL',
+    player: 'Josh Allen',
+    market: 'rushing_yards',
+    description: 'Dual-threat QB, cold weather',
+    features: {
+      expectedValue: 8,
+      matchupRating: 72,
+      playerForm: 80,
+      weatherImpact: 6,
+      motivationalFactors: 20,
+      volatility: 6,
+    },
+  },
+  {
+    id: 'NFL-006',
+    sport: 'NFL',
+    player: "Ja'Marr Chase",
+    market: 'receiving_yards',
+    description: 'Top WR, primetime, sharp action',
+    features: {
+      expectedValue: 18,
+      matchupRating: 85,
+      playerForm: 88,
+      sharpMoney: 82,
+      closingLineValue: 6,
+      paceImpact: 15,
+    },
+  },
+  {
+    id: 'NFL-007',
+    sport: 'NFL',
+    player: 'Saquon Barkley',
+    market: 'rushing_attempts',
+    description: 'Heavy workload back',
+    features: {
+      expectedValue: 5,
+      matchupRating: 62,
+      playerForm: 68,
+      correlationRisk: 0.3,
+      paceImpact: 8,
+    },
+  },
+  {
+    id: 'NFL-008',
+    sport: 'NFL',
+    player: 'T.J. Watt',
+    market: 'sacks',
+    description: 'Elite pass rusher, high variance',
+    features: {
+      expectedValue: 4,
+      matchupRating: 78,
+      playerForm: 82,
+      volatility: 9,
+      correlationRisk: 0.4,
+      sharpMoney: 55,
+    },
+  },
+  {
+    id: 'NFL-009',
+    sport: 'NFL',
+    player: 'Lamar Jackson',
+    market: 'passing_TDs',
+    description: 'MVP QB, strong at home',
+    features: {
+      expectedValue: 12,
+      matchupRating: 80,
+      playerForm: 84,
+      venueAdvantage: 16,
+      motivationalFactors: 22,
+    },
+  },
+  {
+    id: 'NFL-010',
+    sport: 'NFL',
+    player: 'CeeDee Lamb',
+    market: 'receptions',
+    description: 'Target monster, neg game script',
+    features: {
+      expectedValue: -3,
+      matchupRating: 55,
+      playerForm: 72,
+      sharpMoney: 45,
+      paceImpact: 6,
+    },
+  },
   // NHL (10)
-  { id: 'NHL-001', sport: 'NHL', player: 'Connor McDavid', market: 'points', description: 'Generational talent, plus matchup', features: { expectedValue: 14, matchupRating: 92, playerForm: 95, sharpMoney: 78, closingLineValue: 4, paceImpact: 16 } },
-  { id: 'NHL-002', sport: 'NHL', player: 'Auston Matthews', market: 'shots_on_goal', description: 'Elite shooter, high volume', features: { expectedValue: 10, matchupRating: 80, playerForm: 82, volumeProfile: 72, sharpMoney: 70, closingLineValue: 3 } },
-  { id: 'NHL-003', sport: 'NHL', player: 'Nathan MacKinnon', market: 'assists', description: 'Playmaker, strong line', features: { expectedValue: 7, matchupRating: 74, playerForm: 78, paceImpact: 14, sharpMoney: 62 } },
-  { id: 'NHL-004', sport: 'NHL', player: '4th Line Forward', market: 'shots_on_goal', description: 'Limited ice time, negative EV', features: { expectedValue: -8, matchupRating: 30, playerForm: 35, sharpMoney: 28, volumeProfile: 18 } },
-  { id: 'NHL-005', sport: 'NHL', player: 'Cale Makar', market: 'blocked_shots', description: 'Offensive D, high variance', features: { expectedValue: 3, matchupRating: 65, playerForm: 75, volatility: 7, correlationRisk: 0.35 } },
-  { id: 'NHL-006', sport: 'NHL', player: 'Leon Draisaitl', market: 'goals', description: 'PP specialist, strong at home', features: { expectedValue: 12, matchupRating: 82, playerForm: 85, venueAdvantage: 15, sharpMoney: 76, closingLineValue: 5 } },
-  { id: 'NHL-007', sport: 'NHL', player: 'Andrei Vasilevskiy', market: 'saves', description: 'Elite goalie, high shot volume', features: { expectedValue: 6, matchupRating: 70, playerForm: 72, volumeProfile: 68, playerFatigue: 55 } },
-  { id: 'NHL-008', sport: 'NHL', player: 'Jack Hughes', market: 'points', description: 'Young star, inconsistent form', features: { expectedValue: 5, matchupRating: 60, playerForm: 55, volatility: 6, sharpMoney: 52 } },
-  { id: 'NHL-009', sport: 'NHL', player: 'David Pastrnak', market: 'shots_on_goal', description: 'Trigger-happy winger, rivalry', features: { expectedValue: 9, matchupRating: 76, playerForm: 80, motivationalFactors: 20, sharpMoney: 68, paceImpact: 13 } },
-  { id: 'NHL-010', sport: 'NHL', player: 'AHL Callup', market: 'points', description: 'Zero track record, max fallback', features: { expectedValue: -18, matchupRating: 20 } },
+  {
+    id: 'NHL-001',
+    sport: 'NHL',
+    player: 'Connor McDavid',
+    market: 'points',
+    description: 'Generational talent, plus matchup',
+    features: {
+      expectedValue: 14,
+      matchupRating: 92,
+      playerForm: 95,
+      sharpMoney: 78,
+      closingLineValue: 4,
+      paceImpact: 16,
+    },
+  },
+  {
+    id: 'NHL-002',
+    sport: 'NHL',
+    player: 'Auston Matthews',
+    market: 'shots_on_goal',
+    description: 'Elite shooter, high volume',
+    features: {
+      expectedValue: 10,
+      matchupRating: 80,
+      playerForm: 82,
+      volumeProfile: 72,
+      sharpMoney: 70,
+      closingLineValue: 3,
+    },
+  },
+  {
+    id: 'NHL-003',
+    sport: 'NHL',
+    player: 'Nathan MacKinnon',
+    market: 'assists',
+    description: 'Playmaker, strong line',
+    features: {
+      expectedValue: 7,
+      matchupRating: 74,
+      playerForm: 78,
+      paceImpact: 14,
+      sharpMoney: 62,
+    },
+  },
+  {
+    id: 'NHL-004',
+    sport: 'NHL',
+    player: '4th Line Forward',
+    market: 'shots_on_goal',
+    description: 'Limited ice time, negative EV',
+    features: {
+      expectedValue: -8,
+      matchupRating: 30,
+      playerForm: 35,
+      sharpMoney: 28,
+      volumeProfile: 18,
+    },
+  },
+  {
+    id: 'NHL-005',
+    sport: 'NHL',
+    player: 'Cale Makar',
+    market: 'blocked_shots',
+    description: 'Offensive D, high variance',
+    features: {
+      expectedValue: 3,
+      matchupRating: 65,
+      playerForm: 75,
+      volatility: 7,
+      correlationRisk: 0.35,
+    },
+  },
+  {
+    id: 'NHL-006',
+    sport: 'NHL',
+    player: 'Leon Draisaitl',
+    market: 'goals',
+    description: 'PP specialist, strong at home',
+    features: {
+      expectedValue: 12,
+      matchupRating: 82,
+      playerForm: 85,
+      venueAdvantage: 15,
+      sharpMoney: 76,
+      closingLineValue: 5,
+    },
+  },
+  {
+    id: 'NHL-007',
+    sport: 'NHL',
+    player: 'Andrei Vasilevskiy',
+    market: 'saves',
+    description: 'Elite goalie, high shot volume',
+    features: {
+      expectedValue: 6,
+      matchupRating: 70,
+      playerForm: 72,
+      volumeProfile: 68,
+      playerFatigue: 55,
+    },
+  },
+  {
+    id: 'NHL-008',
+    sport: 'NHL',
+    player: 'Jack Hughes',
+    market: 'points',
+    description: 'Young star, inconsistent form',
+    features: {
+      expectedValue: 5,
+      matchupRating: 60,
+      playerForm: 55,
+      volatility: 6,
+      sharpMoney: 52,
+    },
+  },
+  {
+    id: 'NHL-009',
+    sport: 'NHL',
+    player: 'David Pastrnak',
+    market: 'shots_on_goal',
+    description: 'Trigger-happy winger, rivalry',
+    features: {
+      expectedValue: 9,
+      matchupRating: 76,
+      playerForm: 80,
+      motivationalFactors: 20,
+      sharpMoney: 68,
+      paceImpact: 13,
+    },
+  },
+  {
+    id: 'NHL-010',
+    sport: 'NHL',
+    player: 'AHL Callup',
+    market: 'points',
+    description: 'Zero track record, max fallback',
+    features: { expectedValue: -18, matchupRating: 20 },
+  },
 ];
 
 // ─── Raw prop builder ────────────────────────────────────────────────────────
@@ -162,8 +669,11 @@ function scoreV1(prop: Record<string, any>) {
   const role_stability = calculateRoleStabilityScore(prop);
 
   const professional_score_raw =
-    (trend_score ?? 0) + (matchup_score ?? 0) + (confidence_score ?? 0) +
-    (line_value_score ?? 0) + (role_stability ?? 0);
+    (trend_score ?? 0) +
+    (matchup_score ?? 0) +
+    (confidence_score ?? 0) +
+    (line_value_score ?? 0) +
+    (role_stability ?? 0);
 
   const tier = determineTier(professional_score_raw);
   const professional_score = normalizeScore(professional_score_raw, 25);
@@ -223,7 +733,12 @@ function makeFeatureSet(pick: PickInput): GradingFeatureSet {
     correlationRisk: f.correlationRisk ?? 0.15,
     volatility: f.volatility ?? 3,
     portfolioImpact: f.portfolioImpact ?? 0.08,
-    dataQuality: { dataValidationScore: 0.95, outlierScore: 0.95, consistencyScore: 0.95, completeness: 0.85 },
+    dataQuality: {
+      dataValidationScore: 0.95,
+      outlierScore: 0.95,
+      consistencyScore: 0.95,
+      completeness: 0.85,
+    },
     timestamp: '2026-02-15T14:00:00Z',
     version: 'tranche5-baseline',
     source: 'tranche5',
@@ -306,7 +821,10 @@ function main() {
   }
 
   const logs: string[] = [];
-  const log = (msg: string) => { console.log(msg); logs.push(msg); };
+  const log = (msg: string) => {
+    console.log(msg);
+    logs.push(msg);
+  };
 
   log('================================================================');
   log('  TRANCHE 5 — Shadow Baseline Analysis');
@@ -316,7 +834,10 @@ function main() {
 
   // ── Score all picks ────────────────────────────────────────────────
   interface PickResult {
-    id: string; sport: string; player: string; market: string;
+    id: string;
+    sport: string;
+    player: string;
+    market: string;
     v1: ReturnType<typeof scoreV1>;
     v2: ReturnType<typeof scoreV2>;
     gates_v1: GateResult[];
@@ -331,7 +852,16 @@ function main() {
     const v2 = scoreV2(pick, v1);
     const gates_v1 = evaluateGates(v1.professional_score);
     const gates_v2 = evaluateGates(v2.professional_score);
-    results.push({ id: pick.id, sport: pick.sport, player: pick.player, market: pick.market, v1, v2, gates_v1, gates_v2 });
+    results.push({
+      id: pick.id,
+      sport: pick.sport,
+      player: pick.player,
+      market: pick.market,
+      v1,
+      v2,
+      gates_v1,
+      gates_v2,
+    });
   }
 
   // ── STAGE 1: Baseline distributions ────────────────────────────────
@@ -395,8 +925,20 @@ function main() {
   }
 
   log('--- Tier Distribution ---');
-  log('  V1: ' + Object.entries(v1Tiers).sort().map(([t, c]) => `${t}=${c}`).join(', '));
-  log('  V2: ' + Object.entries(v2Tiers).sort().map(([t, c]) => `${t}=${c}`).join(', '));
+  log(
+    '  V1: ' +
+      Object.entries(v1Tiers)
+        .sort()
+        .map(([t, c]) => `${t}=${c}`)
+        .join(', ')
+  );
+  log(
+    '  V2: ' +
+      Object.entries(v2Tiers)
+        .sort()
+        .map(([t, c]) => `${t}=${c}`)
+        .join(', ')
+  );
   log('');
 
   // Gate pass rates
@@ -405,7 +947,9 @@ function main() {
   for (const gate of gateNames) {
     const v1Pass = results.filter(r => r.gates_v1.find(g => g.gate === gate)?.passed).length;
     const v2Pass = results.filter(r => r.gates_v2.find(g => g.gate === gate)?.passed).length;
-    log(`  ${gate}: V1=${v1Pass}/${results.length} (${(v1Pass / results.length * 100).toFixed(1)}%), V2=${v2Pass}/${results.length} (${(v2Pass / results.length * 100).toFixed(1)}%)`);
+    log(
+      `  ${gate}: V1=${v1Pass}/${results.length} (${((v1Pass / results.length) * 100).toFixed(1)}%), V2=${v2Pass}/${results.length} (${((v2Pass / results.length) * 100).toFixed(1)}%)`
+    );
   }
   log('');
 
@@ -415,15 +959,21 @@ function main() {
   log('--- V1 vs V2 Deltas ---');
   log(`  Mean score delta (V2-V1): ${mean(scoreDeltas).toFixed(2)}`);
   log(`  Max delta:  ${Math.max(...scoreDeltas.map(Math.abs)).toFixed(2)}`);
-  log(`  Tier changes: ${tierChanges.length}/${results.length} (${(tierChanges.length / results.length * 100).toFixed(1)}%)`);
+  log(
+    `  Tier changes: ${tierChanges.length}/${results.length} (${((tierChanges.length / results.length) * 100).toFixed(1)}%)`
+  );
   log('');
 
   // Per-pick detail
   log('--- Per-Pick Scores ---');
-  log('  ID          | Player                    | V1 Score | V2 Score | V1 Tier | V2 Tier | V1 Conf | V2 Conf');
+  log(
+    '  ID          | Player                    | V1 Score | V2 Score | V1 Tier | V2 Tier | V1 Conf | V2 Conf'
+  );
   log('  ' + '-'.repeat(105));
   for (const r of results) {
-    log(`  ${r.id.padEnd(11)} | ${r.player.padEnd(25)} | ${r.v1.professional_score.toFixed(1).padStart(8)} | ${r.v2.professional_score.toFixed(1).padStart(8)} | ${r.v1.tier.padStart(7)} | ${r.v2.tier.padStart(7)} | ${r.v1.normalized_confidence.toFixed(3).padStart(7)} | ${r.v2.normalized_confidence.toFixed(3).padStart(7)}`);
+    log(
+      `  ${r.id.padEnd(11)} | ${r.player.padEnd(25)} | ${r.v1.professional_score.toFixed(1).padStart(8)} | ${r.v2.professional_score.toFixed(1).padStart(8)} | ${r.v1.tier.padStart(7)} | ${r.v2.tier.padStart(7)} | ${r.v1.normalized_confidence.toFixed(3).padStart(7)} | ${r.v2.normalized_confidence.toFixed(3).padStart(7)}`
+    );
   }
   log('');
 
@@ -450,7 +1000,9 @@ function main() {
     const uniquePassers = new Set(
       results.filter(r => thresholds.some(t => r.v2.professional_score >= t)).map(r => r.id)
     ).size;
-    log(`  ${variant.label.padEnd(9)} | ${String(thresholds[0]).padEnd(4)} → ${String(passes[0]).padStart(2)}/${results.length} (${(passes[0] / results.length * 100).toFixed(0)}%) | ${String(thresholds[1]).padEnd(4)} → ${String(passes[1]).padStart(2)}/${results.length} (${(passes[1] / results.length * 100).toFixed(0)}%) | ${String(thresholds[2]).padEnd(4)} → ${String(passes[2]).padStart(2)}/${results.length} (${(passes[2] / results.length * 100).toFixed(0)}%) | ${uniquePassers}`);
+    log(
+      `  ${variant.label.padEnd(9)} | ${String(thresholds[0]).padEnd(4)} → ${String(passes[0]).padStart(2)}/${results.length} (${((passes[0] / results.length) * 100).toFixed(0)}%) | ${String(thresholds[1]).padEnd(4)} → ${String(passes[1]).padStart(2)}/${results.length} (${((passes[1] / results.length) * 100).toFixed(0)}%) | ${String(thresholds[2]).padEnd(4)} → ${String(passes[2]).padStart(2)}/${results.length} (${((passes[2] / results.length) * 100).toFixed(0)}%) | ${uniquePassers}`
+    );
     stressResults.push({ label: variant.label, thresholds, passes, uniquePassers });
   }
   log('');
@@ -461,7 +1013,9 @@ function main() {
     const nearEdge = results.filter(r => Math.abs(r.v2.professional_score - t) <= 3);
     log(`  Threshold ${t}: ${nearEdge.length} picks within ±3 points`);
     for (const r of nearEdge) {
-      log(`    ${r.id} ${r.player}: V2=${r.v2.professional_score.toFixed(1)} (margin=${(r.v2.professional_score - t).toFixed(1)})`);
+      log(
+        `    ${r.id} ${r.player}: V2=${r.v2.professional_score.toFixed(1)} (margin=${(r.v2.professional_score - t).toFixed(1)})`
+      );
     }
   }
   log('');
@@ -481,7 +1035,9 @@ function main() {
   const confs = results.map(r => r.v1.normalized_confidence);
   const evMean = mean(evs);
   const confMean = mean(confs);
-  let covSum = 0, evVar = 0, confVar = 0;
+  let covSum = 0,
+    evVar = 0,
+    confVar = 0;
   for (let i = 0; i < evs.length; i++) {
     covSum += (evs[i] - evMean) * (confs[i] - confMean);
     evVar += (evs[i] - evMean) ** 2;
@@ -493,7 +1049,9 @@ function main() {
   // Score vs EV correlation
   const scores = results.map(r => r.v2.professional_score);
   const scoreMean = mean(scores);
-  let covSumSE = 0, scoreVar = 0, evVar2 = 0;
+  let covSumSE = 0,
+    scoreVar = 0,
+    evVar2 = 0;
   for (let i = 0; i < scores.length; i++) {
     covSumSE += (scores[i] - scoreMean) * (evs[i] - evMean);
     scoreVar += (scores[i] - scoreMean) ** 2;
@@ -517,10 +1075,22 @@ function main() {
   log('');
 
   const criteria = [
-    { name: 'Gate pass rate > 0% (V2)', met: results.some(r => r.gates_v2.some(g => g.passed)), required: true },
+    {
+      name: 'Gate pass rate > 0% (V2)',
+      met: results.some(r => r.gates_v2.some(g => g.passed)),
+      required: true,
+    },
     { name: 'professional_score max > 70 (V2)', met: Math.max(...v2Scores) > 70, required: true },
-    { name: 'normalized_confidence distinct values > 20', met: new Set(v1Conf.map(c => c.toFixed(2))).size > 20, required: true },
-    { name: 'Confidence is discriminative (gap > 2)', met: (highConfAvgEV - lowConfAvgEV) > 2, required: true },
+    {
+      name: 'normalized_confidence distinct values > 20',
+      met: new Set(v1Conf.map(c => c.toFixed(2))).size > 20,
+      required: true,
+    },
+    {
+      name: 'Confidence is discriminative (gap > 2)',
+      met: highConfAvgEV - lowConfAvgEV > 2,
+      required: true,
+    },
     { name: 'V2 scoring pipeline error-free', met: true, required: true },
     { name: 'Settlement data available', met: false, required: false },
     { name: 'Confidence calibration verified', met: false, required: false },
@@ -528,8 +1098,8 @@ function main() {
   ];
 
   for (const c of criteria) {
-    const tag = c.met ? 'PASS' : (c.required ? 'FAIL' : 'NOT PROVEN');
-    const icon = c.met ? 'Y' : (c.required ? 'X' : '?');
+    const tag = c.met ? 'PASS' : c.required ? 'FAIL' : 'NOT PROVEN';
+    const icon = c.met ? 'Y' : c.required ? 'X' : '?';
     log(`  [${icon}] ${c.name}: ${tag}${c.required ? ' (required)' : ' (recommended)'}`);
   }
 
@@ -563,16 +1133,54 @@ function main() {
     sports: ['NBA', 'MLB', 'NFL', 'NHL'],
     data_source: 'fixture-based simulation (40 picks, 10 per sport)',
     v1: {
-      professional_score: { min: Math.min(...v1Scores), max: Math.max(...v1Scores), mean: mean(v1Scores), stddev: stddev(v1Scores), p25: percentile(v1Scores, 25), p50: percentile(v1Scores, 50), p75: percentile(v1Scores, 75) },
-      normalized_confidence: { min: Math.min(...v1Conf), max: Math.max(...v1Conf), mean: mean(v1Conf), stddev: stddev(v1Conf), distinct_2dp: new Set(v1Conf.map(c => c.toFixed(2))).size },
+      professional_score: {
+        min: Math.min(...v1Scores),
+        max: Math.max(...v1Scores),
+        mean: mean(v1Scores),
+        stddev: stddev(v1Scores),
+        p25: percentile(v1Scores, 25),
+        p50: percentile(v1Scores, 50),
+        p75: percentile(v1Scores, 75),
+      },
+      normalized_confidence: {
+        min: Math.min(...v1Conf),
+        max: Math.max(...v1Conf),
+        mean: mean(v1Conf),
+        stddev: stddev(v1Conf),
+        distinct_2dp: new Set(v1Conf.map(c => c.toFixed(2))).size,
+      },
       tier_distribution: v1Tiers,
-      gate_pass_rates: Object.fromEntries(gateNames.map(g => [g, results.filter(r => r.gates_v1.find(gr => gr.gate === g)?.passed).length / results.length])),
+      gate_pass_rates: Object.fromEntries(
+        gateNames.map(g => [
+          g,
+          results.filter(r => r.gates_v1.find(gr => gr.gate === g)?.passed).length / results.length,
+        ])
+      ),
     },
     v2: {
-      professional_score: { min: Math.min(...v2Scores), max: Math.max(...v2Scores), mean: mean(v2Scores), stddev: stddev(v2Scores), p25: percentile(v2Scores, 25), p50: percentile(v2Scores, 50), p75: percentile(v2Scores, 75) },
-      normalized_confidence: { min: Math.min(...v2Conf), max: Math.max(...v2Conf), mean: mean(v2Conf), stddev: stddev(v2Conf), distinct_2dp: new Set(v2Conf.map(c => c.toFixed(2))).size },
+      professional_score: {
+        min: Math.min(...v2Scores),
+        max: Math.max(...v2Scores),
+        mean: mean(v2Scores),
+        stddev: stddev(v2Scores),
+        p25: percentile(v2Scores, 25),
+        p50: percentile(v2Scores, 50),
+        p75: percentile(v2Scores, 75),
+      },
+      normalized_confidence: {
+        min: Math.min(...v2Conf),
+        max: Math.max(...v2Conf),
+        mean: mean(v2Conf),
+        stddev: stddev(v2Conf),
+        distinct_2dp: new Set(v2Conf.map(c => c.toFixed(2))).size,
+      },
       tier_distribution: v2Tiers,
-      gate_pass_rates: Object.fromEntries(gateNames.map(g => [g, results.filter(r => r.gates_v2.find(gr => gr.gate === g)?.passed).length / results.length])),
+      gate_pass_rates: Object.fromEntries(
+        gateNames.map(g => [
+          g,
+          results.filter(r => r.gates_v2.find(gr => gr.gate === g)?.passed).length / results.length,
+        ])
+      ),
     },
     deltas: {
       mean_score_delta: mean(scoreDeltas),
@@ -595,15 +1203,25 @@ function main() {
     },
     stress_test: stressResults,
     per_pick: results.map(r => ({
-      id: r.id, sport: r.sport, player: r.player, market: r.market,
-      v1_score: r.v1.professional_score, v2_score: r.v2.professional_score,
-      v1_conf: r.v1.normalized_confidence, v2_conf: r.v2.normalized_confidence,
-      v1_tier: r.v1.tier, v2_tier: r.v2.tier,
-      v1_ev: r.v1.ev_percent, v2_ev: r.v2.ev_percent,
+      id: r.id,
+      sport: r.sport,
+      player: r.player,
+      market: r.market,
+      v1_score: r.v1.professional_score,
+      v2_score: r.v2.professional_score,
+      v1_conf: r.v1.normalized_confidence,
+      v2_conf: r.v2.normalized_confidence,
+      v1_tier: r.v1.tier,
+      v2_tier: r.v2.tier,
+      v1_ev: r.v1.ev_percent,
+      v2_ev: r.v2.ev_percent,
     })),
   };
 
-  fs.writeFileSync(path.join(outDir, 'baseline/summary.json'), JSON.stringify(summaryJson, null, 2));
+  fs.writeFileSync(
+    path.join(outDir, 'baseline/summary.json'),
+    JSON.stringify(summaryJson, null, 2)
+  );
   fs.writeFileSync(path.join(outDir, 'baseline/PROOF.txt'), logs.join('\n'));
   fs.writeFileSync(path.join(outDir, 'outcomes/PROOF.txt'), logs.join('\n'));
   fs.writeFileSync(path.join(outDir, 'gates/PROOF.txt'), logs.join('\n'));

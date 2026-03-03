@@ -11,7 +11,7 @@ import { RecapError } from '../../types/picks';
 export class PrometheusMetrics {
   private server?: Server;
   private port: number;
-  
+
   // Metrics
   private recapsSentCounter: Counter<string>;
   private recapsFailedCounter: Counter<string>;
@@ -24,55 +24,55 @@ export class PrometheusMetrics {
 
   constructor(port: number = 3001) {
     this.port = port;
-    
+
     // Initialize metrics
     this.recapsSentCounter = new Counter({
       name: 'recap_agent_recaps_sent_total',
       help: 'Total number of recaps sent successfully',
-      labelNames: ['period', 'type']
+      labelNames: ['period', 'type'],
     });
 
     this.recapsFailedCounter = new Counter({
       name: 'recap_agent_recaps_failed_total',
       help: 'Total number of failed recap attempts',
-      labelNames: ['period', 'error_type']
+      labelNames: ['period', 'error_type'],
     });
 
     this.microRecapsCounter = new Counter({
       name: 'recap_agent_micro_recaps_total',
       help: 'Total number of micro-recaps sent',
-      labelNames: ['trigger']
+      labelNames: ['trigger'],
     });
 
     this.slashCommandsCounter = new Counter({
       name: 'recap_agent_slash_commands_total',
       help: 'Total number of slash commands processed',
-      labelNames: ['command', 'period']
+      labelNames: ['command', 'period'],
     });
 
     this.notionSyncsCounter = new Counter({
       name: 'recap_agent_notion_syncs_total',
       help: 'Total number of Notion syncs completed',
-      labelNames: ['period', 'status']
+      labelNames: ['period', 'status'],
     });
 
     this.processingTimeHistogram = new Histogram({
       name: 'recap_agent_processing_duration_seconds',
       help: 'Time spent processing recaps',
       labelNames: ['period', 'operation'],
-      buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60]
+      buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60],
     });
 
     this.activeRecapsGauge = new Gauge({
       name: 'recap_agent_active_recaps',
       help: 'Number of recaps currently being processed',
-      labelNames: ['period']
+      labelNames: ['period'],
     });
 
     this.roiWatcherGauge = new Gauge({
       name: 'recap_agent_roi_watcher_state',
       help: 'Current ROI watcher state',
-      labelNames: ['metric']
+      labelNames: ['metric'],
     });
 
     // Collect default Node.js metrics
@@ -101,13 +101,12 @@ export class PrometheusMetrics {
       this.server.listen(this.port, () => {
         console.log(`Prometheus metrics server listening on port ${this.port}`);
       });
-
     } catch (error) {
       throw new RecapError({
         code: 'METRICS_INIT_FAILED',
         message: `Failed to initialize metrics server: ${error}`,
         timestamp: new Date().toISOString(),
-        severity: 'medium'
+        severity: 'medium',
       });
     }
   }
@@ -150,7 +149,11 @@ export class PrometheusMetrics {
   /**
    * Record processing time
    */
-  recordProcessingTime(durationMs: number, period: string = 'unknown', operation: string = 'recap'): void {
+  recordProcessingTime(
+    durationMs: number,
+    period: string = 'unknown',
+    operation: string = 'recap'
+  ): void {
     this.processingTimeHistogram.observe({ period, operation }, durationMs / 1000);
   }
 
@@ -180,7 +183,7 @@ export class PrometheusMetrics {
       metrics: metrics.reduce((acc: any, metric: any) => {
         acc[metric.name] = metric;
         return acc;
-      }, {})
+      }, {}),
     };
   }
 
@@ -196,7 +199,7 @@ export class PrometheusMetrics {
    */
   async getMetricsSummary(): Promise<any> {
     const metrics = await this.getMetrics();
-    
+
     return {
       recapsSent: this.getMetricValue(metrics, 'recap_agent_recaps_sent_total'),
       recapsFailed: this.getMetricValue(metrics, 'recap_agent_recaps_failed_total'),
@@ -205,7 +208,7 @@ export class PrometheusMetrics {
       notionSyncs: this.getMetricValue(metrics, 'recap_agent_notion_syncs_total'),
       avgProcessingTime: this.getMetricValue(metrics, 'recap_agent_processing_duration_seconds'),
       uptime: process.uptime(),
-      memoryUsage: process.memoryUsage()
+      memoryUsage: process.memoryUsage(),
     };
   }
 
@@ -214,8 +217,10 @@ export class PrometheusMetrics {
    */
   private getMetricValue(metrics: any, metricName: string): number {
     const metric = metrics.metrics[metricName];
-    if (!metric || !metric.values) {return 0;}
-    
+    if (!metric || !metric.values) {
+      return 0;
+    }
+
     return metric.values.reduce((sum: number, value: any) => sum + (value.value || 0), 0);
   }
 
@@ -226,19 +231,24 @@ export class PrometheusMetrics {
     return new Counter({
       name: `recap_agent_${name}`,
       help,
-      labelNames
+      labelNames,
     });
   }
 
   /**
    * Create custom histogram
    */
-  createCustomHistogram(name: string, help: string, labelNames: string[] = [], buckets?: number[]): Histogram<string> {
+  createCustomHistogram(
+    name: string,
+    help: string,
+    labelNames: string[] = [],
+    buckets?: number[]
+  ): Histogram<string> {
     return new Histogram({
       name: `recap_agent_${name}`,
       help,
       labelNames,
-      ...(buckets && { buckets })
+      ...(buckets && { buckets }),
     });
   }
 
@@ -249,7 +259,7 @@ export class PrometheusMetrics {
     return new Gauge({
       name: `recap_agent_${name}`,
       help,
-      labelNames
+      labelNames,
     });
   }
 
@@ -269,7 +279,7 @@ export class PrometheusMetrics {
       port: this.port,
       uptime: process.uptime(),
       memoryUsage: process.memoryUsage(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -278,7 +288,7 @@ export class PrometheusMetrics {
    */
   async cleanup(): Promise<void> {
     if (this.server) {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         this.server!.close(() => {
           console.log('Prometheus metrics server stopped');
           resolve();

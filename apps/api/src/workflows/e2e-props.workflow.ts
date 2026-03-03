@@ -4,24 +4,24 @@ import type {
   IngestionActivities,
   ProcessingActivities,
   AlertActivities,
-  OperatorActivities
+  OperatorActivities,
 } from '../activities';
 
 // Create activity proxies with optimized timeouts for E2E testing
 const ingestionActivities = proxyActivities<IngestionActivities>({
-  startToCloseTimeout: '90 seconds' // Must complete within 2-min cycle
+  startToCloseTimeout: '90 seconds', // Must complete within 2-min cycle
 });
 
 const processingActivities = proxyActivities<ProcessingActivities>({
-  startToCloseTimeout: '60 seconds' // Fast processing for syndicate speed
+  startToCloseTimeout: '60 seconds', // Fast processing for syndicate speed
 });
 
 const alertActivities = proxyActivities<AlertActivities>({
-  startToCloseTimeout: '30 seconds' // Alerts must be is_instant
+  startToCloseTimeout: '30 seconds', // Alerts must be is_instant
 });
 
 const operatorActivities = proxyActivities<OperatorActivities>({
-  startToCloseTimeout: '30 seconds' // System monitoring must be fast
+  startToCloseTimeout: '30 seconds', // System monitoring must be fast
 });
 
 interface WorkflowSummary {
@@ -46,11 +46,11 @@ export async function e2ePropsWorkflow(params: {
 }): Promise<{ success: boolean; summary: WorkflowSummary }> {
   const startTime = Date.now();
   const workflowName = 'e2ePropsWorkflow';
-  
+
   log.info(`🚀 Starting E2E Props Workflow - Cycle ${params.cycleCount}`, {
     leagues: params.leagues,
     cycleCount: params.cycleCount,
-    isLiveMode: params.isLiveMode
+    isLiveMode: params.isLiveMode,
   });
 
   const summary: WorkflowSummary = {
@@ -61,14 +61,14 @@ export async function e2ePropsWorkflow(params: {
     totalPropsPromoted: 0,
     uspResults: [],
     errors: [],
-    duration: 0
+    duration: 0,
   };
 
   try {
     // Step 1: System Health Check
     const healthCheck = await operatorActivities.checkSystemHealth({
       timestamp: new Date().toISOString(),
-      components: ['database', 'temporal', 'discord', 'apis']
+      components: ['database', 'temporal', 'discord', 'apis'],
     } as any);
 
     if (!(healthCheck as any).success) {
@@ -77,22 +77,22 @@ export async function e2ePropsWorkflow(params: {
         timestamp: new Date().toISOString(),
         type: 'error',
         message: `Health check failed: ${((healthCheck as any).issues || []).join(', ')}`,
-        metadata: { 
-          cycleCount: params.cycleCount, 
-          healthScore: (healthCheck as any).healthScore || 0
-        }
+        metadata: {
+          cycleCount: params.cycleCount,
+          healthScore: (healthCheck as any).healthScore || 0,
+        },
       } as any);
     }
 
     // Step 2: Games Ingestion Phase
     log.info(`🎮 Starting games ingestion phase for ${params.leagues.length} leagues`);
-    
+
     try {
       const gamesResult = await ingestionActivities.ingestOptimalGames({
         timestamp: new Date().toISOString(),
         leagues: params.leagues,
         isLiveMode: params.isLiveMode,
-        cycleCount: params.cycleCount
+        cycleCount: params.cycleCount,
       } as any);
 
       if (gamesResult.success) {
@@ -109,7 +109,7 @@ export async function e2ePropsWorkflow(params: {
 
     // Step 3: Props Ingestion Phase
     log.info(`📥 Starting props ingestion phase for ${params.leagues.length} leagues`);
-    
+
     for (const league of params.leagues) {
       try {
         // Ingest from Optimal
@@ -117,19 +117,21 @@ export async function e2ePropsWorkflow(params: {
           timestamp: new Date().toISOString(),
           league,
           isLiveMode: params.isLiveMode,
-          cycleCount: params.cycleCount
+          cycleCount: params.cycleCount,
         } as any);
 
         if (optimalResult.success) {
           summary.totalPropsIngested += (optimalResult as any).propsIngested || 0;
-          log.info(`✅ Optimal ingestion complete for ${league}: ${(optimalResult as any).propsIngested || 0} props`);
+          log.info(
+            `✅ Optimal ingestion complete for ${league}: ${(optimalResult as any).propsIngested || 0} props`
+          );
         } else {
           summary.errors.push(...((optimalResult as any).errors || []));
           await operatorActivities.logUSPError({
             timestamp: new Date().toISOString(),
             uspType: 'ingestion_optimal',
             errorMessage: ((optimalResult as any).errors || []).join(', '),
-            cycleCount: params.cycleCount
+            cycleCount: params.cycleCount,
           } as any);
         }
 
@@ -138,12 +140,14 @@ export async function e2ePropsWorkflow(params: {
           timestamp: new Date().toISOString(),
           league,
           isLiveMode: params.isLiveMode,
-          cycleCount: params.cycleCount
+          cycleCount: params.cycleCount,
         } as any);
 
         if (sgoResult.success) {
           summary.totalPropsIngested += (sgoResult as any).propsIngested || 0;
-          log.info(`✅ SGO ingestion complete for ${league}: ${(sgoResult as any).propsIngested || 0} props`);
+          log.info(
+            `✅ SGO ingestion complete for ${league}: ${(sgoResult as any).propsIngested || 0} props`
+          );
         } else {
           const sgoError = sgoResult.error || 'Unknown error';
           summary.errors.push(typeof sgoError === 'string' ? sgoError : String(sgoError));
@@ -151,7 +155,7 @@ export async function e2ePropsWorkflow(params: {
             timestamp: new Date().toISOString(),
             uspType: 'ingestion_sgo',
             errorMessage: sgoResult.error || 'Unknown error',
-            cycleCount: params.cycleCount
+            cycleCount: params.cycleCount,
           } as any);
         }
 
@@ -159,7 +163,7 @@ export async function e2ePropsWorkflow(params: {
         const validationResult = await ingestionActivities.validateIngestionData({
           timestamp: new Date().toISOString(),
           league,
-          expectedMinProps: 10
+          expectedMinProps: 10,
         } as any);
 
         if (!(validationResult as any).isValid) {
@@ -168,13 +172,12 @@ export async function e2ePropsWorkflow(params: {
             timestamp: new Date().toISOString(),
             type: 'error',
             message: `Ingestion validation failed for ${league}: ${((validationResult as any).issues || []).join(', ')}`,
-            metadata: { 
-              league, 
-              actualCount: (validationResult as any).actualCount || 0
-            }
+            metadata: {
+              league,
+              actualCount: (validationResult as any).actualCount || 0,
+            },
           } as any);
         }
-
       } catch (leagueError) {
         const errorMsg = `Ingestion failed for ${league}: ${leagueError}`;
         summary.errors.push(errorMsg);
@@ -182,7 +185,7 @@ export async function e2ePropsWorkflow(params: {
           timestamp: new Date().toISOString(),
           uspType: 'ingestion_league',
           errorMessage: errorMsg,
-          cycleCount: params.cycleCount
+          cycleCount: params.cycleCount,
         } as any);
       }
     }
@@ -194,12 +197,14 @@ export async function e2ePropsWorkflow(params: {
     const uspResult = await processingActivities.processUSPDetection({
       timestamp: new Date().toISOString(),
       leagues: params.leagues,
-      cycleCount: params.cycleCount
+      cycleCount: params.cycleCount,
     } as any);
 
     if (uspResult.success) {
       summary.uspResults = (uspResult as any).uspResults || [];
-      log.info(`✅ USP detection complete: ${(uspResult as any).uspResults?.length || 0} types processed`);
+      log.info(
+        `✅ USP detection complete: ${(uspResult as any).uspResults?.length || 0} types processed`
+      );
     } else {
       const uspError = uspResult.error || 'USP detection failed';
       summary.errors.push(typeof uspError === 'string' ? uspError : String(uspError));
@@ -207,7 +212,7 @@ export async function e2ePropsWorkflow(params: {
         timestamp: new Date().toISOString(),
         uspType: 'usp_detection',
         errorMessage: uspResult.error || 'USP detection failed',
-        cycleCount: params.cycleCount
+        cycleCount: params.cycleCount,
       } as any);
     }
 
@@ -215,42 +220,44 @@ export async function e2ePropsWorkflow(params: {
     const scoringResult = await processingActivities.scoreAndGradeProps({
       timestamp: new Date().toISOString(),
       leagues: params.leagues,
-      cycleCount: params.cycleCount
+      cycleCount: params.cycleCount,
     } as any);
 
     if (scoringResult.success) {
       summary.totalPropsScored = scoringResult.propsScored;
       summary.totalPropsPromoted = scoringResult.propsPromoted;
-      log.info(`✅ Scoring complete: ${scoringResult.propsScored} scored, ${scoringResult.propsPromoted} promoted`);
+      log.info(
+        `✅ Scoring complete: ${scoringResult.propsScored} scored, ${scoringResult.propsPromoted} promoted`
+      );
     } else {
       summary.errors.push(scoringResult.error || 'Scoring and grading failed');
       await operatorActivities.logUSPError({
         timestamp: new Date().toISOString(),
         uspType: 'scoring_grading',
         errorMessage: scoringResult.error || 'Scoring and grading failed',
-        cycleCount: params.cycleCount
+        cycleCount: params.cycleCount,
       } as any);
     }
 
     // Step 4: Alert Phase
     if (summary.totalPropsPromoted > 0) {
       log.info(`📢 Sending approved picks alert`);
-      
+
       // Mock picks data for alert
       const mockPicks = Array.from({ length: summary.totalPropsPromoted }, (_, i) => ({
         id: `pick-${i}`,
         player_name: `Player ${i + 1}`,
-        team: `Team ${i % 4 + 1}`,
+        team: `Team ${(i % 4) + 1}`,
         stat_type: ['points', 'rebounds', 'assists'][i % 3],
         line: 20 + (i % 10),
-        tier: i % 2 === 0 ? 'S' : 'A'
+        tier: i % 2 === 0 ? 'S' : 'A',
       })) as any[];
 
       const alertResult = await alertActivities.sendApprovedPicksAlert({
         timestamp: new Date().toISOString(),
         picks: mockPicks,
         cycleCount: params.cycleCount,
-        totalPicks: summary.totalPropsScored
+        totalPicks: summary.totalPropsScored,
       } as any);
 
       if (!alertResult.success) {
@@ -271,8 +278,8 @@ export async function e2ePropsWorkflow(params: {
       metadata: {
         propsIngested: summary.totalPropsIngested,
         propsPromoted: summary.totalPropsPromoted,
-        leagues: params.leagues.length
-      }
+        leagues: params.leagues.length,
+      },
     } as any);
 
     log.info(`🏁 E2E Props Workflow Complete - Cycle ${params.cycleCount}`, {
@@ -280,14 +287,13 @@ export async function e2ePropsWorkflow(params: {
       success: summary.errors.length === 0,
       propsIngested: summary.totalPropsIngested,
       propsPromoted: summary.totalPropsPromoted,
-      errors: summary.errors.length
+      errors: summary.errors.length,
     });
 
     return {
       success: summary.errors.length === 0,
-      summary
+      summary,
     };
-
   } catch (error) {
     const duration = Date.now() - startTime;
     summary.duration = duration;
@@ -297,7 +303,7 @@ export async function e2ePropsWorkflow(params: {
       timestamp: new Date().toISOString(),
       workflowName,
       errorMessage: String(error),
-      cycleCount: params.cycleCount
+      cycleCount: params.cycleCount,
     } as any);
 
     await operatorActivities.logWorkflowMetrics({
@@ -306,14 +312,16 @@ export async function e2ePropsWorkflow(params: {
       duration,
       success: false,
       cycleCount: params.cycleCount,
-      metadata: { error: String(error) as unknown as Record<string, unknown> }
+      metadata: { error: String(error) as unknown as Record<string, unknown> },
     } as any);
 
-    log.error(`❌ E2E Props Workflow Failed - Cycle ${params.cycleCount}:`, { error: String(error) });
+    log.error(`❌ E2E Props Workflow Failed - Cycle ${params.cycleCount}:`, {
+      error: String(error),
+    });
 
     return {
       success: false,
-      summary
+      summary,
     };
   }
 }
@@ -328,13 +336,13 @@ export async function liveGameMonitoringWorkflow(params: {
 }): Promise<{ success: boolean; liveGames: any[] }> {
   log.info(`🎮 Starting Live Game Monitoring - Cycle ${params.cycleCount}`, {
     leagues: params.leagues,
-    cycleCount: params.cycleCount
+    cycleCount: params.cycleCount,
   });
 
   try {
     const liveGameResult = await operatorActivities.detectLiveGames({
       timestamp: new Date().toISOString(),
-      leagues: params.leagues
+      leagues: params.leagues,
     } as any);
 
     if ((liveGameResult as any).success && (liveGameResult as any).liveGames?.length > 0) {
@@ -345,16 +353,15 @@ export async function liveGameMonitoringWorkflow(params: {
         metadata: {
           liveGames: (liveGameResult as any).liveGames?.length || 0,
           leagues: params.leagues,
-          cycleCount: params.cycleCount
-        }
+          cycleCount: params.cycleCount,
+        },
       } as any);
     }
 
     return {
       success: (liveGameResult as any).success || false,
-      liveGames: (liveGameResult as any).liveGames || []
+      liveGames: (liveGameResult as any).liveGames || [],
     };
-
   } catch (error) {
     log.error(`❌ Live Game Monitoring Failed:`, { err: String(error) });
 
@@ -362,12 +369,12 @@ export async function liveGameMonitoringWorkflow(params: {
       timestamp: new Date().toISOString(),
       type: 'error',
       message: `Live game monitoring failed: ${error}`,
-      metadata: { cycleCount: params.cycleCount as number }
+      metadata: { cycleCount: params.cycleCount as number },
     } as any);
 
     return {
       success: false,
-      liveGames: []
+      liveGames: [],
     };
   }
 }
@@ -382,7 +389,7 @@ export async function apiQuotaMonitoringWorkflow(params: {
 }): Promise<{ success: boolean; quotaStatus: any[] }> {
   log.info(`📊 Starting API Quota Monitoring - Cycle ${params.cycleCount}`, {
     providers: params.providers,
-    cycleCount: params.cycleCount
+    cycleCount: params.cycleCount,
   });
 
   const quotaStatus = [];
@@ -397,7 +404,7 @@ export async function apiQuotaMonitoringWorkflow(params: {
         timestamp: new Date().toISOString(),
         provider,
         currentUsage: mockUsage,
-        limit: mockLimit
+        limit: mockLimit,
       } as any);
 
       quotaStatus.push({
@@ -405,7 +412,7 @@ export async function apiQuotaMonitoringWorkflow(params: {
         usage: mockUsage,
         limit: mockLimit,
         percentage: (quotaResult as any).percentage || 0,
-        shouldFallback: (quotaResult as any).shouldFallback || false
+        shouldFallback: (quotaResult as any).shouldFallback || false,
       });
 
       if ((quotaResult as any).shouldFallback) {
@@ -413,16 +420,15 @@ export async function apiQuotaMonitoringWorkflow(params: {
           timestamp: new Date().toISOString(),
           primaryProvider: provider,
           fallbackProvider: 'SGO',
-          reason: `Quota exceeded: ${(quotaResult as any).percentage || 0}%`
+          reason: `Quota exceeded: ${(quotaResult as any).percentage || 0}%`,
         } as any);
       }
     }
 
     return {
       success: true,
-      quotaStatus
+      quotaStatus,
     };
-
   } catch (error) {
     log.error(`❌ API Quota Monitoring Failed:`, { err: String(error) });
 
@@ -430,12 +436,12 @@ export async function apiQuotaMonitoringWorkflow(params: {
       timestamp: new Date().toISOString(),
       type: 'error',
       message: `API quota monitoring failed: ${error}`,
-      metadata: { cycleCount: params.cycleCount as number }
+      metadata: { cycleCount: params.cycleCount as number },
     } as any);
 
     return {
       success: false,
-      quotaStatus
+      quotaStatus,
     };
   }
 }

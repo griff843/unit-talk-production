@@ -92,16 +92,18 @@ export const providerCircuitBreakerState = new Gauge({
 
 // Start the HTTP server for Prometheus scraping
 export function startMetricsServer(port = 9000) {
-  http.createServer(async (req, res) => {
-    if (req.url === '/metrics') {
-      res.setHeader('Content-Type', register.contentType);
-      res.end(await register.metrics());
-    } else {
-      res.writeHead(404);
-      res.end();
-    }
-  }).listen(port, () => {
-    // eslint-disable-next-line no-console
-    console.log(`🚦 Prometheus metrics server running at http://localhost:${port}/metrics`);
-  });
+  http
+    .createServer(async (req, res) => {
+      if (req.url === '/metrics') {
+        res.setHeader('Content-Type', register.contentType);
+        res.end(await register.metrics());
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
+    })
+    .listen(port, () => {
+      // eslint-disable-next-line no-console
+      console.log(`🚦 Prometheus metrics server running at http://localhost:${port}/metrics`);
+    });
 }

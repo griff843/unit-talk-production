@@ -31,13 +31,11 @@ async function main() {
       prediction: prop.prediction || 'over',
       confidence: prop.confidence || 0.8,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     }));
 
     // Insert into unified_picks
-    const { error: insertError } = await supabase
-      .from('unified_picks')
-      .insert(unifiedPicks);
+    const { error: insertError } = await supabase.from('unified_picks').insert(unifiedPicks);
 
     if (insertError) {
       console.error('Error inserting picks:', insertError);
@@ -57,7 +55,6 @@ async function main() {
         console.error(`Error updating raw_prop ${prop.id}:`, updateError);
       }
     }
-
   } catch (error) {
     console.error('Error:', error);
   }

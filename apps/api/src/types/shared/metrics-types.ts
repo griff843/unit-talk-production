@@ -1,19 +1,10 @@
 import { z } from 'zod';
 
 // --- Enums ---
-export const MetricType = z.enum([
-  'counter',
-  'gauge',
-  'histogram',
-  'summary'
-]);
+export const MetricType = z.enum(['counter', 'gauge', 'histogram', 'summary']);
 export type MetricType = z.infer<typeof MetricType>;
 
-export const HealthStatus = z.enum([
-  'healthy',
-  'degraded',
-  'unhealthy'
-]);
+export const HealthStatus = z.enum(['healthy', 'degraded', 'unhealthy']);
 export type HealthStatus = z.infer<typeof HealthStatus>;
 
 export const HealthCheckType = z.enum([
@@ -24,7 +15,7 @@ export const HealthCheckType = z.enum([
   'disk',
   'network',
   'service',
-  'custom'
+  'custom',
 ]);
 export type HealthCheckType = z.infer<typeof HealthCheckType>;
 
@@ -32,7 +23,7 @@ export type HealthCheckType = z.infer<typeof HealthCheckType>;
 export const MetricValueSchema = z.object({
   value: z.number(),
   timestamp: z.string(),
-  labels: z.record(z.string()).optional()
+  labels: z.record(z.string()).optional(),
 });
 
 export type MetricValue = z.infer<typeof MetricValueSchema>;
@@ -41,14 +32,14 @@ export const MetricDefinitionSchema = z.object({
   name: z.string(),
   help: z.string(),
   type: MetricType,
-  labels: z.array(z.string()).optional()
+  labels: z.array(z.string()).optional(),
 });
 
 export type MetricDefinition = z.infer<typeof MetricDefinitionSchema>;
 
 export const MetricSchema = z.object({
   definition: MetricDefinitionSchema,
-  values: z.array(MetricValueSchema)
+  values: z.array(MetricValueSchema),
 });
 
 export type Metric = z.infer<typeof MetricSchema>;
@@ -60,7 +51,7 @@ export const HealthCheckSchema = z.object({
   message: z.string().optional(),
   timestamp: z.string(),
   details: z.record(z.unknown()).optional(),
-  metrics: z.array(MetricSchema).optional()
+  metrics: z.array(MetricSchema).optional(),
 });
 
 export type HealthCheck = z.infer<typeof HealthCheckSchema>;
@@ -69,7 +60,7 @@ export const HealthReportSchema = z.object({
   status: HealthStatus,
   timestamp: z.string(),
   checks: z.array(HealthCheckSchema),
-  metrics: z.record(z.unknown()).optional()
+  metrics: z.record(z.unknown()).optional(),
 });
 
 export type HealthReport = z.infer<typeof HealthReportSchema>;
@@ -83,29 +74,29 @@ export const BaseMetricsSchema = z.object({
     heapUsed: z.number(),
     heapTotal: z.number(),
     external: z.number(),
-    rss: z.number()
+    rss: z.number(),
   }),
   cpu: z.object({
     user: z.number(),
     system: z.number(),
-    percentage: z.number()
+    percentage: z.number(),
   }),
   operations: z.object({
     total: z.number(),
     successful: z.number(),
     failed: z.number(),
-    inProgress: z.number()
+    inProgress: z.number(),
   }),
   latency: z.object({
     p50: z.number(),
     p90: z.number(),
-    p99: z.number()
+    p99: z.number(),
   }),
   errors: z.object({
     count: z.number(),
-    rate: z.number()
+    rate: z.number(),
   }),
-  customMetrics: z.record(z.unknown()).optional()
+  customMetrics: z.record(z.unknown()).optional(),
 });
 
 export type BaseMetrics = z.infer<typeof BaseMetricsSchema>;
@@ -141,7 +132,7 @@ export function createHealthCheck(
     status,
     message,
     timestamp: new Date().toISOString(),
-    details
+    details,
   });
 }
 
@@ -157,13 +148,15 @@ export function createMetric(
       name,
       help,
       type,
-      labels: labels ? Object.keys(labels) : undefined
+      labels: labels ? Object.keys(labels) : undefined,
     },
-    values: [{
-      value,
-      timestamp: new Date().toISOString(),
-      labels
-    }]
+    values: [
+      {
+        value,
+        timestamp: new Date().toISOString(),
+        labels,
+      },
+    ],
   });
 }
 
@@ -176,7 +169,7 @@ export function createHealthReport(
     status,
     timestamp: new Date().toISOString(),
     checks,
-    metrics
+    metrics,
   });
 }
 
@@ -215,15 +208,21 @@ export function metricToPrometheusFormat(metric: Metric): string {
 
 // --- Error Types ---
 export class MetricValidationError extends Error {
-  constructor(message: string, public zodError: z.ZodError) {
+  constructor(
+    message: string,
+    public zodError: z.ZodError
+  ) {
     super(message);
     this.name = 'MetricValidationError';
   }
 }
 
 export class HealthCheckValidationError extends Error {
-  constructor(message: string, public zodError: z.ZodError) {
+  constructor(
+    message: string,
+    public zodError: z.ZodError
+  ) {
     super(message);
     this.name = 'HealthCheckValidationError';
   }
-} 
+}

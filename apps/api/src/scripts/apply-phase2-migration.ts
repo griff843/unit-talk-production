@@ -71,7 +71,6 @@ async function applyMigration() {
     });
 
     console.log('\n✅ Phase 2 migration complete!\n');
-
   } catch (error: any) {
     console.error('❌ Migration failed:', error.message);
     throw error;
@@ -84,4 +83,3 @@ applyMigration().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

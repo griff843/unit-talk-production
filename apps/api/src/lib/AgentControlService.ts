@@ -8,22 +8,24 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+
 import { Logger } from '../shared/logger/types';
+import { AgentDesiredState, AgentCurrentState } from '../temporal/AgentControlPlane';
+
 import {
   TemporalControlClient,
   ControlCommandResult,
   KillConfirmationResult,
 } from './TemporalControlClient';
-import { AgentDesiredState, AgentCurrentState } from '../temporal/AgentControlPlane';
 
 /**
  * RBAC Roles for agent control
  */
 export enum AgentControlRole {
-  VIEWER = 'viewer',          // Can view agent status and metrics
-  OPERATOR = 'operator',      // Can pause/resume/stop agents
-  ADMIN = 'admin',            // Can kill agents (with confirmation)
-  SUPER_ADMIN = 'super_admin' // Can perform emergency operations
+  VIEWER = 'viewer', // Can view agent status and metrics
+  OPERATOR = 'operator', // Can pause/resume/stop agents
+  ADMIN = 'admin', // Can kill agents (with confirmation)
+  SUPER_ADMIN = 'super_admin', // Can perform emergency operations
 }
 
 /**
@@ -115,19 +117,11 @@ export class AgentControlService {
   private controlClient: TemporalControlClient;
   private operatorContext: OperatorContext;
 
-  constructor(
-    supabase: SupabaseClient,
-    logger: Logger,
-    operatorContext: OperatorContext
-  ) {
+  constructor(supabase: SupabaseClient, logger: Logger, operatorContext: OperatorContext) {
     this.supabase = supabase;
     this.logger = logger;
     this.operatorContext = operatorContext;
-    this.controlClient = new TemporalControlClient(
-      supabase,
-      logger,
-      operatorContext.userId
-    );
+    this.controlClient = new TemporalControlClient(supabase, logger, operatorContext.userId);
   }
 
   /**
@@ -255,7 +249,10 @@ export class AgentControlService {
   /**
    * Resume an agent
    */
-  async resumeAgent(agentId: string, reason?: string): Promise<ServiceResult<ControlCommandResult>> {
+  async resumeAgent(
+    agentId: string,
+    reason?: string
+  ): Promise<ServiceResult<ControlCommandResult>> {
     if (!this.hasPermission(AgentControlPermission.RESUME_AGENT)) {
       await this.auditLog('resume', agentId, 'denied');
       return {
@@ -400,15 +397,13 @@ export class AgentControlService {
 
     try {
       // Set system-wide emergency stop
-      await this.supabase
-        .from('system_status')
-        .upsert({
-          id: 'global',
-          emergency_stop: true,
-          emergency_stop_reason: reason,
-          emergency_stop_by: this.operatorContext.userId,
-          emergency_stop_at: new Date().toISOString(),
-        });
+      await this.supabase.from('system_status').upsert({
+        id: 'global',
+        emergency_stop: true,
+        emergency_stop_reason: reason,
+        emergency_stop_by: this.operatorContext.userId,
+        emergency_stop_at: new Date().toISOString(),
+      });
 
       // Get all agents and request stop
       const agents = await this.controlClient.listAgents();
@@ -490,14 +485,18 @@ export class AgentControlService {
   async getLifecycleEvents(
     agentId: string,
     limit: number = 100
-  ): Promise<ServiceResult<Array<{
-    eventType: string;
-    previousState: string | null;
-    newState: string | null;
-    requestedBy: string | null;
-    reason: string | null;
-    timestamp: string;
-  }>>> {
+  ): Promise<
+    ServiceResult<
+      Array<{
+        eventType: string;
+        previousState: string | null;
+        newState: string | null;
+        requestedBy: string | null;
+        reason: string | null;
+        timestamp: string;
+      }>
+    >
+  > {
     if (!this.hasPermission(AgentControlPermission.VIEW_LIFECYCLE_EVENTS)) {
       await this.auditLog('get_lifecycle_events', agentId, 'denied');
       return {
@@ -523,15 +522,19 @@ export class AgentControlService {
     agentId: string,
     fromTime?: Date,
     limit: number = 100
-  ): Promise<ServiceResult<Array<{
-    runCount: number;
-    successCount: number;
-    failureCount: number;
-    avgLatencyMs: number | null;
-    p95LatencyMs: number | null;
-    backlogSize: number;
-    collectedAt: string;
-  }>>> {
+  ): Promise<
+    ServiceResult<
+      Array<{
+        runCount: number;
+        successCount: number;
+        failureCount: number;
+        avgLatencyMs: number | null;
+        p95LatencyMs: number | null;
+        backlogSize: number;
+        collectedAt: string;
+      }>
+    >
+  > {
     if (!this.hasPermission(AgentControlPermission.VIEW_METRICS)) {
       await this.auditLog('get_metrics', agentId, 'denied');
       return {

@@ -52,7 +52,8 @@ interface ValidationReport {
 
 async function validateTimeSeriesData(): Promise<void> {
   // Use Supabase pooler URL (production database)
-  const connectionString = process.env.DATABASE_POOLER_URL ||
+  const connectionString =
+    process.env.DATABASE_POOLER_URL ||
     'postgresql://postgres.cqfnsozknjzvyiziwicl:Adalise843!@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require';
 
   const client = new Client({
@@ -128,7 +129,7 @@ async function validateTimeSeriesData(): Promise<void> {
     `;
 
     const result = await client.query(query);
-    const timeSeriesData: TimeSeriesQuality[] = result.rows.map((row) => {
+    const timeSeriesData: TimeSeriesQuality[] = result.rows.map(row => {
       const timespanMinutes = parseFloat(row.timespan_minutes);
       const expectedSnapshots = Math.floor(timespanMinutes); // 1 per minute ideally
       const actualSnapshots = parseInt(row.snapshot_count);
@@ -173,7 +174,8 @@ async function validateTimeSeriesData(): Promise<void> {
     printRecommendations(report.recommendations);
 
     // Save to file
-    const outputPath = 'C:\\Users\\griff\\OneDrive\\Desktop\\unit-talk-production-main\\apps\\api\\out\\ops\\timeseries-validation.json';
+    const outputPath =
+      'C:\\Users\\griff\\OneDrive\\Desktop\\unit-talk-production-main\\apps\\api\\out\\ops\\timeseries-validation.json';
     const fs = require('fs');
     const output = {
       generatedAt: new Date().toISOString(),
@@ -188,7 +190,6 @@ async function validateTimeSeriesData(): Promise<void> {
       console.log('\n⚠️  WARNING: Data quality below acceptable threshold');
       process.exit(1);
     }
-
   } catch (error) {
     console.error('❌ Error validating time-series data:', error);
     throw error;
@@ -225,12 +226,13 @@ function generateValidationReport(data: TimeSeriesQuality[]): ValidationReport {
 
   const totalSnapshots = data.reduce((sum, d) => sum + d.snapshotCount, 0);
   const averageReliability = data.reduce((sum, d) => sum + d.reliability, 0) / data.length;
-  const goodQuality = data.filter((d) => d.reliability >= 90).length;
-  const mediumQuality = data.filter((d) => d.reliability >= 75 && d.reliability < 90).length;
-  const poorQuality = data.filter((d) => d.reliability < 75).length;
+  const goodQuality = data.filter(d => d.reliability >= 90).length;
+  const mediumQuality = data.filter(d => d.reliability >= 75 && d.reliability < 90).length;
+  const poorQuality = data.filter(d => d.reliability < 75).length;
 
   const totalIntervals = data.reduce((sum, d) => sum + (d.snapshotCount - 1), 0);
-  const avgInterval = data.reduce((sum, d) => sum + d.averageInterval * (d.snapshotCount - 1), 0) / totalIntervals;
+  const avgInterval =
+    data.reduce((sum, d) => sum + d.averageInterval * (d.snapshotCount - 1), 0) / totalIntervals;
   const totalGaps = data.reduce((sum, d) => sum + d.gaps, 0);
   const intervalVariance = Math.sqrt(
     data.reduce((sum, d) => sum + Math.pow(d.intervalStdDev, 2), 0) / data.length
@@ -285,9 +287,15 @@ function printOverallStats(stats: ValidationReport['overallStats']): void {
   console.log(`Total Snapshots: ${stats.totalSnapshots}`);
   console.log(`Average Reliability: ${stats.averageReliability.toFixed(2)}%`);
   console.log('\nQuality Distribution:');
-  console.log(`  ✅ Good (≥90%):   ${stats.goodQuality} props (${((stats.goodQuality / stats.totalProps) * 100).toFixed(1)}%)`);
-  console.log(`  ⚠️  Medium (75-90%): ${stats.mediumQuality} props (${((stats.mediumQuality / stats.totalProps) * 100).toFixed(1)}%)`);
-  console.log(`  ❌ Poor (<75%):   ${stats.poorQuality} props (${((stats.poorQuality / stats.totalProps) * 100).toFixed(1)}%)`);
+  console.log(
+    `  ✅ Good (≥90%):   ${stats.goodQuality} props (${((stats.goodQuality / stats.totalProps) * 100).toFixed(1)}%)`
+  );
+  console.log(
+    `  ⚠️  Medium (75-90%): ${stats.mediumQuality} props (${((stats.mediumQuality / stats.totalProps) * 100).toFixed(1)}%)`
+  );
+  console.log(
+    `  ❌ Poor (<75%):   ${stats.poorQuality} props (${((stats.poorQuality / stats.totalProps) * 100).toFixed(1)}%)`
+  );
 }
 
 function printPollingHealth(health: ValidationReport['pollingHealth']): void {
@@ -300,9 +308,14 @@ function printPollingHealth(health: ValidationReport['pollingHealth']): void {
   console.log(`Uptime: ${health.uptime.toFixed(2)}%`);
 
   // Color-coded status
-  const status = health.uptime >= 95 ? '✅ EXCELLENT' :
-                 health.uptime >= 85 ? '⚠️  GOOD' :
-                 health.uptime >= 75 ? '⚠️  FAIR' : '❌ POOR';
+  const status =
+    health.uptime >= 95
+      ? '✅ EXCELLENT'
+      : health.uptime >= 85
+        ? '⚠️  GOOD'
+        : health.uptime >= 75
+          ? '⚠️  FAIR'
+          : '❌ POOR';
   console.log(`Status: ${status}`);
 }
 
@@ -317,20 +330,23 @@ function printQualityBreakdown(data: TimeSeriesQuality[]): void {
 
   const topReliable = [...data].sort((a, b) => b.reliability - a.reliability).slice(0, 10);
   topReliable.forEach((prop, idx) => {
-    const status = prop.reliability >= 95 ? '✅' :
-                   prop.reliability >= 85 ? '⚠️' : '❌';
+    const status = prop.reliability >= 95 ? '✅' : prop.reliability >= 85 ? '⚠️' : '❌';
     console.log(`${idx + 1}. ${status} ${prop.playerName} (${prop.sport})`);
-    console.log(`   Snapshots: ${prop.snapshotCount}, Avg Interval: ${prop.averageInterval.toFixed(1)}s, Reliability: ${prop.reliability.toFixed(1)}%`);
+    console.log(
+      `   Snapshots: ${prop.snapshotCount}, Avg Interval: ${prop.averageInterval.toFixed(1)}s, Reliability: ${prop.reliability.toFixed(1)}%`
+    );
     console.log(`   Gaps: ${prop.gaps}, Timespan: ${prop.timespanMinutes.toFixed(1)} min`);
   });
 
-  if (data.some((d) => d.reliability < 75)) {
+  if (data.some(d => d.reliability < 75)) {
     console.log('\n⚠️  PROPS WITH POOR RELIABILITY (<75%)');
     console.log('-'.repeat(80));
-    const poorReliable = data.filter((d) => d.reliability < 75).slice(0, 5);
+    const poorReliable = data.filter(d => d.reliability < 75).slice(0, 5);
     poorReliable.forEach((prop, idx) => {
       console.log(`${idx + 1}. ❌ ${prop.playerName} (${prop.sport})`);
-      console.log(`   Reliability: ${prop.reliability.toFixed(1)}%, Gaps: ${prop.gaps}, Avg Interval: ${prop.averageInterval.toFixed(1)}s`);
+      console.log(
+        `   Reliability: ${prop.reliability.toFixed(1)}%, Gaps: ${prop.gaps}, Avg Interval: ${prop.averageInterval.toFixed(1)}s`
+      );
     });
   }
 }
@@ -338,7 +354,7 @@ function printQualityBreakdown(data: TimeSeriesQuality[]): void {
 function printRecommendations(recommendations: string[]): void {
   console.log('\n💡 RECOMMENDATIONS');
   console.log('-'.repeat(80));
-  recommendations.forEach((rec) => {
+  recommendations.forEach(rec => {
     console.log(`  ${rec}`);
   });
 }
@@ -350,7 +366,7 @@ if (require.main === module) {
       console.log('\n✅ Time-series validation complete');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('❌ Fatal error:', error);
       process.exit(1);
     });

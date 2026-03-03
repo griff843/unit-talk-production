@@ -9,7 +9,7 @@ import { logger } from '../../shared/logger';
  */
 export class SmartFormWebhookHandler {
   private bridge: SmartFormBridge;
-  
+
   constructor() {
     this.bridge = new SmartFormBridge();
   }
@@ -19,11 +19,11 @@ export class SmartFormWebhookHandler {
    */
   async handleWebhook(req: Request, res: Response): Promise<void> {
     const webhookLogger = logger.child({ source: 'smart_form_webhook' });
-    
+
     try {
       // Validate webhook payload
       const { type, table, record, old_record: _old_record } = req.body;
-      
+
       if (!this.isValidWebhook(type, table, record)) {
         webhookLogger.warn('Invalid webhook payload received', { body: req.body });
         res.status(400).json({ error: 'Invalid webhook payload' });
@@ -34,39 +34,38 @@ export class SmartFormWebhookHandler {
         type,
         table,
         ticketId: record.id,
-        capper: record.capper
+        capper: record.capper,
       });
 
       // Only process INSERT events for new submissions
       if (type === 'INSERT' && record.status === 'submitted') {
         // Process asynchronously to avoid webhook timeout
         this.processSubmissionAsync(record.id, webhookLogger);
-        
+
         // Respond immediately to Supabase
-        res.status(200).json({ 
+        res.status(200).json({
           message: 'Webhook received, processing submission',
-          ticketId: record.id 
+          ticketId: record.id,
         });
       } else {
         webhookLogger.info('Webhook ignored - not a new submission', {
           type,
-          status: record.status
+          status: record.status,
         });
-        
+
         res.status(200).json({ message: 'Webhook acknowledged but not processed' });
       }
-      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
       webhookLogger.error('Webhook processing failed', {
         error: errorMessage,
         stack: errorStack,
-        body: req.body
+        body: req.body,
       });
-      
+
       res.status(500).json({ error: 'Webhook processing failed' });
-    }  
+    }
   }
 
   /**
@@ -76,15 +75,15 @@ export class SmartFormWebhookHandler {
     if (!type || !table || !record) {
       return false;
     }
-    
+
     if (table !== 'smart_tickets') {
       return false;
     }
-    
+
     if (!record.id || !record.capper) {
       return false;
     }
-    
+
     return true;
   }
 
@@ -95,21 +94,20 @@ export class SmartFormWebhookHandler {
     try {
       // Add small delay to ensure database consistency
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Process the submission through the bridge
       await this.bridge.processSubmission(ticketId);
-      
+
       webhookLogger.info('Smart form submission processed successfully', { ticketId });
-      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
       webhookLogger.error('Async submission processing failed', {
         ticketId,
         error: errorMessage,
-        stack: errorStack
+        stack: errorStack,
       });
-      
+
       // The error is already handled in the bridge service
       // which will update the smart ticket status and send alerts
     }
@@ -122,7 +120,7 @@ export class SmartFormWebhookHandler {
     res.status(200).json({
       status: 'healthy',
       service: 'smart-form-webhook',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 }

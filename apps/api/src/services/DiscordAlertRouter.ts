@@ -1,9 +1,8 @@
 import { EmbedBuilder } from 'discord.js';
 
 import { env } from '../config/env';
-import { logger } from '../shared/logger';
-
 import { autopilotGuard } from '../lib/AutopilotGuard';
+import { logger } from '../shared/logger';
 
 import { discordBotService } from './DiscordBotService';
 import { EnhancedDiscordFormatter } from './EnhancedDiscordFormatter';
@@ -18,7 +17,6 @@ import { EnhancedDiscordFormatter } from './EnhancedDiscordFormatter';
  * - System Errors: System alerts thread
  */
 export class DiscordAlertRouter {
-
   /**
    * Route alert to appropriate Discord channel based on alert type
    * Phase 6.5: AutopilotGuard is the sole authority for all Discord side effects
@@ -27,7 +25,7 @@ export class DiscordAlertRouter {
     const routingLogger = logger.child({
       alertType,
       pickId: alertData.pickId,
-      capper: alertData.capper
+      capper: alertData.capper,
     });
 
     // Phase 6.5: AutopilotGuard is the SOLE authority for side effects
@@ -36,14 +34,14 @@ export class DiscordAlertRouter {
       action: guardAction,
       agent_name: 'DiscordAlertRouter',
       pick_id: alertData.pickId,
-      metadata: { alertType, capper: alertData.capper, sport: alertData.sport }
+      metadata: { alertType, capper: alertData.capper, sport: alertData.sport },
     });
 
     if (!guardResult.allowed) {
       routingLogger.info('Alert blocked by AutopilotGuard', {
         reason: guardResult.reason,
         mode: guardResult.mode,
-        decision: guardResult.decision
+        decision: guardResult.decision,
       });
       return;
     }
@@ -57,23 +55,22 @@ export class DiscordAlertRouter {
 
       routingLogger.info('Routing alert to Discord channel', {
         channelId,
-        alertType
+        alertType,
       });
 
       // Route to appropriate channel
       await this.sendToChannel(channelId, alertData, alertType);
-
     } catch (error) {
       routingLogger.error('Failed to route alert', {
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
 
       // Fallback to system alerts for routing failures
       await this.sendToSystemAlerts('Alert Routing Failed', {
         alertType,
         error: error instanceof Error ? error.message : String(error),
-        originalData: alertData
+        originalData: alertData,
       });
     }
   }
@@ -110,7 +107,11 @@ export class DiscordAlertRouter {
   /**
    * Send alert to specific Discord channel
    */
-  private static async sendToChannel(channelId: string, alertData: AlertData, alertType: AlertType): Promise<void> {
+  private static async sendToChannel(
+    channelId: string,
+    alertData: AlertData,
+    alertType: AlertType
+  ): Promise<void> {
     try {
       // Use enhanced Fortune 100-grade formatter
       const embed = EnhancedDiscordFormatter.createEnhancedPickEmbed(alertData, alertType);
@@ -123,15 +124,14 @@ export class DiscordAlertRouter {
         alertType,
         pickId: alertData.pickId,
         tier: alertData.systemGrade,
-        isLive: alertData.isLive
+        isLive: alertData.isLive,
       });
-
     } catch (error) {
       logger.error('Failed to send enhanced Discord alert', {
         channelId,
         alertType,
         error: error instanceof Error ? error.message : String(error),
-        pickId: alertData.pickId
+        pickId: alertData.pickId,
       });
 
       // Fallback to basic formatting if enhanced fails
@@ -144,7 +144,8 @@ export class DiscordAlertRouter {
           channelId,
           alertType,
           originalError: error instanceof Error ? error.message : String(error),
-          fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+          fallbackError:
+            fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
         });
         throw error;
       }
@@ -154,7 +155,10 @@ export class DiscordAlertRouter {
   /**
    * Create basic fallback embed if enhanced formatting fails
    */
-  private static createBasicFallbackEmbed(alertData: AlertData, alertType: AlertType): EmbedBuilder {
+  private static createBasicFallbackEmbed(
+    alertData: AlertData,
+    alertType: AlertType
+  ): EmbedBuilder {
     return new EmbedBuilder()
       .setTitle(`${this.getAlertTitle(alertType)} - ${alertData.capper}`)
       .setDescription(`${alertData.sport} • ${alertData.selection} ${alertData.odds}`)
@@ -163,11 +167,10 @@ export class DiscordAlertRouter {
       .addFields([
         { name: 'Units', value: String(alertData.units || 1), inline: true },
         { name: 'Confidence', value: `${alertData.confidence || 0}%`, inline: true },
-        { name: 'Grade', value: alertData.systemGrade || 'N/A', inline: true }
+        { name: 'Grade', value: alertData.systemGrade || 'N/A', inline: true },
       ])
       .setFooter({ text: 'Unit Talk Intelligence System' });
   }
-
 
   /**
    * Get alert title based on type
@@ -182,7 +185,7 @@ export class DiscordAlertRouter {
       stale_line: '⏰ Stale Line',
       pick_post: '📊 Pick Alert',
       system_error: '🚨 System Error',
-      processing_error: '⚠️ Processing Error'
+      processing_error: '⚠️ Processing Error',
     };
 
     return titles[alertType] || '📢 Alert';
@@ -193,15 +196,15 @@ export class DiscordAlertRouter {
    */
   private static getAlertColor(alertType: AlertType): number {
     const colors = {
-      hedge_opportunity: 0x00ff00,  // Green
+      hedge_opportunity: 0x00ff00, // Green
       middle_opportunity: 0xffa500, // Orange
-      injury_impact: 0xff0000,      // Red
-      steam_move: 0x00bfff,         // Blue
-      line_movement: 0xffff00,      // Yellow
-      stale_line: 0x800080,         // Purple
-      pick_post: 0x0099ff,          // Blue
-      system_error: 0xff0000,       // Red
-      processing_error: 0xffa500    // Orange
+      injury_impact: 0xff0000, // Red
+      steam_move: 0x00bfff, // Blue
+      line_movement: 0xffff00, // Yellow
+      stale_line: 0x800080, // Purple
+      pick_post: 0x0099ff, // Blue
+      system_error: 0xff0000, // Red
+      processing_error: 0xffa500, // Orange
     };
 
     return colors[alertType] || 0x808080; // Gray default
@@ -214,7 +217,7 @@ export class DiscordAlertRouter {
     logger.error('SYSTEM ALERT', {
       title,
       details,
-      alertsChannelId: env.systemAlertsThreadId
+      alertsChannelId: env.systemAlertsThreadId,
     });
 
     try {
@@ -227,15 +230,14 @@ export class DiscordAlertRouter {
         .addFields({
           name: '🔍 Error Details',
           value: `\`\`\`json\n${JSON.stringify(details, null, 2).slice(0, 1000)}\`\`\``,
-          inline: false
+          inline: false,
         });
 
       await discordBotService.sendEmbed(env.systemAlertsThreadId, embed);
-
     } catch (error) {
       logger.error('Failed to send system alert to Discord', {
         title,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }

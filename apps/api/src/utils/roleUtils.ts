@@ -68,11 +68,11 @@ export function isUTCapper(member: GuildMember): boolean {
 export function getTierColor(tier: string): number {
   switch (tier?.toLowerCase()) {
     case 'elite':
-      return 0xFFD700; // Gold
+      return 0xffd700; // Gold
     case 'pro':
-      return 0x9932CC; // Purple
+      return 0x9932cc; // Purple
     case 'rookie':
-      return 0x32CD32; // Green
+      return 0x32cd32; // Green
     default:
       return 0x808080; // Gray
   }

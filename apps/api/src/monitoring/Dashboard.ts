@@ -14,108 +14,108 @@ export class UnitTalkMetrics {
     name: 'unit_talk_agent_processing_duration_seconds',
     help: 'Time spent processing by each agent',
     labelNames: ['agent_name', 'operation'],
-    buckets: [0.1, 0.5, 1, 2, 5, 10, 30]
+    buckets: [0.1, 0.5, 1, 2, 5, 10, 30],
   });
 
   public readonly agentErrors = new Counter({
     name: 'unit_talk_agent_errors_total',
     help: 'Total number of agent errors',
-    labelNames: ['agent_name', 'error_type']
+    labelNames: ['agent_name', 'error_type'],
   });
 
   public readonly agentHealthStatus = new Gauge({
     name: 'unit_talk_agent_health_status',
     help: 'Health status of agents (1 = healthy, 0 = unhealthy)',
-    labelNames: ['agent_name', 'service']
+    labelNames: ['agent_name', 'service'],
   });
 
   // Alert-specific metrics
   public readonly alertsSent = new Counter({
     name: 'unit_talk_alerts_sent_total',
     help: 'Total number of alerts sent',
-    labelNames: ['channel', 'tier', 'advice_type']
+    labelNames: ['channel', 'tier', 'advice_type'],
   });
 
   public readonly alertsProcessingTime = new Histogram({
     name: 'unit_talk_alerts_processing_duration_seconds',
     help: 'Time spent processing alerts',
-    buckets: [0.5, 1, 2, 5, 10, 30, 60]
+    buckets: [0.5, 1, 2, 5, 10, 30, 60],
   });
 
   public readonly alertsSkipped = new Counter({
     name: 'unit_talk_alerts_skipped_total',
     help: 'Total number of alerts skipped',
-    labelNames: ['reason']
+    labelNames: ['reason'],
   });
 
   // AI/ML metrics
   public readonly aiModelRequests = new Counter({
     name: 'unit_talk_ai_model_requests_total',
     help: 'Total number of AI model requests',
-    labelNames: ['model_id', 'provider', 'status']
+    labelNames: ['model_id', 'provider', 'status'],
   });
 
   public readonly aiModelLatency = new Histogram({
     name: 'unit_talk_ai_model_latency_seconds',
     help: 'AI model response latency',
     labelNames: ['model_id', 'provider'],
-    buckets: [0.5, 1, 2, 5, 10, 30]
+    buckets: [0.5, 1, 2, 5, 10, 30],
   });
 
   public readonly aiModelAccuracy = new Gauge({
     name: 'unit_talk_ai_model_accuracy',
     help: 'AI model accuracy score',
-    labelNames: ['model_id', 'provider']
+    labelNames: ['model_id', 'provider'],
   });
 
   public readonly aiModelCost = new Counter({
     name: 'unit_talk_ai_model_cost_total',
     help: 'Total cost of AI model usage',
-    labelNames: ['model_id', 'provider']
+    labelNames: ['model_id', 'provider'],
   });
 
   // Business metrics
   public readonly picksProcessed = new Counter({
     name: 'unit_talk_picks_processed_total',
     help: 'Total number of picks processed',
-    labelNames: ['tier', 'market_type', 'status']
+    labelNames: ['tier', 'market_type', 'status'],
   });
 
   public readonly pickAccuracy = new Gauge({
     name: 'unit_talk_pick_accuracy',
     help: 'Pick accuracy by tier and time period',
-    labelNames: ['tier', 'time_period']
+    labelNames: ['tier', 'time_period'],
   });
 
   public readonly userEngagement = new Gauge({
     name: 'unit_talk_user_engagement',
     help: 'User engagement metrics',
-    labelNames: ['metric_type', 'time_period']
+    labelNames: ['metric_type', 'time_period'],
   });
 
   public readonly revenueMetrics = new Gauge({
     name: 'unit_talk_revenue',
     help: 'Revenue metrics',
-    labelNames: ['metric_type', 'time_period']
+    labelNames: ['metric_type', 'time_period'],
   });
 
   // System metrics
   public readonly databaseConnections = new Gauge({
     name: 'unit_talk_database_connections',
     help: 'Number of active database connections',
-    labelNames: ['database']
+    labelNames: ['database'],
   });
 
   public readonly queueSize = new Gauge({
     name: 'unit_talk_queue_size',
     help: 'Size of processing queues',
-    labelNames: ['queue_name']
+    labelNames: ['queue_name'],
   });
 
   public readonly rateLimitHits = new Counter({
     name: 'unit_talk_rate_limit_hits_total',
     help: 'Total number of rate limit hits',
-    labelNames: ['service', 'endpoint']
+    labelNames: ['service', 'endpoint'],
   });
 
   // Performance tracking
@@ -123,82 +123,66 @@ export class UnitTalkMetrics {
     name: 'unit_talk_performance_summary',
     help: 'Performance summary statistics',
     labelNames: ['operation', 'component'],
-    percentiles: [0.5, 0.9, 0.95, 0.99]
+    percentiles: [0.5, 0.9, 0.95, 0.99],
   });
 
   // Record agent processing time
   recordAgentProcessing(agentName: string, operation: string, duration: number): void {
-    this.agentProcessingTime
-      .labels(agentName, operation)
-      .observe(duration);
+    this.agentProcessingTime.labels(agentName, operation).observe(duration);
   }
 
   // Record agent error
   recordAgentError(agentName: string, errorType: string): void {
-    this.agentErrors
-      .labels(agentName, errorType)
-      .inc();
+    this.agentErrors.labels(agentName, errorType).inc();
   }
 
   // Update agent health status
   updateAgentHealth(agentName: string, service: string, isHealthy: boolean): void {
-    this.agentHealthStatus
-      .labels(agentName, service)
-      .set(isHealthy ? 1 : 0);
+    this.agentHealthStatus.labels(agentName, service).set(isHealthy ? 1 : 0);
   }
 
   // Record alert sent
   recordAlertSent(channel: string, tier: string, adviceType: string): void {
-    this.alertsSent
-      .labels(channel, tier, adviceType)
-      .inc();
+    this.alertsSent.labels(channel, tier, adviceType).inc();
   }
 
   // Record AI model request
-  recordAIModelRequest(modelId: string, provider: string, status: string, latency?: number, cost?: number): void {
-    this.aiModelRequests
-      .labels(modelId, provider, status)
-      .inc();
+  recordAIModelRequest(
+    modelId: string,
+    provider: string,
+    status: string,
+    latency?: number,
+    cost?: number
+  ): void {
+    this.aiModelRequests.labels(modelId, provider, status).inc();
 
     if (latency !== undefined) {
-      this.aiModelLatency
-        .labels(modelId, provider)
-        .observe(latency);
+      this.aiModelLatency.labels(modelId, provider).observe(latency);
     }
 
     if (cost !== undefined) {
-      this.aiModelCost
-        .labels(modelId, provider)
-        .inc(cost);
+      this.aiModelCost.labels(modelId, provider).inc(cost);
     }
   }
 
   // Update AI model accuracy
   updateAIModelAccuracy(modelId: string, provider: string, accuracy: number): void {
-    this.aiModelAccuracy
-      .labels(modelId, provider)
-      .set(accuracy);
+    this.aiModelAccuracy.labels(modelId, provider).set(accuracy);
   }
 
   // Record pick processing
   recordPickProcessed(tier: string, marketType: string, status: string): void {
-    this.picksProcessed
-      .labels(tier, marketType, status)
-      .inc();
+    this.picksProcessed.labels(tier, marketType, status).inc();
   }
 
   // Update business metrics
   updateBusinessMetric(metricType: string, timePeriod: string, value: number): void {
-    this.userEngagement
-      .labels(metricType, timePeriod)
-      .set(value);
+    this.userEngagement.labels(metricType, timePeriod).set(value);
   }
 
   // Record performance summary
   recordPerformance(operation: string, component: string, duration: number): void {
-    this.performanceSummary
-      .labels(operation, component)
-      .observe(duration);
+    this.performanceSummary.labels(operation, component).observe(duration);
   }
 }
 
@@ -220,7 +204,7 @@ export class EnhancedDashboard {
       try {
         this.server = http.createServer(async (req, res) => {
           const url = req.url || '/';
-          
+
           // Set CORS headers
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -245,7 +229,7 @@ export class EnhancedDashboard {
                 timestamp: new Date().toISOString(),
                 uptime: process.uptime(),
                 memory: process.memoryUsage(),
-                version: process.env['npm_package_version'] || '1.0.0'
+                version: process.env['npm_package_version'] || '1.0.0',
               };
               res.writeHead(200);
               res.end(JSON.stringify(healthData, null, 2));
@@ -273,10 +257,10 @@ export class EnhancedDashboard {
           logger.info(`Enhanced Dashboard started on port ${this.port}`);
           logger.info(`Dashboard URL: http://localhost:${this.port}`);
           logger.info(`Metrics URL: http://localhost:${this.port}/metrics`);
-          
+
           // Start periodic metric updates
           this.startPeriodicUpdates();
-          
+
           resolve();
         });
       } catch (error) {
@@ -286,12 +270,12 @@ export class EnhancedDashboard {
   }
 
   public stop(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (this.updateInterval) {
         clearInterval(this.updateInterval);
         this.updateInterval = null;
       }
-      
+
       if (this.server) {
         this.server.close(() => {
           logger.info('Enhanced Dashboard stopped');
@@ -305,21 +289,24 @@ export class EnhancedDashboard {
 
   private async getDashboardData(): Promise<any> {
     const metricsData = await register.getMetricsAsJSON();
-    
+
     return {
       timestamp: new Date().toISOString(),
       system: {
         uptime: process.uptime(),
         memory: process.memoryUsage(),
-        cpu: process.cpuUsage()
+        cpu: process.cpuUsage(),
       },
       metrics: this.processMetricsData(metricsData),
       summary: {
         totalAgents: this.getMetricValue(metricsData, 'unit_talk_agent_health_status'),
         totalAlerts: this.getMetricValue(metricsData, 'unit_talk_alerts_sent_total'),
         totalPicks: this.getMetricValue(metricsData, 'unit_talk_picks_processed_total'),
-        avgProcessingTime: this.getMetricValue(metricsData, 'unit_talk_agent_processing_duration_seconds')
-      }
+        avgProcessingTime: this.getMetricValue(
+          metricsData,
+          'unit_talk_agent_processing_duration_seconds'
+        ),
+      },
     };
   }
 
@@ -328,7 +315,7 @@ export class EnhancedDashboard {
       acc[metric.name] = {
         help: metric.help,
         type: metric.type,
-        values: metric.values || []
+        values: metric.values || [],
       };
       return acc;
     }, {});
@@ -336,8 +323,10 @@ export class EnhancedDashboard {
 
   private getMetricValue(metricsData: any[], metricName: string): number {
     const metric = metricsData.find(m => m.name === metricName);
-    if (!metric || !metric.values || metric.values.length === 0) {return 0;}
-    
+    if (!metric || !metric.values || metric.values.length === 0) {
+      return 0;
+    }
+
     return metric.values.reduce((sum: number, val: any) => sum + (val.value || 0), 0);
   }
 
@@ -439,12 +428,12 @@ export class EnhancedDashboard {
     // Update system-level metrics
     const memUsage = process.memoryUsage();
     const cpuUsage = process.cpuUsage();
-    
+
     // These would typically be gauges that get updated
     logger.debug('System metrics updated', {
       memory: memUsage,
       cpu: cpuUsage,
-      uptime: process.uptime()
+      uptime: process.uptime(),
     });
   }
 }

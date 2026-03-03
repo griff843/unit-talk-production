@@ -93,7 +93,10 @@ export class E2ETestRunner {
   constructor() {
     this.errorHandler = new ErrorHandler('E2ETestRunner');
     // Config initialization removed
-    this.supabase = createClient(process.env.SUPABASE_URL || '', process.env.SUPABASE_SERVICE_ROLE_KEY || '');
+    this.supabase = createClient(
+      process.env.SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    );
     this.results = {
       startTime: new Date().toISOString(),
       stages: [],
@@ -105,13 +108,18 @@ export class E2ETestRunner {
         discordChannels: [],
         errorCount: 0,
         fallbackCount: 0,
-        healthStatus: 'green'
+        healthStatus: 'green',
       },
       errors: [],
-      fallbackEvents: []
+      fallbackEvents: [],
     };
-    
-    this.logDir = path.join(process.cwd(), 'logs', 'local-e2e-test', new Date().toISOString().split('T')[0]);
+
+    this.logDir = path.join(
+      process.cwd(),
+      'logs',
+      'local-e2e-test',
+      new Date().toISOString().split('T')[0]
+    );
   }
 
   /**
@@ -121,7 +129,7 @@ export class E2ETestRunner {
     try {
       logger.info('🚀 Starting E2E Test Runner');
       logger.info(`📁 Logs will be saved to: ${this.logDir}`);
-      
+
       await this.setupTestEnvironment();
       await this.validatePrerequisites();
       await this.startTemporalInfrastructure();
@@ -129,9 +137,8 @@ export class E2ETestRunner {
       await this.simulateFailuresAndFallbacks();
       await this.performHealthChecks();
       await this.generateTestReport();
-      
+
       logger.info('✅ E2E Test completed successfully');
-      
     } catch (error) {
       this.errorHandler.handleError(error as Error);
       this.results.summary.healthStatus = 'red';
@@ -146,16 +153,15 @@ export class E2ETestRunner {
    */
   private async setupTestEnvironment(): Promise<void> {
     const stage = this.startStage('Environment Setup');
-    
+
     try {
       // Create log directory
       await fs.mkdir(this.logDir, { recursive: true });
-      
+
       // Initialize test database state
       await this.initializeTestData();
-      
+
       this.completeStage(stage, 1, true, { logDir: this.logDir });
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
       throw error;
@@ -167,37 +173,36 @@ export class E2ETestRunner {
    */
   private async validatePrerequisites(): Promise<void> {
     const stage = this.startStage('Prerequisites Validation');
-    
+
     try {
       const requiredEnvVars = [
         'SUPABASE_URL',
         'SUPABASE_SERVICE_ROLE_KEY',
         'OPTIMAL_API_KEY',
         'DISCORD_APPROVED_WEBHOOK_URL',
-        'TEMPORAL_TASK_QUEUE'
+        'TEMPORAL_TASK_QUEUE',
       ];
-      
+
       const missingVars = requiredEnvVars.filter(key => !process.env[key]);
-      
+
       if (missingVars.length > 0) {
         throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
       }
-      
+
       // Test database connection
       const { error } = await this.supabase.from('raw_props').select('count').limit(1);
       if (error) {
         throw new Error(`Database connection failed: ${error.message}`);
       }
-      
+
       // Test API endpoints
       await this.testApiEndpoints();
-      
+
       this.completeStage(stage, requiredEnvVars.length, true, {
         envVarsChecked: requiredEnvVars.length,
         databaseConnected: true,
-        apiEndpointsHealthy: true
+        apiEndpointsHealthy: true,
       });
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
       throw error;
@@ -209,36 +214,35 @@ export class E2ETestRunner {
    */
   private async startTemporalInfrastructure(): Promise<void> {
     const stage = this.startStage('Temporal Infrastructure');
-    
+
     try {
       // Connect to Temporal
-      const connection = await Connection.connect({
-        address: process.env.TEMPORAL_ADDRESS || 'localhost:7233'
-      }) as any;
-      
+      const connection = (await Connection.connect({
+        address: process.env.TEMPORAL_ADDRESS || 'localhost:7233',
+      })) as any;
+
       this.temporalClient = new Client({ connection });
-      
+
       // Start worker
       this.worker = await Worker.create({
         connection,
         namespace: process.env.TEMPORAL_NAMESPACE || 'default',
         taskQueue: process.env.TEMPORAL_TASK_QUEUE || 'unit-talk-local',
         workflowsPath: require.resolve('../workflows'),
-        activities: require('../activities')
+        activities: require('../activities'),
       });
-      
+
       // Start worker in background
       this.worker.run();
-      
+
       // Give worker time to start
       await new Promise(resolve => setTimeout(resolve, 3000));
-      
+
       this.completeStage(stage, 1, true, {
         temporalConnected: true,
         workerStarted: true,
-        taskQueue: process.env.TEMPORAL_TASK_QUEUE
+        taskQueue: process.env.TEMPORAL_TASK_QUEUE,
       });
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
       throw error;
@@ -250,30 +254,29 @@ export class E2ETestRunner {
    */
   private async executeTestPipeline(): Promise<void> {
     const stage = this.startStage('Pipeline Execution');
-    
+
     try {
       const leagues = ['MLB', 'WNBA', 'MLS']; // Active leagues for testing
       let totalProcessed = 0;
-      
+
       for (const league of leagues) {
         logger.info(`🏈 Testing ${league} pipeline...`);
-        
+
         // Execute full pipeline for each league
         const leagueResults = await this.executeLeaguePipeline(league);
         totalProcessed += leagueResults.recordsProcessed;
-        
+
         // Wait 2 minutes between leagues (simulating real intervals)
         if (leagues.indexOf(league) < leagues.length - 1) {
           logger.info('⏱️ Waiting 2 minutes for next league...');
           await new Promise(resolve => setTimeout(resolve, 120000));
         }
       }
-      
+
       this.completeStage(stage, totalProcessed, true, {
         leaguesTested: leagues.length,
-        totalRecordsProcessed: totalProcessed
+        totalRecordsProcessed: totalProcessed,
       });
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
       throw error;
@@ -285,90 +288,98 @@ export class E2ETestRunner {
    */
   private async executeLeaguePipeline(league: string): Promise<{ recordsProcessed: number }> {
     const pipelineStart = performance.now();
-    
+
     // 1. INGESTION STAGE
     const ingestionResult = await this.executeIngestion(league);
     this.results.summary.propsIngested += ingestionResult.recordsProcessed;
-    
+
     // 2. EDGE/FILTER STAGE
     const filterResult = await this.executeFiltering(league, ingestionResult.batchId);
-    
+
     // 3. SCORING STAGE
     const scoringResult = await this.executeScoring(league, filterResult.filteredProps);
     this.results.summary.propsScored += scoringResult.recordsProcessed;
-    
+
     // 4. FINALIZER STAGE
     const finalizerResult = await this.executeFinalizer(league, scoringResult.scoredProps);
     this.results.summary.propsPromoted += finalizerResult.recordsProcessed;
-    
+
     // 5. ALERT/NOTIFICATION STAGE
     const alertResult = await this.executeAlerts(league, finalizerResult.finalProps);
     this.results.summary.alertsSent += alertResult.recordsProcessed;
-    
+
     // 6. GRADING/RECAP STAGE (if applicable)
     await this.executeGrading(league);
-    
+
     const pipelineEnd = performance.now();
     const pipelineDuration = pipelineEnd - pipelineStart;
-    
+
     logger.info(`✅ ${league} pipeline completed in ${Math.round(pipelineDuration)}ms`);
-    
+
     // Verify 2-minute target
     if (pipelineDuration > 120000) {
-      this.addError('Pipeline Performance', `${league} pipeline exceeded 2-minute target: ${Math.round(pipelineDuration)}ms`, false);
+      this.addError(
+        'Pipeline Performance',
+        `${league} pipeline exceeded 2-minute target: ${Math.round(pipelineDuration)}ms`,
+        false
+      );
     }
-    
+
     return {
-      recordsProcessed: ingestionResult.recordsProcessed + scoringResult.recordsProcessed + alertResult.recordsProcessed
+      recordsProcessed:
+        ingestionResult.recordsProcessed +
+        scoringResult.recordsProcessed +
+        alertResult.recordsProcessed,
     };
   }
 
   /**
    * Execute ingestion stage
    */
-  private async executeIngestion(league: string): Promise<{ recordsProcessed: number; batchId: string }> {
+  private async executeIngestion(
+    league: string
+  ): Promise<{ recordsProcessed: number; batchId: string }> {
     const stage = this.startStage(`${league} Ingestion`);
-    
+
     try {
       if (!this.temporalClient) {
         throw new Error('Temporal client not initialized');
       }
-      
+
       // Start ingestion workflow
       const handle = await this.temporalClient.workflow.start('leagueIngestionWorkflow', {
         args: [{ league, isLiveMode: true, cycleCount: 1 }],
         taskQueue: process.env.TEMPORAL_TASK_QUEUE || 'unit-talk-local',
-        workflowId: `test-ingestion-${league}-${Date.now()}`
+        workflowId: `test-ingestion-${league}-${Date.now()}`,
       });
-      
+
       // Wait for completion (with timeout)
       await Promise.race([
         handle.result(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Ingestion timeout')), 90000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Ingestion timeout')), 90000)),
       ]);
-      
+
       // Query database for ingested props
       const { data: props, error } = await this.supabase
         .from('raw_props')
         .select('*')
         .eq('league', league)
         .gte('created_at', new Date(Date.now() - 300000).toISOString()); // Last 5 minutes
-      
+
       if (error) {
         throw new Error(`Failed to query ingested props: ${error.message}`);
       }
-      
+
       const recordsProcessed = props?.length || 0;
       const batchId = `batch-${league}-${Date.now()}`;
-      
+
       this.completeStage(stage, recordsProcessed, true, {
         league,
         batchId,
-        workflowId: handle.workflowId
+        workflowId: handle.workflowId,
       });
-      
+
       return { recordsProcessed, batchId };
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
       return { recordsProcessed: 0, batchId: '' };
@@ -378,9 +389,12 @@ export class E2ETestRunner {
   /**
    * Execute filtering stage
    */
-  private async executeFiltering(league: string, batchId: string): Promise<{ filteredProps: any[] }> {
+  private async executeFiltering(
+    league: string,
+    batchId: string
+  ): Promise<{ filteredProps: any[] }> {
     const stage = this.startStage(`${league} Filtering`);
-    
+
     try {
       // Query raw props for filtering
       const { data: rawProps, error } = await this.supabase
@@ -388,25 +402,23 @@ export class E2ETestRunner {
         .select('*')
         .eq('league', league)
         .gte('created_at', new Date(Date.now() - 300000).toISOString());
-      
+
       if (error) {
         throw new Error(`Failed to query raw props: ${error.message}`);
       }
-      
+
       // Simulate filtering logic
-      const filteredProps = rawProps?.filter((prop: any) => 
-        prop.odds && prop.odds > 0 && prop.player_name
-      ) || [];
-      
+      const filteredProps =
+        rawProps?.filter((prop: any) => prop.odds && prop.odds > 0 && prop.player_name) || [];
+
       this.completeStage(stage, filteredProps.length, true, {
         league,
         batchId,
         originalCount: rawProps?.length || 0,
-        filteredCount: filteredProps.length
+        filteredCount: filteredProps.length,
       });
-      
+
       return { filteredProps };
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
       return { filteredProps: [] };
@@ -416,42 +428,44 @@ export class E2ETestRunner {
   /**
    * Execute scoring stage
    */
-  private async executeScoring(league: string, props: any[]): Promise<{ recordsProcessed: number; scoredProps: any[] }> {
+  private async executeScoring(
+    league: string,
+    props: any[]
+  ): Promise<{ recordsProcessed: number; scoredProps: any[] }> {
     const stage = this.startStage(`${league} Scoring`);
-    
+
     try {
       if (!this.temporalClient) {
         throw new Error('Temporal client not initialized');
       }
-      
+
       // Start scoring workflow
       const handle = await this.temporalClient.workflow.start('gradingAndScoringWorkflow', {
         args: [{ leagues: [league], isLiveMode: true, cycleCount: 1 }],
         taskQueue: process.env.TEMPORAL_TASK_QUEUE || 'unit-talk-local',
-        workflowId: `test-scoring-${league}-${Date.now()}`
+        workflowId: `test-scoring-${league}-${Date.now()}`,
       });
-      
+
       // Wait for completion
       await Promise.race([
         handle.result(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Scoring timeout')), 60000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Scoring timeout')), 60000)),
       ]);
-      
+
       // Simulate scored props (in real implementation, this would query the database)
       const scoredProps = props.map(prop => ({
         ...prop,
         score: Math.random() * 100,
-        tier: Math.random() > 0.7 ? 'S' : Math.random() > 0.4 ? 'A' : 'B'
+        tier: Math.random() > 0.7 ? 'S' : Math.random() > 0.4 ? 'A' : 'B',
       }));
-      
+
       this.completeStage(stage, scoredProps.length, true, {
         league,
         workflowId: handle.workflowId,
-        scoredCount: scoredProps.length
+        scoredCount: scoredProps.length,
       });
-      
+
       return { recordsProcessed: scoredProps.length, scoredProps };
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
       return { recordsProcessed: 0, scoredProps: [] };
@@ -461,36 +475,38 @@ export class E2ETestRunner {
   /**
    * Execute finalizer stage
    */
-  private async executeFinalizer(league: string, props: any[]): Promise<{ recordsProcessed: number; finalProps: any[] }> {
+  private async executeFinalizer(
+    league: string,
+    props: any[]
+  ): Promise<{ recordsProcessed: number; finalProps: any[] }> {
     const stage = this.startStage(`${league} Finalizer`);
-    
+
     try {
       // Filter for S and A tier props only
       const finalProps = props.filter(prop => prop.tier === 'S' || prop.tier === 'A');
-      
+
       // Insert into unified_picks table (simulated)
       if (finalProps.length > 0) {
-        const { error } = await this.supabase
-          .from('unified_picks')
-          .upsert(finalProps.map(prop => ({
+        const { error } = await this.supabase.from('unified_picks').upsert(
+          finalProps.map(prop => ({
             ...prop,
             finalized_at: new Date().toISOString(),
-            test_run: true
-          })));
-        
+            test_run: true,
+          }))
+        );
+
         if (error) {
           throw new Error(`Failed to insert final picks: ${error.message}`);
         }
       }
-      
+
       this.completeStage(stage, finalProps.length, true, {
         league,
         originalCount: props.length,
-        finalizedCount: finalProps.length
+        finalizedCount: finalProps.length,
       });
-      
+
       return { recordsProcessed: finalProps.length, finalProps };
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
       return { recordsProcessed: 0, finalProps: [] };
@@ -502,44 +518,43 @@ export class E2ETestRunner {
    */
   private async executeAlerts(league: string, props: any[]): Promise<{ recordsProcessed: number }> {
     const stage = this.startStage(`${league} Alerts`);
-    
+
     try {
       if (!this.temporalClient || props.length === 0) {
         this.completeStage(stage, 0, true, { league, reason: 'No props to alert' });
         return { recordsProcessed: 0 };
       }
-      
+
       // Start Discord alert workflow
       const handle = await this.temporalClient.workflow.start('discordAlertWorkflow', {
         args: [{ cycleCount: 1, isLiveMode: true }],
         taskQueue: process.env.TEMPORAL_TASK_QUEUE || 'unit-talk-local',
-        workflowId: `test-alerts-${league}-${Date.now()}`
+        workflowId: `test-alerts-${league}-${Date.now()}`,
       });
-      
+
       // Wait for completion
       await Promise.race([
         handle.result(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Alert timeout')), 30000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Alert timeout')), 30000)),
       ]);
-      
+
       // Log Discord delivery details
       const discordDetails = {
         webhook: process.env.DISCORD_APPROVED_WEBHOOK_URL,
         propsAlerted: props.length,
         deliveryTime: new Date().toISOString(),
-        channels: ['#approved-picks'] // This would be dynamic in real implementation
+        channels: ['#approved-picks'], // This would be dynamic in real implementation
       };
-      
+
       this.results.summary.discordChannels.push('#approved-picks');
-      
+
       this.completeStage(stage, props.length, true, {
         league,
         workflowId: handle.workflowId,
-        discordDetails
+        discordDetails,
       });
-      
+
       return { recordsProcessed: props.length };
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
       return { recordsProcessed: 0 };
@@ -551,7 +566,7 @@ export class E2ETestRunner {
    */
   private async executeGrading(league: string): Promise<{ recordsProcessed: number }> {
     const stage = this.startStage(`${league} Grading`);
-    
+
     try {
       // Check if there are completed games to grade
       const { data: completedGames, error } = await this.supabase
@@ -560,39 +575,38 @@ export class E2ETestRunner {
         .eq('league', league)
         .eq('status', 'completed')
         .gte('game_date', new Date(Date.now() - 86400000).toISOString()); // Last 24 hours
-      
+
       if (error) {
         throw new Error(`Failed to query completed games: ${error.message}`);
       }
-      
+
       const gamesCount = completedGames?.length || 0;
-      
+
       if (gamesCount === 0) {
         this.completeStage(stage, 0, true, { league, reason: 'No completed games to grade' });
         return { recordsProcessed: 0 };
       }
-      
+
       // Start grading workflow
       if (this.temporalClient) {
         const handle = await this.temporalClient.workflow.start('gradingWorkflow', {
           args: [{ league, games: completedGames }],
           taskQueue: process.env.TEMPORAL_TASK_QUEUE || 'unit-talk-local',
-          workflowId: `test-grading-${league}-${Date.now()}`
+          workflowId: `test-grading-${league}-${Date.now()}`,
         });
-        
+
         await Promise.race([
           handle.result(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Grading timeout')), 60000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Grading timeout')), 60000)),
         ]);
       }
-      
+
       this.completeStage(stage, gamesCount, true, {
         league,
-        completedGames: gamesCount
+        completedGames: gamesCount,
       });
-      
+
       return { recordsProcessed: gamesCount };
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
       return { recordsProcessed: 0 };
@@ -604,14 +618,14 @@ export class E2ETestRunner {
    */
   private async simulateFailuresAndFallbacks(): Promise<void> {
     const stage = this.startStage('Failure Simulation');
-    
+
     try {
       logger.info('🚨 Simulating API failure and fallback...');
-      
+
       // Simulate Optimal API failure
       const originalOptimalKey = process.env.OPTIMAL_API_KEY;
       process.env.OPTIMAL_API_KEY = 'invalid-key-for-testing';
-      
+
       // Try ingestion with failed primary API
       try {
         await this.executeIngestion('MLB');
@@ -619,22 +633,26 @@ export class E2ETestRunner {
         // Expected failure - log it
         this.addFallbackEvent('Optimal API', 'SGO API', 'Simulated API key failure', false);
       }
-      
+
       // Restore original key
       process.env.OPTIMAL_API_KEY = originalOptimalKey;
-      
+
       // Test successful fallback
       const fallbackResult = await this.executeIngestion('MLB');
       if (fallbackResult.recordsProcessed > 0) {
-        this.addFallbackEvent('Optimal API', 'SGO API', 'Successful fallback after primary failure', true);
+        this.addFallbackEvent(
+          'Optimal API',
+          'SGO API',
+          'Successful fallback after primary failure',
+          true
+        );
       }
-      
+
       this.completeStage(stage, 1, true, {
         simulatedFailures: 1,
         fallbacksTriggered: 1,
-        recoverySuccessful: true
+        recoverySuccessful: true,
       });
-      
     } catch (error) {
       this.completeStage(stage, 0, false, {}, [String(error)]);
     }
@@ -645,21 +663,20 @@ export class E2ETestRunner {
    */
   private async performHealthChecks(): Promise<void> {
     const stage = this.startStage('Health Checks');
-    
+
     try {
       const healthResults = {
         database: await this.checkDatabaseHealth(),
         temporal: await this.checkTemporalHealth(),
         apis: await this.checkApiHealth(),
-        workflows: await this.checkWorkflowHealth()
+        workflows: await this.checkWorkflowHealth(),
       };
-      
+
       // Calculate overall health status
       const allHealthy = Object.values(healthResults).every(result => result.healthy);
       this.results.summary.healthStatus = allHealthy ? 'green' : 'yellow';
-      
+
       this.completeStage(stage, 4, true, healthResults);
-      
     } catch (error) {
       this.results.summary.healthStatus = 'red';
       this.completeStage(stage, 0, false, {}, [String(error)]);
@@ -671,35 +688,30 @@ export class E2ETestRunner {
    */
   private async generateTestReport(): Promise<void> {
     this.results.endTime = new Date().toISOString();
-    this.results.totalDuration = new Date(this.results.endTime).getTime() - new Date(this.results.startTime).getTime();
-    
+    this.results.totalDuration =
+      new Date(this.results.endTime).getTime() - new Date(this.results.startTime).getTime();
+
     // Generate comprehensive report
     const report = this.generateSummaryReport();
     const detailedReport = this.generateDetailedReport();
-    
+
     // Save reports to files
     await fs.writeFile(
       path.join(this.logDir, 'test-summary.json'),
       JSON.stringify(this.results, null, 2)
     );
-    
-    await fs.writeFile(
-      path.join(this.logDir, 'test-report.md'),
-      report
-    );
-    
-    await fs.writeFile(
-      path.join(this.logDir, 'test-detailed.md'),
-      detailedReport
-    );
-    
+
+    await fs.writeFile(path.join(this.logDir, 'test-report.md'), report);
+
+    await fs.writeFile(path.join(this.logDir, 'test-detailed.md'), detailedReport);
+
     // Print summary to console
     console.log('\n' + '='.repeat(80));
     console.log('🎯 E2E TEST SUMMARY');
     console.log('='.repeat(80));
     console.log(report);
     console.log('='.repeat(80));
-    
+
     // Print manual review instructions
     this.printManualReviewInstructions();
   }
@@ -716,30 +728,38 @@ export class E2ETestRunner {
       recordsProcessed: 0,
       success: false,
       errors: [],
-      details: {}
+      details: {},
     };
-    
+
     logger.info(`🔄 Starting stage: ${stageName}`);
     return stage;
   }
 
-  private completeStage(stage: StageResult, recordsProcessed: number, success: boolean, details: any = {}, errors: string[] = []): void {
+  private completeStage(
+    stage: StageResult,
+    recordsProcessed: number,
+    success: boolean,
+    details: any = {},
+    errors: string[] = []
+  ): void {
     stage.endTime = new Date().toISOString();
     stage.duration = new Date(stage.endTime).getTime() - new Date(stage.startTime).getTime();
     stage.recordsProcessed = recordsProcessed;
     stage.success = success;
     stage.errors = errors;
     stage.details = details;
-    
+
     this.results.stages.push(stage);
-    
+
     if (!success) {
       this.results.summary.errorCount++;
       errors.forEach(error => this.addError(stage.stageName, error, false));
     }
-    
+
     const status = success ? '✅' : '❌';
-    logger.info(`${status} Completed stage: ${stage.stageName} (${stage.duration}ms, ${recordsProcessed} records)`);
+    logger.info(
+      `${status} Completed stage: ${stage.stageName} (${stage.duration}ms, ${recordsProcessed} records)`
+    );
   }
 
   private addError(stage: string, error: string, recovered: boolean): void {
@@ -747,19 +767,24 @@ export class E2ETestRunner {
       stage,
       timestamp: new Date().toISOString(),
       error,
-      recovered
+      recovered,
     });
   }
 
-  private addFallbackEvent(primary: string, fallback: string, reason: string, success: boolean): void {
+  private addFallbackEvent(
+    primary: string,
+    fallback: string,
+    reason: string,
+    success: boolean
+  ): void {
     this.results.fallbackEvents.push({
       timestamp: new Date().toISOString(),
       primaryProvider: primary,
       fallbackProvider: fallback,
       reason,
-      success
+      success,
     });
-    
+
     if (success) {
       this.results.summary.fallbackCount++;
     }
@@ -767,10 +792,7 @@ export class E2ETestRunner {
 
   private async initializeTestData(): Promise<void> {
     // Clean up any existing test data
-    await this.supabase
-      .from('unified_picks')
-      .delete()
-      .eq('test_run', true);
+    await this.supabase.from('unified_picks').delete().eq('test_run', true);
   }
 
   private async testApiEndpoints(): Promise<void> {
@@ -779,7 +801,7 @@ export class E2ETestRunner {
       // This would make actual API calls in real implementation
       logger.info('✅ Optimal API key present');
     }
-    
+
     // Test Discord webhook
     if (process.env.DISCORD_APPROVED_WEBHOOK_URL) {
       logger.info('✅ Discord webhook URL present');
@@ -791,12 +813,12 @@ export class E2ETestRunner {
       const { error } = await this.supabase.from('raw_props').select('count').limit(1);
       return {
         healthy: !error,
-        details: { connected: !error, error: error?.message }
+        details: { connected: !error, error: error?.message },
       };
     } catch (error) {
       return {
         healthy: false,
-        details: { connected: false, err: String(error) }
+        details: { connected: false, err: String(error) },
       };
     }
   }
@@ -806,7 +828,7 @@ export class E2ETestRunner {
       if (!this.temporalClient) {
         return { healthy: false, details: { connected: false } };
       }
-      
+
       // Try to list workflows
       const workflowsAsync = this.temporalClient.workflow.list();
       const workflows = [];
@@ -815,12 +837,12 @@ export class E2ETestRunner {
       }
       return {
         healthy: true,
-        details: { connected: true, workflowCount: workflows.length }
+        details: { connected: true, workflowCount: workflows.length },
       };
     } catch (error) {
       return {
         healthy: false,
-        details: { connected: false, err: String(error) }
+        details: { connected: false, err: String(error) },
       };
     }
   }
@@ -829,23 +851,23 @@ export class E2ETestRunner {
     // This would test actual API endpoints
     return {
       healthy: true,
-      details: { optimalApi: 'available', sgoApi: 'available' }
+      details: { optimalApi: 'available', sgoApi: 'available' },
     };
   }
 
   private async checkWorkflowHealth(): Promise<{ healthy: boolean; details: any }> {
     const successfulStages = this.results.stages.filter(s => s.success).length;
     const totalStages = this.results.stages.length;
-    
+
     return {
-      healthy: totalStages > 0 && (successfulStages / totalStages) >= 0.8,
-      details: { successfulStages, totalStages, successRate: successfulStages / totalStages }
+      healthy: totalStages > 0 && successfulStages / totalStages >= 0.8,
+      details: { successfulStages, totalStages, successRate: successfulStages / totalStages },
     };
   }
 
   private generateSummaryReport(): string {
     const duration = Math.round((this.results.totalDuration || 0) / 1000);
-    
+
     return `
 # E2E Test Summary
 
@@ -866,14 +888,20 @@ ${this.results.summary.discordChannels.map(channel => `- ${channel}`).join('\n')
 - **Fallback Events:** ${this.results.summary.fallbackCount}
 
 ## Stage Results
-${this.results.stages.map(stage => 
-  `- **${stage.stageName}:** ${stage.success ? '✅' : '❌'} (${stage.duration}ms, ${stage.recordsProcessed} records)`
-).join('\n')}
+${this.results.stages
+  .map(
+    stage =>
+      `- **${stage.stageName}:** ${stage.success ? '✅' : '❌'} (${stage.duration}ms, ${stage.recordsProcessed} records)`
+  )
+  .join('\n')}
 
 ## Fallback Events
-${this.results.fallbackEvents.map(event => 
-  `- **${event.timestamp}:** ${event.primaryProvider} → ${event.fallbackProvider} (${event.success ? 'Success' : 'Failed'})`
-).join('\n')}
+${this.results.fallbackEvents
+  .map(
+    event =>
+      `- **${event.timestamp}:** ${event.primaryProvider} → ${event.fallbackProvider} (${event.success ? 'Success' : 'Failed'})`
+  )
+  .join('\n')}
 `;
   }
 
@@ -887,21 +915,29 @@ ${this.results.fallbackEvents.map(event =>
 - **Total Duration:** ${this.results.totalDuration}ms
 
 ## Stage Details
-${this.results.stages.map(stage => `
+${this.results.stages
+  .map(
+    stage => `
 ### ${stage.stageName}
 - **Duration:** ${stage.duration}ms
 - **Records Processed:** ${stage.recordsProcessed}
 - **Success:** ${stage.success}
 - **Details:** ${JSON.stringify(stage.details, null, 2)}
 - **Errors:** ${stage.errors.join(', ')}
-`).join('\n')}
+`
+  )
+  .join('\n')}
 
 ## Error Details
-${this.results.errors.map(error => `
+${this.results.errors
+  .map(
+    error => `
 ### ${error.stage} - ${error.timestamp}
 - **Error:** ${error.error}
 - **Recovered:** ${error.recovered}
-`).join('\n')}
+`
+  )
+  .join('\n')}
 `;
   }
 
@@ -924,9 +960,15 @@ ${this.results.errors.map(error => `
     console.log('   - Files: test-summary.json, test-report.md, test-detailed.md');
     console.log('');
     console.log('4. **Performance Metrics**:');
-    console.log(`   - Total test duration: ${Math.round((this.results.totalDuration || 0) / 1000)}s`);
-    console.log(`   - Average stage time: ${Math.round(this.results.stages.reduce((sum, s) => sum + s.duration, 0) / this.results.stages.length)}ms`);
-    console.log(`   - Success rate: ${Math.round((this.results.stages.filter(s => s.success).length / this.results.stages.length) * 100)}%`);
+    console.log(
+      `   - Total test duration: ${Math.round((this.results.totalDuration || 0) / 1000)}s`
+    );
+    console.log(
+      `   - Average stage time: ${Math.round(this.results.stages.reduce((sum, s) => sum + s.duration, 0) / this.results.stages.length)}ms`
+    );
+    console.log(
+      `   - Success rate: ${Math.round((this.results.stages.filter(s => s.success).length / this.results.stages.length) * 100)}%`
+    );
     console.log('');
     console.log('5. **Health Status**:');
     console.log(`   - Overall: ${this.results.summary.healthStatus.toUpperCase()}`);
@@ -939,17 +981,13 @@ ${this.results.errors.map(error => `
       if (this.worker) {
         this.worker.shutdown();
       }
-      
+
       if (this.temporalClient) {
         await this.temporalClient.connection.close();
       }
-      
+
       // Clean up test data
-      await this.supabase
-        .from('unified_picks')
-        .delete()
-        .eq('test_run', true);
-        
+      await this.supabase.from('unified_picks').delete().eq('test_run', true);
     } catch (error) {
       logger.error('Error during cleanup:', error);
     }
@@ -959,7 +997,7 @@ ${this.results.errors.map(error => `
 // CLI execution
 if (require.main === module) {
   const runner = new E2ETestRunner();
-  runner.run().catch((error) => {
+  runner.run().catch(error => {
     console.error('❌ E2E Test failed:', error);
     process.exit(1);
   });

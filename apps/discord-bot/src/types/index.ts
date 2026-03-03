@@ -984,5 +984,18 @@ export interface OnboardingMessage {
   content: any;
   embed?: any;
   components?: any[];
-  type: 'welcome' | 'features' | 'tutorial' | 'reminder' | 'engagement' | 'discovery' | 'capper_welcome' | 'admin_welcome' | 'followup' | 'conversion' | 'personalized_welcome' | 'personalized_followup' | 'personalized_conversion';
+  type:
+    | 'welcome'
+    | 'features'
+    | 'tutorial'
+    | 'reminder'
+    | 'engagement'
+    | 'discovery'
+    | 'capper_welcome'
+    | 'admin_welcome'
+    | 'followup'
+    | 'conversion'
+    | 'personalized_welcome'
+    | 'personalized_followup'
+    | 'personalized_conversion';
 }

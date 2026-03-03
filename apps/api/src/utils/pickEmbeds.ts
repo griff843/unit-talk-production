@@ -16,20 +16,18 @@ export interface PickEmbedOptions {
  * Creates a Discord embed for a single pick or parlay
  */
 export function createPickEmbed(
-  pick: DailyPick, 
-  capper?: CapperProfile, 
+  pick: DailyPick,
+  capper?: CapperProfile,
   options: PickEmbedOptions = {}
 ): EmbedBuilder {
   const { showAnalysis = true, isPreview = false, showStats = false } = options;
-  
-  const embed = new EmbedBuilder()
-    .setColor(getTierColor('ut_capper'))
-    .setTimestamp();
+
+  const embed = new EmbedBuilder().setColor(getTierColor('ut_capper')).setTimestamp();
 
   // Title
-  const title = isPreview ? 
-    `🔍 Pick Preview - ${pick.pick_type === 'parlay' ? 'Parlay' : 'Single'}` :
-    `🎯 ${pick.capper_username}'s ${pick.pick_type === 'parlay' ? 'Parlay' : 'Pick'}`;
+  const title = isPreview
+    ? `🔍 Pick Preview - ${pick.pick_type === 'parlay' ? 'Parlay' : 'Single'}`
+    : `🎯 ${pick.capper_username}'s ${pick.pick_type === 'parlay' ? 'Parlay' : 'Pick'}`;
   embed.setTitle(title);
 
   // Description with basic info
@@ -38,20 +36,23 @@ export function createPickEmbed(
     `🎲 **Type:** ${pick.pick_type === 'parlay' ? `${pick.total_legs}-Leg Parlay` : 'Single Pick'}`,
     `💰 **Total Units:** ${pick.total_units}`,
     `📊 **Total Odds:** ${formatOdds(pick.total_odds)}`,
-    `💵 **Potential Payout:** ${calculatePayout(pick.total_odds, pick.total_units).toFixed(2)} units`
+    `💵 **Potential Payout:** ${calculatePayout(pick.total_odds, pick.total_units).toFixed(2)} units`,
   ];
 
   if (pick.status !== 'pending') {
-    description.push(`🔄 **Status:** ${pick.status.charAt(0).toUpperCase() + pick.status.slice(1)}`);
+    description.push(
+      `🔄 **Status:** ${pick.status.charAt(0).toUpperCase() + pick.status.slice(1)}`
+    );
   }
 
   embed.setDescription(description.join('\n'));
 
   // Add legs as fields
   pick.legs.forEach((leg: PickLeg, index: number) => {
-    const legTitle = pick.pick_type === 'parlay' ? 
-      `Leg ${index + 1}: ${leg.sport} - ${leg.league}` :
-      `${leg.sport} - ${leg.league}`;
+    const legTitle =
+      pick.pick_type === 'parlay'
+        ? `Leg ${index + 1}: ${leg.sport} - ${leg.league}`
+        : `${leg.sport} - ${leg.league}`;
 
     const legValue = [
       `🏟️ **Matchup:** ${leg.team_away} @ ${leg.team_home}`,
@@ -77,7 +78,7 @@ export function createPickEmbed(
     embed.addFields({
       name: legTitle,
       value: legValue.join('\n'),
-      inline: pick.pick_type === 'parlay' && pick.total_legs <= 3
+      inline: pick.pick_type === 'parlay' && pick.total_legs <= 3,
     });
   });
 
@@ -85,10 +86,8 @@ export function createPickEmbed(
   if (showAnalysis && pick.analysis && pick.analysis.trim()) {
     embed.addFields({
       name: '📝 Analysis',
-      value: pick.analysis.length > 1000 ? 
-        pick.analysis.substring(0, 997) + '...' : 
-        pick.analysis,
-      inline: false
+      value: pick.analysis.length > 1000 ? pick.analysis.substring(0, 997) + '...' : pick.analysis,
+      inline: false,
     });
   }
 
@@ -99,20 +98,20 @@ export function createPickEmbed(
       `📊 **Record:** ${stats.wins || 0}W-${stats.losses || 0}L-${stats.pushes || 0}P`,
       `📈 **Win Rate:** ${(stats.win_rate || 0).toFixed(1)}%`,
       `💰 **ROI:** ${(stats.roi || 0).toFixed(1)}%`,
-      `🔥 **Current Streak:** ${stats.current_streak || 0} ${stats.current_streak_type || 'none'}`
+      `🔥 **Current Streak:** ${stats.current_streak || 0} ${stats.current_streak_type || 'none'}`,
     ].join('\n');
 
     embed.addFields({
       name: '📈 Capper Stats',
       value: statsValue,
-      inline: true
+      inline: true,
     });
   }
 
   // Footer
-  const footerText = isPreview ? 
-    'Preview - Not yet submitted' :
-    `Pick ID: ${pick.id.substring(0, 8)}`;
+  const footerText = isPreview
+    ? 'Preview - Not yet submitted'
+    : `Pick ID: ${pick.id.substring(0, 8)}`;
   embed.setFooter({ text: footerText });
 
   return embed;
@@ -121,7 +120,10 @@ export function createPickEmbed(
 /**
  * Creates action row with buttons for pick interactions
  */
-export function createPickButtons(pickId: string, isPreview: boolean = false): ActionRowBuilder<ButtonBuilder> {
+export function createPickButtons(
+  pickId: string,
+  isPreview: boolean = false
+): ActionRowBuilder<ButtonBuilder> {
   const row = new ActionRowBuilder<ButtonBuilder>();
 
   if (isPreview) {
@@ -169,13 +171,15 @@ export function createPickButtons(pickId: string, isPreview: boolean = false): A
  * Creates a summary embed for multiple picks (daily publishing)
  */
 export function createDailyPicksSummaryEmbed(
-  picks: DailyPick[], 
+  picks: DailyPick[],
   capper: CapperProfile,
   date: string
 ): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setColor(getTierColor('ut_capper'))
-    .setTitle(`🎯 ${capper.display_name || capper.username}'s Picks - ${new Date(date).toLocaleDateString()}`)
+    .setTitle(
+      `🎯 ${capper.display_name || capper.username}'s Picks - ${new Date(date).toLocaleDateString()}`
+    )
     .setTimestamp();
 
   if (picks.length === 0) {
@@ -194,7 +198,7 @@ export function createDailyPicksSummaryEmbed(
     `🎲 **Total Units:** ${totalUnits.toFixed(1)}`,
     `📈 **Average Odds:** ${formatOdds(Math.round(avgOdds))}`,
     `🔗 **Parlays:** ${parlayCount}`,
-    `📅 **Published:** ${new Date().toLocaleTimeString()}`
+    `📅 **Published:** ${new Date().toLocaleTimeString()}`,
   ].join('\n');
 
   embed.setDescription(summaryDescription);
@@ -202,27 +206,29 @@ export function createDailyPicksSummaryEmbed(
   // Add each pick as a field
   picks.forEach((pick, index) => {
     const pickTitle = `${index + 1}. ${pick.pick_type === 'parlay' ? `${pick.total_legs}-Leg Parlay` : 'Single Pick'}`;
-    
-    const pickSummary = pick.legs.map((leg: PickLeg) => {
-      let legSummary = `${leg.team_away} @ ${leg.team_home}`;
-      
-      if (leg.market_type === 'player_prop' && leg.player_name) {
-        legSummary += ` - ${leg.player_name} ${formatStatType(leg.stat_type || '')}`;
-      }
-      
-      legSummary += ` ${leg.selection} ${leg.line} (${formatOdds(leg.odds)})`;
-      return legSummary;
-    }).join('\n');
+
+    const pickSummary = pick.legs
+      .map((leg: PickLeg) => {
+        let legSummary = `${leg.team_away} @ ${leg.team_home}`;
+
+        if (leg.market_type === 'player_prop' && leg.player_name) {
+          legSummary += ` - ${leg.player_name} ${formatStatType(leg.stat_type || '')}`;
+        }
+
+        legSummary += ` ${leg.selection} ${leg.line} (${formatOdds(leg.odds)})`;
+        return legSummary;
+      })
+      .join('\n');
 
     const pickValue = [
       pickSummary,
-      `💰 **${pick.total_units} units @ ${formatOdds(pick.total_odds)}**`
+      `💰 **${pick.total_units} units @ ${formatOdds(pick.total_odds)}**`,
     ].join('\n\n');
 
     embed.addFields({
       name: pickTitle,
       value: pickValue.length > 1000 ? pickValue.substring(0, 997) + '...' : pickValue,
-      inline: false
+      inline: false,
     });
   });
 
@@ -233,18 +239,18 @@ export function createDailyPicksSummaryEmbed(
       `📊 **Season Record:** ${stats.wins || 0}W-${stats.losses || 0}L-${stats.pushes || 0}P`,
       `📈 **Win Rate:** ${(stats.win_rate || 0).toFixed(1)}%`,
       `💰 **ROI:** ${(stats.roi || 0).toFixed(1)}%`,
-      `🔥 **Current Streak:** ${stats.current_streak || 0} ${stats.current_streak_type || 'none'}`
+      `🔥 **Current Streak:** ${stats.current_streak || 0} ${stats.current_streak_type || 'none'}`,
     ].join('\n');
 
     embed.addFields({
       name: '📈 Season Stats',
       value: statsValue,
-      inline: false
+      inline: false,
     });
   }
 
-  embed.setFooter({ 
-    text: `UT Capper • Total Picks: ${totalPicks} • Total Units: ${totalUnits.toFixed(1)}` 
+  embed.setFooter({
+    text: `UT Capper • Total Picks: ${totalPicks} • Total Units: ${totalUnits.toFixed(1)}`,
   });
 
   return embed;
@@ -253,7 +259,10 @@ export function createDailyPicksSummaryEmbed(
 /**
  * Creates an embed for pick selection (edit/delete commands)
  */
-export function createPickSelectionEmbed(picks: DailyPick[], action: 'edit' | 'delete'): EmbedBuilder {
+export function createPickSelectionEmbed(
+  picks: DailyPick[],
+  action: 'edit' | 'delete'
+): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setColor(getTierColor('ut_capper'))
     .setTitle(`${action === 'edit' ? '✏️ Edit Pick' : '🗑️ Delete Pick'}`)
@@ -266,18 +275,18 @@ export function createPickSelectionEmbed(picks: DailyPick[], action: 'edit' | 'd
 
   picks.forEach((pick, index) => {
     const pickTitle = `${index + 1}. ${pick.pick_type === 'parlay' ? `${pick.total_legs}-Leg Parlay` : 'Single Pick'}`;
-    
+
     const pickSummary = [
       `📅 **Date:** ${new Date(pick.event_date).toLocaleDateString()}`,
       `💰 **Units:** ${pick.total_units} @ ${formatOdds(pick.total_odds)}`,
       `🔄 **Status:** ${pick.status}`,
-      `⏰ **Created:** ${new Date(pick.created_at).toLocaleString()}`
+      `⏰ **Created:** ${new Date(pick.created_at).toLocaleString()}`,
     ].join('\n');
 
     embed.addFields({
       name: pickTitle,
       value: pickSummary,
-      inline: true
+      inline: true,
     });
   });
 
@@ -287,7 +296,10 @@ export function createPickSelectionEmbed(picks: DailyPick[], action: 'edit' | 'd
 /**
  * Creates buttons for pick selection
  */
-export function createPickSelectionButtons(picks: DailyPick[], action: 'edit' | 'delete'): ActionRowBuilder<ButtonBuilder>[] {
+export function createPickSelectionButtons(
+  picks: DailyPick[],
+  action: 'edit' | 'delete'
+): ActionRowBuilder<ButtonBuilder>[] {
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
   let currentRow = new ActionRowBuilder<ButtonBuilder>();
   let buttonsInRow = 0;
@@ -313,15 +325,14 @@ export function createPickSelectionButtons(picks: DailyPick[], action: 'edit' | 
   }
 
   // Add cancel button
-  const cancelRow = new ActionRowBuilder<ButtonBuilder>()
-    .addComponents(
-      new ButtonBuilder()
-        .setCustomId(`cancel_${action}_pick`)
-        .setLabel('Cancel')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('❌')
-    );
-  
+  const cancelRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`cancel_${action}_pick`)
+      .setLabel('Cancel')
+      .setStyle(ButtonStyle.Secondary)
+      .setEmoji('❌')
+  );
+
   rows.push(cancelRow);
 
   return rows;

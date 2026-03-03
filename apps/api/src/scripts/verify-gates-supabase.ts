@@ -8,7 +8,9 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 
-function fmt(n: number | null | undefined): number { return typeof n === 'number' ? n : 0; }
+function fmt(n: number | null | undefined): number {
+  return typeof n === 'number' ? n : 0;
+}
 
 async function main() {
   const SUPABASE_URL = process.env.SUPABASE_URL || '';
@@ -23,15 +25,24 @@ async function main() {
   const fifteenAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
   // Gate 1: raw_props today
-  const g1 = await sb.from('raw_props').select('*', { count: 'exact', head: true }).gte('game_date', todayStr);
+  const g1 = await sb
+    .from('raw_props')
+    .select('*', { count: 'exact', head: true })
+    .gte('game_date', todayStr);
   const rawPropsToday = fmt(g1.count);
 
   // Gate 2: market_props today
-  const g2 = await sb.from('market_props').select('*', { count: 'exact', head: true }).gte('game_date', todayStr);
+  const g2 = await sb
+    .from('market_props')
+    .select('*', { count: 'exact', head: true })
+    .gte('game_date', todayStr);
   const marketPropsToday = fmt(g2.count);
 
   // Gate 3: scored last 15m
-  const g3 = await sb.from('scored_props').select('*', { count: 'exact', head: true }).gte('updated_at', fifteenAgo);
+  const g3 = await sb
+    .from('scored_props')
+    .select('*', { count: 'exact', head: true })
+    .gte('updated_at', fifteenAgo);
   const scored15m = fmt(g3.count);
 
   // Gate 4: v_prop_read_model rows
@@ -45,26 +56,26 @@ async function main() {
   const results = {
     timestamp: new Date().toISOString(),
     targets: {
-      raw_props_today: ">=1000",
-      market_props_today: ">=1000",
-      scored_15m: ">=50",
-      v_prop_read_model: ">=1000",
-      v_daily_board: ">=50"
+      raw_props_today: '>=1000',
+      market_props_today: '>=1000',
+      scored_15m: '>=50',
+      v_prop_read_model: '>=1000',
+      v_daily_board: '>=50',
     },
     counts: {
       raw_props_today: rawPropsToday,
       market_props_today: marketPropsToday,
       scored_15m: scored15m,
       v_prop_read_model: vReadModel,
-      v_daily_board: vDailyBoard
+      v_daily_board: vDailyBoard,
     },
     pass: {
       raw_props_today: rawPropsToday >= 1000,
       market_props_today: marketPropsToday >= 1000,
       scored_15m: scored15m >= 50,
       v_prop_read_model: vReadModel >= 1000,
-      v_daily_board: vDailyBoard >= 50
-    }
+      v_daily_board: vDailyBoard >= 50,
+    },
   };
 
   // Write JSON
@@ -77,11 +88,19 @@ async function main() {
   const p = results.pass;
   const pad = (s: string) => (s + ' '.repeat(24)).slice(0, 24);
   console.log('\n===== Verification Gates =====');
-  console.log(`${pad('Gate 1 raw_props_today')}: ${rawPropsToday}  ${p.raw_props_today ? 'PASS' : 'FAIL'}`);
-  console.log(`${pad('Gate 2 market_props_today')}: ${marketPropsToday}  ${p.market_props_today ? 'PASS' : 'FAIL'}`);
+  console.log(
+    `${pad('Gate 1 raw_props_today')}: ${rawPropsToday}  ${p.raw_props_today ? 'PASS' : 'FAIL'}`
+  );
+  console.log(
+    `${pad('Gate 2 market_props_today')}: ${marketPropsToday}  ${p.market_props_today ? 'PASS' : 'FAIL'}`
+  );
   console.log(`${pad('Gate 3 scored_15m')}: ${scored15m}  ${p.scored_15m ? 'PASS' : 'FAIL'}`);
-  console.log(`${pad('Gate 4 v_prop_read_model')}: ${vReadModel}  ${p.v_prop_read_model ? 'PASS' : 'FAIL'}`);
-  console.log(`${pad('Gate 5 v_daily_board')}: ${vDailyBoard}  ${p.v_daily_board ? 'PASS' : 'FAIL'}`);
+  console.log(
+    `${pad('Gate 4 v_prop_read_model')}: ${vReadModel}  ${p.v_prop_read_model ? 'PASS' : 'FAIL'}`
+  );
+  console.log(
+    `${pad('Gate 5 v_daily_board')}: ${vDailyBoard}  ${p.v_daily_board ? 'PASS' : 'FAIL'}`
+  );
   console.log('================================\n');
   console.log(`Output written to: ${outPath}\n`);
 
@@ -105,4 +124,3 @@ main().catch(err => {
   console.error('Fatal error:', err);
   process.exit(1);
 });
-

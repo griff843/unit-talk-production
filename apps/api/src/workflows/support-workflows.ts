@@ -5,7 +5,7 @@ import type {
   AlertAgentActivities,
   OperatorAgentActivities,
   NotificationAgentActivities,
-  GradingAgentActivities
+  GradingAgentActivities,
 } from '../types/activities';
 
 // Export types that are imported elsewhere
@@ -45,23 +45,23 @@ export interface LiveGameMonitorResult {
 
 // Activity proxies
 const feedActivities = proxyActivities<FeedAgentActivities>({
-  startToCloseTimeout: '2 minutes'
+  startToCloseTimeout: '2 minutes',
 });
 
 const alertActivities = proxyActivities<AlertAgentActivities>({
-  startToCloseTimeout: '30 seconds'
+  startToCloseTimeout: '30 seconds',
 });
 
 const operatorActivities = proxyActivities<OperatorAgentActivities>({
-  startToCloseTimeout: '1 minute'
+  startToCloseTimeout: '1 minute',
 });
 
 const notificationActivities = proxyActivities<NotificationAgentActivities>({
-  startToCloseTimeout: '30 seconds'
+  startToCloseTimeout: '30 seconds',
 });
 
 const gradingActivities = proxyActivities<GradingAgentActivities>({
-  startToCloseTimeout: '2 minutes'
+  startToCloseTimeout: '2 minutes',
 });
 
 /**
@@ -69,18 +69,18 @@ const gradingActivities = proxyActivities<GradingAgentActivities>({
  * Main data ingestion and processing workflow (1 minute intervals)
  */
 export async function syndicateSchedulerWorkflow(): Promise<void> {
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000; // Prevent infinite loops
   let iteration = 0;
 
   while (shouldContinue && iteration < MAX_ITERATIONS) {
     try {
       const leagues = ['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF', 'NCAAB', 'WNBA'];
-      
+
       // 1. DATA INGESTION - Successfully fetching props
       await feedActivities.fetchFeed({
         timestamp: new Date(),
-        leagues
+        leagues,
       });
 
       // 2. PROFESSIONAL GRADING - Process ungraded props through professional system
@@ -89,13 +89,13 @@ export async function syndicateSchedulerWorkflow(): Promise<void> {
           await gradingActivities.gradeNewProps({
             league,
             isLiveMode: true,
-            cycleCount: iteration
+            cycleCount: iteration,
           });
         } catch (gradingError) {
           await operatorActivities.logError({
             error: `Professional grading failed for ${league}: ${gradingError}`,
             workflow: 'syndicateSchedulerWorkflow',
-            timestamp: new Date()
+            timestamp: new Date(),
           });
         }
       }
@@ -106,13 +106,13 @@ export async function syndicateSchedulerWorkflow(): Promise<void> {
         await gradingActivities.updateUnifiedPicks({
           scoringResults,
           cycleCount: iteration,
-          timestamp: new Date()
+          timestamp: new Date(),
         });
       } catch (promotionError) {
         await operatorActivities.logError({
           error: `Pick promotion failed: ${promotionError}`,
           workflow: 'syndicateSchedulerWorkflow',
-          timestamp: new Date()
+          timestamp: new Date(),
         });
       }
 
@@ -120,10 +120,10 @@ export async function syndicateSchedulerWorkflow(): Promise<void> {
       await sleep('1 minute');
       iteration++;
     } catch (error) {
-      await operatorActivities.logError({ 
+      await operatorActivities.logError({
         error: `Syndicate scheduler error: ${error}`,
         workflow: 'syndicateSchedulerWorkflow',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('5 minutes'); // Back off on error
       iteration++;
@@ -136,7 +136,7 @@ export async function syndicateSchedulerWorkflow(): Promise<void> {
  * Continuously monitors for live games and adjusts system mode
  */
 export async function liveGameDetectorWorkflow(): Promise<void> {
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -144,25 +144,25 @@ export async function liveGameDetectorWorkflow(): Promise<void> {
     try {
       const leagues = ['MLB', 'NBA', 'NFL', 'NHL', 'NCAAB', 'NCAAF', 'WNBA'];
       const allLiveGames: any[] = [];
-      
+
       for (const league of leagues) {
         try {
           const liveGames = await feedActivities.getLiveGames({ league });
           allLiveGames.push(...liveGames);
         } catch (error) {
-          await operatorActivities.logError({ 
+          await operatorActivities.logError({
             error: `Error getting live games for ${league}: ${error}`,
-            timestamp: new Date()
+            timestamp: new Date(),
           });
         }
       }
-      
+
       // Update live game status
       await operatorActivities.updateLiveGameStatus({
         liveGames: allLiveGames,
         totalCount: allLiveGames.length,
         leaguesWithLiveGames: Array.from(new Set(allLiveGames.map(g => g.league))),
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       // Determine check interval based on live game count
@@ -173,7 +173,7 @@ export async function liveGameDetectorWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `Live game detector error: ${error}`,
         workflow: 'liveGameDetectorWorkflow',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('2 minutes');
       iteration++;
@@ -186,7 +186,7 @@ export async function liveGameDetectorWorkflow(): Promise<void> {
  * Monitors API quotas and activates fallbacks
  */
 export async function quotaMonitoringWorkflow(): Promise<void> {
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -199,16 +199,16 @@ export async function quotaMonitoringWorkflow(): Promise<void> {
       for (const provider of providers) {
         try {
           const rawQuotaStatus = await operatorActivities.checkApiQuota({ provider });
-          
+
           // Convert to expected QuotaStatus format
           const quotaStatus: QuotaStatus = {
             provider: rawQuotaStatus.provider,
             used: rawQuotaStatus.hourlyUsed,
             limit: rawQuotaStatus.hourlyLimit,
             resetTime: rawQuotaStatus.resetTime.toISOString(),
-            percentage: (rawQuotaStatus.hourlyUsed / rawQuotaStatus.hourlyLimit) * 100
+            percentage: (rawQuotaStatus.hourlyUsed / rawQuotaStatus.hourlyLimit) * 100,
           };
-          
+
           quotaResults.push(quotaStatus);
 
           // Alert if quota usage is high
@@ -218,13 +218,13 @@ export async function quotaMonitoringWorkflow(): Promise<void> {
               type: 'quota',
               provider,
               usage: percentage,
-              severity: percentage > 95 ? 'critical' : 'warning'
+              severity: percentage > 95 ? 'critical' : 'warning',
             });
           }
         } catch (error) {
           await operatorActivities.logError({
             error: `Quota check failed for ${provider}: ${error}`,
-            timestamp: new Date()
+            timestamp: new Date(),
           });
         }
       }
@@ -233,7 +233,7 @@ export async function quotaMonitoringWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `Quota monitoring update - ${quotaResults.length} providers checked`,
         workflow: 'quotaMonitoringWorkflow',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       await sleep('15 minutes');
@@ -242,7 +242,7 @@ export async function quotaMonitoringWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `Quota monitoring error: ${error}`,
         workflow: 'quotaMonitoringWorkflow',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('5 minutes');
       iteration++;
@@ -255,7 +255,7 @@ export async function quotaMonitoringWorkflow(): Promise<void> {
  * System health and performance monitoring
  */
 export async function healthMonitoringWorkflow(): Promise<void> {
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -265,7 +265,7 @@ export async function healthMonitoringWorkflow(): Promise<void> {
       const healthResult = {
         healthScore: 95,
         issues: [] as string[],
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
       // Send alerts for unhealthy systems
@@ -274,7 +274,7 @@ export async function healthMonitoringWorkflow(): Promise<void> {
           type: 'health',
           healthScore: healthResult.healthScore,
           issues: healthResult.issues,
-          severity: healthResult.healthScore < 60 ? 'critical' : 'warning'
+          severity: healthResult.healthScore < 60 ? 'critical' : 'warning',
         });
       }
 
@@ -282,7 +282,7 @@ export async function healthMonitoringWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `Health monitoring update - Score: ${healthResult.healthScore}`,
         workflow: 'healthMonitoringWorkflow',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       await sleep('2 minutes');
@@ -291,7 +291,7 @@ export async function healthMonitoringWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `Health monitoring error: ${error}`,
         workflow: 'healthMonitoringWorkflow',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('5 minutes');
       iteration++;
@@ -305,7 +305,7 @@ export async function healthMonitoringWorkflow(): Promise<void> {
  */
 export async function createLeagueScheduleWorkflow(league: string) {
   return async function leagueScheduleWorkflow(): Promise<void> {
-    let shouldContinue = true;
+    const shouldContinue = true;
     const MAX_ITERATIONS = 1000000;
     let iteration = 0;
 
@@ -317,12 +317,12 @@ export async function createLeagueScheduleWorkflow(league: string) {
 
         // Adjust processing frequency based on peak hours
         const processingInterval = isPeakTime ? '30 seconds' : '5 minutes';
-        
+
         // Process league-specific data using available feed activities
         await feedActivities.fetchFeed({
           league,
           isPeakTime,
-          timestamp: new Date()
+          timestamp: new Date(),
         });
 
         await sleep(processingInterval);
@@ -331,7 +331,7 @@ export async function createLeagueScheduleWorkflow(league: string) {
         await operatorActivities.logError({
           error: `League schedule error for ${league}: ${error}`,
           workflow: `${league}ScheduleWorkflow`,
-          timestamp: new Date()
+          timestamp: new Date(),
         });
         await sleep('2 minutes');
         iteration++;
@@ -343,7 +343,7 @@ export async function createLeagueScheduleWorkflow(league: string) {
 // Individual league workflows - directly implement the workflow logic
 export async function nflScheduleWorkflow(): Promise<void> {
   const league = 'NFL';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -354,12 +354,12 @@ export async function nflScheduleWorkflow(): Promise<void> {
       const isPeakTime = currentHour >= peakHours.start && currentHour <= peakHours.end;
 
       const processingInterval = isPeakTime ? '30 seconds' : '5 minutes';
-      
+
       // Process league-specific data using available feed activities
       await feedActivities.fetchFeed({
         league,
         isPeakTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       await sleep(processingInterval);
@@ -368,7 +368,7 @@ export async function nflScheduleWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `League schedule error for ${league}: ${error}`,
         workflow: `${league}ScheduleWorkflow`,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('2 minutes');
       iteration++;
@@ -378,7 +378,7 @@ export async function nflScheduleWorkflow(): Promise<void> {
 
 export async function nbaScheduleWorkflow(): Promise<void> {
   const league = 'NBA';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -389,12 +389,12 @@ export async function nbaScheduleWorkflow(): Promise<void> {
       const isPeakTime = currentHour >= peakHours.start && currentHour <= peakHours.end;
 
       const processingInterval = isPeakTime ? '30 seconds' : '5 minutes';
-      
+
       // Process league-specific data using available feed activities
       await feedActivities.fetchFeed({
         league,
         isPeakTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       await sleep(processingInterval);
@@ -403,7 +403,7 @@ export async function nbaScheduleWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `League schedule error for ${league}: ${error}`,
         workflow: `${league}ScheduleWorkflow`,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('2 minutes');
       iteration++;
@@ -413,7 +413,7 @@ export async function nbaScheduleWorkflow(): Promise<void> {
 
 export async function mlbScheduleWorkflow(): Promise<void> {
   const league = 'MLB';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -424,12 +424,12 @@ export async function mlbScheduleWorkflow(): Promise<void> {
       const isPeakTime = currentHour >= peakHours.start && currentHour <= peakHours.end;
 
       const processingInterval = isPeakTime ? '30 seconds' : '5 minutes';
-      
+
       // Process league-specific data using available feed activities
       await feedActivities.fetchFeed({
         league,
         isPeakTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       await sleep(processingInterval);
@@ -438,7 +438,7 @@ export async function mlbScheduleWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `League schedule error for ${league}: ${error}`,
         workflow: `${league}ScheduleWorkflow`,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('2 minutes');
       iteration++;
@@ -448,7 +448,7 @@ export async function mlbScheduleWorkflow(): Promise<void> {
 
 export async function nhlScheduleWorkflow(): Promise<void> {
   const league = 'NHL';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -459,12 +459,12 @@ export async function nhlScheduleWorkflow(): Promise<void> {
       const isPeakTime = currentHour >= peakHours.start && currentHour <= peakHours.end;
 
       const processingInterval = isPeakTime ? '30 seconds' : '5 minutes';
-      
+
       // Process league-specific data using available feed activities
       await feedActivities.fetchFeed({
         league,
         isPeakTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       await sleep(processingInterval);
@@ -473,7 +473,7 @@ export async function nhlScheduleWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `League schedule error for ${league}: ${error}`,
         workflow: `${league}ScheduleWorkflow`,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('2 minutes');
       iteration++;
@@ -483,7 +483,7 @@ export async function nhlScheduleWorkflow(): Promise<void> {
 
 export async function ncaafScheduleWorkflow(): Promise<void> {
   const league = 'NCAAF';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -494,12 +494,12 @@ export async function ncaafScheduleWorkflow(): Promise<void> {
       const isPeakTime = currentHour >= peakHours.start && currentHour <= peakHours.end;
 
       const processingInterval = isPeakTime ? '30 seconds' : '5 minutes';
-      
+
       // Process league-specific data using available feed activities
       await feedActivities.fetchFeed({
         league,
         isPeakTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       await sleep(processingInterval);
@@ -508,7 +508,7 @@ export async function ncaafScheduleWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `League schedule error for ${league}: ${error}`,
         workflow: `${league}ScheduleWorkflow`,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('2 minutes');
       iteration++;
@@ -518,7 +518,7 @@ export async function ncaafScheduleWorkflow(): Promise<void> {
 
 export async function ncaabScheduleWorkflow(): Promise<void> {
   const league = 'NCAAB';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -529,12 +529,12 @@ export async function ncaabScheduleWorkflow(): Promise<void> {
       const isPeakTime = currentHour >= peakHours.start && currentHour <= peakHours.end;
 
       const processingInterval = isPeakTime ? '30 seconds' : '5 minutes';
-      
+
       // Process league-specific data using available feed activities
       await feedActivities.fetchFeed({
         league,
         isPeakTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       await sleep(processingInterval);
@@ -543,7 +543,7 @@ export async function ncaabScheduleWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `League schedule error for ${league}: ${error}`,
         workflow: `${league}ScheduleWorkflow`,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('2 minutes');
       iteration++;
@@ -553,7 +553,7 @@ export async function ncaabScheduleWorkflow(): Promise<void> {
 
 export async function wnbaScheduleWorkflow(): Promise<void> {
   const league = 'WNBA';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -564,12 +564,12 @@ export async function wnbaScheduleWorkflow(): Promise<void> {
       const isPeakTime = currentHour >= peakHours.start && currentHour <= peakHours.end;
 
       const processingInterval = isPeakTime ? '30 seconds' : '5 minutes';
-      
+
       // Process league-specific data using available feed activities
       await feedActivities.fetchFeed({
         league,
         isPeakTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       await sleep(processingInterval);
@@ -578,7 +578,7 @@ export async function wnbaScheduleWorkflow(): Promise<void> {
       await operatorActivities.logError({
         error: `League schedule error for ${league}: ${error}`,
         workflow: `${league}ScheduleWorkflow`,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
       await sleep('2 minutes');
       iteration++;
@@ -591,14 +591,14 @@ export async function wnbaScheduleWorkflow(): Promise<void> {
  */
 function getLeaguePeakHours(league: string): { start: number; end: number } {
   const peakHours: Record<string, { start: number; end: number }> = {
-    'MLB': { start: 18, end: 23 }, // 6 PM - 11 PM
-    'NBA': { start: 18, end: 23 }, // 6 PM - 11 PM
-    'NFL': { start: 12, end: 23 }, // 12 PM - 11 PM (Sunday/Monday)
-    'NHL': { start: 18, end: 23 }, // 6 PM - 11 PM
-    'NCAAB': { start: 18, end: 23 }, // 6 PM - 11 PM
-    'NCAAF': { start: 11, end: 23 }, // 11 AM - 11 PM (Saturday)
-    'WNBA': { start: 18, end: 22 }  // 6 PM - 10 PM (typically evening games)
+    MLB: { start: 18, end: 23 }, // 6 PM - 11 PM
+    NBA: { start: 18, end: 23 }, // 6 PM - 11 PM
+    NFL: { start: 12, end: 23 }, // 12 PM - 11 PM (Sunday/Monday)
+    NHL: { start: 18, end: 23 }, // 6 PM - 11 PM
+    NCAAB: { start: 18, end: 23 }, // 6 PM - 11 PM
+    NCAAF: { start: 11, end: 23 }, // 11 AM - 11 PM (Saturday)
+    WNBA: { start: 18, end: 22 }, // 6 PM - 10 PM (typically evening games)
   };
-  
+
   return peakHours[league] || { start: 18, end: 23 };
 }

@@ -16,7 +16,7 @@ export class CircuitBreaker {
   constructor(config: Partial<CircuitBreakerConfig> = {}) {
     this.config = {
       failureThreshold: config.failureThreshold || 5,
-      resetTimeout: config.resetTimeout || 60000
+      resetTimeout: config.resetTimeout || 60000,
     };
     this.states = new Map();
   }
@@ -26,7 +26,7 @@ export class CircuitBreaker {
       this.states.set(activityName, {
         failures: 0,
         lastFailure: null,
-        isOpen: false
+        isOpen: false,
       });
     }
     return this.states.get(activityName)!;
@@ -34,7 +34,7 @@ export class CircuitBreaker {
 
   public isOpen(activityName: string): boolean {
     const state = this.getOrCreateState(activityName);
-    
+
     if (!state.isOpen) {
       return false;
     }
@@ -71,11 +71,11 @@ export class CircuitBreaker {
     this.states.set(activityName, {
       failures: 0,
       lastFailure: null,
-      isOpen: false
+      isOpen: false,
     });
   }
 
   public getState(activityName: string): CircuitState {
     return { ...this.getOrCreateState(activityName) };
   }
-} 
+}

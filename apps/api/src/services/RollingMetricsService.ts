@@ -4,9 +4,10 @@
  * Includes auto-learning feedback loops for performance optimization
  */
 
-import { Logger, createLogger } from '../utils/logger';
-import { supabaseClient } from './supabaseClient';
 import { shadowWriteMetrics, isShadowMode } from '../shadow/ShadowMode';
+import { Logger, createLogger } from '../utils/logger';
+
+import { supabaseClient } from './supabaseClient';
 
 export interface MetricsWindow {
   window: '7d' | '30d' | 'lifetime';
@@ -19,37 +20,37 @@ export interface MetricsWindow {
 
 export interface WindowMetrics {
   // Core Performance Metrics
-  postedEV: number;                    // Average posted expected value
-  actualEV: number;                     // Actual realized expected value
-  evDeviation: number;                  // Deviation from expected
-  
+  postedEV: number; // Average posted expected value
+  actualEV: number; // Actual realized expected value
+  evDeviation: number; // Deviation from expected
+
   // CLV Metrics
-  positiveCLVPercentage: number;       // % of picks with positive CLV
-  averageCLV: number;                  // Average CLV in BPS
-  clvCapture: number;                  // % of theoretical CLV captured
-  
+  positiveCLVPercentage: number; // % of picks with positive CLV
+  averageCLV: number; // Average CLV in BPS
+  clvCapture: number; // % of theoretical CLV captured
+
   // Hit Rate Metrics
-  hitPercentage: number;                // Overall hit rate
-  hitByTier: Record<string, number>;   // Hit rate by tier (S/A/B)
-  hitBySport: Record<string, number>;  // Hit rate by sport
-  
+  hitPercentage: number; // Overall hit rate
+  hitByTier: Record<string, number>; // Hit rate by tier (S/A/B)
+  hitBySport: Record<string, number>; // Hit rate by sport
+
   // ROI Metrics
-  roi: number;                          // Overall return on investment
-  roiByTier: Record<string, number>;   // ROI by tier
-  roiBySport: Record<string, number>;  // ROI by sport
-  
+  roi: number; // Overall return on investment
+  roiByTier: Record<string, number>; // ROI by tier
+  roiBySport: Record<string, number>; // ROI by sport
+
   // Risk Metrics
-  sharpeRatio: number;                  // Risk-adjusted returns
-  maxDrawdown: number;                  // Maximum drawdown percentage
-  winRate: number;                      // Win percentage
-  avgWin: number;                       // Average win size
-  avgLoss: number;                      // Average loss size
-  profitFactor: number;                 // Gross profit / Gross loss
-  
+  sharpeRatio: number; // Risk-adjusted returns
+  maxDrawdown: number; // Maximum drawdown percentage
+  winRate: number; // Win percentage
+  avgWin: number; // Average win size
+  avgLoss: number; // Average loss size
+  profitFactor: number; // Gross profit / Gross loss
+
   // Kelly Metrics
-  kellyAtRisk: number;                  // Portfolio at risk using Kelly
-  kellyEfficiency: number;              // Actual vs optimal Kelly sizing
-  kellyRegret: number;                  // Opportunity cost from suboptimal sizing
+  kellyAtRisk: number; // Portfolio at risk using Kelly
+  kellyEfficiency: number; // Actual vs optimal Kelly sizing
+  kellyRegret: number; // Opportunity cost from suboptimal sizing
 }
 
 export interface SportMetrics {
@@ -98,29 +99,29 @@ class RollingMetricsService {
   private logger: Logger;
   private metricsCache: Map<string, MetricsWindow[]> = new Map();
   private updateInterval: NodeJS.Timeout | null = null;
-  
+
   // Learning parameters
   private readonly LEARNING_CONFIG = {
-    minSampleSize: 30,                   // Minimum picks for learning
-    confidenceThreshold: 0.75,           // Minimum confidence for adjustments
-    adjustmentRate: 0.1,                 // Maximum adjustment per iteration
-    backtestWindow: 90,                  // Days to backtest adjustments
+    minSampleSize: 30, // Minimum picks for learning
+    confidenceThreshold: 0.75, // Minimum confidence for adjustments
+    adjustmentRate: 0.1, // Maximum adjustment per iteration
+    backtestWindow: 90, // Days to backtest adjustments
     performanceTarget: {
-      minROI: 0.05,                      // 5% minimum ROI target
-      minHitRate: 0.52,                  // 52% minimum hit rate
-      maxDrawdown: 0.15,                 // 15% maximum drawdown
-      minSharpe: 1.0                     // 1.0 minimum Sharpe ratio
-    }
+      minROI: 0.05, // 5% minimum ROI target
+      minHitRate: 0.52, // 52% minimum hit rate
+      maxDrawdown: 0.15, // 15% maximum drawdown
+      minSharpe: 1.0, // 1.0 minimum Sharpe ratio
+    },
   };
 
   // Alert thresholds
   private readonly ALERT_THRESHOLDS = {
-    evDeviation: 0.2,                    // 20% deviation from expected EV
-    clvDecline: -10,                     // 10 BPS CLV decline
-    roiDecline: -0.05,                   // 5% ROI decline
-    drawdownLimit: 0.2,                  // 20% drawdown limit
-    winRateMinimum: 0.48,                // 48% minimum win rate
-    kellyEfficiencyMin: 0.7              // 70% Kelly efficiency minimum
+    evDeviation: 0.2, // 20% deviation from expected EV
+    clvDecline: -10, // 10 BPS CLV decline
+    roiDecline: -0.05, // 5% ROI decline
+    drawdownLimit: 0.2, // 20% drawdown limit
+    winRateMinimum: 0.48, // 48% minimum win rate
+    kellyEfficiencyMin: 0.7, // 70% Kelly efficiency minimum
   };
 
   private constructor() {
@@ -140,13 +141,13 @@ class RollingMetricsService {
    */
   private async initializeService(): Promise<void> {
     this.logger.info('Initializing Rolling Metrics Service');
-    
+
     // Start continuous monitoring
     this.startMetricsMonitoring();
-    
+
     // Load historical metrics
     await this.loadHistoricalMetrics();
-    
+
     this.logger.info('Rolling Metrics Service initialized');
   }
 
@@ -173,20 +174,20 @@ class RollingMetricsService {
   ): Promise<MetricsWindow> {
     const now = new Date();
     const startDate = this.getWindowStartDate(window, now);
-    
+
     // Get picks for the window
     const picks = await this.getPicksForWindow(startDate, now, sport);
-    
+
     // Calculate core metrics
     const metrics = await this.calculateWindowMetrics(picks);
-    
+
     return {
       window,
       startDate,
       endDate: now,
       totalPicks: picks.length,
       completedPicks: picks.filter(p => p.status === 'settled').length,
-      metrics
+      metrics,
     };
   }
 
@@ -195,26 +196,26 @@ class RollingMetricsService {
    */
   private async calculateWindowMetrics(picks: any[]): Promise<WindowMetrics> {
     const settledPicks = picks.filter(p => p.status === 'settled');
-    
+
     if (settledPicks.length === 0) {
       return this.getEmptyMetrics();
     }
 
     // Calculate EV metrics
     const evMetrics = this.calculateEVMetrics(settledPicks);
-    
+
     // Calculate CLV metrics
     const clvMetrics = this.calculateCLVMetrics(settledPicks);
-    
+
     // Calculate hit rate metrics
     const hitMetrics = this.calculateHitMetrics(settledPicks);
-    
+
     // Calculate ROI metrics
     const roiMetrics = this.calculateROIMetrics(settledPicks);
-    
+
     // Calculate risk metrics
     const riskMetrics = this.calculateRiskMetrics(settledPicks);
-    
+
     // Calculate Kelly metrics
     const kellyMetrics = this.calculateKellyMetrics(settledPicks);
 
@@ -223,22 +224,22 @@ class RollingMetricsService {
       postedEV: evMetrics.postedEV,
       actualEV: evMetrics.actualEV,
       evDeviation: evMetrics.deviation,
-      
+
       // CLV Metrics
       positiveCLVPercentage: clvMetrics.positivePercentage,
       averageCLV: clvMetrics.average,
       clvCapture: clvMetrics.capture,
-      
+
       // Hit Rate Metrics
       hitPercentage: hitMetrics.overall,
       hitByTier: hitMetrics.byTier,
       hitBySport: hitMetrics.bySport,
-      
+
       // ROI Metrics
       roi: roiMetrics.overall,
       roiByTier: roiMetrics.byTier,
       roiBySport: roiMetrics.bySport,
-      
+
       // Risk Metrics
       sharpeRatio: riskMetrics.sharpe,
       maxDrawdown: riskMetrics.maxDrawdown,
@@ -246,11 +247,11 @@ class RollingMetricsService {
       avgWin: riskMetrics.avgWin,
       avgLoss: riskMetrics.avgLoss,
       profitFactor: riskMetrics.profitFactor,
-      
+
       // Kelly Metrics
       kellyAtRisk: kellyMetrics.atRisk,
       kellyEfficiency: kellyMetrics.efficiency,
-      kellyRegret: kellyMetrics.regret
+      kellyRegret: kellyMetrics.regret,
     };
   }
 
@@ -265,12 +266,13 @@ class RollingMetricsService {
     const postedEVs = picks.map(p => p.expected_value || 0);
     const actualReturns = picks.map(p => {
       if (p.result === 'won') {
-        return (p.odds || -110) > 0 ? (p.odds / 100) : (100 / Math.abs(p.odds || 110));
+        return (p.odds || -110) > 0 ? p.odds / 100 : 100 / Math.abs(p.odds || 110);
       }
       return -1;
     });
 
-    const postedEV = postedEVs.reduce((sum, devigged_edge) => sum + devigged_edge, 0) / picks.length;
+    const postedEV =
+      postedEVs.reduce((sum, devigged_edge) => sum + devigged_edge, 0) / picks.length;
     const actualEV = actualReturns.reduce((sum, ret) => sum + ret, 0) / picks.length;
     const deviation = Math.abs(actualEV - postedEV) / Math.abs(postedEV || 1);
 
@@ -285,9 +287,7 @@ class RollingMetricsService {
     average: number;
     capture: number;
   } {
-    const clvData = picks
-      .filter(p => p.clv_tracking)
-      .map(p => p.clv_tracking.current_clv_bps || 0);
+    const clvData = picks.filter(p => p.clv_tracking).map(p => p.clv_tracking.current_clv_bps || 0);
 
     if (clvData.length === 0) {
       return { positivePercentage: 0, average: 0, capture: 0 };
@@ -296,13 +296,14 @@ class RollingMetricsService {
     const positiveCount = clvData.filter(clv => clv > 0).length;
     const positivePercentage = (positiveCount / clvData.length) * 100;
     const average = clvData.reduce((sum, clv) => sum + clv, 0) / clvData.length;
-    
+
     // Calculate capture rate (actual CLV captured vs theoretical maximum)
-    const theoreticalMax = picks
-      .filter(p => p.clv_tracking?.max_clv_bps)
-      .map(p => p.clv_tracking.max_clv_bps)
-      .reduce((sum, max) => sum + max, 0) / picks.length;
-    
+    const theoreticalMax =
+      picks
+        .filter(p => p.clv_tracking?.max_clv_bps)
+        .map(p => p.clv_tracking.max_clv_bps)
+        .reduce((sum, max) => sum + max, 0) / picks.length;
+
     const capture = theoreticalMax > 0 ? (average / theoreticalMax) * 100 : 0;
 
     return { positivePercentage, average, capture };
@@ -357,14 +358,15 @@ class RollingMetricsService {
       const totalReturns = picksSubset.reduce((sum, p) => {
         if (p.result === 'won') {
           const odds = p.odds || -110;
-          const payout = odds > 0 ? 
-            (p.stake || 1) * (1 + odds / 100) : 
-            (p.stake || 1) * (1 + 100 / Math.abs(odds));
+          const payout =
+            odds > 0
+              ? (p.stake || 1) * (1 + odds / 100)
+              : (p.stake || 1) * (1 + 100 / Math.abs(odds));
           return sum + payout;
         }
         return sum;
       }, 0);
-      
+
       return totalStaked > 0 ? ((totalReturns - totalStaked) / totalStaked) * 100 : 0;
     };
 
@@ -405,8 +407,8 @@ class RollingMetricsService {
     profitFactor: number;
   } {
     // Sort picks by date for drawdown calculation
-    const sortedPicks = [...picks].sort((a, b) => 
-      new Date(a.settled_at).getTime() - new Date(b.settled_at).getTime()
+    const sortedPicks = [...picks].sort(
+      (a, b) => new Date(a.settled_at).getTime() - new Date(b.settled_at).getTime()
     );
 
     // Calculate returns series
@@ -420,7 +422,8 @@ class RollingMetricsService {
 
     // Calculate Sharpe ratio
     const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-    const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length;
+    const variance =
+      returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length;
     const stdDev = Math.sqrt(variance);
     const sharpe = stdDev > 0 ? (avgReturn / stdDev) * Math.sqrt(252) : 0; // Annualized
 
@@ -428,7 +431,7 @@ class RollingMetricsService {
     let peak = 0;
     let maxDrawdown = 0;
     let cumulative = 0;
-    
+
     for (const ret of returns) {
       cumulative += ret;
       if (cumulative > peak) {
@@ -443,8 +446,9 @@ class RollingMetricsService {
     const losses = returns.filter(r => r < 0);
     const winRate = (wins.length / returns.length) * 100;
     const avgWin = wins.length > 0 ? wins.reduce((sum, w) => sum + w, 0) / wins.length : 0;
-    const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((sum, l) => sum + l, 0) / losses.length) : 0;
-    
+    const avgLoss =
+      losses.length > 0 ? Math.abs(losses.reduce((sum, l) => sum + l, 0) / losses.length) : 0;
+
     const grossProfit = wins.reduce((sum, w) => sum + w, 0);
     const grossLoss = Math.abs(losses.reduce((sum, l) => sum + l, 0));
     const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
@@ -455,7 +459,7 @@ class RollingMetricsService {
       winRate,
       avgWin,
       avgLoss,
-      profitFactor
+      profitFactor,
     };
   }
 
@@ -476,37 +480,37 @@ class RollingMetricsService {
       const devigged_edge = p.expected_value || 0;
       const odds = p.odds || -110;
       const prob = p.confidence || 0.5;
-      
+
       // Kelly formula: f = (p * b - q) / b
       // where p = probability of win, q = probability of loss, b = odds
       const b = odds > 0 ? odds / 100 : 100 / Math.abs(odds);
       const q = 1 - prob;
       const kelly = Math.max(0, Math.min(0.25, (prob * (1 + b) - 1) / b));
-      
+
       return kelly;
     });
-    
+
     const avgOptimalKelly = optimalKellys.reduce((sum, k) => sum + k, 0) / picks.length;
 
     // Calculate metrics
     const atRisk = avgActualKelly;
     const efficiency = avgOptimalKelly > 0 ? avgActualKelly / avgOptimalKelly : 0;
-    
+
     // Calculate regret (opportunity cost from suboptimal sizing)
     const actualGrowth = picks.reduce((growth, p, i) => {
-      const ret = p.result === 'won' ? 
-        (p.odds > 0 ? p.odds / 100 : 100 / Math.abs(p.odds || 110)) : -1;
+      const ret =
+        p.result === 'won' ? (p.odds > 0 ? p.odds / 100 : 100 / Math.abs(p.odds || 110)) : -1;
       return growth * (1 + actualKellys[i] * ret);
     }, 1);
-    
+
     const optimalGrowth = picks.reduce((growth, p, i) => {
-      const ret = p.result === 'won' ? 
-        (p.odds > 0 ? p.odds / 100 : 100 / Math.abs(p.odds || 110)) : -1;
+      const ret =
+        p.result === 'won' ? (p.odds > 0 ? p.odds / 100 : 100 / Math.abs(p.odds || 110)) : -1;
       return growth * (1 + optimalKellys[i] * ret);
     }, 1);
-    
-    const regret = optimalGrowth > actualGrowth ? 
-      ((optimalGrowth - actualGrowth) / actualGrowth) * 100 : 0;
+
+    const regret =
+      optimalGrowth > actualGrowth ? ((optimalGrowth - actualGrowth) / actualGrowth) * 100 : 0;
 
     return { atRisk, efficiency, regret };
   }
@@ -520,12 +524,12 @@ class RollingMetricsService {
     try {
       // Get recent performance data
       const recentMetrics = await this.calculateMetricsForWindow('30d');
-      
+
       // Check if we have enough data
       if (recentMetrics.completedPicks < this.LEARNING_CONFIG.minSampleSize) {
         this.logger.info('Insufficient data for learning cycle', {
           completedPicks: recentMetrics.completedPicks,
-          required: this.LEARNING_CONFIG.minSampleSize
+          required: this.LEARNING_CONFIG.minSampleSize,
         });
         return;
       }
@@ -551,10 +555,10 @@ class RollingMetricsService {
   private async analyzeSportPerformance(sport: string): Promise<void> {
     const metrics7d = await this.calculateMetricsForWindow('7d', sport);
     const metrics30d = await this.calculateMetricsForWindow('30d', sport);
-    
+
     // Determine trend
     const trend = this.analyzeTrend(metrics7d, metrics30d);
-    
+
     // Check if adjustments are needed
     if (trend.confidence < this.LEARNING_CONFIG.confidenceThreshold) {
       return; // Not confident enough to make adjustments
@@ -597,24 +601,18 @@ class RollingMetricsService {
    * Analyze trend between two metric windows
    */
   private analyzeTrend(recent: MetricsWindow, historical: MetricsWindow): TrendAnalysis {
-    const evTrend = this.getTrendDirection(
-      recent.metrics.actualEV,
-      historical.metrics.actualEV
-    );
-    
+    const evTrend = this.getTrendDirection(recent.metrics.actualEV, historical.metrics.actualEV);
+
     const clvTrend = this.getTrendDirection(
       recent.metrics.averageCLV,
       historical.metrics.averageCLV
     );
-    
-    const roiTrend = this.getTrendDirection(
-      recent.metrics.roi,
-      historical.metrics.roi
-    );
+
+    const roiTrend = this.getTrendDirection(recent.metrics.roi, historical.metrics.roi);
 
     // Calculate confidence based on sample size and consistency
     const sampleSizeConfidence = Math.min(1, recent.completedPicks / 50);
-    const trendConsistency = (evTrend === clvTrend && clvTrend === roiTrend) ? 1 : 0.7;
+    const trendConsistency = evTrend === clvTrend && clvTrend === roiTrend ? 1 : 0.7;
     const confidence = sampleSizeConfidence * trendConsistency;
 
     // Calculate momentum
@@ -632,7 +630,7 @@ class RollingMetricsService {
       roiTrend,
       confidence,
       momentum,
-      volatility
+      volatility,
     };
   }
 
@@ -643,10 +641,7 @@ class RollingMetricsService {
     const deviation = metrics.metrics.evDeviation;
     if (deviation < 0.1) return null; // Within acceptable range
 
-    const adjustmentFactor = Math.min(
-      this.LEARNING_CONFIG.adjustmentRate,
-      deviation * 0.5
-    );
+    const adjustmentFactor = Math.min(this.LEARNING_CONFIG.adjustmentRate, deviation * 0.5);
 
     return {
       timestamp: new Date(),
@@ -656,7 +651,7 @@ class RollingMetricsService {
       oldValue: 0.05, // Would get from config
       newValue: 0.05 * (1 + adjustmentFactor),
       reason: `EV deviation of ${(deviation * 100).toFixed(1)}% detected`,
-      expectedImpact: adjustmentFactor
+      expectedImpact: adjustmentFactor,
     };
   }
 
@@ -678,9 +673,9 @@ class RollingMetricsService {
       adjustmentType: 'threshold',
       parameter: 'min_clv_threshold',
       oldValue: 15,
-      newValue: Math.max(10, 15 - (5 * adjustmentFactor)),
+      newValue: Math.max(10, 15 - 5 * adjustmentFactor),
       reason: `Low average CLV of ${avgCLV.toFixed(1)} BPS`,
-      expectedImpact: adjustmentFactor
+      expectedImpact: adjustmentFactor,
     };
   }
 
@@ -691,10 +686,7 @@ class RollingMetricsService {
     const efficiency = metrics.metrics.kellyEfficiency;
     if (efficiency > 0.8) return null; // Good efficiency
 
-    const adjustmentFactor = Math.min(
-      this.LEARNING_CONFIG.adjustmentRate,
-      (1 - efficiency) * 0.5
-    );
+    const adjustmentFactor = Math.min(this.LEARNING_CONFIG.adjustmentRate, (1 - efficiency) * 0.5);
 
     return {
       timestamp: new Date(),
@@ -704,7 +696,7 @@ class RollingMetricsService {
       oldValue: 1.0,
       newValue: 1.0 * (1 - adjustmentFactor),
       reason: `Kelly efficiency of ${(efficiency * 100).toFixed(1)}%`,
-      expectedImpact: adjustmentFactor
+      expectedImpact: adjustmentFactor,
     };
   }
 
@@ -714,26 +706,23 @@ class RollingMetricsService {
   private async applyAdjustment(adjustment: LearningAdjustment): Promise<void> {
     try {
       // Store adjustment in database
-      await supabaseClient
-        .from('learning_adjustments')
-        .insert({
-          timestamp: adjustment.timestamp.toISOString(),
-          sport: adjustment.sport,
-          adjustment_type: adjustment.adjustmentType,
-          parameter: adjustment.parameter,
-          old_value: adjustment.oldValue,
-          new_value: adjustment.newValue,
-          reason: adjustment.reason,
-          expected_impact: adjustment.expectedImpact
-        });
+      await supabaseClient.from('learning_adjustments').insert({
+        timestamp: adjustment.timestamp.toISOString(),
+        sport: adjustment.sport,
+        adjustment_type: adjustment.adjustmentType,
+        parameter: adjustment.parameter,
+        old_value: adjustment.oldValue,
+        new_value: adjustment.newValue,
+        reason: adjustment.reason,
+        expected_impact: adjustment.expectedImpact,
+      });
 
       // Apply to configuration (would update actual config)
       this.logger.info('Applied learning adjustment', {
         sport: adjustment.sport,
         parameter: adjustment.parameter,
-        change: `${adjustment.oldValue} → ${adjustment.newValue}`
+        change: `${adjustment.oldValue} → ${adjustment.newValue}`,
       });
-
     } catch (error) {
       this.logger.error('Failed to apply adjustment', { error, adjustment });
     }
@@ -744,9 +733,9 @@ class RollingMetricsService {
    */
   private async applyGlobalAdjustments(metrics: MetricsWindow): Promise<void> {
     const targets = this.LEARNING_CONFIG.performanceTarget;
-    
+
     // Check if global adjustments are needed
-    const needsAdjustment = 
+    const needsAdjustment =
       metrics.metrics.roi < targets.minROI ||
       metrics.metrics.hitPercentage < targets.minHitRate * 100 ||
       metrics.metrics.maxDrawdown > targets.maxDrawdown ||
@@ -763,7 +752,7 @@ class RollingMetricsService {
       metric: 'global_performance',
       window: '30d',
       message: 'Overall performance below target thresholds',
-      recommendedAction: 'Review and adjust global parameters'
+      recommendedAction: 'Review and adjust global parameters',
     });
   }
 
@@ -781,7 +770,7 @@ class RollingMetricsService {
         type: 'anomaly',
         metric: 'ev_deviation',
         window: '7d',
-        message: `EV deviation of ${(metrics7d.metrics.evDeviation * 100).toFixed(1)}% detected`
+        message: `EV deviation of ${(metrics7d.metrics.evDeviation * 100).toFixed(1)}% detected`,
       });
     }
 
@@ -792,7 +781,7 @@ class RollingMetricsService {
         type: 'threshold_breach',
         metric: 'max_drawdown',
         window: '30d',
-        message: `Maximum drawdown of ${(metrics30d.metrics.maxDrawdown * 100).toFixed(1)}% exceeds limit`
+        message: `Maximum drawdown of ${(metrics30d.metrics.maxDrawdown * 100).toFixed(1)}% exceeds limit`,
       });
     }
 
@@ -803,7 +792,7 @@ class RollingMetricsService {
         type: 'underperformance',
         metric: 'win_rate',
         window: '30d',
-        message: `Win rate of ${metrics30d.metrics.winRate.toFixed(1)}% below minimum threshold`
+        message: `Win rate of ${metrics30d.metrics.winRate.toFixed(1)}% below minimum threshold`,
       });
     }
   }
@@ -811,33 +800,33 @@ class RollingMetricsService {
   /**
    * Generate performance alert
    */
-  private async generatePerformanceAlert(alert: Omit<PerformanceAlert, 'id' | 'timestamp'>): Promise<void> {
+  private async generatePerformanceAlert(
+    alert: Omit<PerformanceAlert, 'id' | 'timestamp'>
+  ): Promise<void> {
     const fullAlert: PerformanceAlert = {
       id: `alert_${Date.now()}`,
       timestamp: new Date(),
-      ...alert
+      ...alert,
     };
 
     try {
-      await supabaseClient
-        .from('performance_alerts')
-        .insert({
-          id: fullAlert.id,
-          timestamp: fullAlert.timestamp.toISOString(),
-          severity: fullAlert.severity,
-          type: fullAlert.type,
-          metric: fullAlert.metric,
-          window: fullAlert.window,
-          sport: fullAlert.sport,
-          message: fullAlert.message,
-          recommended_action: fullAlert.recommendedAction,
-          auto_adjustment_applied: fullAlert.autoAdjustmentApplied || false
-        });
+      await supabaseClient.from('performance_alerts').insert({
+        id: fullAlert.id,
+        timestamp: fullAlert.timestamp.toISOString(),
+        severity: fullAlert.severity,
+        type: fullAlert.type,
+        metric: fullAlert.metric,
+        window: fullAlert.window,
+        sport: fullAlert.sport,
+        message: fullAlert.message,
+        recommended_action: fullAlert.recommendedAction,
+        auto_adjustment_applied: fullAlert.autoAdjustmentApplied || false,
+      });
 
       this.logger.info('Performance alert generated', {
         severity: fullAlert.severity,
         type: fullAlert.type,
-        metric: fullAlert.metric
+        metric: fullAlert.metric,
       });
     } catch (error) {
       this.logger.error('Failed to generate performance alert', { error, alert });
@@ -912,14 +901,14 @@ class RollingMetricsService {
 
   private async updateAllMetrics(): Promise<void> {
     const windows: Array<'7d' | '30d' | 'lifetime'> = ['7d', '30d', 'lifetime'];
-    
+
     for (const window of windows) {
       const metrics = await this.calculateMetricsForWindow(window);
-      
+
       // Cache metrics
       this.metricsCache.set(window, [
         metrics,
-        ...(this.metricsCache.get(window) || []).slice(0, 23) // Keep 24 hours of history
+        ...(this.metricsCache.get(window) || []).slice(0, 23), // Keep 24 hours of history
       ]);
 
       // Store in database
@@ -930,17 +919,15 @@ class RollingMetricsService {
   private async storeMetrics(metrics: MetricsWindow): Promise<void> {
     try {
       // Store in normal metrics table
-      await supabaseClient
-        .from('metrics_snapshots')
-        .insert({
-          window: metrics.window,
-          start_date: metrics.startDate.toISOString(),
-          end_date: metrics.endDate.toISOString(),
-          total_picks: metrics.totalPicks,
-          completed_picks: metrics.completedPicks,
-          metrics: metrics.metrics,
-          created_at: new Date().toISOString()
-        });
+      await supabaseClient.from('metrics_snapshots').insert({
+        window: metrics.window,
+        start_date: metrics.startDate.toISOString(),
+        end_date: metrics.endDate.toISOString(),
+        total_picks: metrics.totalPicks,
+        completed_picks: metrics.completedPicks,
+        metrics: metrics.metrics,
+        created_at: new Date().toISOString(),
+      });
 
       // If in shadow mode, also store in shadow metrics table
       if (isShadowMode()) {
@@ -958,7 +945,7 @@ class RollingMetricsService {
           completedPicks: metrics.completedPicks,
           winRate: metrics.metrics.winRate,
           avgOdds: -110, // Would calculate from actual data
-          profitFactor: metrics.metrics.profitFactor
+          profitFactor: metrics.metrics.profitFactor,
         });
       }
     } catch (error) {
@@ -966,10 +953,13 @@ class RollingMetricsService {
     }
   }
 
-  private getTrendDirection(recent: number, historical: number): 'improving' | 'declining' | 'stable' {
+  private getTrendDirection(
+    recent: number,
+    historical: number
+  ): 'improving' | 'declining' | 'stable' {
     const change = recent - historical;
     const changePercent = historical !== 0 ? Math.abs(change / historical) : 0;
-    
+
     if (changePercent < 0.05) return 'stable';
     return change > 0 ? 'improving' : 'declining';
   }
@@ -996,7 +986,7 @@ class RollingMetricsService {
       profitFactor: 0,
       kellyAtRisk: 0,
       kellyEfficiency: 0,
-      kellyRegret: 0
+      kellyRegret: 0,
     };
   }
 
@@ -1009,14 +999,14 @@ class RollingMetricsService {
 
   public async getSportMetrics(sport: string): Promise<SportMetrics> {
     const windows: MetricsWindow[] = [];
-    
+
     for (const window of ['7d', '30d', 'lifetime'] as const) {
       const metrics = await this.calculateMetricsForWindow(window, sport);
       windows.push(metrics);
     }
 
     const trend = this.analyzeTrend(windows[0], windows[1]);
-    
+
     // Get recent adjustments for this sport
     const { data: adjustments } = await supabaseClient
       .from('learning_adjustments')
@@ -1029,7 +1019,7 @@ class RollingMetricsService {
       sport,
       windows,
       trends: trend,
-      adjustments: adjustments || []
+      adjustments: adjustments || [],
     };
   }
 
@@ -1042,7 +1032,7 @@ class RollingMetricsService {
     const current = await this.calculateMetricsForWindow('30d');
     const historical = await this.calculateMetricsForWindow('lifetime');
     const trends = this.analyzeTrend(current, historical);
-    
+
     // Get recent alerts
     const { data: alerts } = await supabaseClient
       .from('performance_alerts')
@@ -1057,7 +1047,7 @@ class RollingMetricsService {
       current,
       trends,
       alerts: alerts || [],
-      recommendations
+      recommendations,
     };
   }
 
@@ -1066,19 +1056,27 @@ class RollingMetricsService {
     const targets = this.LEARNING_CONFIG.performanceTarget;
 
     if (metrics.metrics.roi < targets.minROI) {
-      recommendations.push(`Increase minimum EV threshold to improve ROI (current: ${metrics.metrics.roi.toFixed(2)}%)`);
+      recommendations.push(
+        `Increase minimum EV threshold to improve ROI (current: ${metrics.metrics.roi.toFixed(2)}%)`
+      );
     }
 
     if (metrics.metrics.hitPercentage < targets.minHitRate * 100) {
-      recommendations.push(`Review pick selection criteria to improve hit rate (current: ${metrics.metrics.hitPercentage.toFixed(1)}%)`);
+      recommendations.push(
+        `Review pick selection criteria to improve hit rate (current: ${metrics.metrics.hitPercentage.toFixed(1)}%)`
+      );
     }
 
     if (metrics.metrics.maxDrawdown > targets.maxDrawdown) {
-      recommendations.push(`Reduce position sizes to limit drawdown risk (current: ${(metrics.metrics.maxDrawdown * 100).toFixed(1)}%)`);
+      recommendations.push(
+        `Reduce position sizes to limit drawdown risk (current: ${(metrics.metrics.maxDrawdown * 100).toFixed(1)}%)`
+      );
     }
 
     if (metrics.metrics.kellyEfficiency < 0.8) {
-      recommendations.push(`Optimize position sizing closer to Kelly criterion (efficiency: ${(metrics.metrics.kellyEfficiency * 100).toFixed(1)}%)`);
+      recommendations.push(
+        `Optimize position sizing closer to Kelly criterion (efficiency: ${(metrics.metrics.kellyEfficiency * 100).toFixed(1)}%)`
+      );
     }
 
     if (trends.volatility > 0.2) {

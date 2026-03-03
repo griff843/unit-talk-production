@@ -43,7 +43,7 @@ export class SystemMonitor {
       network: await this.getNetworkMetrics(),
       database: await this.getDatabaseMetrics(),
       cache: await this.getCacheMetrics(),
-      application: await this.getApplicationMetrics()
+      application: await this.getApplicationMetrics(),
     };
 
     // Store in history
@@ -59,23 +59,23 @@ export class SystemMonitor {
   async checkDatabaseHealth(): Promise<HealthCheck> {
     try {
       const startTime = Date.now();
-      
+
       // Simple connectivity check via Redis (proxy for database health)
       await redisCache.ping();
-      
+
       const latency = Date.now() - startTime;
       const status = latency < 100 ? 'healthy' : latency < 300 ? 'warning' : 'critical';
-      
+
       return {
         status,
         metrics: { latency, timestamp: Date.now() },
-        issues: status !== 'healthy' ? [`High database latency: ${latency}ms`] : undefined
+        issues: status !== 'healthy' ? [`High database latency: ${latency}ms`] : undefined,
       };
     } catch (error) {
       return {
         status: 'critical',
         metrics: { latency: -1 },
-        issues: ['Database connectivity failed']
+        issues: ['Database connectivity failed'],
       };
     }
   }
@@ -85,27 +85,30 @@ export class SystemMonitor {
       const startTime = Date.now();
       const testKey = 'health_check_test';
       const testValue = 'test_value';
-      
+
       await redisCache.set(testKey, testValue, 10);
       const retrievedValue = await redisCache.get(testKey);
-      
+
       const latency = Date.now() - startTime;
       const isWorking = retrievedValue === testValue;
-      
-      const status = isWorking && latency < 50 ? 'healthy' : 
-                     isWorking && latency < 150 ? 'warning' : 'critical';
-      
+
+      const status =
+        isWorking && latency < 50 ? 'healthy' : isWorking && latency < 150 ? 'warning' : 'critical';
+
       return {
         status,
         metrics: { latency, working: isWorking ? 1 : 0 },
-        issues: !isWorking ? ['Cache read/write failed'] : 
-                latency >= 150 ? [`High cache latency: ${latency}ms`] : undefined
+        issues: !isWorking
+          ? ['Cache read/write failed']
+          : latency >= 150
+            ? [`High cache latency: ${latency}ms`]
+            : undefined,
       };
     } catch (error) {
       return {
         status: 'critical',
         metrics: { latency: -1, working: 0 },
-        issues: ['Cache connectivity failed']
+        issues: ['Cache connectivity failed'],
       };
     }
   }
@@ -113,45 +116,45 @@ export class SystemMonitor {
   async checkAgentHealth(): Promise<HealthCheck> {
     const memoryUsage = process.memoryUsage();
     const cpuUsage = process.cpuUsage();
-    
+
     const memoryMB = memoryUsage.heapUsed / 1024 / 1024;
     const isMemoryHealthy = memoryMB < 500; // 500MB threshold
-    
+
     const status = isMemoryHealthy ? 'healthy' : memoryMB < 1000 ? 'warning' : 'critical';
-    
+
     return {
       status,
       metrics: {
         memoryMB,
         cpuUser: cpuUsage.user,
-        cpuSystem: cpuUsage.system
+        cpuSystem: cpuUsage.system,
       },
-      issues: !isMemoryHealthy ? [`High memory usage: ${memoryMB.toFixed(1)}MB`] : undefined
+      issues: !isMemoryHealthy ? [`High memory usage: ${memoryMB.toFixed(1)}MB`] : undefined,
     };
   }
 
   async checkNetworkHealth(): Promise<HealthCheck> {
     try {
       const startTime = Date.now();
-      
+
       // Simple network check via DNS resolution
       require('dns').lookup('google.com', (_err: any) => {
         // This is async but we'll use a simpler approach
       });
-      
+
       const latency = Date.now() - startTime;
       const status = latency < 100 ? 'healthy' : latency < 300 ? 'warning' : 'critical';
-      
+
       return {
         status,
         metrics: { latency },
-        issues: latency >= 300 ? [`High network latency: ${latency}ms`] : undefined
+        issues: latency >= 300 ? [`High network latency: ${latency}ms`] : undefined,
       };
     } catch (error) {
       return {
         status: 'critical',
         metrics: { latency: -1 },
-        issues: ['Network connectivity failed']
+        issues: ['Network connectivity failed'],
       };
     }
   }
@@ -160,19 +163,20 @@ export class SystemMonitor {
     try {
       const _stats = fs.statSync(process.cwd());
       const diskUsage = await this.getDiskUsage();
-      
+
       const status = diskUsage < 0.8 ? 'healthy' : diskUsage < 0.9 ? 'warning' : 'critical';
-      
+
       return {
         status,
         metrics: { diskUsage, available: 1 - diskUsage },
-        issues: diskUsage >= 0.9 ? [`High disk usage: ${(diskUsage * 100).toFixed(1)}%`] : undefined
+        issues:
+          diskUsage >= 0.9 ? [`High disk usage: ${(diskUsage * 100).toFixed(1)}%`] : undefined,
       };
     } catch (error) {
       return {
         status: 'critical',
         metrics: { diskUsage: -1 },
-        issues: ['Storage health check failed']
+        issues: ['Storage health check failed'],
       };
     }
   }
@@ -180,14 +184,14 @@ export class SystemMonitor {
   private async getCpuMetrics(): Promise<SystemMetrics['cpu']> {
     const cpus = os.cpus();
     const loadAvg = os.loadavg();
-    
+
     // Calculate CPU usage (simplified)
     const usage = Math.min(1, loadAvg[0] / cpus.length);
-    
+
     return {
       usage,
       loadAverage: loadAvg,
-      cores: cpus.length
+      cores: cpus.length,
     };
   }
 
@@ -195,23 +199,23 @@ export class SystemMonitor {
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
-    
+
     return {
       usage: usedMem / totalMem,
       total: totalMem,
       free: freeMem,
-      used: usedMem
+      used: usedMem,
     };
   }
 
   private async getDiskMetrics(): Promise<SystemMetrics['disk']> {
     const usage = await this.getDiskUsage();
-    
+
     return {
       usage,
       total: 100, // Simplified
-      free: 100 - (usage * 100),
-      used: usage * 100
+      free: 100 - usage * 100,
+      used: usage * 100,
     };
   }
 
@@ -227,16 +231,16 @@ export class SystemMonitor {
 
   private async getNetworkMetrics(): Promise<SystemMetrics['network']> {
     const startTime = Date.now();
-    
+
     try {
       // Simple latency test
       await new Promise(resolve => setTimeout(resolve, 1));
       const latency = Date.now() - startTime;
-      
+
       return {
         latency: latency + Math.random() * 10, // Add some variance
         bytesIn: Math.random() * 1000000,
-        bytesOut: Math.random() * 500000
+        bytesOut: Math.random() * 500000,
       };
     } catch {
       return { latency: 999, bytesIn: 0, bytesOut: 0 };
@@ -248,17 +252,17 @@ export class SystemMonitor {
       const startTime = Date.now();
       await redisCache.ping();
       const queryTime = Date.now() - startTime;
-      
+
       return {
         avgQueryTime: queryTime,
         activeConnections: 5, // Mock value
-        queryCount: Math.floor(Math.random() * 100)
+        queryCount: Math.floor(Math.random() * 100),
       };
     } catch {
       return {
         avgQueryTime: 999,
         activeConnections: 0,
-        queryCount: 0
+        queryCount: 0,
       };
     }
   }
@@ -269,19 +273,19 @@ export class SystemMonitor {
       const testKey = 'cache_test';
       await redisCache.set(testKey, 'test', 1);
       const retrieved = await redisCache.get(testKey);
-      
+
       const hitRate = retrieved ? 0.85 + Math.random() * 0.1 : 0.5;
-      
+
       return {
         hitRate,
         memoryUsage: Math.random() * 100,
-        keyCount: Math.floor(Math.random() * 1000)
+        keyCount: Math.floor(Math.random() * 1000),
       };
     } catch {
       return {
         hitRate: 0,
         memoryUsage: 0,
-        keyCount: 0
+        keyCount: 0,
       };
     }
   }
@@ -290,7 +294,7 @@ export class SystemMonitor {
     return {
       errorRate: Math.random() * 0.05, // 0-5% error rate
       throughput: 50 + Math.random() * 50, // 50-100 requests/second
-      responseTime: 50 + Math.random() * 100 // 50-150ms response time
+      responseTime: 50 + Math.random() * 100, // 50-150ms response time
     };
   }
 
@@ -316,7 +320,7 @@ export class SystemMonitor {
       JSON.stringify(this.metricsHistory.slice(-50)), // Keep last 50
       86400 // 24 hours TTL
     );
-    
+
     this.metricsHistory.length = 0;
     this.logger.info('🧹 SystemMonitor cleanup completed');
   }

@@ -2,7 +2,7 @@
 
 /**
  * Analyze Over/Under Props in Player Names
- * 
+ *
  * Identifies team total props incorrectly placed in player_name field
  * and analyzes API call efficiency issues.
  */
@@ -23,7 +23,7 @@ async function analyzeOverUnderIssue() {
   try {
     console.log('\n📊 PHASE 1: IDENTIFY OVER/UNDER IN PLAYER NAMES');
     console.log('===============================================');
-    
+
     // Check for Over/Under in player names
     const { data: overUnders, error } = await supabaseClient
       .from('raw_props')
@@ -37,7 +37,7 @@ async function analyzeOverUnderIssue() {
     }
 
     console.log(`📋 Found ${overUnders?.length || 0} props with Over/Under in player_name:`);
-    
+
     if (overUnders && overUnders.length > 0) {
       for (const prop of overUnders) {
         console.log(`\n  📋 player_name: "${prop.player_name}"`);
@@ -58,12 +58,14 @@ async function analyzeOverUnderIssue() {
       .or('player_name.ilike.%over%,player_name.ilike.%under%');
 
     if (!countError) {
-      console.log(`\n📊 Total Over/Under props in player_name: ${totalOverUnders?.toLocaleString()}`);
+      console.log(
+        `\n📊 Total Over/Under props in player_name: ${totalOverUnders?.toLocaleString()}`
+      );
     }
 
     console.log('\n🔍 PHASE 2: API CALL EFFICIENCY ANALYSIS');
     console.log('========================================');
-    
+
     // Analyze recent API calls and their structure
     console.log('\n💡 Odds API Call Structure Analysis:');
     console.log('====================================');
@@ -72,15 +74,15 @@ async function analyzeOverUnderIssue() {
     console.log('  - Returns ALL games for that sport');
     console.log('  - Returns ALL markets (h2h, spreads, totals) in ONE call');
     console.log('  - Returns ALL bookmakers in ONE call');
-    
+
     console.log('\n📊 Expected vs Reality:');
     console.log('=======================');
     console.log('Expected Credits Used: 1 credit per sport');
     console.log('  - NCAAF: 1 credit');
-    console.log('  - NFL: 1 credit'); 
+    console.log('  - NFL: 1 credit');
     console.log('  - NBA: 1 credit');
     console.log('  - etc.');
-    
+
     console.log('\nCurrent Credit Tracking: 0/500 used');
     console.log('  - Either tracking is broken');
     console.log('  - Or we have not made API calls yet');
@@ -88,7 +90,7 @@ async function analyzeOverUnderIssue() {
 
     console.log('\n🎯 PHASE 3: DATA CLASSIFICATION ISSUES');
     console.log('=====================================');
-    
+
     // Check for team totals vs player props
     const { data: teamTotals, error: teamError } = await supabaseClient
       .from('raw_props')
@@ -106,7 +108,7 @@ async function analyzeOverUnderIssue() {
 
     console.log('\n🔧 PHASE 4: PROPOSED SOLUTIONS');
     console.log('===============================');
-    
+
     console.log('\n1️⃣ FIX OVER/UNDER CLASSIFICATION:');
     console.log('===================================');
     console.log('Problem: Team totals showing as player names');
@@ -146,15 +148,17 @@ async function analyzeOverUnderIssue() {
     console.log('  team: "Team Name"');
     console.log('  stat_type: "team_total"');
     console.log('  outcome: "over" or "under"');
-    
+
     console.log('\nPLAYER PROPS:');
     console.log('  player_name: "Actual Player Name"');
     console.log('  team: "Team Name"');
     console.log('  stat_type: "points", "rebounds", etc.');
     console.log('  outcome: "over" or "under"');
-
   } catch (error) {
-    console.error('\n❌ Analysis failed:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      '\n❌ Analysis failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     throw error;
   }
 }
@@ -166,7 +170,7 @@ if (require.main === module) {
       console.log('\n✅ Over/Under analysis completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Analysis crashed:', error);
       process.exit(1);
     });

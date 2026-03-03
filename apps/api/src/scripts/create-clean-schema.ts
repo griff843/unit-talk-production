@@ -2,7 +2,7 @@
 
 /**
  * Create Clean Schema for Props Management
- * 
+ *
  * Creates separate tables for different prop types and migrates data
  * with proper categorization and validation.
  */
@@ -23,31 +23,33 @@ async function createCleanSchema() {
   try {
     // 1. Analyze current data issues
     console.log('\n📊 Step 1: Current data analysis...');
-    
-    const { count: totalProps } = await supabaseClient
-      .from('raw_props')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: ncaafAsOther } = await supabaseClient
+    const { count: totalProps } = (await supabaseClient
+      .from('raw_props')
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
+
+    const { count: ncaafAsOther } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
       .eq('league', 'NCAAF')
-      .neq('sport', 'NCAAF') || { count: 0 };
+      .neq('sport', 'NCAAF')) || { count: 0 };
 
-    const { count: overUnderInPlayer } = await supabaseClient
+    const { count: overUnderInPlayer } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .in('player_name', ['Over', 'Under']) || { count: 0 };
+      .in('player_name', ['Over', 'Under'])) || { count: 0 };
 
     console.log(`📈 Data Quality Issues Found:`);
     console.log(`  Total props: ${totalProps}`);
-    console.log(`  NCAAF mislabeled as other sports: ${ncaafAsOther} (${((ncaafAsOther || 0) / (totalProps || 1) * 100).toFixed(1)}%)`);
+    console.log(
+      `  NCAAF mislabeled as other sports: ${ncaafAsOther} (${(((ncaafAsOther || 0) / (totalProps || 1)) * 100).toFixed(1)}%)`
+    );
     console.log(`  Over/Under in player_name field: ${overUnderInPlayer}`);
 
     // 2. Create improved schema structure
     console.log('\n🏗️ Step 2: Creating improved schema...');
     console.log('⚠️ This will add columns to raw_props table');
-    
+
     const schemaSQL = `
       -- Add categorization columns
       ALTER TABLE raw_props 
@@ -64,14 +66,11 @@ async function createCleanSchema() {
 
     // Since we can't use RPC, let's do this programmatically
     // First check if columns exist
-    const { data: sampleRow } = await supabaseClient
-      .from('raw_props')
-      .select('*')
-      .limit(1);
+    const { data: sampleRow } = await supabaseClient.from('raw_props').select('*').limit(1);
 
     if (sampleRow && sampleRow.length > 0) {
       const hasNewColumns = 'prop_category' in sampleRow[0];
-      
+
       if (hasNewColumns) {
         console.log('✅ Schema columns already exist');
       } else {
@@ -96,19 +95,21 @@ async function createCleanSchema() {
     if (sampleData) {
       console.log('\n📋 Sample data before migration:');
       sampleData.forEach((row, i) => {
-        console.log(`${i+1}. ${row.sport}/${row.league} | "${row.player_name}" | ${row.stat_type}`);
+        console.log(
+          `${i + 1}. ${row.sport}/${row.league} | "${row.player_name}" | ${row.stat_type}`
+        );
       });
     }
 
     // Migration will be done in batches
     let migratedCount = 0;
     const BATCH_SIZE = 100;
-    
+
     console.log(`\n🔄 Starting data migration in batches of ${BATCH_SIZE}...`);
 
     // Batch 1: Fix NCAAF sport classification
     console.log('\n📝 Batch 1: Fixing NCAAF sport classification...');
-    
+
     const { data: ncaafRecords, error: ncaafError } = await supabaseClient
       .from('raw_props')
       .select('id')
@@ -124,9 +125,12 @@ async function createCleanSchema() {
         .update({
           standardized_sport: 'NCAAF',
           data_quality_score: 0.9,
-          needs_review: false
+          needs_review: false,
         })
-        .in('id', ncaafRecords.map(r => r.id));
+        .in(
+          'id',
+          ncaafRecords.map(r => r.id)
+        );
 
       if (updateError) {
         console.warn('NCAAF update failed:', updateError.message);
@@ -138,7 +142,7 @@ async function createCleanSchema() {
 
     // Batch 2: Categorize team props (Over/Under)
     console.log('\n📝 Batch 2: Categorizing team props...');
-    
+
     const { data: teamPropRecords, error: teamError } = await supabaseClient
       .from('raw_props')
       .select('id, player_name, matchup, stat_type')
@@ -151,14 +155,14 @@ async function createCleanSchema() {
       // Process each record to extract team name from matchup
       for (const record of teamPropRecords) {
         const teamName = extractTeamName(record.matchup, record.player_name);
-        
+
         const { error: updateError } = await supabaseClient
           .from('raw_props')
           .update({
             prop_category: 'team',
             team_name: teamName,
             standardized_stat: record.stat_type?.toLowerCase(),
-            data_quality_score: 0.8
+            data_quality_score: 0.8,
           })
           .eq('id', record.id);
 
@@ -166,29 +170,31 @@ async function createCleanSchema() {
           migratedCount++;
         }
       }
-      
+
       console.log(`✅ Categorized ${teamPropRecords.length} team prop records`);
     }
 
     // 4. Final verification
     console.log('\n📊 Step 4: Migration verification...');
-    
-    const { count: fixedNcaaf } = await supabaseClient
-      .from('raw_props')
-      .select('*', { count: 'exact', head: true })
-      .eq('standardized_sport', 'NCAAF') || { count: 0 };
 
-    const { count: categorizedTeam } = await supabaseClient
+    const { count: fixedNcaaf } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .eq('prop_category', 'team') || { count: 0 };
+      .eq('standardized_sport', 'NCAAF')) || { count: 0 };
+
+    const { count: categorizedTeam } = (await supabaseClient
+      .from('raw_props')
+      .select('*', { count: 'exact', head: true })
+      .eq('prop_category', 'team')) || { count: 0 };
 
     console.log('\n🎊 MIGRATION RESULTS:');
     console.log('====================');
     console.log(`📊 Records processed: ${migratedCount}`);
     console.log(`🏈 NCAAF properly classified: ${fixedNcaaf}`);
     console.log(`🏈 Team props categorized: ${categorizedTeam}`);
-    console.log(`📈 Data quality improvement: ${((migratedCount / (totalProps || 1)) * 100).toFixed(1)}%`);
+    console.log(
+      `📈 Data quality improvement: ${((migratedCount / (totalProps || 1)) * 100).toFixed(1)}%`
+    );
 
     // 5. Recommendations for next steps
     console.log('\n💡 NEXT STEPS:');
@@ -198,28 +204,30 @@ async function createCleanSchema() {
     console.log('3. 🏗️ Consider creating separate tables for player_props vs team_props');
     console.log('4. 📊 Set up monitoring for data quality scores');
     console.log('5. 🧪 Test FeedAgent with improved data structure');
-
   } catch (error) {
-    console.error('\n❌ Schema creation failed:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      '\n❌ Schema creation failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
   }
 }
 
 function extractTeamName(matchup: string, overUnder: string): string {
   if (!matchup) return 'Unknown Team';
-  
+
   // Handle different matchup formats
   if (matchup.includes(' @ ')) {
     const [away, home] = matchup.split(' @ ');
     // For Over/Under, we could use either team or a generic name
     return overUnder === 'Over' ? home : away;
   }
-  
+
   if (matchup.includes(' vs ')) {
     const [team1, team2] = matchup.split(' vs ');
     return overUnder === 'Over' ? team1 : team2;
   }
-  
+
   // Fallback
   return matchup.split(' ')[0] || 'Unknown Team';
 }
@@ -231,7 +239,7 @@ if (require.main === module) {
       console.log('\n✅ Clean schema creation completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Schema creation crashed:', error);
       process.exit(1);
     });

@@ -12,16 +12,16 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export interface DeviggingResult {
-  trueProb: number;          // True probability after vig removal
-  fairOdds: number;          // Fair American odds (-110 -> -100)
-  totalVig: number;          // Total vig percentage
-  edge: number;              // Edge vs market (positive = value)
+  trueProb: number; // True probability after vig removal
+  fairOdds: number; // Fair American odds (-110 -> -100)
+  totalVig: number; // Total vig percentage
+  edge: number; // Edge vs market (positive = value)
   impliedProbability: number; // Original implied probability with vig
 }
 
 export interface TwoWayMarket {
-  odds1: number;  // American odds for outcome 1
-  odds2: number;  // American odds for outcome 2
+  odds1: number; // American odds for outcome 1
+  odds2: number; // American odds for outcome 2
 }
 
 export interface MultiWayMarket {
@@ -64,27 +64,94 @@ export class DeviggingService {
   // Default vig patterns by book type
   private readonly DEFAULT_VIG_PATTERNS: Record<string, Partial<BookVigPattern>> = {
     // Sharp books - low vig, minimal FLB
-    pinnacle: { avgVig: 0.025, favoriteOverround: 0.001, longshotOverround: 0.001, flbCoefficient: 0.01, recommendedMethod: 'multiplicative' },
-    circa: { avgVig: 0.035, favoriteOverround: 0.002, longshotOverround: 0.002, flbCoefficient: 0.015, recommendedMethod: 'multiplicative' },
-    bookmaker: { avgVig: 0.030, favoriteOverround: 0.002, longshotOverround: 0.002, flbCoefficient: 0.015, recommendedMethod: 'multiplicative' },
-    superbook: { avgVig: 0.035, favoriteOverround: 0.003, longshotOverround: 0.003, flbCoefficient: 0.02, recommendedMethod: 'multiplicative' },
+    pinnacle: {
+      avgVig: 0.025,
+      favoriteOverround: 0.001,
+      longshotOverround: 0.001,
+      flbCoefficient: 0.01,
+      recommendedMethod: 'multiplicative',
+    },
+    circa: {
+      avgVig: 0.035,
+      favoriteOverround: 0.002,
+      longshotOverround: 0.002,
+      flbCoefficient: 0.015,
+      recommendedMethod: 'multiplicative',
+    },
+    bookmaker: {
+      avgVig: 0.03,
+      favoriteOverround: 0.002,
+      longshotOverround: 0.002,
+      flbCoefficient: 0.015,
+      recommendedMethod: 'multiplicative',
+    },
+    superbook: {
+      avgVig: 0.035,
+      favoriteOverround: 0.003,
+      longshotOverround: 0.003,
+      flbCoefficient: 0.02,
+      recommendedMethod: 'multiplicative',
+    },
 
     // Soft books - higher vig, more FLB
-    draftkings: { avgVig: 0.0455, favoriteOverround: 0.015, longshotOverround: 0.020, flbCoefficient: 0.05, recommendedMethod: 'power' },
-    fanduel: { avgVig: 0.0455, favoriteOverround: 0.015, longshotOverround: 0.020, flbCoefficient: 0.05, recommendedMethod: 'power' },
-    betmgm: { avgVig: 0.0455, favoriteOverround: 0.018, longshotOverround: 0.025, flbCoefficient: 0.06, recommendedMethod: 'power' },
-    caesars: { avgVig: 0.0455, favoriteOverround: 0.015, longshotOverround: 0.020, flbCoefficient: 0.05, recommendedMethod: 'power' },
-    pointsbet: { avgVig: 0.050, favoriteOverround: 0.020, longshotOverround: 0.025, flbCoefficient: 0.06, recommendedMethod: 'power' },
-    bovada: { avgVig: 0.050, favoriteOverround: 0.020, longshotOverround: 0.030, flbCoefficient: 0.07, recommendedMethod: 'power' },
+    draftkings: {
+      avgVig: 0.0455,
+      favoriteOverround: 0.015,
+      longshotOverround: 0.02,
+      flbCoefficient: 0.05,
+      recommendedMethod: 'power',
+    },
+    fanduel: {
+      avgVig: 0.0455,
+      favoriteOverround: 0.015,
+      longshotOverround: 0.02,
+      flbCoefficient: 0.05,
+      recommendedMethod: 'power',
+    },
+    betmgm: {
+      avgVig: 0.0455,
+      favoriteOverround: 0.018,
+      longshotOverround: 0.025,
+      flbCoefficient: 0.06,
+      recommendedMethod: 'power',
+    },
+    caesars: {
+      avgVig: 0.0455,
+      favoriteOverround: 0.015,
+      longshotOverround: 0.02,
+      flbCoefficient: 0.05,
+      recommendedMethod: 'power',
+    },
+    pointsbet: {
+      avgVig: 0.05,
+      favoriteOverround: 0.02,
+      longshotOverround: 0.025,
+      flbCoefficient: 0.06,
+      recommendedMethod: 'power',
+    },
+    bovada: {
+      avgVig: 0.05,
+      favoriteOverround: 0.02,
+      longshotOverround: 0.03,
+      flbCoefficient: 0.07,
+      recommendedMethod: 'power',
+    },
 
     // Default for unknown books
-    default: { avgVig: 0.0455, favoriteOverround: 0.015, longshotOverround: 0.020, flbCoefficient: 0.05, recommendedMethod: 'power' },
+    default: {
+      avgVig: 0.0455,
+      favoriteOverround: 0.015,
+      longshotOverround: 0.02,
+      flbCoefficient: 0.05,
+      recommendedMethod: 'power',
+    },
   };
 
   private constructor() {
     // Initialize Supabase client if credentials available
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    const supabaseKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
     if (supabaseUrl && supabaseKey) {
       this.supabase = createClient(supabaseUrl, supabaseKey);
@@ -127,10 +194,7 @@ export class DeviggingService {
     const method = ['multiplicative', 'additive', 'power'].includes(vigPattern.recommendedMethod)
       ? (vigPattern.recommendedMethod as 'multiplicative' | 'additive' | 'power')
       : 'power';
-    const result = this.devigTwoWay(
-      { odds1: params.overOdds, odds2: params.underOdds },
-      method
-    );
+    const result = this.devigTwoWay({ odds1: params.overOdds, odds2: params.underOdds }, method);
 
     return {
       ...result,
@@ -196,14 +260,14 @@ export class DeviggingService {
         fairOdds: this.probToAmericanOdds(trueProb1),
         totalVig: vig * 100,
         edge: 0,
-        impliedProbability: prob1
+        impliedProbability: prob1,
       },
       outcome2: {
         trueProb: trueProb2,
         fairOdds: this.probToAmericanOdds(trueProb2),
         totalVig: vig * 100,
         edge: 0,
-        impliedProbability: prob2
+        impliedProbability: prob2,
       },
       totalVig: vig * 100,
       deviggedEdge: Math.max(0, trueProb1 - 0.5),
@@ -215,7 +279,10 @@ export class DeviggingService {
    * Pinnacle-specific devigging (most accurate)
    * Pinnacle has lowest vig (~2.5%) and minimal FLB
    */
-  public devigPinnacle(overOdds: number, underOdds: number): {
+  public devigPinnacle(
+    overOdds: number,
+    underOdds: number
+  ): {
     trueOverProb: number;
     trueUnderProb: number;
     vig: number;
@@ -309,7 +376,7 @@ export class DeviggingService {
       marketType,
       avgVig: defaultConfig.avgVig || 0.0455,
       favoriteOverround: defaultConfig.favoriteOverround || 0.015,
-      longshotOverround: defaultConfig.longshotOverround || 0.020,
+      longshotOverround: defaultConfig.longshotOverround || 0.02,
       flbCoefficient: defaultConfig.flbCoefficient || 0.05,
       recommendedMethod: defaultConfig.recommendedMethod || 'multiplicative',
     };
@@ -348,7 +415,10 @@ export class DeviggingService {
    * Devig two-way market using multiplicative method
    * This is the industry standard for two-outcome markets
    */
-  public devigTwoWay(market: TwoWayMarket, method: 'multiplicative' | 'additive' | 'power' = 'multiplicative'): {
+  public devigTwoWay(
+    market: TwoWayMarket,
+    method: 'multiplicative' | 'additive' | 'power' = 'multiplicative'
+  ): {
     outcome1: DeviggingResult;
     outcome2: DeviggingResult;
     totalVig: number;
@@ -381,7 +451,7 @@ export class DeviggingService {
       case 'power': {
         // Advanced method - uses power function (more accurate for favorites)
         const k = Math.log(totalImplied) / Math.log(2);
-        trueProb1 = Math.pow(prob1, 1/k) / (Math.pow(prob1, 1/k) + Math.pow(prob2, 1/k));
+        trueProb1 = Math.pow(prob1, 1 / k) / (Math.pow(prob1, 1 / k) + Math.pow(prob2, 1 / k));
         trueProb2 = 1 - trueProb1;
         break;
       }
@@ -393,18 +463,18 @@ export class DeviggingService {
         fairOdds: this.probToAmericanOdds(trueProb1),
         totalVig: vig * 100,
         edge: 0, // Will be calculated when comparing to model
-        impliedProbability: prob1
+        impliedProbability: prob1,
       },
       outcome2: {
         trueProb: trueProb2,
         fairOdds: this.probToAmericanOdds(trueProb2),
         totalVig: vig * 100,
         edge: 0,
-        impliedProbability: prob2
+        impliedProbability: prob2,
       },
       totalVig: vig * 100,
       // Calculate simple edge for outcome1 (over) for compatibility
-      deviggedEdge: Math.max(0, trueProb1 - 0.5)
+      deviggedEdge: Math.max(0, trueProb1 - 0.5),
     };
   }
 
@@ -412,7 +482,10 @@ export class DeviggingService {
    * Devig multi-way market (3+ outcomes)
    * Used for futures, props with multiple outcomes
    */
-  public devigMultiWay(market: MultiWayMarket, method: 'multiplicative' | 'shin' = 'multiplicative'): {
+  public devigMultiWay(
+    market: MultiWayMarket,
+    method: 'multiplicative' | 'shin' = 'multiplicative'
+  ): {
     outcomes: DeviggingResult[];
     totalVig: number;
   } {
@@ -435,12 +508,12 @@ export class DeviggingService {
       fairOdds: this.probToAmericanOdds(trueProb),
       totalVig: vig * 100,
       edge: 0,
-      impliedProbability: probabilities[index]
+      impliedProbability: probabilities[index],
     }));
 
     return {
       outcomes,
-      totalVig: vig * 100
+      totalVig: vig * 100,
     };
   }
 
@@ -451,7 +524,7 @@ export class DeviggingService {
   private shinDevigging(probabilities: number[]): number[] {
     const n = probabilities.length;
     const totalImplied = probabilities.reduce((sum, p) => sum + p, 0);
-    
+
     // Solve for z using Newton-Raphson method
     let z = (totalImplied - 1) / (n - 1);
     for (let i = 0; i < 10; i++) {
@@ -490,24 +563,28 @@ export class DeviggingService {
    * Devig exchange odds (back/lay)
    * Exchanges have different vig structure
    */
-  public devigExchange(backOdds: number, layOdds: number, commission: number = 0.02): DeviggingResult {
+  public devigExchange(
+    backOdds: number,
+    layOdds: number,
+    commission: number = 0.02
+  ): DeviggingResult {
     // Convert decimal odds to probability
     const backProb = 1 / backOdds;
-    const layProb = 1 - (1 / layOdds);
-    
+    const layProb = 1 - 1 / layOdds;
+
     // Account for commission
     const effectiveBackProb = backProb * (1 - commission);
     const effectiveLayProb = layProb * (1 - commission);
-    
+
     // True probability is midpoint
     const trueProb = (effectiveBackProb + effectiveLayProb) / 2;
-    
+
     return {
       trueProb,
       fairOdds: this.probToAmericanOdds(trueProb),
-      totalVig: ((1 / effectiveBackProb + 1 / (1 - effectiveLayProb)) - 1) * 100,
+      totalVig: (1 / effectiveBackProb + 1 / (1 - effectiveLayProb) - 1) * 100,
       edge: 0,
-      impliedProbability: backProb
+      impliedProbability: backProb,
     };
   }
 
@@ -516,7 +593,7 @@ export class DeviggingService {
    * Live odds have higher vig and time-based adjustments
    */
   public devigLive(
-    market: TwoWayMarket, 
+    market: TwoWayMarket,
     gameProgress: number, // 0-1 (0 = start, 1 = end)
     baseVigMultiplier: number = 1.5 // Live typically has 50% higher vig
   ): {
@@ -526,17 +603,17 @@ export class DeviggingService {
   } {
     // First devig normally
     const devigged = this.devigTwoWay(market);
-    
+
     // Adjust for live betting characteristics
-    const timeAdjustment = 1 + (gameProgress * 0.2); // Up to 20% adjustment late game
+    const timeAdjustment = 1 + gameProgress * 0.2; // Up to 20% adjustment late game
     const liveVigMultiplier = baseVigMultiplier * timeAdjustment;
-    
+
     // Recalculate with live adjustments
     const adjustedVig = devigged.totalVig * liveVigMultiplier;
-    
+
     return {
       ...devigged,
-      totalVig: adjustedVig
+      totalVig: adjustedVig,
     };
   }
 
@@ -545,7 +622,7 @@ export class DeviggingService {
    * This is the KEY calculation for finding value
    */
   public calculateEdge(
-    modelProb: number, 
+    modelProb: number,
     marketOdds: number,
     includeKellyMultiplier: boolean = true
   ): {
@@ -555,43 +632,46 @@ export class DeviggingService {
     hasValue: boolean;
   } {
     // Devig the market odds (assuming two-way for now)
-    const oppositeOdds = modelProb > 0.5 ? 100 / (1 - modelProb) - 100 : -100 * (1 - modelProb) / modelProb;
+    const oppositeOdds =
+      modelProb > 0.5 ? 100 / (1 - modelProb) - 100 : (-100 * (1 - modelProb)) / modelProb;
     const market = { odds1: marketOdds, odds2: oppositeOdds };
     const devigged = this.devigTwoWay(market);
-    
+
     const marketProb = devigged.outcome1.trueProb;
     const edge = modelProb - marketProb;
-    
+
     // Calculate expected value
-    const decimalOdds = marketOdds > 0 ? (marketOdds / 100) + 1 : (100 / Math.abs(marketOdds)) + 1;
-    const expectedValue = (modelProb * decimalOdds) - 1;
-    
+    const decimalOdds = marketOdds > 0 ? marketOdds / 100 + 1 : 100 / Math.abs(marketOdds) + 1;
+    const expectedValue = modelProb * decimalOdds - 1;
+
     // Kelly calculation
     const kellyFraction = expectedValue > 0 ? expectedValue / (decimalOdds - 1) : 0;
-    
+
     return {
       edge: edge * 100, // As percentage
       expectedValue: expectedValue * 100,
       kellyFraction: includeKellyMultiplier ? kellyFraction * 0.25 : kellyFraction, // 1/4 Kelly
-      hasValue: edge > 0.02 // 2% minimum edge threshold
+      hasValue: edge > 0.02, // 2% minimum edge threshold
     };
   }
 
   /**
    * Batch devig multiple markets efficiently
    */
-  public devigBatch(markets: Array<{
-    id: string;
-    type: 'two-way' | 'multi-way';
-    odds: number[];
-  }>): Map<string, DeviggingResult[]> {
+  public devigBatch(
+    markets: Array<{
+      id: string;
+      type: 'two-way' | 'multi-way';
+      odds: number[];
+    }>
+  ): Map<string, DeviggingResult[]> {
     const results = new Map<string, DeviggingResult[]>();
-    
+
     for (const market of markets) {
       if (market.type === 'two-way' && market.odds.length === 2) {
         const devigged = this.devigTwoWay({
           odds1: market.odds[0],
-          odds2: market.odds[1]
+          odds2: market.odds[1],
         });
         results.set(market.id, [devigged.outcome1, devigged.outcome2]);
       } else {
@@ -599,7 +679,7 @@ export class DeviggingService {
         results.set(market.id, devigged.outcomes);
       }
     }
-    
+
     return results;
   }
 }

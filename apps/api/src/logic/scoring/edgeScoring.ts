@@ -2,11 +2,7 @@
 
 import { PropObject } from '../../types/propTypes';
 import { EDGE_CONFIG } from '../config/edgeConfig';
-import { 
-  zoneThreatRating, 
-  calculateZoneThreatBoost, 
-  logZoneThreatDecision
-} from '../zoneThreat';
+import { zoneThreatRating, calculateZoneThreatBoost, logZoneThreatDecision } from '../zoneThreat';
 
 interface PitcherStats {
   pitcherId: string;
@@ -42,7 +38,9 @@ function extractPitcherStats(prop: PropObject): PitcherStats | null {
   }
 
   const toNumber = (value: unknown): number => {
-    if (typeof value === 'number') {return value;}
+    if (typeof value === 'number') {
+      return value;
+    }
     if (typeof value === 'string') {
       const parsed = parseFloat(value);
       return isNaN(parsed) ? 0 : parsed;
@@ -51,14 +49,20 @@ function extractPitcherStats(prop: PropObject): PitcherStats | null {
   };
 
   return {
-    pitcherId: typeof prop['pitcher_id'] === 'string' ? prop['pitcher_id'] : String(prop['pitcher_id'] || ''),
-    name: typeof prop['pitcher_name'] === 'string' ? prop['pitcher_name'] : String(prop['pitcher_name'] || ''),
+    pitcherId:
+      typeof prop['pitcher_id'] === 'string'
+        ? prop['pitcher_id']
+        : String(prop['pitcher_id'] || ''),
+    name:
+      typeof prop['pitcher_name'] === 'string'
+        ? prop['pitcher_name']
+        : String(prop['pitcher_name'] || ''),
     hrPer9: toNumber(prop['pitcher_hr_per_9']),
     barrelPercent: toNumber(prop['pitcher_barrel_pct']),
     meatballPercent: toNumber(prop['pitcher_meatball_pct']),
     hittableCountPct: toNumber(prop['pitcher_hittable_count_pct']),
     recentHRs: toNumber(prop['pitcher_recent_hrs']),
-    walkRate: toNumber(prop['pitcher_walk_rate'])
+    walkRate: toNumber(prop['pitcher_walk_rate']),
   };
 }
 
@@ -68,7 +72,9 @@ function extractPitcherStats(prop: PropObject): PitcherStats | null {
  */
 function extractMatchupData(prop: PropObject): MatchupData | null {
   const toNumber = (value: unknown): number => {
-    if (typeof value === 'number') {return value;}
+    if (typeof value === 'number') {
+      return value;
+    }
     if (typeof value === 'string') {
       const parsed = parseFloat(value);
       return isNaN(parsed) ? 0 : parsed;
@@ -77,8 +83,12 @@ function extractMatchupData(prop: PropObject): MatchupData | null {
   };
 
   const toBoolean = (value: unknown): boolean => {
-    if (typeof value === 'boolean') {return value;}
-    if (typeof value === 'string') {return value.toLowerCase() === 'true';}
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true';
+    }
     return false;
   };
 
@@ -91,7 +101,7 @@ function extractMatchupData(prop: PropObject): MatchupData | null {
     batterBarrel: toNumber(prop['batter_barrel_pct']),
     batterLaunch: toNumber(prop['batter_launch_angle']),
     parkFactor: toNumber(prop['park_factor']) || 1.0,
-    windOut: toBoolean(prop['wind_out'])
+    windOut: toBoolean(prop['wind_out']),
   };
 }
 
@@ -105,14 +115,17 @@ function isZoneThreatEligible(prop: PropObject): boolean {
 
   // Check if market type is eligible for Zone Threat boost
   const eligibleMarkets = EDGE_CONFIG.zoneThreat.hrMarkets;
-  const marketEligible = eligibleMarkets.includes(prop['market_type']) || prop['is_rocket'] === true;
+  const marketEligible =
+    eligibleMarkets.includes(prop['market_type']) || prop['is_rocket'] === true;
 
   if (!marketEligible) {
     return false;
   }
 
   // Check if required pitcher data is present
-  const hasPitcherData = prop['pitcher_id'] && prop['pitcher_name'] &&
+  const hasPitcherData =
+    prop['pitcher_id'] &&
+    prop['pitcher_name'] &&
     typeof prop['pitcher_hr_per_9'] === 'number' &&
     typeof prop['pitcher_barrel_pct'] === 'number';
 
@@ -121,7 +134,8 @@ function isZoneThreatEligible(prop: PropObject): boolean {
   }
 
   // Check if required matchup data is present
-  const hasMatchupData = typeof prop['batter_barrel_pct'] === 'number' &&
+  const hasMatchupData =
+    typeof prop['batter_barrel_pct'] === 'number' &&
     typeof prop['batter_launch_angle'] === 'number';
 
   if (!hasMatchupData) {
@@ -167,7 +181,10 @@ export function finalEdgeScore(
   }
 
   // Matchup professional_score
-  if (prop['matchup_score'] !== undefined && prop['matchup_score'] > config.matchup_score.threshold) {
+  if (
+    prop['matchup_score'] !== undefined &&
+    prop['matchup_score'] > config.matchup_score.threshold
+  ) {
     professional_score += config.matchup_score.strong;
     breakdown['matchup_score'] = config.matchup_score.strong;
   }
@@ -185,7 +202,10 @@ export function finalEdgeScore(
   }
 
   // Line value
-  if (prop['line_value_score'] !== undefined && prop['line_value_score'] > config.line_value_score.threshold) {
+  if (
+    prop['line_value_score'] !== undefined &&
+    prop['line_value_score'] > config.line_value_score.threshold
+  ) {
     professional_score += config.line_value_score.strong;
     breakdown['line_value_score'] = config.line_value_score.strong;
   }
@@ -211,7 +231,7 @@ export function finalEdgeScore(
     if (pitcherStats && matchupData) {
       const threatResult = zoneThreatRating(matchupData, {
         thresholds: { low: 1, medium: 3, high: 5 },
-        weights: { batterBarrel: 1, batterLaunch: 1, parkFactor: 0.5 }
+        weights: { batterBarrel: 1, batterLaunch: 1, parkFactor: 0.5 },
       });
       const zoneThreatBoost = calculateZoneThreatBoost(threatResult);
 
@@ -241,11 +261,16 @@ export function finalEdgeScore(
     tier = adminOverrideTier;
     breakdown['override'] = `Forced to ${tier}`;
   } else {
-    tier = professional_score >= 23 ? 'S'
-      : professional_score >= 20 ? 'A'
-      : professional_score >= 15 ? 'B'
-      : professional_score >= 10 ? 'C'
-      : 'D';
+    tier =
+      professional_score >= 23
+        ? 'S'
+        : professional_score >= 20
+          ? 'A'
+          : professional_score >= 15
+            ? 'B'
+            : professional_score >= 10
+              ? 'C'
+              : 'D';
   }
 
   // Postable + Solo Lock Logic
@@ -263,10 +288,10 @@ export function scorePropEdge(prop: PropObject): {
   edge_breakdown: ScoreBreakdown;
 } {
   const result = finalEdgeScore(prop, EDGE_CONFIG);
-  
+
   // Filter out internal-only tags before returning
   const publicTags = result.tags.filter(tag => !tag.startsWith('zone-threat'));
-  
+
   // Create public breakdown (remove internal Zone Threat details)
   const publicBreakdown = { ...result.breakdown };
   delete publicBreakdown['zone_threat_boost'];
@@ -276,7 +301,7 @@ export function scorePropEdge(prop: PropObject): {
     edge_score: result.score,
     tier: result.tier,
     context_tags: publicTags,
-    edge_breakdown: publicBreakdown
+    edge_breakdown: publicBreakdown,
   };
 }
 
@@ -307,16 +332,20 @@ export function getInternalScoringDetails(prop: PropObject): {
     const pitcherStats = extractPitcherStats(prop);
     zoneThreatAnalysis = {
       eligible: true,
-      ...(result.breakdown['zone_threat_level'] && { threatLevel: result.breakdown['zone_threat_level'] as string }),
-      ...(result.breakdown['zone_threat_boost'] !== undefined && { boostApplied: result.breakdown['zone_threat_boost'] as number || 0 }),
-      ...(pitcherStats?.name && { pitcherName: pitcherStats.name })
+      ...(result.breakdown['zone_threat_level'] && {
+        threatLevel: result.breakdown['zone_threat_level'] as string,
+      }),
+      ...(result.breakdown['zone_threat_boost'] !== undefined && {
+        boostApplied: (result.breakdown['zone_threat_boost'] as number) || 0,
+      }),
+      ...(pitcherStats?.name && { pitcherName: pitcherStats.name }),
     };
   } else {
     zoneThreatAnalysis = { eligible: false };
   }
-  
+
   return {
     ...result,
-    zoneThreatAnalysis
+    zoneThreatAnalysis,
   };
 }

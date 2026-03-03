@@ -7,4 +7,4 @@ interface BaseParams {
 
 export interface CampaignAgentActivities {
   createCampaign(params: BaseParams): Promise<ActivityResult>;
-} 
+}

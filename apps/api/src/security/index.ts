@@ -60,7 +60,7 @@ export class InputValidator {
     if (typeof input !== 'string') {
       return '';
     }
-    
+
     return input
       .trim()
       .replace(/[<>]/g, '') // Remove potential HTML tags
@@ -75,30 +75,30 @@ export class InputValidator {
 
   static validatePassword(password: string): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
-    
+
     if (password.length < 8) {
       errors.push('Password must be at least 8 characters long');
     }
-    
+
     if (!/[A-Z]/.test(password)) {
       errors.push('Password must contain at least one uppercase letter');
     }
-    
+
     if (!/[a-z]/.test(password)) {
       errors.push('Password must contain at least one lowercase letter');
     }
-    
+
     if (!/\d/.test(password)) {
       errors.push('Password must contain at least one number');
     }
-    
+
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
       errors.push('Password must contain at least one special character');
     }
-    
+
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -112,9 +112,9 @@ export class InputValidator {
     if (typeof obj !== 'object' || obj === null) {
       return obj;
     }
-    
+
     const sanitized: any = {};
-    
+
     for (const [key, value] of Object.entries(obj)) {
       if (typeof value === 'string') {
         sanitized[key] = this.sanitizeString(value);
@@ -124,7 +124,7 @@ export class InputValidator {
         sanitized[key] = value;
       }
     }
-    
+
     return sanitized;
   }
 }
@@ -147,13 +147,13 @@ export class TokenManager {
   static refreshToken(token: string): string | null {
     try {
       const decoded = jwt.verify(token, getJwtSecret(), { ignoreExpiration: true }) as any;
-      
+
       // Check if token is not too old (max 7 days)
-      const tokenAge = Date.now() - (decoded.iat * 1000);
+      const tokenAge = Date.now() - decoded.iat * 1000;
       if (tokenAge > 7 * 24 * 60 * 60 * 1000) {
         return null;
       }
-      
+
       // Generate new token with same payload
       const { iat, exp, ...payload } = decoded;
       return this.generateToken(payload);
@@ -218,7 +218,7 @@ export const requireRole = (requiredRoles: string[]) => {
         ip: req.ip,
         userAgent: req.get('User-Agent'),
         details: { requiredRoles, userRole: req.user.role },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       res.status(403).json({ error: 'Insufficient permissions' });
@@ -237,16 +237,16 @@ export class SecurityEventLogger {
       logger.warn('Security event', event);
 
       // Store in database for audit trail
-      const { error } = await supabase
-        .from('security_events')
-        .insert([{
+      const { error } = await supabase.from('security_events').insert([
+        {
           event_type: event.type,
           user_id: event.userId,
           ip_address: event.ip,
           user_agent: event.userAgent,
           details: event.details,
-          created_at: event.timestamp
-        }]);
+          created_at: event.timestamp,
+        },
+      ]);
 
       if (error) {
         logger.error('Failed to store security event', error);
@@ -275,7 +275,7 @@ export class SecurityEventLogger {
         ip: event.ip_address,
         userAgent: event.user_agent,
         details: event.details,
-        timestamp: event.created_at
+        timestamp: event.created_at,
       }));
     } catch (error) {
       logger.error('Failed to fetch security events', error);
@@ -291,10 +291,10 @@ export class EncryptionUtils {
       const key = Buffer.from(getEncryptionKey(), 'hex');
       const iv = crypto.randomBytes(16);
       const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-      
+
       let encrypted = cipher.update(text, 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
+
       return iv.toString('hex') + ':' + encrypted;
     } catch (error) {
       logger.error('Encryption failed', error);
@@ -364,21 +364,21 @@ class SimpleRateLimit {
   isAllowed(identifier: string): boolean {
     const now = Date.now();
     const windowStart = now - this.windowMs;
-    
+
     if (!this.requests.has(identifier)) {
       this.requests.set(identifier, []);
     }
-    
+
     const userRequests = this.requests.get(identifier)!;
-    
+
     // Remove old requests
     const validRequests = userRequests.filter(time => time > windowStart);
     this.requests.set(identifier, validRequests);
-    
+
     if (validRequests.length >= this.maxRequests) {
       return false;
     }
-    
+
     validRequests.push(now);
     return true;
   }
@@ -393,12 +393,12 @@ export const apiLimiter = new SimpleRateLimit(60 * 1000, 100); // 100 API reques
 export const rateLimitMiddleware = (limiter: SimpleRateLimit) => {
   return (req: any, res: any, next: any): void => {
     const identifier = req.ip || req.connection.remoteAddress || 'unknown';
-    
+
     if (!limiter.isAllowed(identifier)) {
       res.status(429).json({ error: 'Too many requests, please try again later.' });
       return;
     }
-    
+
     next();
   };
 };
@@ -412,21 +412,24 @@ export const securityHeaders = (_req: any, res: any, next: any): void => {
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  
+
   // Remove server information
   res.removeHeader('X-Powered-By');
-  
+
   next();
 };
 
 // CORS configuration
 export const corsOptions = {
-  origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+  origin: (
+    origin: string | undefined,
+    callback: (error: Error | null, allow?: boolean) => void
+  ) => {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
       'https://unittalk.app',
-      'https://staging.unittalk.app'
+      'https://staging.unittalk.app',
     ];
 
     if (!origin || allowedOrigins.includes(origin)) {
@@ -436,7 +439,7 @@ export const corsOptions = {
     }
   },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
 };
 
 export default {
@@ -451,5 +454,5 @@ export default {
   authLimiter,
   apiLimiter,
   rateLimitMiddleware,
-  corsOptions
+  corsOptions,
 };

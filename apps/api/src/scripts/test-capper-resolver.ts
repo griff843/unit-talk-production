@@ -16,5 +16,7 @@ async function main() {
   console.log(JSON.stringify(result, null, 2));
 }
 
-main().catch((e) => { console.error('Error:', e?.message || e); process.exit(1); });
-
+main().catch(e => {
+  console.error('Error:', e?.message || e);
+  process.exit(1);
+});

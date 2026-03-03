@@ -79,8 +79,8 @@ function generateSTierProp(): SimulatedProp {
       weather: 'dome',
       matchup_rating: 92,
       player_form: 'excellent',
-      injury_status: 'healthy'
-    }
+      injury_status: 'healthy',
+    },
   };
 }
 
@@ -93,16 +93,14 @@ async function insertSimulatedProp(prop: SimulatedProp): Promise<boolean> {
       propId: prop.id,
       player: prop.player_name,
       statType: prop.stat_type,
-      line: prop.line
+      line: prop.line,
     });
 
-    const { error } = await supabase
-      .from('raw_props')
-      .insert({
-        ...prop,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
+    const { error } = await supabase.from('raw_props').insert({
+      ...prop,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
 
     if (error) {
       logger.error('Failed to insert simulated prop', { error: error.message });
@@ -113,7 +111,7 @@ async function insertSimulatedProp(prop: SimulatedProp): Promise<boolean> {
     return true;
   } catch (error) {
     logger.error('Error inserting simulated prop', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
     return false;
   }
@@ -144,7 +142,7 @@ async function waitForScoring(propId: string, timeoutMs: number = 120000): Promi
           propId,
           professionalScore: rawProp.professional_score,
           tier: rawProp.tier,
-          elapsedTime: Date.now() - startTime
+          elapsedTime: Date.now() - startTime,
         });
 
         // Check scored_props table
@@ -160,7 +158,7 @@ async function waitForScoring(propId: string, timeoutMs: number = 120000): Promi
             tier: scoredProp.tier,
             score: scoredProp.professional_score,
             edge: scoredProp.edge,
-            confidence: scoredProp.confidence
+            confidence: scoredProp.confidence,
           });
         }
 
@@ -168,7 +166,7 @@ async function waitForScoring(propId: string, timeoutMs: number = 120000): Promi
       }
     } catch (error) {
       logger.warn('Error in scoring check', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
@@ -208,13 +206,13 @@ async function checkAutoApproval(propId: string): Promise<boolean> {
       status: data.status,
       priority: data.priority,
       tier: data.tier,
-      autoApproved: data.auto_approved
+      autoApproved: data.auto_approved,
     });
 
     return data.auto_approved === true && data.status === 'approved';
   } catch (error) {
     logger.error('Error checking auto-approval', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
     return false;
   }
@@ -247,13 +245,13 @@ async function checkDiscordAlert(propId: string): Promise<boolean> {
       propId,
       type: data.type,
       priority: data.priority,
-      channelId: data.channel_id
+      channelId: data.channel_id,
     });
 
     return true;
   } catch (error) {
     logger.error('Error checking Discord alert', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
     return false;
   }
@@ -264,7 +262,7 @@ async function checkDiscordAlert(propId: string): Promise<boolean> {
  */
 async function runEndToEndTest(): Promise<void> {
   logger.info('🚀 Starting Real-Time Scoring End-to-End Test');
-  logger.info('=' .repeat(60));
+  logger.info('='.repeat(60));
 
   let success = true;
 
@@ -279,7 +277,7 @@ async function runEndToEndTest(): Promise<void> {
       line: prop.line,
       odds: prop.odds,
       gameDate: prop.game_date,
-      qualityScore: prop.metadata.quality_score
+      qualityScore: prop.metadata.quality_score,
     });
 
     const inserted = await insertSimulatedProp(prop);
@@ -290,7 +288,7 @@ async function runEndToEndTest(): Promise<void> {
     }
 
     logger.info('✅ Step 1 Complete: Prop inserted');
-    logger.info('=' .repeat(60));
+    logger.info('='.repeat(60));
 
     // Step 2: Wait for real-time scoring
     logger.info('Step 2: Waiting for real-time scoring (up to 2 minutes)...');
@@ -303,7 +301,7 @@ async function runEndToEndTest(): Promise<void> {
     }
 
     logger.info('✅ Step 2 Complete: Prop scored by Enhanced45FactorEngine');
-    logger.info('=' .repeat(60));
+    logger.info('='.repeat(60));
 
     // Step 3: Check auto-approval
     logger.info('Step 3: Checking auto-approval to promotion_queue...');
@@ -315,7 +313,7 @@ async function runEndToEndTest(): Promise<void> {
     } else {
       logger.info('✅ Step 3 Complete: Prop auto-approved to promotion_queue');
     }
-    logger.info('=' .repeat(60));
+    logger.info('='.repeat(60));
 
     // Step 4: Check Discord alert
     logger.info('Step 4: Checking Discord alert...');
@@ -327,7 +325,7 @@ async function runEndToEndTest(): Promise<void> {
     } else {
       logger.info('✅ Step 4 Complete: Discord alert queued');
     }
-    logger.info('=' .repeat(60));
+    logger.info('='.repeat(60));
 
     // Final summary
     logger.info('🎉 End-to-End Test Summary:');
@@ -335,7 +333,7 @@ async function runEndToEndTest(): Promise<void> {
     logger.info(`  Real-Time Scoring: ${scored ? '✅' : '❌'}`);
     logger.info(`  Auto-Approval: ${autoApproved ? '✅' : '⚠️'}`);
     logger.info(`  Discord Alert: ${alertQueued ? '✅' : '⚠️'}`);
-    logger.info('=' .repeat(60));
+    logger.info('='.repeat(60));
 
     if (scored) {
       logger.info('✅ REAL-TIME SCORING INTEGRATION OPERATIONAL');
@@ -343,11 +341,10 @@ async function runEndToEndTest(): Promise<void> {
       logger.error('❌ REAL-TIME SCORING INTEGRATION FAILED');
       success = false;
     }
-
   } catch (error) {
     logger.error('❌ Test execution failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
     success = false;
   }
@@ -358,7 +355,7 @@ async function runEndToEndTest(): Promise<void> {
 // Run the test
 runEndToEndTest().catch(error => {
   logger.error('Unhandled error', {
-    error: error instanceof Error ? error.message : 'Unknown error'
+    error: error instanceof Error ? error.message : 'Unknown error',
   });
   process.exit(1);
 });

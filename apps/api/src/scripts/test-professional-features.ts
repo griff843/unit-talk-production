@@ -16,18 +16,18 @@ interface TestResult {
 
 async function testProfessionalFeatures(): Promise<TestResult[]> {
   const results: TestResult[] = [];
-  
+
   try {
     logger.info('🚀 Testing Professional Capper Features');
-    
+
     // Test 1: Steam Detection Weight Configuration
     const gradingEngine = new SyndicateGradingEngine();
-    
+
     results.push({
       feature: 'steamDetection',
       test: 'Engine Initialization',
       status: 'PASS',
-      message: 'SyndicateGradingEngine initialized successfully with steam detection capability'
+      message: 'SyndicateGradingEngine initialized successfully with steam detection capability',
     });
 
     // Test 2: Professional Feature Weights Present
@@ -39,7 +39,7 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
       publicVsSharpSplit: 0.8,
       marketTimingAdvantage: 0.7,
       injuryTimingEdge: 0.6,
-      crossMarketDiscrepancy: 0.8
+      crossMarketDiscrepancy: 0.8,
     };
 
     for (const [feature, weight] of Object.entries(testWeights)) {
@@ -48,14 +48,14 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
           feature: feature,
           test: 'Weight Configuration',
           status: 'PASS',
-          message: `Feature weight configured: ${weight}`
+          message: `Feature weight configured: ${weight}`,
         });
       } else {
         results.push({
           feature: feature,
           test: 'Weight Configuration',
           status: 'FAIL',
-          message: `Invalid weight configuration: ${weight}`
+          message: `Invalid weight configuration: ${weight}`,
         });
       }
     }
@@ -71,12 +71,12 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
       sharpBettingPercentage: 35,
       contrarianOpportunity: true,
       injuryTimingAdvantage: 0.15,
-      crossMarketArbitrage: 0.08
+      crossMarketArbitrage: 0.08,
     };
 
     const requiredFields = [
       'steamMoveDetected',
-      'predictedClosingLine', 
+      'predictedClosingLine',
       'optimalBettingTime',
       'bestAvailableLine',
       'bestBook',
@@ -84,7 +84,7 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
       'sharpBettingPercentage',
       'contrarianOpportunity',
       'injuryTimingAdvantage',
-      'crossMarketArbitrage'
+      'crossMarketArbitrage',
     ];
 
     let missingFields = 0;
@@ -94,7 +94,7 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
           feature: 'professionalInsights',
           test: `Field ${field}`,
           status: 'PASS',
-          message: `Professional insight field present: ${field}`
+          message: `Professional insight field present: ${field}`,
         });
       } else {
         missingFields++;
@@ -102,7 +102,7 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
           feature: 'professionalInsights',
           test: `Field ${field}`,
           status: 'FAIL',
-          message: `Missing professional insight field: ${field}`
+          message: `Missing professional insight field: ${field}`,
         });
       }
     }
@@ -113,7 +113,7 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
         feature: 'steamDetection',
         test: 'Data Type Validation',
         status: 'PASS',
-        message: 'Steam detection returns boolean value'
+        message: 'Steam detection returns boolean value',
       });
     }
 
@@ -122,7 +122,7 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
         feature: 'closingLinePrediction',
         test: 'Data Type Validation',
         status: 'PASS',
-        message: 'Closing line prediction returns numeric value'
+        message: 'Closing line prediction returns numeric value',
       });
     }
 
@@ -131,18 +131,20 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
         feature: 'optimalTiming',
         test: 'Data Type Validation',
         status: 'PASS',
-        message: 'Optimal betting time returns ISO string'
+        message: 'Optimal betting time returns ISO string',
       });
     }
 
-    if (typeof mockProfessionalInsights.publicBettingPercentage === 'number' && 
-        mockProfessionalInsights.publicBettingPercentage >= 0 && 
-        mockProfessionalInsights.publicBettingPercentage <= 100) {
+    if (
+      typeof mockProfessionalInsights.publicBettingPercentage === 'number' &&
+      mockProfessionalInsights.publicBettingPercentage >= 0 &&
+      mockProfessionalInsights.publicBettingPercentage <= 100
+    ) {
       results.push({
         feature: 'publicVsSharpSplit',
         test: 'Data Range Validation',
         status: 'PASS',
-        message: 'Public betting percentage in valid range (0-100)'
+        message: 'Public betting percentage in valid range (0-100)',
       });
     }
 
@@ -151,15 +153,15 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
       feature: 'devigging',
       test: 'Service Integration',
       status: 'PASS',
-      message: 'Devigging service available for professional processing'
+      message: 'Devigging service available for professional processing',
     });
 
-    // Test 6: CLV Tracking Integration  
+    // Test 6: CLV Tracking Integration
     results.push({
       feature: 'clvTracking',
       test: 'Service Integration',
       status: 'PASS',
-      message: 'CLV tracking service available for professional processing'
+      message: 'CLV tracking service available for professional processing',
     });
 
     // Test 7: Enhanced Scoring Engine
@@ -167,7 +169,7 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
       feature: 'enhancedScoring',
       test: 'Engine Integration',
       status: 'PASS',
-      message: 'Enhanced scoring engine available with professional insights'
+      message: 'Enhanced scoring engine available with professional insights',
     });
 
     // Test 8: Professional Processing Pipeline
@@ -175,15 +177,14 @@ async function testProfessionalFeatures(): Promise<TestResult[]> {
       feature: 'professionalPipeline',
       test: 'Pipeline Availability',
       status: 'PASS',
-      message: 'Complete professional processing pipeline operational'
+      message: 'Complete professional processing pipeline operational',
     });
-
   } catch (error) {
     results.push({
       feature: 'systemError',
       test: 'Error Handling',
       status: 'FAIL',
-      message: `System error during testing: ${error instanceof Error ? error.message : String(error)}`
+      message: `System error during testing: ${error instanceof Error ? error.message : String(error)}`,
     });
   }
 
@@ -205,7 +206,7 @@ async function main() {
   console.log('');
 
   const results = await testProfessionalFeatures();
-  
+
   // Summarize results
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;
@@ -214,25 +215,25 @@ async function main() {
 
   console.log('📊 TEST RESULTS SUMMARY');
   console.log('=======================');
-  console.log(`✅ PASSED: ${passed}/${total} (${((passed/total)*100).toFixed(1)}%)`);
-  console.log(`❌ FAILED: ${failed}/${total} (${((failed/total)*100).toFixed(1)}%)`);
-  console.log(`⚠️  WARNINGS: ${warnings}/${total} (${((warnings/total)*100).toFixed(1)}%)`);
+  console.log(`✅ PASSED: ${passed}/${total} (${((passed / total) * 100).toFixed(1)}%)`);
+  console.log(`❌ FAILED: ${failed}/${total} (${((failed / total) * 100).toFixed(1)}%)`);
+  console.log(`⚠️  WARNINGS: ${warnings}/${total} (${((warnings / total) * 100).toFixed(1)}%)`);
   console.log('');
 
   // Detailed results by feature
   const features = [...new Set(results.map(r => r.feature))];
-  
+
   console.log('📋 FEATURE BREAKDOWN');
   console.log('====================');
-  
+
   for (const feature of features) {
     const featureResults = results.filter(r => r.feature === feature);
     const featurePassed = featureResults.filter(r => r.status === 'PASS').length;
     const featureFailed = featureResults.filter(r => r.status === 'FAIL').length;
-    
+
     const statusIcon = featureFailed === 0 ? '✅' : featurePassed > featureFailed ? '⚠️' : '❌';
     console.log(`${statusIcon} ${feature}: ${featurePassed}/${featureResults.length} tests passed`);
-    
+
     // Show failed tests
     const failedTests = featureResults.filter(r => r.status === 'FAIL');
     if (failedTests.length > 0) {
@@ -245,7 +246,7 @@ async function main() {
   console.log('');
   console.log('🚀 PROFESSIONAL SYSTEM STATUS');
   console.log('=============================');
-  
+
   if (failed === 0) {
     console.log('✅ ALL PROFESSIONAL FEATURES VALIDATED');
     console.log('🎯 System ready for professional capper operations');
@@ -269,8 +270,8 @@ async function main() {
 
 if (require.main === module) {
   main().catch(error => {
-    logger.error('Professional features test failed:', { 
-      error: error instanceof Error ? error.message : String(error) 
+    logger.error('Professional features test failed:', {
+      error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);
   });

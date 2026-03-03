@@ -24,9 +24,9 @@ export async function sendSlackNotification(
     const response = await fetch(config.webhookUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(message)
+      body: JSON.stringify(message),
     });
 
     if (!response.ok) {
@@ -46,8 +46,8 @@ function formatSlackMessage(payload: NotificationPayload): any {
       type: 'header',
       text: {
         type: 'plain_text',
-        text: payload.title
-      }
+        text: payload.title,
+      },
     });
   }
 
@@ -56,8 +56,8 @@ function formatSlackMessage(payload: NotificationPayload): any {
     type: 'section',
     text: {
       type: 'mrkdwn',
-      text: payload.message
-    }
+      text: payload.message,
+    },
   });
 
   // Add metadata if present
@@ -70,14 +70,14 @@ function formatSlackMessage(payload: NotificationPayload): any {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: metaFields
-      }
+        text: metaFields,
+      },
     });
   }
 
   // Add divider
   blocks.push({
-    type: 'divider'
+    type: 'divider',
   });
 
   // Add footer
@@ -86,13 +86,13 @@ function formatSlackMessage(payload: NotificationPayload): any {
     elements: [
       {
         type: 'mrkdwn',
-        text: `Sent by Unit Talk Platform | Type: ${payload.type} | Priority: ${payload.priority || 'normal'}`
-      }
-    ]
+        text: `Sent by Unit Talk Platform | Type: ${payload.type} | Priority: ${payload.priority || 'normal'}`,
+      },
+    ],
   });
 
   return {
     blocks,
-    text: payload.message // Fallback text
+    text: payload.message, // Fallback text
   };
-} 
+}

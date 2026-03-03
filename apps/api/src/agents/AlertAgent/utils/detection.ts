@@ -32,7 +32,9 @@ Respond with one concise paragraph.`;
   return response.choices?.[0]?.message?.content?.trim() || '';
 }
 export async function detectInjuryImpact(ctx: any, channel: TextChannel) {
-  if (!ctx.injury) {return false;}
+  if (!ctx.injury) {
+    return false;
+  }
   const advice = await getUnitTalkAdvice(
     `A key player (${ctx.injury.player}) is ${ctx.injury.status}. Opponent: ${ctx.injury.opponent}. Current line: ${ctx.line}.`
   );
@@ -46,14 +48,16 @@ export async function detectInjuryImpact(ctx: any, channel: TextChannel) {
       { name: 'Old Line', value: ctx.lineOld || 'N/A', inline: true },
       { name: 'New Line', value: ctx.line || 'N/A', inline: true },
     ],
-    color: 0xFF0000,
+    color: 0xff0000,
   });
   await channel.send({ embeds: [embed] });
   return true;
 }
 
 export async function detectSignificantLineMove(ctx: any, channel: TextChannel) {
-  if (!ctx.lineMove || Math.abs(ctx.lineMove) < 0.5) {return false;}
+  if (!ctx.lineMove || Math.abs(ctx.lineMove) < 0.5) {
+    return false;
+  }
   const advice = await getUnitTalkAdvice(
     `A betting line has moved by ${ctx.lineMove}. Market: ${ctx.market}. Direction: ${ctx.lineMove > 0 ? 'Up' : 'Down'}. New line: ${ctx.line}.`
   );
@@ -67,14 +71,16 @@ export async function detectSignificantLineMove(ctx: any, channel: TextChannel) 
       { name: 'Old Line', value: ctx.lineOld || 'N/A', inline: true },
       { name: 'New Line', value: ctx.line || 'N/A', inline: true },
     ],
-    color: 0xFF9900,
+    color: 0xff9900,
   });
   await channel.send({ embeds: [embed] });
   return true;
 }
 
 export async function detectHedgeOpportunity(ctx: any, channel: TextChannel) {
-  if (!ctx.hedge || !ctx.hedge.opportunity) {return false;}
+  if (!ctx.hedge || !ctx.hedge.opportunity) {
+    return false;
+  }
   const advice = await getUnitTalkAdvice(
     `There is a hedge opportunity between ${ctx.hedge.bookA} and ${ctx.hedge.bookB}. Market: ${ctx.hedge.market}. Range: ${ctx.hedge.range}.`
   );
@@ -88,14 +94,16 @@ export async function detectHedgeOpportunity(ctx: any, channel: TextChannel) {
       { name: 'Books', value: `${ctx.hedge.bookA} vs ${ctx.hedge.bookB}`, inline: true },
       { name: 'Range', value: ctx.hedge.range || 'N/A', inline: true },
     ],
-    color: 0x3366FF,
+    color: 0x3366ff,
   });
   await channel.send({ embeds: [embed] });
   return true;
 }
 
 export async function detectSteamMove(ctx: any, channel: TextChannel) {
-  if (!ctx.steam || !ctx.steam.isSteam) {return false;}
+  if (!ctx.steam || !ctx.steam.isSteam) {
+    return false;
+  }
   const advice = await getUnitTalkAdvice(
     `Steam move detected for ${ctx.steam.market}. Details: ${ctx.steam.details || 'N/A'}.`
   );
@@ -109,14 +117,16 @@ export async function detectSteamMove(ctx: any, channel: TextChannel) {
       { name: 'Trigger', value: ctx.steam.trigger || 'N/A', inline: true },
       { name: 'Time', value: ctx.steam.time || 'N/A', inline: true },
     ],
-    color: 0xFF6600,
+    color: 0xff6600,
   });
   await channel.send({ embeds: [embed] });
   return true;
 }
 
 export async function detectStaleLine(ctx: any, channel: TextChannel) {
-  if (!ctx.stale || !ctx.stale.isStale) {return false;}
+  if (!ctx.stale || !ctx.stale.isStale) {
+    return false;
+  }
   const advice = await getUnitTalkAdvice(
     `A stale line has been detected on ${ctx.stale.market}. Current value: ${ctx.stale.value}.`
   );
@@ -137,7 +147,9 @@ export async function detectStaleLine(ctx: any, channel: TextChannel) {
 }
 
 export async function detectMiddlingOpportunity(ctx: any, channel: TextChannel) {
-  if (!ctx.middle || !ctx.middle.opportunity) {return false;}
+  if (!ctx.middle || !ctx.middle.opportunity) {
+    return false;
+  }
   const advice = await getUnitTalkAdvice(
     `A middling opportunity is available on ${ctx.middle.market} between ${ctx.middle.bookA} and ${ctx.middle.bookB}.`
   );
@@ -151,14 +163,16 @@ export async function detectMiddlingOpportunity(ctx: any, channel: TextChannel) 
       { name: 'Books', value: `${ctx.middle.bookA} vs ${ctx.middle.bookB}`, inline: true },
       { name: 'Spread', value: ctx.middle.spread || 'N/A', inline: true },
     ],
-    color: 0xAA00FF,
+    color: 0xaa00ff,
   });
   await channel.send({ embeds: [embed] });
   return true;
 }
 
 export async function detectReverseLineMovement(ctx: any, channel: TextChannel) {
-  if (!ctx.rlm || !ctx.rlm.detected) {return false;}
+  if (!ctx.rlm || !ctx.rlm.detected) {
+    return false;
+  }
   const advice = await getUnitTalkAdvice(
     `Reverse line movement detected: ${ctx.rlm.publicPercentage}% of bets on ${ctx.rlm.publicSide} but line moved from ${ctx.rlm.openLine} to ${ctx.rlm.currentLine}. Sharp money likely on ${ctx.rlm.sharpSide}.`
   );
@@ -168,18 +182,24 @@ export async function detectReverseLineMovement(ctx: any, channel: TextChannel) 
     advice,
     emoji: '🔄',
     fields: [
-      { name: 'Public %', value: `${ctx.rlm.publicPercentage}% on ${ctx.rlm.publicSide}`, inline: true },
+      {
+        name: 'Public %',
+        value: `${ctx.rlm.publicPercentage}% on ${ctx.rlm.publicSide}`,
+        inline: true,
+      },
       { name: 'Line Move', value: `${ctx.rlm.openLine} → ${ctx.rlm.currentLine}`, inline: true },
       { name: 'Sharp Side', value: ctx.rlm.sharpSide || 'N/A', inline: true },
     ],
-    color: 0x00FF00,
+    color: 0x00ff00,
   });
   await channel.send({ embeds: [embed] });
   return true;
 }
 
 export async function detectClosingLineValue(ctx: any, channel: TextChannel) {
-  if (!ctx.clv || Math.abs(ctx.clv.value) < 0.5) {return false;}
+  if (!ctx.clv || Math.abs(ctx.clv.value) < 0.5) {
+    return false;
+  }
   const advice = await getUnitTalkAdvice(
     `Closing line value of ${ctx.clv.value > 0 ? '+' : ''}${ctx.clv.value} detected on ${ctx.clv.market}. Entry: ${ctx.clv.entryLine}, Current: ${ctx.clv.currentLine}. ${ctx.clv.value > 0 ? 'Positive CLV indicates sharp pick.' : 'Negative CLV suggests line moved against position.'}`
   );
@@ -193,14 +213,16 @@ export async function detectClosingLineValue(ctx: any, channel: TextChannel) {
       { name: 'Entry Line', value: ctx.clv.entryLine || 'N/A', inline: true },
       { name: 'Current Line', value: ctx.clv.currentLine || 'N/A', inline: true },
     ],
-    color: ctx.clv.value > 0 ? 0x00FF00 : 0xFFFF00,
+    color: ctx.clv.value > 0 ? 0x00ff00 : 0xffff00,
   });
   await channel.send({ embeds: [embed] });
   return true;
 }
 
 export async function detectSharpConsensus(ctx: any, channel: TextChannel) {
-  if (!ctx.sharpConsensus || ctx.sharpConsensus.agreement < 80) {return false;}
+  if (!ctx.sharpConsensus || ctx.sharpConsensus.agreement < 80) {
+    return false;
+  }
   const advice = await getUnitTalkAdvice(
     `${ctx.sharpConsensus.agreement}% of sharp books agree on ${ctx.sharpConsensus.side} for ${ctx.sharpConsensus.market}. Sharp books: ${ctx.sharpConsensus.books.join(', ')}. This indicates strong sharp money consensus.`
   );
@@ -214,14 +236,16 @@ export async function detectSharpConsensus(ctx: any, channel: TextChannel) {
       { name: 'Sharp Books', value: ctx.sharpConsensus.books.join(', ') || 'N/A', inline: true },
       { name: 'Consensus Side', value: ctx.sharpConsensus.side || 'N/A', inline: true },
     ],
-    color: 0x00FFFF,
+    color: 0x00ffff,
   });
   await channel.send({ embeds: [embed] });
   return true;
 }
 
 export async function detectParlayHedgeOpportunity(ctx: any, channel: TextChannel) {
-  if (!ctx.parlayHedge || !ctx.parlayHedge.opportunity) {return false;}
+  if (!ctx.parlayHedge || !ctx.parlayHedge.opportunity) {
+    return false;
+  }
   const advice = await getUnitTalkAdvice(
     `Parlay hedge opportunity: ${ctx.parlayHedge.completedLegs} legs hit out of ${ctx.parlayHedge.totalLegs}. Current profit: $${ctx.parlayHedge.currentProfit}. Hedge for guaranteed profit of $${ctx.parlayHedge.guaranteedProfit} by betting $${ctx.parlayHedge.hedgeStake} on ${ctx.parlayHedge.hedgeSide}.`
   );
@@ -231,14 +255,22 @@ export async function detectParlayHedgeOpportunity(ctx: any, channel: TextChanne
     advice,
     emoji: '💰',
     fields: [
-      { name: 'Parlay Status', value: `${ctx.parlayHedge.completedLegs}/${ctx.parlayHedge.totalLegs} legs complete`, inline: true },
+      {
+        name: 'Parlay Status',
+        value: `${ctx.parlayHedge.completedLegs}/${ctx.parlayHedge.totalLegs} legs complete`,
+        inline: true,
+      },
       { name: 'Current Profit', value: `$${ctx.parlayHedge.currentProfit}`, inline: true },
       { name: 'Guaranteed Profit', value: `$${ctx.parlayHedge.guaranteedProfit}`, inline: true },
-      { name: 'Hedge Details', value: `Bet $${ctx.parlayHedge.hedgeStake} on ${ctx.parlayHedge.hedgeSide}`, inline: false },
+      {
+        name: 'Hedge Details',
+        value: `Bet $${ctx.parlayHedge.hedgeStake} on ${ctx.parlayHedge.hedgeSide}`,
+        inline: false,
+      },
       { name: 'Remaining Leg', value: ctx.parlayHedge.remainingLeg || 'N/A', inline: true },
       { name: 'Hedge Odds', value: ctx.parlayHedge.hedgeOdds || 'N/A', inline: true },
     ],
-    color: 0x00FF00,
+    color: 0x00ff00,
   });
   await channel.send({ embeds: [embed] });
   return true;

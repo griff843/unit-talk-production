@@ -9,7 +9,7 @@
  * @see docs/contracts/DISCORD_EMBED_CONTRACT.md
  */
 
-import { buildPickPresentation } from './pickPresentationBuilder';
+import { PickPresentation, UnifiedPickRow, formatUnitsDisplay } from '../types/pickPresentation';
 import {
   TicketPresentation,
   LegPresentation,
@@ -17,11 +17,8 @@ import {
   formatTotalOddsDecimal,
   isParlay,
 } from '../types/ticketPresentation';
-import {
-  PickPresentation,
-  UnifiedPickRow,
-  formatUnitsDisplay,
-} from '../types/pickPresentation';
+
+import { buildPickPresentation } from './pickPresentationBuilder';
 
 /**
  * Default thumbnail for parlays (Unit Talk logo)
@@ -32,22 +29,24 @@ const UNIT_TALK_PARLAY_THUMBNAIL = 'https://i.imgur.com/YQKdYUn.png';
  * League logos for parlay thumbnails (if all legs share same sport)
  */
 const LEAGUE_LOGOS: Record<string, string> = {
-  'NFL': 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nfl.png',
-  'NBA': 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png',
-  'MLB': 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/mlb.png',
-  'NHL': 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nhl.png',
-  'NCAAF': 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/ncaa.png',
-  'NCAAB': 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/ncaa.png',
+  NFL: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nfl.png',
+  NBA: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png',
+  MLB: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/mlb.png',
+  NHL: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nhl.png',
+  NCAAF: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/ncaa.png',
+  NCAAB: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/ncaa.png',
 };
 
 /**
  * Get capper name from pick data
  */
 function getCapperName(pick: UnifiedPickRow): string {
-  return (pick.meta?.capper as string)
-    || (pick.meta?.capper_name as string)
-    || (pick.meta?.capper_username as string)
-    || 'Unit Talk';
+  return (
+    (pick.meta?.capper as string) ||
+    (pick.meta?.capper_name as string) ||
+    (pick.meta?.capper_username as string) ||
+    'Unit Talk'
+  );
 }
 
 /**
@@ -188,7 +187,7 @@ export async function buildParlayTicketPresentation(
   for (let i = 0; i < sortedPicks.length; i++) {
     const pick = sortedPicks[i];
     const presentation = await buildPickPresentation(pick);
-    const legNumber = (pick as any).leg_index ?? (i + 1);
+    const legNumber = (pick as any).leg_index ?? i + 1;
     legs.push(buildLegPresentation(pick, presentation, legNumber));
   }
 
@@ -196,9 +195,10 @@ export async function buildParlayTicketPresentation(
   const firstPick = sortedPicks[0] as any;
 
   // Get total units (from ticket-level field or first leg)
-  const totalUnits = firstPick.total_units
-    ?? firstPick.units
-    ?? sortedPicks.reduce((sum, p) => sum + ((p as any).units ?? 1), 0) / sortedPicks.length;
+  const totalUnits =
+    firstPick.total_units ??
+    firstPick.units ??
+    sortedPicks.reduce((sum, p) => sum + ((p as any).units ?? 1), 0) / sortedPicks.length;
 
   // Get total odds (stored on legs)
   const totalOddsAmerican = firstPick.total_ticket_odds_american;
@@ -253,7 +253,9 @@ export async function buildTicketPresentation(
  * Check if any pick in the ticket is already posted
  * Used for idempotency - if any leg is posted, ticket is already posted
  */
-export function isTicketAlreadyPosted(picks: Array<{ posted_to_discord?: boolean; meta?: any }>): boolean {
+export function isTicketAlreadyPosted(
+  picks: Array<{ posted_to_discord?: boolean; meta?: any }>
+): boolean {
   return picks.some(pick => {
     if (pick.posted_to_discord === true) return true;
     if (pick.meta?.discord_receipt?.message_id) return true;

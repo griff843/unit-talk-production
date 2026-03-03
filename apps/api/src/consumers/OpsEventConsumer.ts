@@ -74,14 +74,14 @@ async function processBatch(): Promise<number> {
       if (updateErr) {
         logger.error('Failed to mark event as processed', {
           eventId: event.id,
-          error: updateErr.message
+          error: updateErr.message,
         });
         // Mark as failed with retry
         await supabaseClient
           .from('events')
           .update({
             failed_at: new Date().toISOString(),
-            retry_count: 1
+            retry_count: 1,
           })
           .eq('id', event.id);
         continue;
@@ -92,39 +92,37 @@ async function processBatch(): Promise<number> {
       const settleDate = (settledAt || new Date().toISOString()).split('T')[0];
       const recapKey = `RECAP_REQUESTED:daily:${settleDate}`;
 
-      const { error: emitErr } = await supabaseClient
-        .from('events')
-        .upsert(
-          {
-            event_type: 'RECAP_REQUESTED',
-            aggregate_id: event.aggregate_id,
-            aggregate_type: 'recap',
-            event_data: {
-              mode: 'daily',
-              date: settleDate,
-              triggered_by: 'PICK_SETTLED',
-              source_event_id: event.id,
-              pick_id: pickId,
-              result: result
-            },
-            metadata: {
-              source: 'OpsEventConsumer',
-              settlement_count: 1
-            },
-            idempotency_key: recapKey,
-            created_by: 'OpsEventConsumer',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+      const { error: emitErr } = await supabaseClient.from('events').upsert(
+        {
+          event_type: 'RECAP_REQUESTED',
+          aggregate_id: event.aggregate_id,
+          aggregate_type: 'recap',
+          event_data: {
+            mode: 'daily',
+            date: settleDate,
+            triggered_by: 'PICK_SETTLED',
+            source_event_id: event.id,
+            pick_id: pickId,
+            result: result,
           },
-          { onConflict: 'idempotency_key', ignoreDuplicates: true }
-        );
+          metadata: {
+            source: 'OpsEventConsumer',
+            settlement_count: 1,
+          },
+          idempotency_key: recapKey,
+          created_by: 'OpsEventConsumer',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'idempotency_key', ignoreDuplicates: true }
+      );
 
       if (emitErr) {
         // Duplicate key is expected (idempotent) — not an error
         if (!emitErr.message.includes('duplicate') && !emitErr.message.includes('conflict')) {
           logger.warn('Failed to emit RECAP_REQUESTED', {
             eventId: event.id,
-            error: emitErr.message
+            error: emitErr.message,
           });
         }
       }
@@ -135,13 +133,12 @@ async function processBatch(): Promise<number> {
         eventId: event.id,
         pickId,
         result,
-        recapDate: settleDate
+        recapDate: settleDate,
       });
-
     } catch (err) {
       logger.error('Error processing event', {
         eventId: event.id,
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   }
@@ -165,7 +162,10 @@ export async function startOpsEventConsumer(): Promise<void> {
   }
 
   isRunning = true;
-  logger.info('OpsEventConsumer started', { pollInterval: getOpsPollInterval(), batchSize: BATCH_SIZE });
+  logger.info('OpsEventConsumer started', {
+    pollInterval: getOpsPollInterval(),
+    batchSize: BATCH_SIZE,
+  });
 
   // Initial processing
   try {
@@ -175,7 +175,7 @@ export async function startOpsEventConsumer(): Promise<void> {
     }
   } catch (err) {
     logger.error('Initial batch failed (non-fatal)', {
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 
@@ -185,7 +185,7 @@ export async function startOpsEventConsumer(): Promise<void> {
       await processBatch();
     } catch (err) {
       logger.error('Poll cycle failed (non-fatal)', {
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   }, getOpsPollInterval());

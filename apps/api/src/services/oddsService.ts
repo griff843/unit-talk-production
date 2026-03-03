@@ -14,12 +14,14 @@ export async function fetchHistoricalOdds(
   gameDate: string
 ): Promise<OddsData | null> {
   // Mock implementation - in production this would call external odds API
-  logger.info(`Fetching historical odds for ${playerName} ${statType} in ${matchup} on ${gameDate}`);
-  
+  logger.info(
+    `Fetching historical odds for ${playerName} ${statType} in ${matchup} on ${gameDate}`
+  );
+
   return {
     line: 25.5,
     odds: -110,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -30,10 +32,10 @@ export async function fetchCurrentOdds(
 ): Promise<OddsData | null> {
   // Mock implementation - in production this would call external odds API
   logger.info(`Fetching current odds for ${playerName} ${statType} in ${matchup}`);
-  
+
   return {
     line: 26.0,
     odds: -115,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }

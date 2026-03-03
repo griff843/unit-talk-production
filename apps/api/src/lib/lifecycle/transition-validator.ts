@@ -6,6 +6,8 @@
  * All state changes MUST pass through this validator.
  */
 
+import { InvalidTransitionError, InvalidTimestampError } from './errors';
+
 import type {
   LifecycleStage,
   LifecyclePick,
@@ -15,7 +17,6 @@ import type {
   WriterRole,
   LifecycleState,
 } from './types';
-import { InvalidTransitionError, InvalidTimestampError } from './errors';
 
 // ============================================================
 // TRANSITION DEFINITIONS
@@ -213,10 +214,7 @@ export function deriveLifecycleState(pick: LifecyclePick): LifecycleState {
 /**
  * Check if a transition is allowed
  */
-export function isTransitionAllowed(
-  from: LifecycleStage,
-  to: LifecycleStage
-): boolean {
+export function isTransitionAllowed(from: LifecycleStage, to: LifecycleStage): boolean {
   return TRANSITION_MAP.has(`${from}->${to}`);
 }
 
@@ -243,11 +241,7 @@ export function assertTransition(
   const definition = TRANSITION_MAP.get(key);
 
   if (!definition) {
-    throw new InvalidTransitionError(
-      currentState,
-      nextState,
-      `Transition '${key}' is not allowed`
-    );
+    throw new InvalidTransitionError(currentState, nextState, `Transition '${key}' is not allowed`);
   }
 
   // Check writer is authorized for this transition
@@ -308,10 +302,7 @@ export function validateTimestampInvariants(pick: LifecyclePick): void {
   if (pick.promotion_queued_at) {
     const queuedAt = toDate(pick.promotion_queued_at);
     if (queuedAt < createdAt) {
-      throw new InvalidTimestampError(
-        'promotion_queued_at',
-        'Must be >= created_at'
-      );
+      throw new InvalidTimestampError('promotion_queued_at', 'Must be >= created_at');
     }
   }
 
@@ -319,18 +310,12 @@ export function validateTimestampInvariants(pick: LifecyclePick): void {
   if (pick.promotion_posted_at) {
     const postedAt = toDate(pick.promotion_posted_at);
     if (postedAt < createdAt) {
-      throw new InvalidTimestampError(
-        'promotion_posted_at',
-        'Must be >= created_at'
-      );
+      throw new InvalidTimestampError('promotion_posted_at', 'Must be >= created_at');
     }
     if (pick.promotion_queued_at) {
       const queuedAt = toDate(pick.promotion_queued_at);
       if (postedAt < queuedAt) {
-        throw new InvalidTimestampError(
-          'promotion_posted_at',
-          'Must be >= promotion_queued_at'
-        );
+        throw new InvalidTimestampError('promotion_posted_at', 'Must be >= promotion_queued_at');
       }
     }
   }
@@ -345,10 +330,7 @@ export function validateTimestampInvariants(pick: LifecyclePick): void {
     if (pick.promotion_posted_at) {
       const postedAt = toDate(pick.promotion_posted_at);
       if (settledAt < postedAt) {
-        throw new InvalidTimestampError(
-          'settled_at',
-          'Must be >= promotion_posted_at'
-        );
+        throw new InvalidTimestampError('settled_at', 'Must be >= promotion_posted_at');
       }
     }
   }
@@ -358,10 +340,7 @@ export function validateTimestampInvariants(pick: LifecyclePick): void {
     const freezeAt = toDate(pick.freeze_enforced_at);
     const settledAt = toDate(pick.settled_at);
     if (freezeAt < settledAt) {
-      throw new InvalidTimestampError(
-        'freeze_enforced_at',
-        'Must be >= settled_at'
-      );
+      throw new InvalidTimestampError('freeze_enforced_at', 'Must be >= settled_at');
     }
   }
 }
@@ -392,10 +371,7 @@ export function validateStateInvariants(pick: LifecyclePick): void {
 
   // SETTLED_HAS_TIMESTAMP
   if (pick.settlement_status === 'settled' && !pick.settled_at) {
-    throw new InvalidTimestampError(
-      'settled_at',
-      'Must be set when settlement_status is settled'
-    );
+    throw new InvalidTimestampError('settled_at', 'Must be set when settlement_status is settled');
   }
 }
 
@@ -418,10 +394,8 @@ function toDate(value: Date | string): Date {
 /**
  * Get all allowed transitions from a given state
  */
-export function getAllowedTransitionsFrom(
-  state: LifecycleStage
-): TransitionDefinition[] {
-  return ALLOWED_TRANSITIONS.filter((t) => t.from === state);
+export function getAllowedTransitionsFrom(state: LifecycleStage): TransitionDefinition[] {
+  return ALLOWED_TRANSITIONS.filter(t => t.from === state);
 }
 
 /**

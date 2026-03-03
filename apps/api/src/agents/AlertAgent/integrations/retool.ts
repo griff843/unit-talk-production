@@ -1,6 +1,6 @@
-import axios from 'axios'
+import axios from 'axios';
 
-import { AlertPayload } from '../../../types/alert'
+import { AlertPayload } from '../../../types/alert';
 // import { env } from '../../../config/env';
 
 // SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
@@ -15,7 +15,7 @@ function getRetoolWebhookUrl(): string {
 export async function sendRetoolAlert(alert: AlertPayload, advice: string) {
   const retoolWebhookUrl = getRetoolWebhookUrl();
   if (!retoolWebhookUrl) {
-    throw new Error('No Retool webhook configured. Set RETOOL_ALERT_WEBHOOK in env.')
+    throw new Error('No Retool webhook configured. Set RETOOL_ALERT_WEBHOOK in env.');
   }
 
   const payload = {
@@ -28,17 +28,17 @@ export async function sendRetoolAlert(alert: AlertPayload, advice: string) {
     createdAt: alert.createdAt,
     meta: alert.meta,
     advice, // "Unit Talk advice"
-  }
+  };
 
   try {
-    const res = await axios.post(retoolWebhookUrl, payload)
+    const res = await axios.post(retoolWebhookUrl, payload);
     if (res.status >= 200 && res.status < 300) {
-      return { status: 'sent', response: res.data }
+      return { status: 'sent', response: res.data };
     } else {
-      throw new Error(`Retool webhook failed: ${res.status} ${res.statusText}`)
+      throw new Error(`Retool webhook failed: ${res.status} ${res.statusText}`);
     }
   } catch (error) {
-    console.error('Retool alert send failed:', error)
-    throw error
+    console.error('Retool alert send failed:', error);
+    throw error;
   }
 }

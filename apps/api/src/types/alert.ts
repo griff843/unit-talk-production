@@ -1,2 +1,2 @@
 // Re-export from alerts.ts for backward compatibility
-export * from './alerts'
+export * from './alerts';

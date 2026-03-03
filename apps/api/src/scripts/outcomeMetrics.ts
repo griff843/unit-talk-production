@@ -45,14 +45,17 @@ interface OutcomeMetrics {
     verified: number;
     disputed: number;
   };
-  outcome_breakdown: Record<string, {
-    win: number;
-    loss: number;
-    push: number;
-    void: number;
-    total: number;
-    win_rate: number;
-  }>;
+  outcome_breakdown: Record<
+    string,
+    {
+      win: number;
+      loss: number;
+      push: number;
+      void: number;
+      total: number;
+      win_rate: number;
+    }
+  >;
   overall: {
     total_settled: number;
     win_rate: number;
@@ -97,7 +100,10 @@ async function queryOutcomeBreakdown(): Promise<OutcomeMetrics['outcome_breakdow
     return {};
   }
 
-  const bySport: Record<string, { win: number; loss: number; push: number; void: number; total: number }> = {};
+  const bySport: Record<
+    string,
+    { win: number; loss: number; push: number; void: number; total: number }
+  > = {};
 
   for (const row of data) {
     const gameResult = row.game_result_id as unknown as { sport: string } | null;
@@ -165,10 +171,7 @@ async function main() {
   console.log('========================================\n');
 
   // Check if settlement tables exist
-  const { error: tableCheck } = await supabase
-    .from('prop_settlements')
-    .select('id')
-    .limit(0);
+  const { error: tableCheck } = await supabase.from('prop_settlements').select('id').limit(0);
 
   if (tableCheck) {
     console.log('STATUS: NO_SETTLED_DATA');

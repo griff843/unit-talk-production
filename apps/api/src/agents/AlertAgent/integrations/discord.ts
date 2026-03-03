@@ -1,4 +1,5 @@
 import { WebhookClient, EmbedBuilder } from 'discord.js';
+
 import { isShadowMode, shadowPublishPreview } from '../../../shadow/ShadowMode';
 // import { env } from '../../../config/env';
 
@@ -20,12 +21,14 @@ class DiscordAlertService {
     // Priority: Use dedicated alerts channel ID if available, fallback to webhook
     const alertsChannelId = process.env.ALERTS_CHANNEL_ID;
     const webhookUrl = process.env.DISCORD_ALERT_WEBHOOK;
-    
+
     // In development mode, allow startup without valid Discord webhooks
     const isDevelopment = process.env.NODE_ENV === 'development';
-    
+
     if (!isDevelopment && !alertsChannelId && !webhookUrl) {
-      throw new Error('Either ALERTS_CHANNEL_ID or DISCORD_ALERT_WEBHOOK environment variable is required');
+      throw new Error(
+        'Either ALERTS_CHANNEL_ID or DISCORD_ALERT_WEBHOOK environment variable is required'
+      );
     }
 
     this.config = {
@@ -33,11 +36,16 @@ class DiscordAlertService {
       rateLimitMs: 2000, // 2 seconds between requests (Discord allows 30/min)
       maxRetries: 3,
       backoffMultiplier: 2,
-      ...config
+      ...config,
     };
 
     // Only create webhook client in production or with valid webhook URL
-    if (webhookUrl && !isDevelopment && webhookUrl.includes('discord.com/api/webhooks/') && !webhookUrl.includes('placeholder')) {
+    if (
+      webhookUrl &&
+      !isDevelopment &&
+      webhookUrl.includes('discord.com/api/webhooks/') &&
+      !webhookUrl.includes('placeholder')
+    ) {
       this.client = new WebhookClient({ url: this.config.webhookUrl });
     }
   }
@@ -51,10 +59,7 @@ class DiscordAlertService {
     this.lastSentTime = Date.now();
   }
 
-  private async retryWithBackoff<T>(
-    operation: () => Promise<T>,
-    attempt: number = 1
-  ): Promise<T> {
+  private async retryWithBackoff<T>(operation: () => Promise<T>, attempt: number = 1): Promise<T> {
     try {
       return await operation();
     } catch (error) {
@@ -64,8 +69,11 @@ class DiscordAlertService {
 
       const delay = Math.pow(this.config.backoffMultiplier, attempt - 1) * 1000;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.warn(`Discord send failed (attempt ${attempt}/${this.config.maxRetries}), retrying in ${delay}ms:`, errorMessage);
-      
+      console.warn(
+        `Discord send failed (attempt ${attempt}/${this.config.maxRetries}), retrying in ${delay}ms:`,
+        errorMessage
+      );
+
       await new Promise(resolve => setTimeout(resolve, delay));
       return this.retryWithBackoff(operation, attempt + 1);
     }
@@ -136,24 +144,25 @@ class DiscordAlertService {
       batches.push(embeds.slice(i, i + 10));
     }
 
-    const batchPromises = batches.map(batch => 
-      new Promise<void>((resolve, reject) => {
-        const request = async () => {
-          try {
-            if (!this.client) {
-              throw new Error('Discord client not initialized');
+    const batchPromises = batches.map(
+      batch =>
+        new Promise<void>((resolve, reject) => {
+          const request = async () => {
+            try {
+              if (!this.client) {
+                throw new Error('Discord client not initialized');
+              }
+              await this.retryWithBackoff(async () => {
+                await this.client!.send({ embeds: batch });
+              });
+              resolve();
+            } catch (error) {
+              reject(error);
             }
-            await this.retryWithBackoff(async () => {
-              await this.client!.send({ embeds: batch });
-            });
-            resolve();
-          } catch (error) {
-            reject(error);
-          }
-        };
+          };
 
-        this.requestQueue.push(request);
-      })
+          this.requestQueue.push(request);
+        })
     );
 
     this.processQueue();
@@ -163,7 +172,7 @@ class DiscordAlertService {
   public getQueueStatus(): { queueLength: number; isProcessing: boolean } {
     return {
       queueLength: this.requestQueue.length,
-      isProcessing: this.isProcessingQueue
+      isProcessing: this.isProcessingQueue,
     };
   }
 
@@ -173,7 +182,7 @@ class DiscordAlertService {
       const testEmbed = new EmbedBuilder()
         .setTitle('🔧 Discord Connection Test')
         .setDescription('This is a test message to verify webhook connectivity')
-        .setColor(0x00FF00)
+        .setColor(0x00ff00)
         .setTimestamp();
 
       // In shadow mode, test goes to shadow preview
@@ -201,7 +210,7 @@ export async function sendDiscordAlert(embed: EmbedBuilder): Promise<void> {
     await shadowPublishPreview(embed.data);
     return;
   }
-  
+
   return discordService.sendAlert(embed);
 }
 
@@ -214,7 +223,7 @@ export async function sendBatchDiscordAlerts(embeds: EmbedBuilder[]): Promise<vo
     }
     return;
   }
-  
+
   return discordService.sendBatchAlerts(embeds);
 }
 

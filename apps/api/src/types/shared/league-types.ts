@@ -1,1 +1,1 @@
-export type SupportedLeague = 'NBA' | 'NFL' | 'MLB' | 'NHL'; 
+export type SupportedLeague = 'NBA' | 'NFL' | 'MLB' | 'NHL';

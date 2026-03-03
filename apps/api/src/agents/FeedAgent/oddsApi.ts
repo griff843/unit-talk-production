@@ -1,9 +1,9 @@
 /**
  * The Odds API Integration for Unit Talk Platform
- * 
+ *
  * This module provides integration with The Odds API for comprehensive sports betting data.
  * API Documentation: https://the-odds-api.com/liveapi/guides/v4/
- * 
+ *
  * Key Features:
  * - Multi-sport coverage (70+ sports including NCAAF)
  * - Live odds, spreads, totals, and moneylines
@@ -24,7 +24,7 @@ const API_CONFIG = {
   baseUrl: 'https://api.the-odds-api.com/v4',
   timeout: 30000,
   retryAttempts: 3,
-  retryDelay: 1000
+  retryDelay: 1000,
 };
 
 // Credit monitoring for free tier (500 credits/month)
@@ -32,33 +32,33 @@ const CREDIT_MONITOR = {
   monthlyLimit: 500,
   dailyBudget: 16, // ~500/30 days
   currentUsage: 0,
-  resetDate: new Date()
+  resetDate: new Date(),
 };
 
 // Supported sports with their API keys
 const SUPPORTED_SPORTS = {
   // American Football
-  'americanfootball_nfl': 'NFL',
-  'americanfootball_ncaaf': 'NCAAF',
-  
-  // Basketball  
-  'basketball_nba': 'NBA',
-  'basketball_ncaab': 'NCAAB',
-  'basketball_wnba': 'WNBA',
-  
+  americanfootball_nfl: 'NFL',
+  americanfootball_ncaaf: 'NCAAF',
+
+  // Basketball
+  basketball_nba: 'NBA',
+  basketball_ncaab: 'NCAAB',
+  basketball_wnba: 'WNBA',
+
   // Baseball
-  'baseball_mlb': 'MLB',
-  
+  baseball_mlb: 'MLB',
+
   // Hockey
-  'icehockey_nhl': 'NHL',
-  
+  icehockey_nhl: 'NHL',
+
   // Soccer (major leagues)
-  'soccer_epl': 'EPL',
-  'soccer_uefa_champs_league': 'UEFA Champions League',
-  
+  soccer_epl: 'EPL',
+  soccer_uefa_champs_league: 'UEFA Champions League',
+
   // Tennis
-  'tennis_atp': 'ATP',
-  'tennis_wta': 'WTA'
+  tennis_atp: 'ATP',
+  tennis_wta: 'WTA',
 } as const;
 
 type SupportedSportKey = keyof typeof SUPPORTED_SPORTS;
@@ -66,9 +66,9 @@ type SupportedSportKey = keyof typeof SUPPORTED_SPORTS;
 // Betting markets available
 const BETTING_MARKETS = {
   h2h: 'Head to Head (Moneyline)',
-  spreads: 'Point Spreads', 
+  spreads: 'Point Spreads',
   totals: 'Over/Under Totals',
-  outrights: 'Tournament/Season Futures'
+  outrights: 'Tournament/Season Futures',
 } as const;
 
 type BettingMarket = keyof typeof BETTING_MARKETS;
@@ -76,9 +76,9 @@ type BettingMarket = keyof typeof BETTING_MARKETS;
 // Bookmaker regions
 const BOOKMAKER_REGIONS = {
   us: 'US Bookmakers',
-  uk: 'UK Bookmakers', 
+  uk: 'UK Bookmakers',
   eu: 'European Bookmakers',
-  au: 'Australian Bookmakers'
+  au: 'Australian Bookmakers',
 } as const;
 
 type BookmakerRegion = keyof typeof BOOKMAKER_REGIONS;
@@ -142,38 +142,42 @@ interface OddsApiScore {
  */
 function trackCreditUsage(creditsUsed: number): void {
   CREDIT_MONITOR.currentUsage += creditsUsed;
-  
+
   // Reset monthly usage if needed
   const now = new Date();
   if (now.getMonth() !== CREDIT_MONITOR.resetDate.getMonth()) {
     CREDIT_MONITOR.currentUsage = creditsUsed;
     CREDIT_MONITOR.resetDate = now;
   }
-  
-  console.log(`[OddsAPI] Credits used: ${creditsUsed} | Monthly total: ${CREDIT_MONITOR.currentUsage}/${CREDIT_MONITOR.monthlyLimit}`);
-  
+
+  console.log(
+    `[OddsAPI] Credits used: ${creditsUsed} | Monthly total: ${CREDIT_MONITOR.currentUsage}/${CREDIT_MONITOR.monthlyLimit}`
+  );
+
   // Warn if approaching limits
   if (CREDIT_MONITOR.currentUsage >= CREDIT_MONITOR.monthlyLimit * 0.8) {
-    console.warn(`[OddsAPI] ⚠️ Approaching monthly credit limit: ${CREDIT_MONITOR.currentUsage}/${CREDIT_MONITOR.monthlyLimit}`);
+    console.warn(
+      `[OddsAPI] ⚠️ Approaching monthly credit limit: ${CREDIT_MONITOR.currentUsage}/${CREDIT_MONITOR.monthlyLimit}`
+    );
   }
 }
 
 function canMakeRequest(): { allowed: boolean; reason?: string } {
   if (CREDIT_MONITOR.currentUsage >= CREDIT_MONITOR.monthlyLimit) {
-    return { 
-      allowed: false, 
-      reason: `Monthly credit limit exceeded: ${CREDIT_MONITOR.currentUsage}/${CREDIT_MONITOR.monthlyLimit}` 
+    return {
+      allowed: false,
+      reason: `Monthly credit limit exceeded: ${CREDIT_MONITOR.currentUsage}/${CREDIT_MONITOR.monthlyLimit}`,
     };
   }
-  
-  const dailyUsage = Math.floor(CREDIT_MONITOR.currentUsage / (new Date().getDate()));
+
+  const dailyUsage = Math.floor(CREDIT_MONITOR.currentUsage / new Date().getDate());
   if (dailyUsage >= CREDIT_MONITOR.dailyBudget * 1.5) {
-    return { 
-      allowed: false, 
-      reason: `Daily credit budget exceeded: ${dailyUsage}/${CREDIT_MONITOR.dailyBudget}` 
+    return {
+      allowed: false,
+      reason: `Daily credit budget exceeded: ${dailyUsage}/${CREDIT_MONITOR.dailyBudget}`,
     };
   }
-  
+
   return { allowed: true };
 }
 
@@ -183,7 +187,7 @@ function canMakeRequest(): { allowed: boolean; reason?: string } {
 export function getCreditUsageStatus() {
   const now = new Date();
   const dailyEstimate = Math.floor(CREDIT_MONITOR.currentUsage / now.getDate());
-  
+
   return {
     monthlyUsed: CREDIT_MONITOR.currentUsage,
     monthlyLimit: CREDIT_MONITOR.monthlyLimit,
@@ -191,7 +195,7 @@ export function getCreditUsageStatus() {
     dailyEstimate,
     percentUsed: Math.round((CREDIT_MONITOR.currentUsage / CREDIT_MONITOR.monthlyLimit) * 100),
     daysRemaining: 30 - now.getDate(),
-    resetDate: CREDIT_MONITOR.resetDate.toISOString()
+    resetDate: CREDIT_MONITOR.resetDate.toISOString(),
   };
 }
 
@@ -200,7 +204,7 @@ export function getCreditUsageStatus() {
  */
 async function makeOddsApiRequest<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
   const apiKey = process.env['ODDS_API_KEY'] || '8014c48eb8a05f289de049c0961ac4cf';
-  
+
   if (!apiKey) {
     throw new Error('ODDS_API_KEY environment variable is required');
   }
@@ -212,19 +216,19 @@ async function makeOddsApiRequest<T>(endpoint: string, params?: Record<string, a
   }
 
   const url = `${API_CONFIG.baseUrl}${endpoint}`;
-  
+
   try {
     const response: AxiosResponse<T> = await axios.get(url, {
       params: {
         apiKey,
-        ...params
+        ...params,
       },
-      timeout: API_CONFIG.timeout
+      timeout: API_CONFIG.timeout,
     });
 
     // Track credit usage (1 credit per request)
     trackCreditUsage(1);
-    
+
     // Log remaining credits from response headers
     const remainingCredits = response.headers['x-requests-remaining'];
     if (remainingCredits) {
@@ -237,13 +241,13 @@ async function makeOddsApiRequest<T>(endpoint: string, params?: Record<string, a
       const status = error.response?.status;
       const statusText = error.response?.statusText;
       const responseData = error.response?.data;
-      
+
       console.error(`[OddsAPI] API Error:`, {
         status,
         statusText,
         url,
         responseData,
-        params
+        params,
       });
 
       // Handle specific error codes
@@ -255,7 +259,9 @@ async function makeOddsApiRequest<T>(endpoint: string, params?: Record<string, a
         throw new Error(`Invalid request parameters: ${JSON.stringify(responseData)}`);
       }
 
-      throw new Error(`Odds API request failed (${status}): ${responseData?.message || error.message}`);
+      throw new Error(
+        `Odds API request failed (${status}): ${responseData?.message || error.message}`
+      );
     }
     throw error;
   }
@@ -266,21 +272,21 @@ async function makeOddsApiRequest<T>(endpoint: string, params?: Record<string, a
  */
 export async function fetchAvailableSports(): Promise<OddsApiSport[]> {
   console.log('[OddsAPI] Fetching available sports...');
-  
+
   try {
     const sports = await makeOddsApiRequest<OddsApiSport[]>('/sports');
     console.log(`[OddsAPI] Found ${sports.length} available sports`);
-    
+
     // Filter to show only active sports we support
-    const supportedSports = sports.filter(sport => 
-      Object.keys(SUPPORTED_SPORTS).includes(sport.key) && sport.active
+    const supportedSports = sports.filter(
+      sport => Object.keys(SUPPORTED_SPORTS).includes(sport.key) && sport.active
     );
-    
+
     console.log(`[OddsAPI] Supported active sports: ${supportedSports.length}`);
     supportedSports.forEach(sport => {
       console.log(`  - ${sport.title} (${sport.key})`);
     });
-    
+
     return supportedSports;
   } catch (error) {
     console.error('[OddsAPI] Failed to fetch sports:', error);
@@ -298,15 +304,15 @@ export async function fetchOdds(
   oddsFormat: 'decimal' | 'american' = 'american'
 ): Promise<OddsApiGame[]> {
   console.log(`[OddsAPI] Fetching odds for ${sportKey} - Markets: ${markets.join(', ')}`);
-  
+
   try {
     const games = await makeOddsApiRequest<OddsApiGame[]>('/sports/' + sportKey + '/odds', {
       regions: regions.join(','),
       markets: markets.join(','),
       oddsFormat,
-      dateFormat: 'iso'
+      dateFormat: 'iso',
     });
-    
+
     console.log(`[OddsAPI] Fetched odds for ${games.length} games in ${sportKey}`);
     return games;
   } catch (error) {
@@ -323,13 +329,13 @@ export async function fetchScores(
   daysFrom: number = 1
 ): Promise<OddsApiScore[]> {
   console.log(`[OddsAPI] Fetching scores for ${sportKey} (${daysFrom} days)`);
-  
+
   try {
     const scores = await makeOddsApiRequest<OddsApiScore[]>('/sports/' + sportKey + '/scores', {
       daysFrom,
-      dateFormat: 'iso'
+      dateFormat: 'iso',
     });
-    
+
     console.log(`[OddsAPI] Fetched scores for ${scores.length} games in ${sportKey}`);
     return scores;
   } catch (error) {
@@ -342,28 +348,28 @@ export async function fetchScores(
  * Convert Odds API game data to RawProp format for existing pipeline
  */
 function convertOddsApiToRawProp(
-  game: OddsApiGame, 
-  market: OddsApiMarket, 
+  game: OddsApiGame,
+  market: OddsApiMarket,
   outcome: OddsApiOutcome,
   bookmaker: OddsApiBookmaker
 ): RawProp {
   const uuid = randomUUID();
-  
+
   // Fix: Properly map sport_key to consistent sport/league values
   const sportMapping = SUPPORTED_SPORTS[game.sport_key as SupportedSportKey];
   const sport = sportMapping || game.sport_title || 'UNKNOWN';
   const league = sportMapping || game.sport_title || 'UNKNOWN';
-  
+
   // Add validation logging for unmapped sports
   if (!sportMapping) {
     console.warn(`[OddsAPI] Unmapped sport_key: ${game.sport_key} → defaulting to: ${sport}`);
   }
-  
+
   // Determine bet type based on market
   let betType = 'unknown';
   let line = outcome.point || 0;
   let statType = market.key;
-  
+
   switch (market.key) {
     case 'h2h':
       betType = 'moneyline';
@@ -380,11 +386,11 @@ function convertOddsApiToRawProp(
       line = outcome.point || 0;
       break;
   }
-  
+
   // Convert American odds to over/under format
   const odds = outcome.price;
   const isPositive = odds > 0;
-  
+
   return {
     // Required database fields
     id: uuid,
@@ -459,7 +465,7 @@ function convertOddsApiToRawProp(
     updated_at: market.last_update,
     is_alt_line: null,
     is_primary: null,
-    is_valid: undefined
+    is_valid: undefined,
   };
 }
 
@@ -472,10 +478,10 @@ export async function fetchOddsApiProps(
 ): Promise<RawProp[]> {
   try {
     console.log(`[OddsAPI] Fetching comprehensive data for ${sportKey}`);
-    
+
     const games = await fetchOdds(sportKey, markets);
     const rawProps: RawProp[] = [];
-    
+
     for (const game of games) {
       for (const bookmaker of game.bookmakers) {
         for (const market of bookmaker.markets) {
@@ -488,10 +494,9 @@ export async function fetchOddsApiProps(
         }
       }
     }
-    
+
     console.log(`[OddsAPI] Converted ${rawProps.length} odds to RawProp format for ${sportKey}`);
     return rawProps;
-    
   } catch (error) {
     console.error(`[OddsAPI] Error fetching props for ${sportKey}:`, error);
     return [];
@@ -507,17 +512,14 @@ export async function fetchSettlementData(
 ): Promise<OddsApiScore[]> {
   try {
     const scores = await fetchScores(sportKey, daysFrom);
-    
+
     // Filter to only completed games with scores
-    const settledGames = scores.filter(scoreItem => 
-      scoreItem.completed && 
-      scoreItem.scores && 
-      scoreItem.scores.length > 0
+    const settledGames = scores.filter(
+      scoreItem => scoreItem.completed && scoreItem.scores && scoreItem.scores.length > 0
     );
-    
+
     console.log(`[OddsAPI] Found ${settledGames.length} completed games with settlement data`);
     return settledGames;
-    
   } catch (error) {
     console.error(`[OddsAPI] Error fetching settlement data for ${sportKey}:`, error);
     return [];
@@ -543,21 +545,21 @@ export async function testOddsApiConnection(): Promise<{
 }> {
   try {
     console.log('[OddsAPI] Testing API connection...');
-    
+
     const sports = await fetchAvailableSports();
     const creditStatus = getCreditUsageStatus();
-    
+
     return {
       connected: true,
       availableSports: sports.length,
-      creditStatus
+      creditStatus,
     };
   } catch (error) {
     return {
       connected: false,
       availableSports: 0,
       creditStatus: getCreditUsageStatus(),
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -567,7 +569,7 @@ export async function testOddsApiConnection(): Promise<{
  */
 export class OddsApiClient {
   private apiKey: string;
-  
+
   constructor(apiKey?: string) {
     this.apiKey = apiKey || process.env['ODDS_API_KEY'] || '8014c48eb8a05f289de049c0961ac4cf';
   }
@@ -596,7 +598,10 @@ export class OddsApiClient {
     return fetchOddsApiProps(sportKey, markets);
   }
 
-  async fetchSettlementData(sportKey: SupportedSportKey, daysFrom: number = 1): Promise<OddsApiScore[]> {
+  async fetchSettlementData(
+    sportKey: SupportedSportKey,
+    daysFrom: number = 1
+  ): Promise<OddsApiScore[]> {
     return fetchSettlementData(sportKey, daysFrom);
   }
 

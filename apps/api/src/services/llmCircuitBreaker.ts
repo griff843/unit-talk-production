@@ -45,16 +45,16 @@ export class LLMCircuitBreaker {
         totalRequests: 0,
         successfulRequests: 0,
         failedRequests: 0,
-        averageLatency: 0
+        averageLatency: 0,
       },
       config: {
         failureThreshold: config.failureThreshold || 5,
         resetTimeout: config.resetTimeout || 60000, // 1 minute
         dailyTokenQuota: config.dailyTokenQuota || 1000000, // 1M tokens
         maxConcurrentRequests: config.maxConcurrentRequests || 50,
-        timeoutMs: config.timeoutMs || 30000 // 30 seconds
+        timeoutMs: config.timeoutMs || 30000, // 30 seconds
       },
-      lastStateChange: Date.now()
+      lastStateChange: Date.now(),
     };
   }
 
@@ -99,17 +99,18 @@ export class LLMCircuitBreaker {
 
       const result = await Promise.race([
         request(),
-        new Promise<never>((_, reject) => 
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Request timeout')), this.state.config.timeoutMs)
-        )
+        ),
       ]);
 
       // Update metrics on success
       this.state.metrics.successfulRequests++;
       this.state.metrics.dailyTokens += tokenEstimate;
-      this.state.metrics.averageLatency = 
-        (this.state.metrics.averageLatency * (this.state.metrics.successfulRequests - 1) + 
-        (Date.now() - startTime)) / this.state.metrics.successfulRequests;
+      this.state.metrics.averageLatency =
+        (this.state.metrics.averageLatency * (this.state.metrics.successfulRequests - 1) +
+          (Date.now() - startTime)) /
+        this.state.metrics.successfulRequests;
 
       // Reset failures in HALF_OPEN state
       if (this.state.state === 'HALF_OPEN') {
@@ -146,7 +147,9 @@ export class LLMCircuitBreaker {
   }
 
   private async processQueue() {
-    if (this.processingQueue || this.requestQueue.length === 0) {return;}
+    if (this.processingQueue || this.requestQueue.length === 0) {
+      return;
+    }
     this.processingQueue = true;
 
     while (this.requestQueue.length > 0) {
@@ -213,11 +216,11 @@ export class LLMCircuitBreaker {
     const now = Date.now();
     const midnight = new Date();
     midnight.setHours(24, 0, 0, 0);
-    
+
     setTimeout(() => {
       this.state.metrics.dailyTokens = 0;
       this.state.metrics.lastReset = now;
       this.resetDailyTokens(); // Schedule next reset
     }, midnight.getTime() - now);
   }
-} 
+}

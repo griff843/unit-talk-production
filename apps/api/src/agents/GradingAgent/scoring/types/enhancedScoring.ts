@@ -167,7 +167,7 @@ export interface EnhancedScoringWeights {
   rosterStabilityScore: number;
   bullpenQualityScore: number;
   advancedSplitAnalysis: number;
-  
+
   // Existing components (adjusted weights)
   expectedValue: number;
   lineMovement: number;
@@ -179,7 +179,7 @@ export interface EnhancedScoringWeights {
   sharpMoney: number;
   volumeProfile: number;
   closingLineValue: number;
-  
+
   // Professional features
   steamDetection: number;
   closingLinePrediction: number;
@@ -189,19 +189,19 @@ export interface EnhancedScoringWeights {
   marketTimingAdvantage: number;
   injuryTimingEdge: number;
   crossMarketDiscrepancy: number;
-  
+
   // Context factors
   playerFatigue: number;
   venueAdvantage: number;
   refereeImpact: number;
   paceImpact: number;
   motivationalFactors: number;
-  
+
   // Risk factors
   correlationRisk: number;
   volatility: number;
   portfolioImpact: number;
-  
+
   // ML ensemble
   neuralNetwork: number;
   gradientBoosting: number;
@@ -217,20 +217,25 @@ export interface EnhancedScoringResult {
   rosterStabilityScore: number;
   bullpenQualityScore: number;
   advancedSplitsScore: number;
-  
+
   // Component analysis
   handednessAdvantage: 'strong' | 'moderate' | 'slight' | 'neutral' | 'disadvantage';
   trendMomentum: 'hot' | 'warm' | 'neutral' | 'cool' | 'cold';
-  historicalEdge: 'strong_batter' | 'slight_batter' | 'neutral' | 'slight_pitcher' | 'strong_pitcher';
+  historicalEdge:
+    | 'strong_batter'
+    | 'slight_batter'
+    | 'neutral'
+    | 'slight_pitcher'
+    | 'strong_pitcher';
   teamStability: 'very_stable' | 'stable' | 'moderate' | 'unstable' | 'very_unstable';
   bullpenReliability: 'elite' | 'strong' | 'average' | 'weak' | 'poor';
   situationalEdge: 'strong' | 'moderate' | 'slight' | 'neutral' | 'negative';
-  
+
   // Overall enhanced professional_score
   enhancedScore: number;
   confidenceLevel: number;
   riskAssessment: 'low' | 'medium' | 'high';
-  
+
   // Insights for display
   keyFactors: string[];
   warnings: string[];

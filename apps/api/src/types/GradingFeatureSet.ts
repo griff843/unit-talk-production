@@ -82,14 +82,14 @@ export interface GradingFeatureSet {
   crossBookVariance?: number;
   marketEfficiency?: number;
   bidAskSpread?: number;
-  
+
   // 🆕 NEW: Professional Capper Data Fields
-  lineMovementHistory?: Array<{timestamp: number; line: number; volume?: number}>;
-  bettingPercentages?: {public: number; sharp: number; timestamp: number};
-  steamMoveData?: {detected: boolean; confidence: number; timestamp: number};
-  multiBookLines?: Array<{book: string; line: number; odds: number; timestamp: number}>;
-  injuryNewsTimeline?: Array<{timestamp: number; severity: number; newsBreak: number}>;
-  crossMarketProps?: Array<{relatedPropId: string; correlation: number}>;
+  lineMovementHistory?: Array<{ timestamp: number; line: number; volume?: number }>;
+  bettingPercentages?: { public: number; sharp: number; timestamp: number };
+  steamMoveData?: { detected: boolean; confidence: number; timestamp: number };
+  multiBookLines?: Array<{ book: string; line: number; odds: number; timestamp: number }>;
+  injuryNewsTimeline?: Array<{ timestamp: number; severity: number; newsBreak: number }>;
+  crossMarketProps?: Array<{ relatedPropId: string; correlation: number }>;
   marketTimingScore?: number;
   optimalBettingWindow?: string;
   contrarianOpportunity?: boolean;
@@ -122,19 +122,19 @@ export interface GradingFeatureSet {
 
   // Enhanced Game Context
   game_date?: string;
-  gameDate?: string;  // Alternative field name
+  gameDate?: string; // Alternative field name
   hoursToGame?: number;
   late_breaking_news?: boolean;
   public_betting_percentage?: number;
   model_agreement?: number;
-  
+
   // Metadata
   timestamp: string;
   version: string;
   source: string;
   confidence: number;
   book?: string; // Optional book/sportsbook name
-  
+
   // Feature Collections
   features?: {
     market?: MarketFeature[];

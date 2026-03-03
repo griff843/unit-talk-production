@@ -21,11 +21,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { computeScoreV2 } from '../computeScoreV2';
 import { unifiedEdgeScore } from '../../../../logic/scoring/unified-edge-score';
 import { getScoringConfig, getSportWeights } from '../../../../scoring/config/weights';
 import { validateWeightsV2 } from '../../../../scoring/config/weights/types';
 import { GradingFeatureSet } from '../../../../types/GradingFeatureSet';
+import { computeScoreV2 } from '../computeScoreV2';
 
 // ─── Output Directory ────────────────────────────────────────────────────────
 
@@ -45,12 +45,10 @@ interface PickPayload {
   rawProp: Record<string, any>;
 }
 
-function makeFeatureSet(
-  sport: string,
-  overrides: Partial<GradingFeatureSet>
-): GradingFeatureSet {
+function makeFeatureSet(sport: string, overrides: Partial<GradingFeatureSet>): GradingFeatureSet {
   return {
-    propId: overrides.propId || `t5-${sport.toLowerCase()}-${Math.random().toString(36).slice(2, 6)}`,
+    propId:
+      overrides.propId || `t5-${sport.toLowerCase()}-${Math.random().toString(36).slice(2, 6)}`,
     date: '2026-01-29',
     sport,
     league: sport,
@@ -124,247 +122,611 @@ function featuresToRawProp(f: GradingFeatureSet): Record<string, any> {
 const PICKS: PickPayload[] = [
   // ── NBA (10) ──────────────────────────────────────────────────────────────
   {
-    id: 'NBA-001', sport: 'NBA', player: 'Luka Doncic', market: 'points',
+    id: 'NBA-001',
+    sport: 'NBA',
+    player: 'Luka Doncic',
+    market: 'points',
     description: 'Elite scorer, strong matchup, +EV',
-    features: { expectedValue: 18, matchupRating: 88, playerForm: 90, sharpMoney: 80, closingLineValue: 6, lineMovement: 3 },
+    features: {
+      expectedValue: 18,
+      matchupRating: 88,
+      playerForm: 90,
+      sharpMoney: 80,
+      closingLineValue: 6,
+      lineMovement: 3,
+    },
     rawProp: {},
   },
   {
-    id: 'NBA-002', sport: 'NBA', player: 'Jayson Tatum', market: 'rebounds',
+    id: 'NBA-002',
+    sport: 'NBA',
+    player: 'Jayson Tatum',
+    market: 'rebounds',
     description: 'Above avg rebounder, moderate EV',
     features: { expectedValue: 8, matchupRating: 65, playerForm: 72, sharpMoney: 60, odds: -115 },
     rawProp: {},
   },
   {
-    id: 'NBA-003', sport: 'NBA', player: 'Tyrese Haliburton', market: 'assists',
+    id: 'NBA-003',
+    sport: 'NBA',
+    player: 'Tyrese Haliburton',
+    market: 'assists',
     description: 'Pass-first guard, high volume',
-    features: { expectedValue: 12, matchupRating: 75, playerForm: 78, sharpMoney: 70, volumeProfile: 70, closingLineValue: 4 },
+    features: {
+      expectedValue: 12,
+      matchupRating: 75,
+      playerForm: 78,
+      sharpMoney: 70,
+      volumeProfile: 70,
+      closingLineValue: 4,
+    },
     rawProp: {},
   },
   {
-    id: 'NBA-004', sport: 'NBA', player: 'Bench Player', market: 'points',
+    id: 'NBA-004',
+    sport: 'NBA',
+    player: 'Bench Player',
+    market: 'points',
     description: 'Low-minute player, negative EV, thin data',
-    features: { expectedValue: -12, matchupRating: 35, playerForm: 40, sharpMoney: 30, volumeProfile: 25, closingLineValue: -3 },
+    features: {
+      expectedValue: -12,
+      matchupRating: 35,
+      playerForm: 40,
+      sharpMoney: 30,
+      volumeProfile: 25,
+      closingLineValue: -3,
+    },
     rawProp: {},
   },
   {
-    id: 'NBA-005', sport: 'NBA', player: 'Anthony Davis', market: 'blocks',
+    id: 'NBA-005',
+    sport: 'NBA',
+    player: 'Anthony Davis',
+    market: 'blocks',
     description: 'Elite defender, niche market',
-    features: { expectedValue: 15, matchupRating: 80, playerForm: 85, injuryImpact: 6, sharpMoney: 75, correlationRisk: 0.25 },
+    features: {
+      expectedValue: 15,
+      matchupRating: 80,
+      playerForm: 85,
+      injuryImpact: 6,
+      sharpMoney: 75,
+      correlationRisk: 0.25,
+    },
     rawProp: {},
   },
   {
-    id: 'NBA-006', sport: 'NBA', player: 'Shai Gilgeous-Alexander', market: 'points',
+    id: 'NBA-006',
+    sport: 'NBA',
+    player: 'Shai Gilgeous-Alexander',
+    market: 'points',
     description: 'MVP candidate, heavy favorite line',
-    features: { expectedValue: 20, matchupRating: 92, playerForm: 95, sharpMoney: 85, odds: -200, closingLineValue: 7 },
+    features: {
+      expectedValue: 20,
+      matchupRating: 92,
+      playerForm: 95,
+      sharpMoney: 85,
+      odds: -200,
+      closingLineValue: 7,
+    },
     rawProp: {},
   },
   {
-    id: 'NBA-007', sport: 'NBA', player: 'De\'Aaron Fox', market: 'steals',
+    id: 'NBA-007',
+    sport: 'NBA',
+    player: "De'Aaron Fox",
+    market: 'steals',
     description: 'Quick guard, high variance prop',
-    features: { expectedValue: 4, matchupRating: 58, playerForm: 62, volatility: 7, correlationRisk: 0.3 },
+    features: {
+      expectedValue: 4,
+      matchupRating: 58,
+      playerForm: 62,
+      volatility: 7,
+      correlationRisk: 0.3,
+    },
     rawProp: {},
   },
   {
-    id: 'NBA-008', sport: 'NBA', player: 'Nikola Jokic', market: 'assists',
+    id: 'NBA-008',
+    sport: 'NBA',
+    player: 'Nikola Jokic',
+    market: 'assists',
     description: 'Triple-double threat, strong all-around',
-    features: { expectedValue: 14, matchupRating: 82, playerForm: 88, sharpMoney: 78, closingLineValue: 5, paceImpact: 16 },
+    features: {
+      expectedValue: 14,
+      matchupRating: 82,
+      playerForm: 88,
+      sharpMoney: 78,
+      closingLineValue: 5,
+      paceImpact: 16,
+    },
     rawProp: {},
   },
   {
-    id: 'NBA-009', sport: 'NBA', player: 'Random Role Player', market: 'threes',
+    id: 'NBA-009',
+    sport: 'NBA',
+    player: 'Random Role Player',
+    market: 'threes',
     description: 'Minimal data, fallback-heavy',
     features: { expectedValue: -5, matchupRating: 45 },
     rawProp: {},
   },
   {
-    id: 'NBA-010', sport: 'NBA', player: 'Giannis Antetokounmpo', market: 'PRA',
+    id: 'NBA-010',
+    sport: 'NBA',
+    player: 'Giannis Antetokounmpo',
+    market: 'PRA',
     description: 'Dominant combo stat, underdog line',
-    features: { expectedValue: 10, matchupRating: 78, playerForm: 82, odds: 150, sharpMoney: 68, lineMovement: 2 },
+    features: {
+      expectedValue: 10,
+      matchupRating: 78,
+      playerForm: 82,
+      odds: 150,
+      sharpMoney: 68,
+      lineMovement: 2,
+    },
     rawProp: {},
   },
 
   // ── MLB (10) ──────────────────────────────────────────────────────────────
   {
-    id: 'MLB-001', sport: 'MLB', player: 'Shohei Ohtani', market: 'strikeouts',
+    id: 'MLB-001',
+    sport: 'MLB',
+    player: 'Shohei Ohtani',
+    market: 'strikeouts',
     description: 'Elite pitcher, high K rate, weather favorable',
-    features: { expectedValue: 16, matchupRating: 90, playerForm: 92, weatherImpact: 8, sharpMoney: 82, closingLineValue: 5 },
+    features: {
+      expectedValue: 16,
+      matchupRating: 90,
+      playerForm: 92,
+      weatherImpact: 8,
+      sharpMoney: 82,
+      closingLineValue: 5,
+    },
     rawProp: {},
   },
   {
-    id: 'MLB-002', sport: 'MLB', player: 'Aaron Judge', market: 'total_bases',
+    id: 'MLB-002',
+    sport: 'MLB',
+    player: 'Aaron Judge',
+    market: 'total_bases',
     description: 'Power hitter, strong park factor',
-    features: { expectedValue: 10, matchupRating: 75, playerForm: 80, weatherImpact: 5, venueAdvantage: 18, sharpMoney: 70 },
+    features: {
+      expectedValue: 10,
+      matchupRating: 75,
+      playerForm: 80,
+      weatherImpact: 5,
+      venueAdvantage: 18,
+      sharpMoney: 70,
+    },
     rawProp: {},
   },
   {
-    id: 'MLB-003', sport: 'MLB', player: 'Mookie Betts', market: 'hits',
+    id: 'MLB-003',
+    sport: 'MLB',
+    player: 'Mookie Betts',
+    market: 'hits',
     description: 'Contact hitter, moderate EV',
-    features: { expectedValue: 6, matchupRating: 68, playerForm: 70, weatherImpact: 3, sharpMoney: 58 },
+    features: {
+      expectedValue: 6,
+      matchupRating: 68,
+      playerForm: 70,
+      weatherImpact: 3,
+      sharpMoney: 58,
+    },
     rawProp: {},
   },
   {
-    id: 'MLB-004', sport: 'MLB', player: 'Backup Catcher', market: 'hits',
+    id: 'MLB-004',
+    sport: 'MLB',
+    player: 'Backup Catcher',
+    market: 'hits',
     description: 'Low batting avg, negative EV',
-    features: { expectedValue: -15, matchupRating: 30, playerForm: 28, sharpMoney: 25, weatherImpact: 0 },
+    features: {
+      expectedValue: -15,
+      matchupRating: 30,
+      playerForm: 28,
+      sharpMoney: 25,
+      weatherImpact: 0,
+    },
     rawProp: {},
   },
   {
-    id: 'MLB-005', sport: 'MLB', player: 'Gerrit Cole', market: 'outs',
+    id: 'MLB-005',
+    sport: 'MLB',
+    player: 'Gerrit Cole',
+    market: 'outs',
     description: 'Quality start candidate, heavy rain risk',
-    features: { expectedValue: 8, matchupRating: 72, playerForm: 75, weatherImpact: 12, injuryImpact: 4 },
+    features: {
+      expectedValue: 8,
+      matchupRating: 72,
+      playerForm: 75,
+      weatherImpact: 12,
+      injuryImpact: 4,
+    },
     rawProp: {},
   },
   {
-    id: 'MLB-006', sport: 'MLB', player: 'Juan Soto', market: 'walks',
+    id: 'MLB-006',
+    sport: 'MLB',
+    player: 'Juan Soto',
+    market: 'walks',
     description: 'Elite plate discipline, niche market',
-    features: { expectedValue: 5, matchupRating: 60, playerForm: 65, volatility: 6, sharpMoney: 55 },
+    features: {
+      expectedValue: 5,
+      matchupRating: 60,
+      playerForm: 65,
+      volatility: 6,
+      sharpMoney: 55,
+    },
     rawProp: {},
   },
   {
-    id: 'MLB-007', sport: 'MLB', player: 'Corbin Burnes', market: 'strikeouts',
+    id: 'MLB-007',
+    sport: 'MLB',
+    player: 'Corbin Burnes',
+    market: 'strikeouts',
     description: 'Solid pitcher, warm weather boost',
-    features: { expectedValue: 11, matchupRating: 78, playerForm: 76, weatherImpact: 6, sharpMoney: 72, closingLineValue: 3 },
+    features: {
+      expectedValue: 11,
+      matchupRating: 78,
+      playerForm: 76,
+      weatherImpact: 6,
+      sharpMoney: 72,
+      closingLineValue: 3,
+    },
     rawProp: {},
   },
   {
-    id: 'MLB-008', sport: 'MLB', player: 'Ronald Acuna Jr', market: 'stolen_bases',
+    id: 'MLB-008',
+    sport: 'MLB',
+    player: 'Ronald Acuna Jr',
+    market: 'stolen_bases',
     description: 'Speed threat, high variance',
-    features: { expectedValue: 3, matchupRating: 55, playerForm: 58, volatility: 8, correlationRisk: 0.35 },
+    features: {
+      expectedValue: 3,
+      matchupRating: 55,
+      playerForm: 58,
+      volatility: 8,
+      correlationRisk: 0.35,
+    },
     rawProp: {},
   },
   {
-    id: 'MLB-009', sport: 'MLB', player: 'Zack Wheeler', market: 'earned_runs',
+    id: 'MLB-009',
+    sport: 'MLB',
+    player: 'Zack Wheeler',
+    market: 'earned_runs',
     description: 'Ace pitcher, opposing strong lineup',
-    features: { expectedValue: -2, matchupRating: 82, playerForm: 80, weatherImpact: 2, sharpMoney: 62, closingLineValue: 1 },
+    features: {
+      expectedValue: -2,
+      matchupRating: 82,
+      playerForm: 80,
+      weatherImpact: 2,
+      sharpMoney: 62,
+      closingLineValue: 1,
+    },
     rawProp: {},
   },
   {
-    id: 'MLB-010', sport: 'MLB', player: 'Freddie Freeman', market: 'RBI',
+    id: 'MLB-010',
+    sport: 'MLB',
+    player: 'Freddie Freeman',
+    market: 'RBI',
     description: 'Cleanup hitter, Coors Field boost',
-    features: { expectedValue: 13, matchupRating: 76, playerForm: 78, venueAdvantage: 22, weatherImpact: 4, sharpMoney: 74 },
+    features: {
+      expectedValue: 13,
+      matchupRating: 76,
+      playerForm: 78,
+      venueAdvantage: 22,
+      weatherImpact: 4,
+      sharpMoney: 74,
+    },
     rawProp: {},
   },
 
   // ── NFL (10) ──────────────────────────────────────────────────────────────
   {
-    id: 'NFL-001', sport: 'NFL', player: 'Patrick Mahomes', market: 'passing_yards',
+    id: 'NFL-001',
+    sport: 'NFL',
+    player: 'Patrick Mahomes',
+    market: 'passing_yards',
     description: 'Elite QB, dome game, high pace',
-    features: { expectedValue: 15, matchupRating: 88, playerForm: 90, paceImpact: 18, injuryImpact: 0, sharpMoney: 80, closingLineValue: 5 },
+    features: {
+      expectedValue: 15,
+      matchupRating: 88,
+      playerForm: 90,
+      paceImpact: 18,
+      injuryImpact: 0,
+      sharpMoney: 80,
+      closingLineValue: 5,
+    },
     rawProp: {},
   },
   {
-    id: 'NFL-002', sport: 'NFL', player: 'Derrick Henry', market: 'rushing_yards',
+    id: 'NFL-002',
+    sport: 'NFL',
+    player: 'Derrick Henry',
+    market: 'rushing_yards',
     description: 'Workhorse RB, plus matchup',
-    features: { expectedValue: 10, matchupRating: 75, playerForm: 78, paceImpact: 12, motivationalFactors: 18, sharpMoney: 65 },
+    features: {
+      expectedValue: 10,
+      matchupRating: 75,
+      playerForm: 78,
+      paceImpact: 12,
+      motivationalFactors: 18,
+      sharpMoney: 65,
+    },
     rawProp: {},
   },
   {
-    id: 'NFL-003', sport: 'NFL', player: 'Travis Kelce', market: 'receiving_yards',
+    id: 'NFL-003',
+    sport: 'NFL',
+    player: 'Travis Kelce',
+    market: 'receiving_yards',
     description: 'Elite TE, injury concern',
-    features: { expectedValue: 7, matchupRating: 70, playerForm: 65, injuryImpact: 8, sharpMoney: 60 },
+    features: {
+      expectedValue: 7,
+      matchupRating: 70,
+      playerForm: 65,
+      injuryImpact: 8,
+      sharpMoney: 60,
+    },
     rawProp: {},
   },
   {
-    id: 'NFL-004', sport: 'NFL', player: 'WR3 Depth Player', market: 'receptions',
+    id: 'NFL-004',
+    sport: 'NFL',
+    player: 'WR3 Depth Player',
+    market: 'receptions',
     description: 'Low target share, negative EV',
-    features: { expectedValue: -10, matchupRating: 35, playerForm: 38, sharpMoney: 30, volumeProfile: 20 },
+    features: {
+      expectedValue: -10,
+      matchupRating: 35,
+      playerForm: 38,
+      sharpMoney: 30,
+      volumeProfile: 20,
+    },
     rawProp: {},
   },
   {
-    id: 'NFL-005', sport: 'NFL', player: 'Josh Allen', market: 'rushing_yards',
+    id: 'NFL-005',
+    sport: 'NFL',
+    player: 'Josh Allen',
+    market: 'rushing_yards',
     description: 'Dual-threat QB, cold weather game',
-    features: { expectedValue: 8, matchupRating: 72, playerForm: 80, weatherImpact: 6, motivationalFactors: 20, volatility: 6 },
+    features: {
+      expectedValue: 8,
+      matchupRating: 72,
+      playerForm: 80,
+      weatherImpact: 6,
+      motivationalFactors: 20,
+      volatility: 6,
+    },
     rawProp: {},
   },
   {
-    id: 'NFL-006', sport: 'NFL', player: 'Ja\'Marr Chase', market: 'receiving_yards',
+    id: 'NFL-006',
+    sport: 'NFL',
+    player: "Ja'Marr Chase",
+    market: 'receiving_yards',
     description: 'Top WR, primetime game, sharp action',
-    features: { expectedValue: 18, matchupRating: 85, playerForm: 88, sharpMoney: 82, closingLineValue: 6, paceImpact: 15 },
+    features: {
+      expectedValue: 18,
+      matchupRating: 85,
+      playerForm: 88,
+      sharpMoney: 82,
+      closingLineValue: 6,
+      paceImpact: 15,
+    },
     rawProp: {},
   },
   {
-    id: 'NFL-007', sport: 'NFL', player: 'Saquon Barkley', market: 'rushing_attempts',
+    id: 'NFL-007',
+    sport: 'NFL',
+    player: 'Saquon Barkley',
+    market: 'rushing_attempts',
     description: 'Heavy workload back, game script dependent',
-    features: { expectedValue: 5, matchupRating: 62, playerForm: 68, correlationRisk: 0.3, paceImpact: 8 },
+    features: {
+      expectedValue: 5,
+      matchupRating: 62,
+      playerForm: 68,
+      correlationRisk: 0.3,
+      paceImpact: 8,
+    },
     rawProp: {},
   },
   {
-    id: 'NFL-008', sport: 'NFL', player: 'T.J. Watt', market: 'sacks',
+    id: 'NFL-008',
+    sport: 'NFL',
+    player: 'T.J. Watt',
+    market: 'sacks',
     description: 'Elite pass rusher, high variance prop',
-    features: { expectedValue: 4, matchupRating: 78, playerForm: 82, volatility: 9, correlationRisk: 0.4, sharpMoney: 55 },
+    features: {
+      expectedValue: 4,
+      matchupRating: 78,
+      playerForm: 82,
+      volatility: 9,
+      correlationRisk: 0.4,
+      sharpMoney: 55,
+    },
     rawProp: {},
   },
   {
-    id: 'NFL-009', sport: 'NFL', player: 'Lamar Jackson', market: 'passing_TDs',
+    id: 'NFL-009',
+    sport: 'NFL',
+    player: 'Lamar Jackson',
+    market: 'passing_TDs',
     description: 'MVP QB, strong at home, limited data',
-    features: { expectedValue: 12, matchupRating: 80, playerForm: 84, venueAdvantage: 16, motivationalFactors: 22 },
+    features: {
+      expectedValue: 12,
+      matchupRating: 80,
+      playerForm: 84,
+      venueAdvantage: 16,
+      motivationalFactors: 22,
+    },
     rawProp: {},
   },
   {
-    id: 'NFL-010', sport: 'NFL', player: 'CeeDee Lamb', market: 'receptions',
+    id: 'NFL-010',
+    sport: 'NFL',
+    player: 'CeeDee Lamb',
+    market: 'receptions',
     description: 'Target monster, negative game script expected',
-    features: { expectedValue: -3, matchupRating: 55, playerForm: 72, sharpMoney: 45, paceImpact: 6 },
+    features: {
+      expectedValue: -3,
+      matchupRating: 55,
+      playerForm: 72,
+      sharpMoney: 45,
+      paceImpact: 6,
+    },
     rawProp: {},
   },
 
   // ── NHL (10) ──────────────────────────────────────────────────────────────
   {
-    id: 'NHL-001', sport: 'NHL', player: 'Connor McDavid', market: 'points',
+    id: 'NHL-001',
+    sport: 'NHL',
+    player: 'Connor McDavid',
+    market: 'points',
     description: 'Generational talent, plus matchup',
-    features: { expectedValue: 14, matchupRating: 92, playerForm: 95, sharpMoney: 78, closingLineValue: 4, paceImpact: 16 },
+    features: {
+      expectedValue: 14,
+      matchupRating: 92,
+      playerForm: 95,
+      sharpMoney: 78,
+      closingLineValue: 4,
+      paceImpact: 16,
+    },
     rawProp: {},
   },
   {
-    id: 'NHL-002', sport: 'NHL', player: 'Auston Matthews', market: 'shots_on_goal',
+    id: 'NHL-002',
+    sport: 'NHL',
+    player: 'Auston Matthews',
+    market: 'shots_on_goal',
     description: 'Elite shooter, high volume',
-    features: { expectedValue: 10, matchupRating: 80, playerForm: 82, volumeProfile: 72, sharpMoney: 70, closingLineValue: 3 },
+    features: {
+      expectedValue: 10,
+      matchupRating: 80,
+      playerForm: 82,
+      volumeProfile: 72,
+      sharpMoney: 70,
+      closingLineValue: 3,
+    },
     rawProp: {},
   },
   {
-    id: 'NHL-003', sport: 'NHL', player: 'Nathan MacKinnon', market: 'assists',
+    id: 'NHL-003',
+    sport: 'NHL',
+    player: 'Nathan MacKinnon',
+    market: 'assists',
     description: 'Playmaker, strong line, moderate EV',
-    features: { expectedValue: 7, matchupRating: 74, playerForm: 78, paceImpact: 14, sharpMoney: 62 },
+    features: {
+      expectedValue: 7,
+      matchupRating: 74,
+      playerForm: 78,
+      paceImpact: 14,
+      sharpMoney: 62,
+    },
     rawProp: {},
   },
   {
-    id: 'NHL-004', sport: 'NHL', player: '4th Line Forward', market: 'shots_on_goal',
+    id: 'NHL-004',
+    sport: 'NHL',
+    player: '4th Line Forward',
+    market: 'shots_on_goal',
     description: 'Limited ice time, negative EV',
-    features: { expectedValue: -8, matchupRating: 30, playerForm: 35, sharpMoney: 28, volumeProfile: 18 },
+    features: {
+      expectedValue: -8,
+      matchupRating: 30,
+      playerForm: 35,
+      sharpMoney: 28,
+      volumeProfile: 18,
+    },
     rawProp: {},
   },
   {
-    id: 'NHL-005', sport: 'NHL', player: 'Cale Makar', market: 'blocked_shots',
+    id: 'NHL-005',
+    sport: 'NHL',
+    player: 'Cale Makar',
+    market: 'blocked_shots',
     description: 'Offensive D, high variance prop',
-    features: { expectedValue: 3, matchupRating: 65, playerForm: 75, volatility: 7, correlationRisk: 0.35 },
+    features: {
+      expectedValue: 3,
+      matchupRating: 65,
+      playerForm: 75,
+      volatility: 7,
+      correlationRisk: 0.35,
+    },
     rawProp: {},
   },
   {
-    id: 'NHL-006', sport: 'NHL', player: 'Leon Draisaitl', market: 'goals',
+    id: 'NHL-006',
+    sport: 'NHL',
+    player: 'Leon Draisaitl',
+    market: 'goals',
     description: 'PP specialist, strong at home',
-    features: { expectedValue: 12, matchupRating: 82, playerForm: 85, venueAdvantage: 15, sharpMoney: 76, closingLineValue: 5 },
+    features: {
+      expectedValue: 12,
+      matchupRating: 82,
+      playerForm: 85,
+      venueAdvantage: 15,
+      sharpMoney: 76,
+      closingLineValue: 5,
+    },
     rawProp: {},
   },
   {
-    id: 'NHL-007', sport: 'NHL', player: 'Andrei Vasilevskiy', market: 'saves',
+    id: 'NHL-007',
+    sport: 'NHL',
+    player: 'Andrei Vasilevskiy',
+    market: 'saves',
     description: 'Elite goalie, high shot volume expected',
-    features: { expectedValue: 6, matchupRating: 70, playerForm: 72, volumeProfile: 68, playerFatigue: 55 },
+    features: {
+      expectedValue: 6,
+      matchupRating: 70,
+      playerForm: 72,
+      volumeProfile: 68,
+      playerFatigue: 55,
+    },
     rawProp: {},
   },
   {
-    id: 'NHL-008', sport: 'NHL', player: 'Jack Hughes', market: 'points',
+    id: 'NHL-008',
+    sport: 'NHL',
+    player: 'Jack Hughes',
+    market: 'points',
     description: 'Young star, inconsistent form',
-    features: { expectedValue: 5, matchupRating: 60, playerForm: 55, volatility: 6, sharpMoney: 52 },
+    features: {
+      expectedValue: 5,
+      matchupRating: 60,
+      playerForm: 55,
+      volatility: 6,
+      sharpMoney: 52,
+    },
     rawProp: {},
   },
   {
-    id: 'NHL-009', sport: 'NHL', player: 'David Pastrnak', market: 'shots_on_goal',
+    id: 'NHL-009',
+    sport: 'NHL',
+    player: 'David Pastrnak',
+    market: 'shots_on_goal',
     description: 'Trigger-happy winger, rivalry game',
-    features: { expectedValue: 9, matchupRating: 76, playerForm: 80, motivationalFactors: 20, sharpMoney: 68, paceImpact: 13 },
+    features: {
+      expectedValue: 9,
+      matchupRating: 76,
+      playerForm: 80,
+      motivationalFactors: 20,
+      sharpMoney: 68,
+      paceImpact: 13,
+    },
     rawProp: {},
   },
   {
-    id: 'NHL-010', sport: 'NHL', player: 'AHL Callup', market: 'points',
+    id: 'NHL-010',
+    sport: 'NHL',
+    player: 'AHL Callup',
+    market: 'points',
     description: 'Zero track record, maximum fallback',
     features: { expectedValue: -18, matchupRating: 20 },
     rawProp: {},
@@ -379,8 +741,25 @@ interface RuntimeResult {
   player: string;
   market: string;
   description: string;
-  v1: { score: number; tier: string; ev: number; postable: boolean; executionMs: number; error: string | null };
-  v2: { score: number; tier: string; ev: number; postable: boolean; executionMs: number; error: string | null; featuresPresent: number; fallbacksUsed: number; excluded: number };
+  v1: {
+    score: number;
+    tier: string;
+    ev: number;
+    postable: boolean;
+    executionMs: number;
+    error: string | null;
+  };
+  v2: {
+    score: number;
+    tier: string;
+    ev: number;
+    postable: boolean;
+    executionMs: number;
+    error: string | null;
+    featuresPresent: number;
+    fallbacksUsed: number;
+    excluded: number;
+  };
   delta: { score: number; tierChanged: boolean; promotionImpact: boolean; evDelta: number };
 }
 
@@ -391,7 +770,14 @@ function isPromotionImpacting(v1Tier: string, v2Tier: string): boolean {
   return v1Promoted !== v2Promoted;
 }
 
-function runV1(rawProp: Record<string, any>): { score: number; tier: string; ev: number; postable: boolean; executionMs: number; error: string | null } {
+function runV1(rawProp: Record<string, any>): {
+  score: number;
+  tier: string;
+  ev: number;
+  postable: boolean;
+  executionMs: number;
+  error: string | null;
+} {
   const start = performance.now();
   try {
     // Run with V2=false (legacy path)
@@ -410,11 +796,28 @@ function runV1(rawProp: Record<string, any>): { score: number; tier: string; ev:
     };
   } catch (e: any) {
     const ms = performance.now() - start;
-    return { score: 0, tier: 'ERR', ev: 0, postable: false, executionMs: Math.round(ms * 100) / 100, error: e.message };
+    return {
+      score: 0,
+      tier: 'ERR',
+      ev: 0,
+      postable: false,
+      executionMs: Math.round(ms * 100) / 100,
+      error: e.message,
+    };
   }
 }
 
-function runV2(features: GradingFeatureSet): { score: number; tier: string; ev: number; postable: boolean; executionMs: number; error: string | null; featuresPresent: number; fallbacksUsed: number; excluded: number } {
+function runV2(features: GradingFeatureSet): {
+  score: number;
+  tier: string;
+  ev: number;
+  postable: boolean;
+  executionMs: number;
+  error: string | null;
+  featuresPresent: number;
+  fallbacksUsed: number;
+  excluded: number;
+} {
   const start = performance.now();
   try {
     const result = computeScoreV2(features);
@@ -433,7 +836,17 @@ function runV2(features: GradingFeatureSet): { score: number; tier: string; ev: 
     };
   } catch (e: any) {
     const ms = performance.now() - start;
-    return { score: 0, tier: 'ERR', ev: 0, postable: false, executionMs: Math.round(ms * 100) / 100, error: e.message, featuresPresent: 0, fallbacksUsed: 0, excluded: 0 };
+    return {
+      score: 0,
+      tier: 'ERR',
+      ev: 0,
+      postable: false,
+      executionMs: Math.round(ms * 100) / 100,
+      error: e.message,
+      featuresPresent: 0,
+      fallbacksUsed: 0,
+      excluded: 0,
+    };
   }
 }
 
@@ -445,7 +858,10 @@ function main() {
   }
 
   const logs: string[] = [];
-  const log = (msg: string) => { console.log(msg); logs.push(msg); };
+  const log = (msg: string) => {
+    console.log(msg);
+    logs.push(msg);
+  };
 
   log('╔══════════════════════════════════════════════════════════════╗');
   log('║         TRANCHE 5 — Runtime Validation Harness             ║');
@@ -458,7 +874,9 @@ function main() {
     const config = getScoringConfig(sport);
     const v2Result = validateWeightsV2(config.weights);
     const status = v2Result.valid ? '✅' : '❌';
-    log(`  ${status} ${sport}: coreTotal=${v2Result.coreTotal.toFixed(4)}, enhancedTotal=${v2Result.enhancedTotal.toFixed(4)}, total=${v2Result.total.toFixed(4)}, issues=${v2Result.issues.length}`);
+    log(
+      `  ${status} ${sport}: coreTotal=${v2Result.coreTotal.toFixed(4)}, enhancedTotal=${v2Result.enhancedTotal.toFixed(4)}, total=${v2Result.total.toFixed(4)}, issues=${v2Result.issues.length}`
+    );
     if (v2Result.issues.length > 0) {
       for (const issue of v2Result.issues) log(`      ⚠️  ${issue}`);
     }
@@ -518,7 +936,9 @@ function main() {
     });
 
     const tierFlag = tierChanged ? (promotionImpact ? ' ⚠️ PROMO-IMPACT' : ' △TIER') : '';
-    log(`  [${pick.id}] ${pick.player} (${pick.sport}/${pick.market}): V1=${v1.score.toFixed(1)}/${v1.tier} V2=${v2.score.toFixed(1)}/${v2.tier} Δ=${(v2.score - v1.score).toFixed(1)}${tierFlag}${v1.error ? ' V1-ERR' : ''}${v2.error ? ' V2-ERR' : ''}`);
+    log(
+      `  [${pick.id}] ${pick.player} (${pick.sport}/${pick.market}): V1=${v1.score.toFixed(1)}/${v1.tier} V2=${v2.score.toFixed(1)}/${v2.tier} Δ=${(v2.score - v1.score).toFixed(1)}${tierFlag}${v1.error ? ' V1-ERR' : ''}${v2.error ? ' V2-ERR' : ''}`
+    );
   }
 
   log('');
@@ -538,9 +958,13 @@ function main() {
   const promoImpacts = results.filter(r => r.delta.promotionImpact);
   const avgScoreDelta = results.reduce((s, r) => s + Math.abs(r.delta.score), 0) / results.length;
 
-  const sportDrift: Record<string, { count: number; totalDelta: number; tierChanges: number; promoImpacts: number }> = {};
+  const sportDrift: Record<
+    string,
+    { count: number; totalDelta: number; tierChanges: number; promoImpacts: number }
+  > = {};
   for (const r of results) {
-    if (!sportDrift[r.sport]) sportDrift[r.sport] = { count: 0, totalDelta: 0, tierChanges: 0, promoImpacts: 0 };
+    if (!sportDrift[r.sport])
+      sportDrift[r.sport] = { count: 0, totalDelta: 0, tierChanges: 0, promoImpacts: 0 };
     sportDrift[r.sport].count++;
     sportDrift[r.sport].totalDelta += r.delta.score;
     if (r.delta.tierChanged) sportDrift[r.sport].tierChanges++;
@@ -548,14 +972,20 @@ function main() {
   }
 
   log('=== DRIFT METRICS ===');
-  log(`  Tier changes: ${tierChanges.length}/${results.length} (${(tierChanges.length / results.length * 100).toFixed(1)}%)`);
-  log(`  Promotion-impacting: ${promoImpacts.length}/${results.length} (${(promoImpacts.length / results.length * 100).toFixed(1)}%)`);
+  log(
+    `  Tier changes: ${tierChanges.length}/${results.length} (${((tierChanges.length / results.length) * 100).toFixed(1)}%)`
+  );
+  log(
+    `  Promotion-impacting: ${promoImpacts.length}/${results.length} (${((promoImpacts.length / results.length) * 100).toFixed(1)}%)`
+  );
   log(`  Avg |score delta|: ${avgScoreDelta.toFixed(2)}`);
   log('');
   log('  By sport:');
   for (const [sport, d] of Object.entries(sportDrift)) {
     const avgDelta = d.totalDelta / d.count;
-    log(`    ${sport}: n=${d.count}, avgΔ=${avgDelta.toFixed(2)}, tierChanges=${d.tierChanges}, promoImpact=${d.promoImpacts}`);
+    log(
+      `    ${sport}: n=${d.count}, avgΔ=${avgDelta.toFixed(2)}, tierChanges=${d.tierChanges}, promoImpact=${d.promoImpacts}`
+    );
   }
   log('');
 
@@ -577,18 +1007,27 @@ function main() {
     v2AvgExecutionMs: Math.round(v2AvgMs * 100) / 100,
     v2Speedup: Math.round((v1AvgMs / v2AvgMs) * 100) / 100,
     driftMetrics: {
-      tierChangePct: Math.round(tierChanges.length / results.length * 10000) / 100,
-      promotionImpactPct: Math.round(promoImpacts.length / results.length * 10000) / 100,
+      tierChangePct: Math.round((tierChanges.length / results.length) * 10000) / 100,
+      promotionImpactPct: Math.round((promoImpacts.length / results.length) * 10000) / 100,
       avgAbsScoreDelta: Math.round(avgScoreDelta * 100) / 100,
-      tierChanges: tierChanges.map(r => ({ pick: r.pick_id, sport: r.sport, v1Tier: r.v1.tier, v2Tier: r.v2.tier, promoImpact: r.delta.promotionImpact })),
+      tierChanges: tierChanges.map(r => ({
+        pick: r.pick_id,
+        sport: r.sport,
+        v1Tier: r.v1.tier,
+        v2Tier: r.v2.tier,
+        promoImpact: r.delta.promotionImpact,
+      })),
     },
     sportDrift: Object.fromEntries(
-      Object.entries(sportDrift).map(([sport, d]) => [sport, {
-        picks: d.count,
-        avgScoreDelta: Math.round(d.totalDelta / d.count * 100) / 100,
-        tierChanges: d.tierChanges,
-        promoImpacts: d.promoImpacts,
-      }])
+      Object.entries(sportDrift).map(([sport, d]) => [
+        sport,
+        {
+          picks: d.count,
+          avgScoreDelta: Math.round((d.totalDelta / d.count) * 100) / 100,
+          tierChanges: d.tierChanges,
+          promoImpacts: d.promoImpacts,
+        },
+      ])
     ),
   };
   const execPath = path.join(outDir, 'proof_stageA_execution_summary.json');
@@ -608,7 +1047,9 @@ function main() {
   // ── Final status ────────────────────────────────────────────────────
   log('');
   log('╔══════════════════════════════════════════════════════════════╗');
-  log(`║  V2 Errors: ${v2Errors}    Tier Changes: ${tierChanges.length}/${results.length}    Promo Impact: ${promoImpacts.length}/${results.length}  ║`);
+  log(
+    `║  V2 Errors: ${v2Errors}    Tier Changes: ${tierChanges.length}/${results.length}    Promo Impact: ${promoImpacts.length}/${results.length}  ║`
+  );
   log('╚══════════════════════════════════════════════════════════════╝');
 
   // Re-write logs with final content

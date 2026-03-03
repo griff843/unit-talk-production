@@ -1,9 +1,4 @@
-import {
-  SlashCommandBuilder,
-  CommandInteraction,
-  EmbedBuilder,
-  GuildMember
-} from 'discord.js';
+import { SlashCommandBuilder, CommandInteraction, EmbedBuilder, GuildMember } from 'discord.js';
 
 import { capperService } from '../services/capperService';
 import { logger } from '../shared/logger';
@@ -21,23 +16,26 @@ export async function execute(interaction: CommandInteraction) {
     if (!hasRole(member, 'UT Capper')) {
       await interaction.reply({
         content: '❌ You need the **UT Capper** role to view stats.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
 
     // Get capper profile
-    const capperProfile = await capperService.getCapperByDiscordId(interaction.user.id) as CapperProfile | null;
+    const capperProfile = (await capperService.getCapperByDiscordId(
+      interaction.user.id
+    )) as CapperProfile | null;
     if (!capperProfile) {
       await interaction.reply({
-        content: '❌ You need to complete capper onboarding first. Use `/capper-onboard` to get started.',
-        ephemeral: true
+        content:
+          '❌ You need to complete capper onboarding first. Use `/capper-onboard` to get started.',
+        ephemeral: true,
       });
       return;
     }
 
     // Get stats
-    const stats = await capperService.getCapperStats(capperProfile.id) as unknown as CapperStats;
+    const stats = (await capperService.getCapperStats(capperProfile.id)) as unknown as CapperStats;
 
     // Create stats embed
     const embed = new EmbedBuilder()
@@ -49,15 +47,19 @@ export async function execute(interaction: CommandInteraction) {
         { name: 'Win Rate', value: `${(stats.win_rate * 100).toFixed(1)}%`, inline: true },
         { name: 'Pushes', value: (stats.pushes || 0).toString(), inline: true },
         { name: 'ROI', value: `${(stats.roi * 100).toFixed(1)}%`, inline: true },
-        { name: 'Profit/Loss', value: `${(stats.profit_loss || 0) > 0 ? '+' : ''}${(stats.profit_loss || 0).toFixed(2)} units`, inline: true },
+        {
+          name: 'Profit/Loss',
+          value: `${(stats.profit_loss || 0) > 0 ? '+' : ''}${(stats.profit_loss || 0).toFixed(2)} units`,
+          inline: true,
+        },
         { name: 'Current Streak', value: (stats.current_streak || 0).toString(), inline: true }
       );
 
     if (capperProfile.specialties && capperProfile.specialties.length > 0) {
-      embed.addFields({ 
-        name: 'Specialties', 
-        value: capperProfile.specialties.join(', '), 
-        inline: false 
+      embed.addFields({
+        name: 'Specialties',
+        value: capperProfile.specialties.join(', '),
+        inline: false,
       });
     }
 
@@ -69,14 +71,13 @@ export async function execute(interaction: CommandInteraction) {
 
     await interaction.reply({
       embeds: [embed],
-      ephemeral: true
+      ephemeral: true,
     });
-
   } catch (error) {
     logger.error('Error in capper-stats command', { error });
     await interaction.reply({
       content: '❌ An error occurred while fetching your stats.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }

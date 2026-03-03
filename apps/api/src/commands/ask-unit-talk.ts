@@ -10,10 +10,16 @@ export async function execute(
   try {
     // Check if user has VIP role
     const member = interaction.member;
-    if (!member?.roles || (typeof member.roles === 'object' && 'cache' in member.roles && !member.roles.cache.has(config.roles.vip)) || (Array.isArray(member.roles) && !member.roles.includes(config.roles.vip))) {
+    if (
+      !member?.roles ||
+      (typeof member.roles === 'object' &&
+        'cache' in member.roles &&
+        !member.roles.cache.has(config.roles.vip)) ||
+      (Array.isArray(member.roles) && !member.roles.includes(config.roles.vip))
+    ) {
       await interaction.reply({
         content: 'This command is only available to VIP members due to rate limiting.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -23,7 +29,7 @@ export async function execute(
     if (!question || question.length < 10) {
       await interaction.reply({
         content: 'Your question must be at least 10 characters long.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -42,12 +48,13 @@ export async function execute(
     const analysis = await aiService.generateAnalysis({
       question,
       userContext: {
-        tier: 'vip'
-      }
+        tier: 'vip',
+      },
     });
 
     // Format response
-    const response = `**Analysis:** ${analysis.analysis}\n\n` +
+    const response =
+      `**Analysis:** ${analysis.analysis}\n\n` +
       `**Confidence:** ${analysis.confidence}%\n\n` +
       `**Risk Assessment:** ${analysis.riskAssessment.level} (${analysis.riskAssessment.score}/10)\n\n` +
       `**Key Insights:**\n${analysis.keyInsights.map((i: string) => `• ${i}`).join('\n')}\n\n` +
@@ -59,16 +66,18 @@ export async function execute(
     // Log success
     deps.logger.info('AI analysis generated successfully', {
       userId: interaction.user.id,
-      question
+      question,
     });
   } catch (error) {
     // Log error
     deps.logger.error('Failed to generate AI analysis', {
       error,
-      userId: interaction.user.id
+      userId: interaction.user.id,
     });
 
     // Send error message
-    await interaction.editReply('Sorry, I encountered an error while analyzing your question. Please try again later.');
+    await interaction.editReply(
+      'Sorry, I encountered an error while analyzing your question. Please try again later.'
+    );
   }
-} 
+}

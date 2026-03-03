@@ -1,5 +1,5 @@
-import { Logger } from '../../shared/logger/types';
 import { redisCache } from '../../cache/enhanced-cache';
+import { Logger } from '../../shared/logger/types';
 
 export interface RetentionStrategyData {
   id: string;
@@ -58,39 +58,51 @@ export class RetentionStrategy {
 
   async initialize(): Promise<void> {
     this.logger.info('🎯 Initializing RetentionStrategy');
-    
+
     await this.loadRetentionStrategies();
     await this.loadCampaignHistory();
     await this.loadPerformanceMetrics();
-    
+
     this.logger.info('✅ RetentionStrategy initialized');
   }
 
-  async generateStrategies(userId: string, context: {
-    churnRisk: number;
-    riskFactors: string[];
-    segment: string;
-    lifetimeValue: number;
-    urgency: 'low' | 'medium' | 'high' | 'critical';
-  }): Promise<RetentionStrategyData[]> {
-    
-    this.logger.info('🎯 Generating retention strategies', { userId, churnRisk: context.churnRisk });
+  async generateStrategies(
+    userId: string,
+    context: {
+      churnRisk: number;
+      riskFactors: string[];
+      segment: string;
+      lifetimeValue: number;
+      urgency: 'low' | 'medium' | 'high' | 'critical';
+    }
+  ): Promise<RetentionStrategyData[]> {
+    this.logger.info('🎯 Generating retention strategies', {
+      userId,
+      churnRisk: context.churnRisk,
+    });
 
     // Find applicable strategies
     const applicableStrategies = await this.findApplicableStrategies(context);
-    
+
     // Rank strategies by effectiveness and cost
     const rankedStrategies = await this.rankStrategies(applicableStrategies, context);
-    
+
     // Select top strategies based on urgency
-    const selectedStrategies = await this.selectOptimalStrategies(rankedStrategies, context.urgency);
-    
+    const selectedStrategies = await this.selectOptimalStrategies(
+      rankedStrategies,
+      context.urgency
+    );
+
     // Personalize strategies
-    const personalizedStrategies = await this.personalizeStrategies(selectedStrategies, userId, context);
+    const personalizedStrategies = await this.personalizeStrategies(
+      selectedStrategies,
+      userId,
+      context
+    );
 
     this.logger.info(`✅ Generated ${personalizedStrategies.length} retention strategies`, {
       userId,
-      strategyTypes: personalizedStrategies.map(s => s.type)
+      strategyTypes: personalizedStrategies.map(s => s.type),
     });
 
     return personalizedStrategies;
@@ -98,7 +110,7 @@ export class RetentionStrategy {
 
   async createCampaign(userId: string, strategies: RetentionStrategyData[]): Promise<string> {
     const campaignId = `campaign_${userId}_${Date.now()}`;
-    
+
     const campaign: RetentionCampaign = {
       id: campaignId,
       userId,
@@ -110,12 +122,12 @@ export class RetentionStrategy {
         messagesDelivered: 0,
         engagement: 0,
         conversionRate: 0,
-        churnReduction: 0
-      }
+        churnReduction: 0,
+      },
     };
 
     this.campaigns.set(campaignId, campaign);
-    
+
     // Cache campaign
     await redisCache.set(
       `retention:campaign:${campaignId}`,
@@ -126,7 +138,7 @@ export class RetentionStrategy {
     this.logger.info('🚀 Created retention campaign', {
       campaignId,
       userId,
-      strategiesCount: strategies.length
+      strategiesCount: strategies.length,
     });
 
     return campaignId;
@@ -143,28 +155,28 @@ export class RetentionStrategy {
       switch (strategy.type) {
         case 'personalized_email':
           return await this.executeEmailStrategy(strategy, userId, context);
-        
+
         case 'discount_offer':
           return await this.executeDiscountStrategy(strategy, userId, context);
-        
+
         case 'feature_highlight':
           return await this.executeFeatureStrategy(strategy, userId, context);
-        
+
         case 'personal_outreach':
           return await this.executeOutreachStrategy(strategy, userId, context);
-        
+
         case 'content_recommendation':
           return await this.executeContentStrategy(strategy, userId, context);
-        
+
         case 'win_back_offer':
           return await this.executeWinBackStrategy(strategy, userId, context);
-        
+
         case 'loyalty_program':
           return await this.executeLoyaltyStrategy(strategy, userId, context);
-        
+
         case 'reactivation_sequence':
           return await this.executeReactivationStrategy(strategy, userId, context);
-        
+
         default:
           this.logger.warn('Unknown strategy type', { type: strategy.type });
           return false;
@@ -173,7 +185,7 @@ export class RetentionStrategy {
       this.logger.error('❌ Failed to execute strategy', {
         strategyId,
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }
@@ -193,7 +205,7 @@ export class RetentionStrategy {
       conversionRate: campaign.metrics.conversionRate,
       churnReduction: campaign.metrics.churnReduction,
       roi: await this.calculateROI(campaign),
-      recommendations: await this.generateRecommendations(campaign)
+      recommendations: await this.generateRecommendations(campaign),
     };
 
     // Store metrics
@@ -223,23 +235,23 @@ export class RetentionStrategy {
           channel: 'email',
           timing: 'immediate',
           personalization: true,
-          followUp: true
+          followUp: true,
         },
         conditions: {
           minChurnRisk: 0.7,
           maxChurnRisk: 1.0,
           userSegments: ['premium', 'high_value'],
-          riskFactors: ['low_engagement', 'payment_issues']
+          riskFactors: ['low_engagement', 'payment_issues'],
         },
         content: {
-          subject: 'We miss you! Let\'s get you back on track',
-          message: 'Hi {userName}, we noticed you haven\'t been active lately...',
+          subject: "We miss you! Let's get you back on track",
+          message: "Hi {userName}, we noticed you haven't been active lately...",
           template: 'high_risk_retention',
           variables: {
             personalization: true,
-            urgency: 'high'
-          }
-        }
+            urgency: 'high',
+          },
+        },
       },
       {
         id: 'discount_offer_medium_risk',
@@ -255,13 +267,13 @@ export class RetentionStrategy {
           channel: 'email_sms',
           timing: 'optimal_time',
           personalization: true,
-          followUp: false
+          followUp: false,
         },
         conditions: {
           minChurnRisk: 0.4,
           maxChurnRisk: 0.7,
           userSegments: ['standard', 'price_sensitive'],
-          riskFactors: ['cost_concerns', 'usage_decline']
+          riskFactors: ['cost_concerns', 'usage_decline'],
         },
         content: {
           subject: 'Special offer just for you!',
@@ -269,9 +281,9 @@ export class RetentionStrategy {
           template: 'discount_offer',
           variables: {
             discountPercent: 30,
-            validDays: 7
-          }
-        }
+            validDays: 7,
+          },
+        },
       },
       {
         id: 'personal_outreach_critical',
@@ -287,22 +299,22 @@ export class RetentionStrategy {
           channel: 'phone_email',
           timing: 'immediate',
           personalization: true,
-          followUp: true
+          followUp: true,
         },
         conditions: {
           minChurnRisk: 0.8,
           maxChurnRisk: 1.0,
           userSegments: ['premium', 'enterprise'],
-          riskFactors: ['support_issues', 'dissatisfaction']
+          riskFactors: ['support_issues', 'dissatisfaction'],
         },
         content: {
           message: 'Personal call from customer success team',
           template: 'personal_outreach',
           variables: {
             urgency: 'critical',
-            personalized: true
-          }
-        }
+            personalized: true,
+          },
+        },
       },
       {
         id: 'feature_highlight_engagement',
@@ -318,22 +330,22 @@ export class RetentionStrategy {
           channel: 'in_app_email',
           timing: 'next_login',
           personalization: true,
-          followUp: false
+          followUp: false,
         },
         conditions: {
           minChurnRisk: 0.3,
           maxChurnRisk: 0.6,
           userSegments: ['standard', 'basic'],
-          riskFactors: ['low_feature_usage', 'limited_engagement']
+          riskFactors: ['low_feature_usage', 'limited_engagement'],
         },
         content: {
-          subject: 'You\'re missing out on these features!',
+          subject: "You're missing out on these features!",
           message: 'Discover features that can boost your success...',
           template: 'feature_highlight',
           variables: {
-            features: ['advanced_analytics', 'custom_alerts']
-          }
-        }
+            features: ['advanced_analytics', 'custom_alerts'],
+          },
+        },
       },
       {
         id: 'content_recommendation_learning',
@@ -349,23 +361,23 @@ export class RetentionStrategy {
           channel: 'email_in_app',
           timing: 'weekly_digest',
           personalization: true,
-          followUp: false
+          followUp: false,
         },
         conditions: {
           minChurnRisk: 0.2,
           maxChurnRisk: 0.5,
           userSegments: ['standard', 'growing'],
-          riskFactors: ['knowledge_gaps', 'learning_curve']
+          riskFactors: ['knowledge_gaps', 'learning_curve'],
         },
         content: {
           subject: 'Weekly insights tailored for you',
-          message: 'Here are this week\'s top picks and strategies...',
+          message: "Here are this week's top picks and strategies...",
           template: 'content_recommendation',
           variables: {
             contentType: 'educational',
-            frequency: 'weekly'
-          }
-        }
+            frequency: 'weekly',
+          },
+        },
       },
       {
         id: 'win_back_offer_dormant',
@@ -381,24 +393,24 @@ export class RetentionStrategy {
           channel: 'email',
           timing: 'campaign_sequence',
           personalization: true,
-          followUp: true
+          followUp: true,
         },
         conditions: {
           minChurnRisk: 0.6,
           maxChurnRisk: 0.9,
           userSegments: ['inactive', 'dormant'],
-          riskFactors: ['long_inactivity', 'zero_engagement']
+          riskFactors: ['long_inactivity', 'zero_engagement'],
         },
         content: {
           subject: 'Come back! We have something special for you',
-          message: 'We miss you! Here\'s an exclusive offer to welcome you back...',
+          message: "We miss you! Here's an exclusive offer to welcome you back...",
           template: 'win_back_offer',
           variables: {
             offerType: 'free_trial_extension',
-            duration: 14
-          }
-        }
-      }
+            duration: 14,
+          },
+        },
+      },
     ];
 
     for (const strategy of strategies) {
@@ -411,7 +423,7 @@ export class RetentionStrategy {
   private async loadCampaignHistory(): Promise<void> {
     try {
       const cachedCampaigns = await redisCache.getPattern('retention:campaign:*');
-      
+
       for (const [key, data] of cachedCampaigns) {
         const campaign = JSON.parse(data);
         campaign.launchTime = new Date(campaign.launchTime);
@@ -428,11 +440,11 @@ export class RetentionStrategy {
   private async loadPerformanceMetrics(): Promise<void> {
     // Load strategy performance data
     const performanceData = {
-      'personalized_email': { success_rate: 0.34, avg_cost: 5, engagement_lift: 0.25 },
-      'discount_offer': { success_rate: 0.28, avg_cost: 15, engagement_lift: 0.15 },
-      'personal_outreach': { success_rate: 0.45, avg_cost: 50, engagement_lift: 0.40 },
-      'feature_highlight': { success_rate: 0.23, avg_cost: 2, engagement_lift: 0.10 },
-      'content_recommendation': { success_rate: 0.31, avg_cost: 3, engagement_lift: 0.20 }
+      personalized_email: { success_rate: 0.34, avg_cost: 5, engagement_lift: 0.25 },
+      discount_offer: { success_rate: 0.28, avg_cost: 15, engagement_lift: 0.15 },
+      personal_outreach: { success_rate: 0.45, avg_cost: 50, engagement_lift: 0.4 },
+      feature_highlight: { success_rate: 0.23, avg_cost: 2, engagement_lift: 0.1 },
+      content_recommendation: { success_rate: 0.31, avg_cost: 3, engagement_lift: 0.2 },
     };
 
     for (const [strategyType, metrics] of Object.entries(performanceData)) {
@@ -445,19 +457,20 @@ export class RetentionStrategy {
 
     for (const strategy of this.strategies.values()) {
       // Check churn risk range
-      if (context.churnRisk >= strategy.conditions.minChurnRisk && 
-          context.churnRisk <= strategy.conditions.maxChurnRisk) {
-        
+      if (
+        context.churnRisk >= strategy.conditions.minChurnRisk &&
+        context.churnRisk <= strategy.conditions.maxChurnRisk
+      ) {
         // Check segment match
         if (strategy.conditions.userSegments.includes(context.segment)) {
           applicable.push(strategy);
         }
-        
+
         // Check risk factor overlap
-        const riskFactorMatch = strategy.conditions.riskFactors.some(factor => 
+        const riskFactorMatch = strategy.conditions.riskFactors.some(factor =>
           context.riskFactors.includes(factor)
         );
-        
+
         if (riskFactorMatch) {
           applicable.push(strategy);
         }
@@ -467,12 +480,15 @@ export class RetentionStrategy {
     return [...new Set(applicable)]; // Remove duplicates
   }
 
-  private async rankStrategies(strategies: RetentionStrategyData[], context: any): Promise<RetentionStrategyData[]> {
+  private async rankStrategies(
+    strategies: RetentionStrategyData[],
+    context: any
+  ): Promise<RetentionStrategyData[]> {
     return strategies.sort((a, b) => {
       // Calculate weighted professional_score
       const scoreA = this.calculateStrategyScore(a, context);
       const scoreB = this.calculateStrategyScore(b, context);
-      
+
       return scoreB - scoreA; // Higher professional_score first
     });
   }
@@ -485,7 +501,7 @@ export class RetentionStrategy {
 
     const effectiveness = strategy.effectiveness;
     const urgencyMatch = strategy.urgency === context.urgency ? 1 : 0.5;
-    const costEfficiency = Math.max(0, 1 - (strategy.cost / 100)); // Normalize cost
+    const costEfficiency = Math.max(0, 1 - strategy.cost / 100); // Normalize cost
     const segmentMatch = strategy.targetSegment.includes(context.segment) ? 1 : 0.5;
 
     return (
@@ -496,12 +512,19 @@ export class RetentionStrategy {
     );
   }
 
-  private async selectOptimalStrategies(rankedStrategies: RetentionStrategyData[], urgency: string): Promise<RetentionStrategyData[]> {
+  private async selectOptimalStrategies(
+    rankedStrategies: RetentionStrategyData[],
+    urgency: string
+  ): Promise<RetentionStrategyData[]> {
     const maxStrategies = urgency === 'critical' ? 3 : urgency === 'high' ? 2 : 1;
     return rankedStrategies.slice(0, maxStrategies);
   }
 
-  private async personalizeStrategies(strategies: RetentionStrategyData[], userId: string, context: any): Promise<RetentionStrategyData[]> {
+  private async personalizeStrategies(
+    strategies: RetentionStrategyData[],
+    userId: string,
+    context: any
+  ): Promise<RetentionStrategyData[]> {
     return strategies.map(strategy => ({
       ...strategy,
       content: {
@@ -511,93 +534,125 @@ export class RetentionStrategy {
           userId,
           churnRisk: context.churnRisk,
           lifetimeValue: context.lifetimeValue,
-          riskFactors: context.riskFactors.join(', ')
-        }
-      }
+          riskFactors: context.riskFactors.join(', '),
+        },
+      },
     }));
   }
 
   // Strategy Execution Methods
-  private async executeEmailStrategy(strategy: RetentionStrategyData, userId: string, context: any): Promise<boolean> {
+  private async executeEmailStrategy(
+    strategy: RetentionStrategyData,
+    userId: string,
+    context: any
+  ): Promise<boolean> {
     this.logger.info('📧 Executing email retention strategy', {
       userId,
       strategyId: strategy.id,
-      template: strategy.content.template
+      template: strategy.content.template,
     });
 
     // This would integrate with email service
     return true;
   }
 
-  private async executeDiscountStrategy(strategy: RetentionStrategyData, userId: string, context: any): Promise<boolean> {
+  private async executeDiscountStrategy(
+    strategy: RetentionStrategyData,
+    userId: string,
+    context: any
+  ): Promise<boolean> {
     this.logger.info('💰 Executing discount retention strategy', {
       userId,
       strategyId: strategy.id,
-      discountPercent: strategy.content.variables.discountPercent
+      discountPercent: strategy.content.variables.discountPercent,
     });
 
     // This would integrate with billing/discount system
     return true;
   }
 
-  private async executeFeatureStrategy(strategy: RetentionStrategyData, userId: string, context: any): Promise<boolean> {
+  private async executeFeatureStrategy(
+    strategy: RetentionStrategyData,
+    userId: string,
+    context: any
+  ): Promise<boolean> {
     this.logger.info('✨ Executing feature highlight strategy', {
       userId,
       strategyId: strategy.id,
-      features: strategy.content.variables.features
+      features: strategy.content.variables.features,
     });
 
     // This would integrate with in-app messaging
     return true;
   }
 
-  private async executeOutreachStrategy(strategy: RetentionStrategyData, userId: string, context: any): Promise<boolean> {
+  private async executeOutreachStrategy(
+    strategy: RetentionStrategyData,
+    userId: string,
+    context: any
+  ): Promise<boolean> {
     this.logger.info('👥 Executing personal outreach strategy', {
       userId,
       strategyId: strategy.id,
-      urgency: strategy.urgency
+      urgency: strategy.urgency,
     });
 
     // This would create a task for customer success team
     return true;
   }
 
-  private async executeContentStrategy(strategy: RetentionStrategyData, userId: string, context: any): Promise<boolean> {
+  private async executeContentStrategy(
+    strategy: RetentionStrategyData,
+    userId: string,
+    context: any
+  ): Promise<boolean> {
     this.logger.info('📚 Executing content recommendation strategy', {
       userId,
       strategyId: strategy.id,
-      contentType: strategy.content.variables.contentType
+      contentType: strategy.content.variables.contentType,
     });
 
     // This would integrate with content delivery system
     return true;
   }
 
-  private async executeWinBackStrategy(strategy: RetentionStrategyData, userId: string, context: any): Promise<boolean> {
+  private async executeWinBackStrategy(
+    strategy: RetentionStrategyData,
+    userId: string,
+    context: any
+  ): Promise<boolean> {
     this.logger.info('🎁 Executing win-back strategy', {
       userId,
       strategyId: strategy.id,
-      offerType: strategy.content.variables.offerType
+      offerType: strategy.content.variables.offerType,
     });
 
     // This would integrate with campaign management system
     return true;
   }
 
-  private async executeLoyaltyStrategy(strategy: RetentionStrategyData, userId: string, context: any): Promise<boolean> {
+  private async executeLoyaltyStrategy(
+    strategy: RetentionStrategyData,
+    userId: string,
+    context: any
+  ): Promise<boolean> {
     this.logger.info('🏆 Executing loyalty program strategy', {
       userId,
-      strategyId: strategy.id
+      strategyId: strategy.id,
     });
 
     // This would integrate with loyalty program system
     return true;
   }
 
-  private async executeReactivationStrategy(strategy: RetentionStrategyData, userId: string, context: any): Promise<boolean> {
+  private async executeReactivationStrategy(
+    strategy: RetentionStrategyData,
+    userId: string,
+    context: any
+  ): Promise<boolean> {
     this.logger.info('🔄 Executing reactivation sequence strategy', {
       userId,
-      strategyId: strategy.id
+      strategyId: strategy.id,
     });
 
     // This would trigger a sequence of messages over time
@@ -607,25 +662,25 @@ export class RetentionStrategy {
   private async calculateROI(campaign: RetentionCampaign): Promise<number> {
     const totalCost = campaign.strategies.reduce((sum, strategy) => sum + strategy.cost, 0);
     const retentionValue = campaign.metrics.churnReduction * 100; // Assume $100 per churn prevented
-    
+
     return totalCost > 0 ? (retentionValue - totalCost) / totalCost : 0;
   }
 
   private async generateRecommendations(campaign: RetentionCampaign): Promise<string[]> {
     const recommendations: string[] = [];
-    
+
     if (campaign.metrics.engagement < 0.2) {
       recommendations.push('Consider more personalized messaging');
     }
-    
+
     if (campaign.metrics.conversionRate < 0.1) {
       recommendations.push('Review discount amounts or offer types');
     }
-    
+
     if (campaign.metrics.churnReduction < 0.3) {
       recommendations.push('Implement multi-channel approach');
     }
-    
+
     return recommendations;
   }
 

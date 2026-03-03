@@ -2,7 +2,7 @@
 
 /**
  * Test All Agents - Comprehensive Agent Testing Suite
- * 
+ *
  * This script tests all agents in the system to ensure they are working correctly.
  * It provides a comprehensive test suite for the entire agent ecosystem.
  */
@@ -28,19 +28,19 @@ class AgentTestRunner {
   async testAgent(agentName: string, testFunction: () => Promise<any>): Promise<AgentTestResult> {
     const startTime = Date.now();
     this.logger.info(`🧪 Testing ${agentName}...`);
-    
+
     try {
       const result = await testFunction();
       const duration = Date.now() - startTime;
-      
+
       const testResult: AgentTestResult = {
         name: agentName,
         status: 'success',
         message: `${agentName} test completed successfully`,
         duration,
-        details: result
+        details: result,
       };
-      
+
       this.logger.info(`✅ ${agentName} test passed (${duration}ms)`);
       return testResult;
     } catch (error) {
@@ -50,10 +50,12 @@ class AgentTestRunner {
         status: 'error',
         message: `${agentName} test failed: ${error instanceof Error ? error.message : String(error)}`,
         duration,
-        details: error
+        details: error,
       };
-      
-      this.logger.error(`❌ ${agentName} test failed (${duration}ms): ${error instanceof Error ? error.message : String(error)}`);
+
+      this.logger.error(
+        `❌ ${agentName} test failed (${duration}ms): ${error instanceof Error ? error.message : String(error)}`
+      );
       return testResult;
     }
   }
@@ -63,7 +65,7 @@ class AgentTestRunner {
     return {
       dataProcessed: 100,
       insightsGenerated: 5,
-      metricsCollected: true
+      metricsCollected: true,
     };
   }
 
@@ -72,7 +74,7 @@ class AgentTestRunner {
     return {
       picksGraded: 50,
       accuracyCalculated: true,
-      scoresUpdated: true
+      scoresUpdated: true,
     };
   }
 
@@ -81,7 +83,7 @@ class AgentTestRunner {
     return {
       messagesQueued: 10,
       discordConnected: true,
-      notificationsSent: 8
+      notificationsSent: 8,
     };
   }
 
@@ -90,17 +92,16 @@ class AgentTestRunner {
     return {
       contentGenerated: 25,
       feedUpdated: true,
-      postsScheduled: 15
+      postsScheduled: 15,
     };
   }
-
 
   async testPlayerEnrichmentAgent(): Promise<any> {
     // Mock player enrichment test
     return {
       playersEnriched: 200,
       headshotsFound: 180,
-      dataUpdated: true
+      dataUpdated: true,
     };
   }
 
@@ -109,17 +110,17 @@ class AgentTestRunner {
     return {
       contestsManaged: 5,
       leaderboardUpdated: true,
-      prizesDistributed: 3
+      prizesDistributed: 3,
     };
   }
 
   async testAlertAgent(): Promise<any> {
-    // Mock alert agent test  
+    // Mock alert agent test
     return {
       alertsGenerated: 15,
       discordPosts: 12,
       realTimeUpdates: true,
-      liveAlertsActive: true
+      liveAlertsActive: true,
     };
   }
 
@@ -129,7 +130,7 @@ class AgentTestRunner {
       dailyRecapsGenerated: 7,
       performanceAnalyzed: true,
       weeklyReportReady: true,
-      discordThreadsCreated: 5
+      discordThreadsCreated: 5,
     };
   }
 
@@ -139,7 +140,7 @@ class AgentTestRunner {
       auditTrailsCreated: 50,
       complianceChecks: 25,
       securityScansCompleted: 10,
-      violationsDetected: 0
+      violationsDetected: 0,
     };
   }
 
@@ -153,7 +154,7 @@ class AgentTestRunner {
       behaviorPatternsAnalyzed: 15,
       personalizedRecommendations: 12,
       engagementScore: 0.87,
-      conversionRate: 0.65
+      conversionRate: 0.65,
     };
   }
 
@@ -163,7 +164,7 @@ class AgentTestRunner {
       marketPredictions: 25,
       forecastAccuracy: 0.78,
       trendAnalysisComplete: true,
-      modelTrainingActive: true
+      modelTrainingActive: true,
     };
   }
 
@@ -173,7 +174,7 @@ class AgentTestRunner {
       portfolioOptimized: true,
       riskScoreCalculated: 0.65,
       diversificationAnalyzed: true,
-      alertsTriggered: 3
+      alertsTriggered: 3,
     };
   }
 
@@ -183,7 +184,7 @@ class AgentTestRunner {
       churnPredictionsGenerated: 20,
       engagementCampaignsLaunched: 5,
       retentionRate: 0.82,
-      userBehaviorAnalyzed: 150
+      userBehaviorAnalyzed: 150,
     };
   }
 
@@ -193,7 +194,7 @@ class AgentTestRunner {
 
     // Test optimized agent system (13 agents total, 52% reduction from 27)
     this.logger.info('🎯 Testing optimized agent system: 13 agents (52% reduction)');
-    
+
     const tests = [
       // Business Intelligence Agents (5)
       { name: 'GradingAgent', testFn: () => this.testGradingAgent() },
@@ -201,24 +202,24 @@ class AgentTestRunner {
       { name: 'AlertAgent', testFn: () => this.testAlertAgent() },
       { name: 'FeedAgent', testFn: () => this.testFeedAgent() },
       { name: 'RecapAgent', testFn: () => this.testRecapAgent() },
-      
+
       // Operational Agents (4)
       { name: 'NotificationAgent', testFn: () => this.testNotificationAgent() },
       { name: 'ContestAgent', testFn: () => this.testContestAgent() },
       { name: 'PlayerEnrichmentAgent', testFn: () => this.testPlayerEnrichmentAgent() },
       { name: 'AuditAgent', testFn: () => this.testAuditAgent() },
-      
+
       // Intelligence Agents (4)
       { name: 'AutomatedOnboardingAgent', testFn: () => this.testAutomatedOnboardingAgent() },
       { name: 'PredictiveAnalyticsAgent', testFn: () => this.testPredictiveAnalyticsAgent() },
       { name: 'RiskManagementAgent', testFn: () => this.testRiskManagementAgent() },
-      { name: 'UserRetentionAgent', testFn: () => this.testUserRetentionAgent() }
+      { name: 'UserRetentionAgent', testFn: () => this.testUserRetentionAgent() },
     ];
 
     for (const test of tests) {
       const result = await this.testAgent(test.name, test.testFn);
       this.results.push(result);
-      
+
       // Add delay between tests
       await new Promise(resolve => setTimeout(resolve, 500));
     }
@@ -231,7 +232,7 @@ class AgentTestRunner {
     this.logger.info('');
     this.logger.info('📊 Test Results Summary');
     this.logger.info('=======================');
-    
+
     const successful = this.results.filter(r => r.status === 'success').length;
     const failed = this.results.filter(r => r.status === 'error').length;
     const warnings = this.results.filter(r => r.status === 'warning').length;

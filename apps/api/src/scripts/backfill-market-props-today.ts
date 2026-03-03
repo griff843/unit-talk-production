@@ -11,17 +11,21 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 }
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-function isoDate(d: Date) { return d.toISOString().split('T')[0]; }
+function isoDate(d: Date) {
+  return d.toISOString().split('T')[0];
+}
 
 async function main() {
   const today = new Date();
-  const tomorrow = new Date(today.getTime() + 24*60*60*1000);
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
   const start = isoDate(today);
   const end = isoDate(tomorrow);
 
   console.log(`Backfilling market_props for date: ${start}`);
 
-  let inserted = 0, skipped = 0, errors = 0;
+  let inserted = 0,
+    skipped = 0,
+    errors = 0;
   const pageSize = 500;
   let page = 0;
 
@@ -87,5 +91,7 @@ async function main() {
   console.log(`Inserted: ${inserted}, Skipped: ${skipped}, Errors: ${errors}`);
 }
 
-main().catch(e => { console.error('Fatal error:', e); process.exit(1); });
-
+main().catch(e => {
+  console.error('Fatal error:', e);
+  process.exit(1);
+});

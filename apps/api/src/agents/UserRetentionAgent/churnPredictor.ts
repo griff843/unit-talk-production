@@ -19,25 +19,25 @@ interface UserChurnFeatures {
   sessionFrequency: number;
   avgSessionDuration: number;
   featureUsage: Record<string, number>;
-  
+
   // Behavioral features
   supportTickets: number;
   negativeFeedback: number;
   paymentIssues: number;
   downgrades: number;
-  
+
   // Usage patterns
   weekdayActivity: number;
   weekendActivity: number;
   timeOfDayPattern: number[];
   consistencyScore: number;
-  
+
   // Value indicators
   subscription_tier: string;
   monthlyValue: number;
   lifetimeValue: number;
   paymentHistory: string;
-  
+
   // Social indicators
   referrals: number;
   communityParticipation: number;
@@ -69,10 +69,10 @@ export class ChurnPredictor {
 
   async initialize(): Promise<void> {
     this.logger.info('🔮 Initializing ChurnPredictor');
-    
+
     await this.loadChurnModels();
     await this.loadFeatureCache();
-    
+
     this.logger.info('✅ ChurnPredictor initialized');
   }
 
@@ -80,16 +80,16 @@ export class ChurnPredictor {
     try {
       // Extract features
       const features = await this.extractUserFeatures(userId, userData);
-      
+
       // Get prediction from ensemble of models
       const ensemblePrediction = await this.getEnsemblePrediction(features);
-      
+
       // Identify risk factors
       const riskFactors = await this.identifyRiskFactors(features);
-      
+
       // Calculate time to churn
       const timeToChurn = await this.estimateTimeToChurn(features, ensemblePrediction.riskScore);
-      
+
       const prediction: ChurnPrediction = {
         userId,
         riskScore: ensemblePrediction.riskScore,
@@ -98,7 +98,7 @@ export class ChurnPredictor {
         riskFactors,
         confidence: ensemblePrediction.confidence,
         modelVersion: 'ensemble_v2.1',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
       // Cache prediction
@@ -113,17 +113,16 @@ export class ChurnPredictor {
         userId,
         riskScore: prediction.riskScore,
         probability: prediction.probability,
-        timeToChurn: prediction.timeToChurn
+        timeToChurn: prediction.timeToChurn,
       });
 
       return prediction;
-
     } catch (error) {
       this.logger.error('❌ Failed to predict churn', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       // Return conservative prediction on error
       return this.getConservativePrediction(userId);
     }
@@ -135,7 +134,9 @@ export class ChurnPredictor {
       const prediction = await this.getEnsemblePrediction(features);
       return prediction.riskScore;
     } catch (error) {
-      this.logger.warn('⚠️ Failed to calculate risk professional_score, returning default', { userId });
+      this.logger.warn('⚠️ Failed to calculate risk professional_score, returning default', {
+        userId,
+      });
       return 0.5; // Default neutral risk
     }
   }
@@ -143,11 +144,11 @@ export class ChurnPredictor {
   async batchPredict(userIds: string[]): Promise<Map<string, ChurnPrediction>> {
     const predictions = new Map<string, ChurnPrediction>();
     const batchSize = 10;
-    
+
     for (let i = 0; i < userIds.length; i += batchSize) {
       const batch = userIds.slice(i, i + batchSize);
-      
-      const batchPromises = batch.map(async (userId) => {
+
+      const batchPromises = batch.map(async userId => {
         try {
           const prediction = await this.predictChurn(userId, {});
           return { userId, prediction };
@@ -158,7 +159,7 @@ export class ChurnPredictor {
       });
 
       const batchResults = await Promise.all(batchPromises);
-      
+
       for (const { userId, prediction } of batchResults) {
         predictions.set(userId, prediction);
       }
@@ -182,34 +183,34 @@ export class ChurnPredictor {
       sessionFrequency: await this.calculateSessionFrequency(userId),
       avgSessionDuration: await this.calculateAvgSessionDuration(userId),
       featureUsage: await this.getFeatureUsage(userId),
-      
+
       // Behavioral features
       supportTickets: await this.countSupportTickets(userId),
       negativeFeedback: await this.countNegativeFeedback(userId),
       paymentIssues: await this.countPaymentIssues(userId),
       downgrades: await this.countDowngrades(userId),
-      
+
       // Usage patterns
       weekdayActivity: await this.calculateWeekdayActivity(userId),
       weekendActivity: await this.calculateWeekendActivity(userId),
       timeOfDayPattern: await this.getTimeOfDayPattern(userId),
       consistencyScore: await this.calculateConsistencyScore(userId),
-      
+
       // Value indicators
       subscription_tier: userData.tier || 'free',
       monthlyValue: await this.getMonthlyValue(userId),
       lifetimeValue: await this.getLifetimeValue(userId),
       paymentHistory: await this.getPaymentHistory(userId),
-      
+
       // Social indicators
       referrals: await this.countReferrals(userId),
       communityParticipation: await this.getCommunityParticipation(userId),
-      helpfulness: await this.getHelpfulnessScore(userId)
+      helpfulness: await this.getHelpfulnessScore(userId),
     };
 
     // Cache features
     this.featureCache.set(userId, features);
-    
+
     return features;
   }
 
@@ -219,7 +220,7 @@ export class ChurnPredictor {
     probability: number;
     confidence: number;
   }> {
-    const predictions: Array<{score: number, weight: number}> = [];
+    const predictions: Array<{ score: number; weight: number }> = [];
 
     // Logistic Regression Model
     const logisticPrediction = await this.getLogisticPrediction(features);
@@ -239,16 +240,18 @@ export class ChurnPredictor {
 
     // Calculate weighted ensemble score
     const totalWeight = predictions.reduce((sum, p) => sum + p.weight, 0);
-    const weightedScore = predictions.reduce((sum, p) => sum + (p.score * p.weight), 0) / totalWeight;
+    const weightedScore = predictions.reduce((sum, p) => sum + p.score * p.weight, 0) / totalWeight;
 
     // Calculate confidence based on prediction agreement
-    const variance = predictions.reduce((sum, p) => sum + Math.pow(p.score - weightedScore, 2), 0) / predictions.length;
+    const variance =
+      predictions.reduce((sum, p) => sum + Math.pow(p.score - weightedScore, 2), 0) /
+      predictions.length;
     const confidence = Math.max(0.1, 1 - Math.sqrt(variance));
 
     return {
       riskScore: Math.max(0, Math.min(1, weightedScore)),
       probability: this.convertRiskToProbability(weightedScore),
-      confidence
+      confidence,
     };
   }
 
@@ -258,15 +261,15 @@ export class ChurnPredictor {
       daysSinceLastLogin: 0.15,
       sessionFrequency: -0.12,
       supportTickets: 0.08,
-      negativeFeedback: 0.10,
-      paymentIssues: 0.20,
+      negativeFeedback: 0.1,
+      paymentIssues: 0.2,
       consistencyScore: -0.09,
       lifetimeValue: -0.11,
-      communityParticipation: -0.07
+      communityParticipation: -0.07,
     };
 
     let logit = -1.2; // intercept
-    
+
     logit += weights.daysSinceLastLogin * Math.min(features.daysSinceLastLogin / 30, 1);
     logit += weights.sessionFrequency * Math.max(0, 1 - features.sessionFrequency / 10);
     logit += weights.supportTickets * Math.min(features.supportTickets / 5, 1);
@@ -286,7 +289,7 @@ export class ChurnPredictor {
       this.evaluateTree2(features),
       this.evaluateTree3(features),
       this.evaluateTree4(features),
-      this.evaluateTree5(features)
+      this.evaluateTree5(features),
     ];
 
     return trees.reduce((sum, professional_score) => sum + professional_score, 0) / trees.length;
@@ -295,21 +298,21 @@ export class ChurnPredictor {
   private async getNeuralNetworkPrediction(features: UserChurnFeatures): Promise<number> {
     // Simplified neural network (3 layers)
     const inputs = this.normalizeFeatures(features);
-    
+
     // Hidden layer 1 (5 neurons)
     const h1 = this.relu([
       0.2 * inputs[0] - 0.1 * inputs[1] + 0.3 * inputs[2] - 0.4,
       -0.3 * inputs[0] + 0.4 * inputs[1] + 0.1 * inputs[2] + 0.2,
       0.1 * inputs[0] + 0.2 * inputs[1] - 0.3 * inputs[2] + 0.1,
       -0.2 * inputs[0] - 0.1 * inputs[1] + 0.4 * inputs[2] - 0.2,
-      0.3 * inputs[0] + 0.3 * inputs[1] + 0.2 * inputs[2] + 0.1
+      0.3 * inputs[0] + 0.3 * inputs[1] + 0.2 * inputs[2] + 0.1,
     ]);
 
     // Hidden layer 2 (3 neurons)
     const h2 = this.relu([
       0.4 * h1[0] - 0.2 * h1[1] + 0.1 * h1[2] + 0.3 * h1[3] - 0.1 * h1[4] + 0.2,
       -0.1 * h1[0] + 0.3 * h1[1] - 0.2 * h1[2] + 0.4 * h1[3] + 0.2 * h1[4] - 0.3,
-      0.2 * h1[0] + 0.1 * h1[1] + 0.3 * h1[2] - 0.4 * h1[3] + 0.1 * h1[4] + 0.1
+      0.2 * h1[0] + 0.1 * h1[1] + 0.3 * h1[2] - 0.4 * h1[3] + 0.1 * h1[4] + 0.1,
     ]);
 
     // Output layer (1 neuron with sigmoid)
@@ -323,12 +326,12 @@ export class ChurnPredictor {
 
     // Weak learner 1: focus on engagement
     if (features.daysSinceLastLogin > 7) prediction += 0.15;
-    if (features.sessionFrequency < 2) prediction += 0.10;
+    if (features.sessionFrequency < 2) prediction += 0.1;
     if (features.avgSessionDuration < 300) prediction += 0.08; // 5 minutes
 
     // Weak learner 2: focus on support issues
     if (features.supportTickets > 2) prediction += 0.12;
-    if (features.negativeFeedback > 0) prediction += 0.10;
+    if (features.negativeFeedback > 0) prediction += 0.1;
     if (features.paymentIssues > 0) prediction += 0.15;
 
     // Weak learner 3: focus on value and loyalty
@@ -395,13 +398,19 @@ export class ChurnPredictor {
     return riskFactors;
   }
 
-  private async estimateTimeToChurn(features: UserChurnFeatures, riskScore: number): Promise<number> {
+  private async estimateTimeToChurn(
+    features: UserChurnFeatures,
+    riskScore: number
+  ): Promise<number> {
     // Base time estimates by risk level
     let baseDays = 30; // Default 30 days
 
-    if (riskScore > 0.8) baseDays = 7;   // Very high risk
-    else if (riskScore > 0.6) baseDays = 14;  // High risk
-    else if (riskScore > 0.4) baseDays = 21;  // Medium risk
+    if (riskScore > 0.8)
+      baseDays = 7; // Very high risk
+    else if (riskScore > 0.6)
+      baseDays = 14; // High risk
+    else if (riskScore > 0.4)
+      baseDays = 21; // Medium risk
     else baseDays = 60; // Low risk
 
     // Adjust based on specific factors
@@ -425,7 +434,7 @@ export class ChurnPredictor {
       Math.min(features.sessionFrequency / 10, 1),
       Math.min(features.supportTickets / 5, 1),
       Math.min(features.lifetimeValue / 1000, 1),
-      features.consistencyScore
+      features.consistencyScore,
     ];
   }
 
@@ -577,7 +586,7 @@ export class ChurnPredictor {
       riskFactors: ['Prediction model unavailable'],
       confidence: 0.1,
       modelVersion: 'fallback_v1.0',
-      timestamp: new Date()
+      timestamp: new Date(),
     };
   }
 
@@ -590,8 +599,8 @@ export class ChurnPredictor {
         accuracy: 0.78,
         features: ['daysSinceLastLogin', 'sessionFrequency', 'supportTickets'],
         weights: { daysSinceLastLogin: 0.15, sessionFrequency: -0.12, supportTickets: 0.08 },
-        thresholds: { low_risk: 0.3, medium_risk: 0.6, high_risk: 0.8 }
-      }
+        thresholds: { low_risk: 0.3, medium_risk: 0.6, high_risk: 0.8 },
+      },
     ];
 
     for (const model of models) {
@@ -631,7 +640,7 @@ export class ChurnPredictor {
     this.models.clear();
     this.featureCache.clear();
     this.predictionCache.clear();
-    
+
     this.logger.info('🧹 ChurnPredictor cleanup completed');
   }
 }

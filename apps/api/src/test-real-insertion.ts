@@ -11,10 +11,7 @@ async function testOptimalInsertion() {
 
   try {
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env['SUPABASE_URL']!,
-      process.env['SUPABASE_KEY']!
-    );
+    const supabase = createClient(process.env['SUPABASE_URL']!, process.env['SUPABASE_KEY']!);
 
     console.log('1️⃣ Fetching props from Optimal API...');
     const props = await fetchOptimalProps('MLB');
@@ -31,12 +28,9 @@ async function testOptimalInsertion() {
 
     console.log('3️⃣ Inserting first 10 props into database (PERMANENT)...');
     const testProps = props.slice(0, 10);
-    
+
     // Insert props directly into database - NO CLEANUP THIS TIME
-    const { data, error } = await supabase
-      .from('raw_props')
-      .insert(testProps)
-      .select();
+    const { data, error } = await supabase.from('raw_props').insert(testProps).select();
 
     if (error) {
       console.error('❌ Database insertion failed:', error);
@@ -46,7 +40,10 @@ async function testOptimalInsertion() {
 
     console.log('✅ Database insertion successful!');
     console.log(`📊 Inserted ${data?.length || 0} props into database`);
-    console.log('📋 Inserted prop IDs:', data?.map(p => p.id));
+    console.log(
+      '📋 Inserted prop IDs:',
+      data?.map(p => p.id)
+    );
 
     // Verify the data is actually in the database
     const { data: verifyData, error: verifyError } = await supabase
@@ -65,7 +62,9 @@ async function testOptimalInsertion() {
     console.log(`Found ${verifyData?.length || 0} Optimal props`);
     if (verifyData && verifyData.length > 0) {
       verifyData.forEach((prop, index) => {
-        console.log(`${index + 1}. ${prop.player_name} - ${prop.stat_type} ${prop.line} (${prop.sport})`);
+        console.log(
+          `${index + 1}. ${prop.player_name} - ${prop.stat_type} ${prop.line} (${prop.sport})`
+        );
       });
     }
 
@@ -75,7 +74,6 @@ async function testOptimalInsertion() {
     console.log(`   • Inserted: ${testProps.length} props into database`);
     console.log(`   • Verified: ${verifyData?.length || 0} Optimal props in database`);
     console.log(`   • Status: ✅ Props are now PERMANENTLY in your database`);
-
   } catch (error) {
     console.error('❌ Integration test failed:', error);
     process.exit(1);

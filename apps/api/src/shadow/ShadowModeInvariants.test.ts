@@ -1,19 +1,22 @@
 /**
  * Shadow Mode Invariants Tests
- * 
+ *
  * Critical production safety tests ensuring:
  * 1. Shadow mode NEVER publishes publicly
  * 2. Live mode NEVER bypasses safety checks
  * 3. Database invariants are maintained
  * 4. Proper logging and auditing occurs
- * 
+ *
  * These tests are MANDATORY before production deployment.
  */
 
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { ShadowModeService } from './ShadowMode';
+
 import { PublishGuardService } from '../promotion/PublishGuard';
 import { supabaseClient } from '../services/supabaseClient';
+
+import { ShadowModeService } from './ShadowMode';
+
 import type { ShadowPick, ShadowAction } from './ShadowMode';
 import type { PromotionDecision, PublishOptions } from '../promotion/PublishGuard';
 
@@ -28,24 +31,24 @@ describe('Shadow Mode Invariants', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Reset environment
     delete process.env.SHADOW_MODE;
     delete process.env.SHADOW_PRIVATE_CHANNEL_ID;
-    
+
     // Mock Supabase client
     mockSupabase = supabaseClient as jest.Mocked<typeof supabaseClient>;
     mockSupabase.from = jest.fn().mockReturnValue({
       insert: jest.fn().mockResolvedValue({ data: null, error: null }),
       update: jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: null, error: null })
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
       }),
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
-          gte: jest.fn().mockResolvedValue({ data: [], error: null })
-        })
+          gte: jest.fn().mockResolvedValue({ data: [], error: null }),
+        }),
       }),
-      rpc: jest.fn().mockResolvedValue({ data: [{ deleted_picks: 0 }], error: null })
+      rpc: jest.fn().mockResolvedValue({ data: [{ deleted_picks: 0 }], error: null }),
     });
 
     shadowService = ShadowModeService.getInstance();
@@ -82,14 +85,14 @@ describe('Shadow Mode Invariants', () => {
           id: 'test-pick-123',
           player_name: 'Test Player',
           stat_type: 'points',
-          sport: 'NBA'
-        }
+          sport: 'NBA',
+        },
       };
 
       const options: PublishOptions = {
         embed: { title: 'Test Pick' },
         tier: 'A',
-        isInstant: true
+        isInstant: true,
       };
 
       const result = await publishGuard.handlePromotionDecision(decision, options);
@@ -97,7 +100,7 @@ describe('Shadow Mode Invariants', () => {
       // Shadow mode should log but not publish
       expect(result.published).toBe(false);
       expect(result.shadowLogged).toBe(true);
-      
+
       // Verify no update to unified_picks.published
       expect(mockSupabase.from).toHaveBeenCalledWith('shadow_decisions');
       expect(mockSupabase.from).not.toHaveBeenCalledWith('unified_picks');
@@ -110,7 +113,7 @@ describe('Shadow Mode Invariants', () => {
         player: 'LeBron James',
         tier: 'S',
         confidence: 85,
-        professionalScore: 0.92
+        professionalScore: 0.92,
       };
 
       await shadowService.shadowWritePick(shadowPick, 'instant', ['high-confidence']);
@@ -123,29 +126,29 @@ describe('Shadow Mode Invariants', () => {
           market: 'points',
           player: 'LeBron James',
           decided_action: 'instant',
-          reasons: ['high-confidence']
+          reasons: ['high-confidence'],
         })
       );
     });
 
     test('Shadow previews are sent to private channel only', async () => {
       process.env.SHADOW_PRIVATE_CHANNEL_ID = 'test-private-channel';
-      
+
       const embed = {
         title: 'Test Pick',
         description: 'Test description',
-        player: 'Test Player'
+        player: 'Test Player',
       };
 
       // Mock Discord client methods
       const mockChannel = {
-        send: jest.fn().mockResolvedValue({ id: 'message-id' })
+        send: jest.fn().mockResolvedValue({ id: 'message-id' }),
       };
-      
+
       const mockDiscordClient = {
         channels: {
-          fetch: jest.fn().mockResolvedValue(mockChannel)
-        }
+          fetch: jest.fn().mockResolvedValue(mockChannel),
+        },
       };
 
       // Inject mocked client
@@ -155,23 +158,25 @@ describe('Shadow Mode Invariants', () => {
 
       expect(mockDiscordClient.channels.fetch).toHaveBeenCalledWith('test-private-channel');
       expect(mockChannel.send).toHaveBeenCalledWith({
-        embeds: [expect.objectContaining({
-          data: expect.objectContaining({
-            title: expect.stringContaining('[SHADOW]'),
-            description: expect.stringContaining('SHADOW MODE - NOT PUBLISHED PUBLICLY')
-          })
-        })]
+        embeds: [
+          expect.objectContaining({
+            data: expect.objectContaining({
+              title: expect.stringContaining('[SHADOW]'),
+              description: expect.stringContaining('SHADOW MODE - NOT PUBLISHED PUBLICLY'),
+            }),
+          }),
+        ],
       });
     });
 
     test('Shadow mode rejects public Discord posting', async () => {
       const mockDiscordService = {
-        postToPublicChannel: jest.fn()
+        postToPublicChannel: jest.fn(),
       };
 
       // Simulate attempting to post publicly in shadow mode
       const shouldPost = !shadowService.shouldSkipPublicAction('publish');
-      
+
       if (shouldPost) {
         await mockDiscordService.postToPublicChannel('test-message');
       }
@@ -204,8 +209,8 @@ describe('Shadow Mode Invariants', () => {
           id: 'test-pick-456',
           player_name: 'Test Player 2',
           stat_type: 'assists',
-          sport: 'NBA'
-        }
+          sport: 'NBA',
+        },
       };
 
       const result = await publishGuard.handlePromotionDecision(rejectedDecision);
@@ -225,13 +230,13 @@ describe('Shadow Mode Invariants', () => {
           player_name: 'Test Player 3',
           stat_type: 'rebounds',
           sport: 'NBA',
-          professional_score: 0.95
-        }
+          professional_score: 0.95,
+        },
       };
 
       const result = await publishGuard.handlePromotionDecision(approvedDecision, {
         tier: 'S',
-        isInstant: true
+        isInstant: true,
       });
 
       // Live mode should both log and publish approved picks
@@ -248,7 +253,7 @@ describe('Shadow Mode Invariants', () => {
         { action: 'instant', reasons: ['high-confidence'] },
         { action: 'queued-10am', reasons: ['good-value'] },
         { action: 'rejected-gate', reasons: ['low-confidence'] },
-        { action: 'rejected-recheck', reasons: ['odds-moved'] }
+        { action: 'rejected-recheck', reasons: ['odds-moved'] },
       ];
 
       for (const testCase of testCases) {
@@ -256,7 +261,7 @@ describe('Shadow Mode Invariants', () => {
           sport: 'MLB',
           market: 'hits',
           player: `Player ${testCase.action}`,
-          tier: 'B'
+          tier: 'B',
         };
 
         await shadowService.shadowWritePick(shadowPick, testCase.action, testCase.reasons);
@@ -274,16 +279,16 @@ describe('Shadow Mode Invariants', () => {
 
       // Mock checking if unified_picks would be updated with published=true
       const unifiedPicksUpdate = jest.fn();
-      mockSupabase.from = jest.fn().mockImplementation((table) => {
+      mockSupabase.from = jest.fn().mockImplementation(table => {
         if (table === 'unified_picks') {
           return {
             update: unifiedPicksUpdate.mockReturnValue({
-              eq: jest.fn().mockResolvedValue({ data: null, error: null })
-            })
+              eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+            }),
           };
         }
         return {
-          insert: jest.fn().mockResolvedValue({ data: null, error: null })
+          insert: jest.fn().mockResolvedValue({ data: null, error: null }),
         };
       });
 
@@ -291,7 +296,7 @@ describe('Shadow Mode Invariants', () => {
         approved: true,
         lane: 'instant',
         reasons: ['test'],
-        pick: { id: 'test-pick', player_name: 'Test' }
+        pick: { id: 'test-pick', player_name: 'Test' },
       };
 
       await publishGuard.handlePromotionDecision(decision);
@@ -306,19 +311,21 @@ describe('Shadow Mode Invariants', () => {
       process.env.SHADOW_MODE = 'true';
 
       mockSupabase.rpc = jest.fn().mockResolvedValue({
-        data: [{ 
-          deleted_picks: 100,
-          deleted_metrics: 50,
-          deleted_rechecks: 25,
-          deleted_alerts: 10
-        }],
-        error: null
+        data: [
+          {
+            deleted_picks: 100,
+            deleted_metrics: 50,
+            deleted_rechecks: 25,
+            deleted_alerts: 10,
+          },
+        ],
+        error: null,
       });
 
       await shadowService.cleanupOldShadow(7);
 
       expect(mockSupabase.rpc).toHaveBeenCalledWith('cleanup_old_shadow_data', {
-        max_days: 7
+        max_days: 7,
       });
     });
   });
@@ -350,7 +357,7 @@ describe('Shadow Mode Invariants', () => {
         chaosMuted: false,
         steamMuted: false,
         isInstant: true,
-        groupKey: 'nfl-sunday-group-1'
+        groupKey: 'nfl-sunday-group-1',
       };
 
       await shadowService.shadowWritePick(shadowPick, 'instant', ['high-ev', 'positive-clv']);
@@ -382,7 +389,7 @@ describe('Shadow Mode Invariants', () => {
           is_instant: true,
           group_key: 'nfl-sunday-group-1',
           decided_action: 'instant',
-          reasons: ['high-ev', 'positive-clv']
+          reasons: ['high-ev', 'positive-clv'],
         })
       );
     });
@@ -405,7 +412,7 @@ describe('Shadow Mode Invariants', () => {
         completedPicks: 145,
         winRate: 0.58,
         avgOdds: -108,
-        profitFactor: 1.45
+        profitFactor: 1.45,
       };
 
       await shadowService.shadowWriteMetrics(metricsSnapshot);
@@ -423,8 +430,8 @@ describe('Shadow Mode Invariants', () => {
             window: '7d',
             sport: 'NBA',
             posted_ev: 0.045,
-            positive_clv_rate: 0.67
-          })
+            positive_clv_rate: 0.67,
+          }),
         })
       );
     });
@@ -440,7 +447,7 @@ describe('Shadow Mode Invariants', () => {
         {
           evAtRecheck: 0.038,
           clvAtRecheck: 1.5,
-          oddsMovement: -2
+          oddsMovement: -2,
         }
       );
 
@@ -461,8 +468,8 @@ describe('Shadow Mode Invariants', () => {
             action: 'approved',
             ev_at_recheck: 0.038,
             clv_at_recheck: 1.5,
-            odds_movement: -2
-          })
+            odds_movement: -2,
+          }),
         })
       );
     });
@@ -495,8 +502,8 @@ describe('Shadow Mode Invariants', () => {
             message: 'Odds moved significantly against us',
             data: { oldOdds: -110, newOdds: -125, movement: 15 },
             would_suspend: false,
-            would_notify: true
-          })
+            would_notify: true,
+          }),
         })
       );
     });
@@ -506,7 +513,7 @@ describe('Shadow Mode Invariants', () => {
     test('Shadow mode can be safely toggled without data loss', async () => {
       // Start in shadow mode
       process.env.SHADOW_MODE = 'true';
-      let shadowService1 = ShadowModeService.getInstance();
+      const shadowService1 = ShadowModeService.getInstance();
       expect(shadowService1.isShadowMode()).toBe(true);
 
       // Record a shadow pick
@@ -514,13 +521,13 @@ describe('Shadow Mode Invariants', () => {
         sport: 'MLB',
         market: 'hits',
         player: 'Ronald Acuna Jr.',
-        tier: 'S'
+        tier: 'S',
       };
       await shadowService1.shadowWritePick(shadowPick, 'instant', ['test-transition']);
 
       // Switch to live mode
       process.env.SHADOW_MODE = 'false';
-      
+
       // Create new instance (simulating restart)
       const shadowService2 = new (ShadowModeService as any)();
       expect(shadowService2.isShadowMode()).toBe(false);
@@ -540,25 +547,25 @@ describe('Shadow Mode Invariants', () => {
                   decided_action: 'instant',
                   sport: 'NBA',
                   tier: 'S',
-                  reasons: ['high-confidence']
+                  reasons: ['high-confidence'],
                 },
                 {
-                  decided_action: 'queued-10am', 
+                  decided_action: 'queued-10am',
                   sport: 'MLB',
                   tier: 'A',
-                  reasons: ['good-value']
-                }
+                  reasons: ['good-value'],
+                },
               ],
-              error: null
-            })
-          })
-        })
+              error: null,
+            }),
+          }),
+        }),
       });
 
       // Test in shadow mode
       process.env.SHADOW_MODE = 'true';
       const shadowStats = await shadowService.getShadowStats('7d');
-      
+
       expect(shadowStats.totalPicks).toBe(2);
       expect(shadowStats.byAction['instant']).toBe(1);
       expect(shadowStats.byAction['queued-10am']).toBe(1);
@@ -568,7 +575,7 @@ describe('Shadow Mode Invariants', () => {
       // Test in live mode
       process.env.SHADOW_MODE = 'false';
       const liveStats = await shadowService.getShadowStats('7d');
-      
+
       // Stats should be accessible in both modes
       expect(liveStats.totalPicks).toBe(2);
     });
@@ -582,14 +589,14 @@ describe('Shadow Mode Invariants', () => {
       mockSupabase.from = jest.fn().mockReturnValue({
         insert: jest.fn().mockResolvedValue({
           data: null,
-          error: new Error('Database connection failed')
-        })
+          error: new Error('Database connection failed'),
+        }),
       });
 
       const shadowPick: ShadowPick = {
         sport: 'NHL',
         market: 'goals',
-        player: 'Connor McDavid'
+        player: 'Connor McDavid',
       };
 
       // Should not throw error, should handle gracefully
@@ -603,20 +610,20 @@ describe('Shadow Mode Invariants', () => {
 
       // Mock shadow logging failure
       const originalShadowWrite = shadowService.shadowWritePick;
-      shadowService.shadowWritePick = jest.fn().mockRejectedValue(
-        new Error('Shadow logging failed')
-      );
+      shadowService.shadowWritePick = jest
+        .fn()
+        .mockRejectedValue(new Error('Shadow logging failed'));
 
       const decision: PromotionDecision = {
         approved: true,
         lane: 'instant',
         reasons: ['test'],
-        pick: { id: 'test-pick', player_name: 'Test Player' }
+        pick: { id: 'test-pick', player_name: 'Test Player' },
       };
 
       // Should still complete successfully in live mode
       const result = await publishGuard.handlePromotionDecision(decision);
-      
+
       expect(result.published).toBe(true);
       // Restore original method
       shadowService.shadowWritePick = originalShadowWrite;

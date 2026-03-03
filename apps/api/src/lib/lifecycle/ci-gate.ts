@@ -8,10 +8,11 @@
  */
 
 import { execSync } from 'child_process';
-import * as path from 'path';
 import * as fs from 'fs';
-import { runSingleWriterGate } from './single-writer-gate';
+import * as path from 'path';
+
 import { getAllowlistCount } from './single-writer-allowlist';
+import { runSingleWriterGate } from './single-writer-gate';
 
 // ============================================================
 // TYPES
@@ -91,9 +92,7 @@ function runSingleWriterCheck(): GateResult {
       name: 'Single-Writer Gate',
       passed: false,
       message: `${result.violations.length} unauthorized writes detected`,
-      details: result.violations.map(
-        (v) => `${v.file}:${v.line} - ${v.reason}`
-      ),
+      details: result.violations.map(v => `${v.file}:${v.line} - ${v.reason}`),
     };
   }
 
@@ -132,9 +131,7 @@ function checkContractDocumentation(): GateResult {
     'Error',
   ];
 
-  const missingSections = requiredSections.filter(
-    (section) => !content.includes(section)
-  );
+  const missingSections = requiredSections.filter(section => !content.includes(section));
 
   if (missingSections.length > 0) {
     return {
@@ -180,9 +177,7 @@ function checkLifecycleModuleExports(): GateResult {
     'atomicClaimForSettle',
   ];
 
-  const missingExports = requiredExports.filter(
-    (exp) => !content.includes(exp)
-  );
+  const missingExports = requiredExports.filter(exp => !content.includes(exp));
 
   if (missingExports.length > 0) {
     return {
@@ -276,7 +271,7 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error('Fatal error running CI gate:', err);
   process.exit(1);
 });

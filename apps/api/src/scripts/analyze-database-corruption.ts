@@ -3,7 +3,7 @@
 
 /**
  * Comprehensive Database Corruption Analysis
- * 
+ *
  * Analyzes the current state of raw_props table and identifies:
  * 1. Sport classification mismatches
  * 2. API usage optimization opportunities
@@ -27,11 +27,13 @@ async function analyzeDatabaseCorruption() {
   try {
     console.log('\n📊 PHASE 1: API USAGE ANALYSIS');
     console.log('===============================');
-    
+
     // Check Odds API usage
     const oddsApiStatus = getCreditUsageStatus();
     console.log('📈 Odds API Status:');
-    console.log(`  Monthly Used: ${oddsApiStatus.monthlyUsed}/${oddsApiStatus.monthlyLimit} (${oddsApiStatus.percentUsed}%)`);
+    console.log(
+      `  Monthly Used: ${oddsApiStatus.monthlyUsed}/${oddsApiStatus.monthlyLimit} (${oddsApiStatus.percentUsed}%)`
+    );
     console.log(`  Remaining: ${oddsApiStatus.monthlyLimit - oddsApiStatus.monthlyUsed} credits`);
     console.log(`  Daily Budget: ${oddsApiStatus.dailyBudget} credits/day`);
     console.log(`  Days Remaining: ${oddsApiStatus.daysRemaining}`);
@@ -43,11 +45,11 @@ async function analyzeDatabaseCorruption() {
     const { count: totalProps, error: totalError } = await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true });
-    
+
     if (totalError) {
       throw new Error(`Failed to count total props: ${totalError.message}`);
     }
-    
+
     console.log(`📊 Total props in database: ${totalProps?.toLocaleString()}`);
 
     // Analyze sport classification issues
@@ -66,8 +68,10 @@ async function analyzeDatabaseCorruption() {
     if (ncaafError) {
       console.log(`⚠️ Error querying NCAAF corrupted data: ${ncaafError.message}`);
     } else {
-      console.log(`\n❌ NCAAF props with wrong sport classification: ${ncaafCorrupted?.length || 0} (showing first 10)`);
-      
+      console.log(
+        `\n❌ NCAAF props with wrong sport classification: ${ncaafCorrupted?.length || 0} (showing first 10)`
+      );
+
       if (ncaafCorrupted && ncaafCorrupted.length > 0) {
         for (const prop of ncaafCorrupted) {
           console.log(`  📋 ${prop.player_name}`);
@@ -85,9 +89,11 @@ async function analyzeDatabaseCorruption() {
       .select('*', { count: 'exact', head: true })
       .eq('sport_key', 'americanfootball_ncaaf')
       .neq('sport', 'NCAAF');
-    
+
     if (!ncaafCountError) {
-      console.log(`\n📊 Total NCAAF props with wrong sport: ${ncaafCorruptedCount?.toLocaleString()}`);
+      console.log(
+        `\n📊 Total NCAAF props with wrong sport: ${ncaafCorruptedCount?.toLocaleString()}`
+      );
     }
 
     // Check what sports are being incorrectly used for NCAAF
@@ -109,8 +115,8 @@ async function analyzeDatabaseCorruption() {
     console.log('=================================');
 
     // Analyze by data source
-    const { data: sourceAnalysis, error: sourceError } = await supabaseClient
-      .rpc('analyze_props_by_source');
+    const { data: sourceAnalysis, error: sourceError } =
+      await supabaseClient.rpc('analyze_props_by_source');
 
     if (sourceError) {
       // Manual analysis if RPC doesn't exist
@@ -122,13 +128,13 @@ async function analyzeDatabaseCorruption() {
       if (!providerError && providers) {
         console.log('\n📊 Data by Provider/Source:');
         const providerMap = new Map();
-        
+
         for (const item of providers) {
           const key = `${item.provider || 'Unknown'} (${item.source || 'Unknown'})`;
           const count = parseInt(item.count) || 1;
           providerMap.set(key, (providerMap.get(key) || 0) + count);
         }
-        
+
         for (const [provider, count] of providerMap.entries()) {
           console.log(`  ${provider}: ${count.toLocaleString()} props`);
         }
@@ -148,22 +154,25 @@ async function analyzeDatabaseCorruption() {
 
     if (!sportsError && sportsBySource) {
       console.log('\n📊 Sports by API Source:');
-      
+
       const apiUsage = {
         'odds-api': new Map(),
-        'optimal': new Map(),
-        'other': new Map()
+        optimal: new Map(),
+        other: new Map(),
       };
-      
+
       for (const item of sportsBySource) {
         const source = item.source || 'other';
-        const apiKey = source.includes('odds') ? 'odds-api' : 
-                      source.includes('optimal') ? 'optimal' : 'other';
-        
+        const apiKey = source.includes('odds')
+          ? 'odds-api'
+          : source.includes('optimal')
+            ? 'optimal'
+            : 'other';
+
         const count = parseInt(item.count) || 1;
         apiUsage[apiKey].set(item.sport, (apiUsage[apiKey].get(item.sport) || 0) + count);
       }
-      
+
       for (const [api, sports] of Object.entries(apiUsage)) {
         if (sports.size > 0) {
           console.log(`\n  ${api.toUpperCase()}:`);
@@ -176,29 +185,29 @@ async function analyzeDatabaseCorruption() {
 
     console.log('\n💡 PHASE 5: OPTIMIZATION RECOMMENDATIONS');
     console.log('========================================');
-    
+
     console.log('\n🎯 API Strategy Recommendations:');
     console.log('================================');
     console.log('✅ OPTIMAL API (Primary for major sports):');
     console.log('   - NFL: Best player props, comprehensive coverage');
-    console.log('   - NBA: Best player props, comprehensive coverage'); 
+    console.log('   - NBA: Best player props, comprehensive coverage');
     console.log('   - MLB: Best player props, comprehensive coverage');
     console.log('   - NHL: Best player props, comprehensive coverage');
-    
+
     console.log('\n✅ ODDS API (Exclusive coverage):');
     console.log('   - NCAAF: ONLY source for college football');
     console.log('   - NCAAB: College basketball coverage');
     console.log('   - Settlement data: ONLY source for game results');
-    
+
     console.log('\n🔧 Data Cleanup Recommendations:');
     console.log('=================================');
-    
+
     if (ncaafCorruptedCount && ncaafCorruptedCount > 0) {
       console.log(`❌ Fix ${ncaafCorruptedCount.toLocaleString()} corrupted NCAAF props:`);
       console.log('   - Update sport="NCAAF" where sport_key="americanfootball_ncaaf"');
       console.log('   - Update league="NCAAF" where sport_key="americanfootball_ncaaf"');
     }
-    
+
     console.log('\n⚡ Performance Improvements:');
     console.log('============================');
     console.log('1. Use Optimal API for NFL/NBA/MLB/NHL (better player props)');
@@ -209,16 +218,20 @@ async function analyzeDatabaseCorruption() {
     console.log('\n📊 CURRENT API USAGE SUMMARY:');
     console.log('==============================');
     console.log('Odds API:');
-    console.log(`  - Credits remaining: ${oddsApiStatus.monthlyLimit - oddsApiStatus.monthlyUsed}/500`);
+    console.log(
+      `  - Credits remaining: ${oddsApiStatus.monthlyLimit - oddsApiStatus.monthlyUsed}/500`
+    );
     console.log(`  - Should be used for: NCAAF, NCAAB, Settlement data`);
     console.log(`  - Current usage seems too low (may not be tracking correctly)`);
-    
+
     console.log('\nOptimal API:');
     console.log('  - Should be primary for: NFL, NBA, MLB, NHL');
     console.log('  - Need to test current usage and limits');
-
   } catch (error) {
-    console.error('\n❌ Analysis failed:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      '\n❌ Analysis failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     throw error;
   }
 }
@@ -230,7 +243,7 @@ if (require.main === module) {
       console.log('\n✅ Database corruption analysis completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Analysis crashed:', error);
       process.exit(1);
     });

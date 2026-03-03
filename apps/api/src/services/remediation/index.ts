@@ -10,7 +10,11 @@
 export * from './types';
 
 // Core services
-export { RemediationEngine, getRemediationEngine, createRemediationEngine } from './RemediationEngine';
+export {
+  RemediationEngine,
+  getRemediationEngine,
+  createRemediationEngine,
+} from './RemediationEngine';
 export { PlaybookRegistry, getPlaybookRegistry, createPlaybookRegistry } from './PlaybookRegistry';
 export { KnobResolver, getKnobResolver, createKnobResolver } from './KnobResolver';
 

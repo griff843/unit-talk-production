@@ -63,8 +63,10 @@ export type TrendAnalysisUpdate = Partial<TrendAnalysisInsert>;
 
 // Supabase generated types
 export type AnalyticsSummaryResponse = Database['public']['Tables']['analytics_summary']['Row'];
-export type AnalyticsSummaryInsertResponse = Database['public']['Tables']['analytics_summary']['Insert'];
-export type AnalyticsSummaryUpdateResponse = Database['public']['Tables']['analytics_summary']['Update'];
+export type AnalyticsSummaryInsertResponse =
+  Database['public']['Tables']['analytics_summary']['Insert'];
+export type AnalyticsSummaryUpdateResponse =
+  Database['public']['Tables']['analytics_summary']['Update'];
 
 export type ROIByTierResponse = Database['public']['Tables']['roi_by_tier']['Row'];
 export type ROIByTierInsertResponse = Database['public']['Tables']['roi_by_tier']['Insert'];
@@ -72,4 +74,4 @@ export type ROIByTierUpdateResponse = Database['public']['Tables']['roi_by_tier'
 
 export type TrendAnalysisResponse = Database['public']['Tables']['trend_analysis']['Row'];
 export type TrendAnalysisInsertResponse = Database['public']['Tables']['trend_analysis']['Insert'];
-export type TrendAnalysisUpdateResponse = Database['public']['Tables']['trend_analysis']['Update']; 
+export type TrendAnalysisUpdateResponse = Database['public']['Tables']['trend_analysis']['Update'];

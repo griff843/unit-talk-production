@@ -1,4 +1,8 @@
-export type LoadBalancingStrategy = 'round-robin' | 'least-connections' | 'weighted' | 'response-time';
+export type LoadBalancingStrategy =
+  | 'round-robin'
+  | 'least-connections'
+  | 'weighted'
+  | 'response-time';
 
 export interface ServerInstance {
   id: string;
@@ -122,4 +126,4 @@ export interface CircuitBreakerState {
   failureCount: number;
   lastFailureTime: number;
   nextAttemptTime: number;
-} 
+}

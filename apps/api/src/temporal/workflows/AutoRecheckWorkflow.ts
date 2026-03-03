@@ -3,19 +3,20 @@
  * Orchestrates scheduled pick re-checks with fault tolerance and retry logic
  */
 
-import { 
-  proxyActivities, 
-  defineSignal, 
-  defineQuery, 
-  setHandler, 
-  condition, 
-  sleep 
+import {
+  proxyActivities,
+  defineSignal,
+  defineQuery,
+  setHandler,
+  condition,
+  sleep,
 } from '@temporalio/workflow';
-import type { 
+
+import type {
   AutoRecheckActivities,
   RecheckWorkflowInput,
   RecheckWorkflowState,
-  RecheckCheckpoint 
+  RecheckCheckpoint,
 } from '../activities/autoRecheckActivities';
 
 // Proxy activities with timeout and retry configuration
@@ -26,15 +27,15 @@ const {
   updateOddsTracking,
   generateRecheckAlert,
   finalizeRecheckSchedule,
-  handleRecheckFailure
+  handleRecheckFailure,
 } = proxyActivities<AutoRecheckActivities>({
   startToCloseTimeout: '2 minutes',
   retry: {
     initialInterval: '10 seconds',
     backoffCoefficient: 2,
     maximumInterval: '1 minute',
-    maximumAttempts: 3
-  }
+    maximumAttempts: 3,
+  },
 });
 
 // Workflow signals
@@ -52,7 +53,7 @@ export const getNextCheckpointQuery = defineQuery<RecheckCheckpoint | null>('get
  */
 export async function autoRecheckWorkflow(input: RecheckWorkflowInput): Promise<void> {
   // Initialize workflow state
-  let state: RecheckWorkflowState = {
+  const state: RecheckWorkflowState = {
     pickId: input.pickId,
     status: 'initializing',
     currentCheckpoint: 0,
@@ -68,11 +69,11 @@ export async function autoRecheckWorkflow(input: RecheckWorkflowInput): Promise<
       failedChecks: 0,
       averageCheckDuration: 0,
       totalOddsUpdates: 0,
-      alertsGenerated: 0
+      alertsGenerated: 0,
     },
     config: input.config,
     startTime: Date.now(),
-    lastUpdate: Date.now()
+    lastUpdate: Date.now(),
   };
 
   // Set up signal and query handlers
@@ -107,7 +108,7 @@ export async function autoRecheckWorkflow(input: RecheckWorkflowInput): Promise<
     // Initialize pick monitoring
     state.status = 'initializing';
     await initializePickMonitoring(input.pickId, input.config);
-    
+
     state.status = 'running';
     state.lastUpdate = Date.now();
 
@@ -129,11 +130,11 @@ export async function autoRecheckWorkflow(input: RecheckWorkflowInput): Promise<
       // Wait until checkpoint time
       const now = Date.now();
       const checkpointTime = new Date(nextCheckpoint.scheduledTime).getTime();
-      
+
       if (checkpointTime > now) {
         const waitTime = checkpointTime - now;
         await sleep(waitTime);
-        
+
         // Check if still valid after wait
         if (cancelled) break;
         if (paused) {
@@ -154,14 +155,13 @@ export async function autoRecheckWorkflow(input: RecheckWorkflowInput): Promise<
       state.status = 'completed';
       await finalizeRecheckSchedule(input.pickId, state);
     }
-
   } catch (error) {
     state.status = 'failed';
     state.errors.push({
       timestamp: Date.now(),
       message: error instanceof Error ? error.message : String(error),
       checkpoint: state.currentPhase,
-      recoverable: false
+      recoverable: false,
     });
 
     await handleRecheckFailure(input.pickId, state, error);
@@ -178,10 +178,10 @@ async function executeCheckpoint(
   checkpoint: RecheckCheckpoint
 ): Promise<void> {
   const startTime = Date.now();
-  
+
   try {
     state.metrics.totalChecks++;
-    
+
     // Update current phase
     state.currentPhase = checkpoint.type;
     state.lastUpdate = Date.now();
@@ -199,21 +199,17 @@ async function executeCheckpoint(
     state.metrics.totalOddsUpdates++;
 
     // Execute the actual re-check point
-    const result = await executeRecheckPoint(
-      state.pickId,
-      checkpoint,
-      state.config
-    );
+    const result = await executeRecheckPoint(state.pickId, checkpoint, state.config);
 
     // Process checkpoint result
     if (result.success) {
       state.metrics.successfulChecks++;
-      
+
       // Mark checkpoint as completed
       checkpoint.status = 'completed';
       checkpoint.completedAt = Date.now();
       checkpoint.result = result;
-      
+
       state.completedCheckpoints.push(checkpoint);
 
       // Generate alerts if needed
@@ -224,18 +220,17 @@ async function executeCheckpoint(
 
       // Handle specific actions based on checkpoint type
       await handleCheckpointSpecificActions(state, checkpoint, result);
-
     } else {
       // Handle checkpoint failure
       state.metrics.failedChecks++;
       checkpoint.status = 'failed';
       checkpoint.error = result.error;
-      
+
       state.errors.push({
         timestamp: Date.now(),
         message: result.error || 'Checkpoint execution failed',
         checkpoint: checkpoint.id,
-        recoverable: true
+        recoverable: true,
       });
 
       // Attempt recovery if configured
@@ -246,29 +241,27 @@ async function executeCheckpoint(
 
     // Update metrics
     const duration = Date.now() - startTime;
-    state.metrics.averageCheckDuration = 
-      (state.metrics.averageCheckDuration * (state.metrics.totalChecks - 1) + duration) / state.metrics.totalChecks;
-
+    state.metrics.averageCheckDuration =
+      (state.metrics.averageCheckDuration * (state.metrics.totalChecks - 1) + duration) /
+      state.metrics.totalChecks;
   } catch (error) {
     state.metrics.failedChecks++;
     checkpoint.status = 'failed';
     checkpoint.error = error instanceof Error ? error.message : String(error);
-    
+
     state.errors.push({
       timestamp: Date.now(),
       message: checkpoint.error,
       checkpoint: checkpoint.id,
-      recoverable: false
+      recoverable: false,
     });
 
     throw error;
   }
 
   // Remove completed checkpoint from scheduled list
-  state.scheduledCheckpoints = state.scheduledCheckpoints.filter(
-    c => c.id !== checkpoint.id
-  );
-  
+  state.scheduledCheckpoints = state.scheduledCheckpoints.filter(c => c.id !== checkpoint.id);
+
   state.lastUpdate = Date.now();
 }
 
@@ -300,7 +293,7 @@ async function handleCheckpointSpecificActions(
         if (result.severity === 'critical') {
           await generateRecheckAlert(state.pickId, checkpoint, {
             ...result,
-            alertType: 'critical_validation_failure'
+            alertType: 'critical_validation_failure',
           });
         }
       }
@@ -319,7 +312,7 @@ async function handleCheckpointSpecificActions(
       if (result.emergencyAction) {
         await generateRecheckAlert(state.pickId, checkpoint, {
           ...result,
-          alertType: 'emergency_action_required'
+          alertType: 'emergency_action_required',
         });
       }
       break;
@@ -338,17 +331,13 @@ async function attemptCheckpointRecovery(
 
   while (retryCount < maxRetries) {
     retryCount++;
-    
+
     // Wait before retry
     await sleep(`${Math.pow(2, retryCount)} seconds`);
-    
+
     try {
-      const result = await executeRecheckPoint(
-        state.pickId,
-        checkpoint,
-        state.config
-      );
-      
+      const result = await executeRecheckPoint(state.pickId, checkpoint, state.config);
+
       if (result.success) {
         checkpoint.status = 'completed';
         checkpoint.retryCount = retryCount;
@@ -367,7 +356,7 @@ async function attemptCheckpointRecovery(
     timestamp: Date.now(),
     message: `Checkpoint recovery failed after ${maxRetries} attempts`,
     checkpoint: checkpoint.id,
-    recoverable: false
+    recoverable: false,
   });
 }
 
@@ -389,7 +378,7 @@ async function handleWorkflowCancellation(
     alertType: 'workflow_cancelled',
     reason,
     completedCheckpoints: state.completedCheckpoints.length,
-    scheduledCheckpoints: state.scheduledCheckpoints.length
+    scheduledCheckpoints: state.scheduledCheckpoints.length,
   });
 }
 
@@ -400,16 +389,14 @@ function getNextScheduledCheckpoint(state: RecheckWorkflowState): RecheckCheckpo
   const now = Date.now();
   const pendingCheckpoints = state.scheduledCheckpoints
     .filter(c => c.status === 'scheduled')
-    .filter(c => new Date(c.scheduledTime).getTime() <= now + (5 * 60 * 1000)) // Within 5 minutes
+    .filter(c => new Date(c.scheduledTime).getTime() <= now + 5 * 60 * 1000) // Within 5 minutes
     .sort((a, b) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime());
 
   return pendingCheckpoints[0] || null;
 }
 
 function hasRemainingCheckpoints(state: RecheckWorkflowState): boolean {
-  return state.scheduledCheckpoints.some(c => 
-    c.status === 'scheduled' || c.status === 'pending'
-  );
+  return state.scheduledCheckpoints.some(c => c.status === 'scheduled' || c.status === 'pending');
 }
 
 function markRemainingCheckpointsSkipped(state: RecheckWorkflowState, reason: string): void {
@@ -435,13 +422,13 @@ export async function criticalAlertWorkflow(input: {
     startToCloseTimeout: '1 minute',
     retry: {
       initialInterval: '5 seconds',
-      maximumAttempts: 2
-    }
+      maximumAttempts: 2,
+    },
   });
 
   await handleCriticalAlert(input.pickId, input.alertType, {
     severity: input.severity,
     data: input.data,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 }

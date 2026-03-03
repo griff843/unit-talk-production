@@ -22,7 +22,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
  */
 function isPreviewSchemaError(message: string): boolean {
   const schemaPatterns = ['does not exist', 'column', 'relation', 'function'];
-  return schemaPatterns.some((pattern) => message.includes(pattern));
+  return schemaPatterns.some(pattern => message.includes(pattern));
 }
 
 /**

@@ -9,8 +9,8 @@ function getLogger(): pino.Logger {
       ? pino({
           transport: {
             target: 'pino-pretty',
-            options: { colorize: true }
-          }
+            options: { colorize: true },
+          },
         })
       : pino();
   }
@@ -21,7 +21,7 @@ function getLogger(): pino.Logger {
 export const logger: pino.Logger = new Proxy({} as pino.Logger, {
   get(_target, prop: keyof pino.Logger) {
     return (getLogger() as any)[prop];
-  }
+  },
 });
 
 export function logAgentEvent(agent: string, msg: string, meta?: Record<string, unknown>) {

@@ -95,40 +95,40 @@ export class RiskAnalyzer {
 
   async initialize(): Promise<void> {
     this.logger.info('📊 Initializing RiskAnalyzer');
-    
+
     await this.loadRiskModels();
     await this.loadBenchmarkData();
     await this.loadStressScenarios();
     await this.loadCorrelationHistory();
-    
+
     this.logger.info('✅ RiskAnalyzer initialized');
   }
 
   async analyzePortfolio(positions: Position[], bankroll: number): Promise<PortfolioAnalysis> {
     this.logger.info('📈 Analyzing portfolio risk', {
       positionCount: positions.length,
-      bankroll
+      bankroll,
     });
 
     try {
       // Calculate basic portfolio metrics
       const totalExposure = this.calculateTotalExposure(positions, bankroll);
       const portfolioReturns = await this.simulatePortfolioReturns(positions, 1000);
-      
+
       // Risk metrics
       const valueAtRisk = this.calculateVaR(portfolioReturns, 0.05); // 5% VaR
       const expectedShortfall = this.calculateExpectedShortfall(portfolioReturns, 0.05);
       const maxDrawdown = this.calculateMaxDrawdown(portfolioReturns);
       const sharpeRatio = this.calculateSharpeRatio(portfolioReturns);
-      
+
       // Concentration and diversification
       const concentrationRisk = this.calculateConcentrationRisk(positions);
       const diversificationBenefit = await this.calculateDiversificationBenefit(positions);
-      
+
       // Correlation and liquidity risks
       const correlationRisk = await this.calculateCorrelationRisk(positions);
       const liquidityRisk = await this.calculateLiquidityRisk(positions);
-      
+
       // Overall risk professional_score
       const riskScore = await this.calculateOverallRiskScore({
         totalExposure,
@@ -136,7 +136,7 @@ export class RiskAnalyzer {
         concentrationRisk,
         correlationRisk,
         liquidityRisk,
-        diversificationBenefit
+        diversificationBenefit,
       });
 
       // Scenario analysis
@@ -153,20 +153,19 @@ export class RiskAnalyzer {
         concentrationRisk,
         liquidityRisk,
         correlationRisk,
-        scenarios
+        scenarios,
       };
 
       this.logger.info('✅ Portfolio risk analysis completed', {
         riskScore,
         totalExposure,
-        valueAtRisk
+        valueAtRisk,
       });
 
       return analysis;
-
     } catch (error) {
       this.logger.error('❌ Portfolio risk analysis failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -182,10 +181,10 @@ export class RiskAnalyzer {
         for (let j = i + 1; j < positions.length; j++) {
           const pos1 = positions[i];
           const pos2 = positions[j];
-          
+
           const correlationKey = `${pos1.id}_${pos2.id}`;
           const correlation = await this.calculatePairwiseCorrelation(pos1, pos2);
-          
+
           correlations.set(correlationKey, correlation);
         }
       }
@@ -194,10 +193,9 @@ export class RiskAnalyzer {
       await this.updateCorrelationHistory(correlations);
 
       return correlations;
-
     } catch (error) {
       this.logger.error('❌ Correlation calculation failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -206,7 +204,7 @@ export class RiskAnalyzer {
   async performStressTest(positions: Position[], scenarios: string[]): Promise<Map<string, any>> {
     this.logger.info('🧪 Performing stress test', {
       positions: positions.length,
-      scenarios: scenarios.length
+      scenarios: scenarios.length,
     });
 
     const stressResults = new Map<string, any>();
@@ -226,15 +224,14 @@ export class RiskAnalyzer {
           worstCase: Math.min(...stressedReturns),
           valueAtRisk: this.calculateVaR(stressedReturns, 0.05),
           expectedShortfall: this.calculateExpectedShortfall(stressedReturns, 0.05),
-          exceedsLimits: stressedMetrics.maxDrawdown > 0.2 // 20% drawdown limit
+          exceedsLimits: stressedMetrics.maxDrawdown > 0.2, // 20% drawdown limit
         });
       }
 
       return stressResults;
-
     } catch (error) {
       this.logger.error('❌ Stress test failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -256,26 +253,26 @@ export class RiskAnalyzer {
         const historicalAvg = historical.reduce((sum, val) => sum + val, 0) / historical.length;
 
         const change = Math.abs(recentAvg - historicalAvg);
-        
-        if (change > 0.3) { // Significant change threshold
+
+        if (change > 0.3) {
+          // Significant change threshold
           const [asset1, asset2] = pair.split('_');
-          
+
           changes.push({
             assets: [asset1, asset2],
             oldCorrelation: historicalAvg,
             newCorrelation: recentAvg,
             changeDate: new Date(),
             significanceLevel: Math.min(change / 0.3, 1.0),
-            impactOnPortfolio: this.calculateCorrelationChangeImpact(pair, change)
+            impactOnPortfolio: this.calculateCorrelationChangeImpact(pair, change),
           });
         }
       }
 
       return changes.sort((a, b) => b.significanceLevel - a.significanceLevel);
-
     } catch (error) {
       this.logger.error('❌ Correlation shift detection failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
@@ -294,7 +291,7 @@ export class RiskAnalyzer {
         'sport_specific',
         'time_decay',
         'liquidity',
-        'correlation'
+        'correlation',
       ];
 
       for (const factor of riskFactors) {
@@ -307,15 +304,14 @@ export class RiskAnalyzer {
           exposure,
           contribution,
           sensitivity,
-          riskAttribution: exposure * sensitivity
+          riskAttribution: exposure * sensitivity,
         });
       }
 
       return exposures.sort((a, b) => b.riskAttribution - a.riskAttribution);
-
     } catch (error) {
       this.logger.error('❌ Risk factor exposure calculation failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
@@ -327,7 +323,10 @@ export class RiskAnalyzer {
     return totalStake / bankroll;
   }
 
-  private async simulatePortfolioReturns(positions: Position[], numSimulations: number): Promise<number[]> {
+  private async simulatePortfolioReturns(
+    positions: Position[],
+    numSimulations: number
+  ): Promise<number[]> {
     const returns: number[] = [];
 
     for (let i = 0; i < numSimulations; i++) {
@@ -336,7 +335,7 @@ export class RiskAnalyzer {
       for (const position of positions) {
         const random = Math.random();
         const winProbability = 1 / position.odds + position.expectedValue;
-        
+
         if (random < winProbability) {
           // Win scenario
           portfolioReturn += position.stake * (position.odds - 1);
@@ -362,9 +361,9 @@ export class RiskAnalyzer {
     const sortedReturns = returns.sort((a, b) => a - b);
     const varIndex = Math.floor((1 - confidence) * returns.length);
     const tailReturns = sortedReturns.slice(0, varIndex);
-    
+
     if (tailReturns.length === 0) return 0;
-    
+
     const averageTailReturn = tailReturns.reduce((sum, ret) => sum + ret, 0) / tailReturns.length;
     return -averageTailReturn;
   }
@@ -386,17 +385,18 @@ export class RiskAnalyzer {
 
   private calculateSharpeRatio(returns: number[]): number {
     const avgReturn = returns.reduce((sum, ret) => sum + ret, 0) / returns.length;
-    const variance = returns.reduce((sum, ret) => sum + Math.pow(ret - avgReturn, 2), 0) / returns.length;
+    const variance =
+      returns.reduce((sum, ret) => sum + Math.pow(ret - avgReturn, 2), 0) / returns.length;
     const stdDev = Math.sqrt(variance);
-    
+
     return stdDev > 0 ? avgReturn / stdDev : 0;
   }
 
   private calculateConcentrationRisk(positions: Position[]): number {
     const totalStake = positions.reduce((sum, pos) => sum + pos.stake, 0);
-    
+
     if (totalStake === 0) return 0;
-    
+
     // Herfindahl-Hirschman Index
     const hhi = positions.reduce((sum, pos) => {
       const weight = pos.stake / totalStake;
@@ -412,7 +412,7 @@ export class RiskAnalyzer {
     // Calculate portfolio volatility vs sum of individual volatilities
     const individualVolSum = positions.reduce((sum, pos) => sum + pos.volatility, 0);
     const portfolioVol = await this.calculatePortfolioVolatility(positions);
-    
+
     return Math.max(0, (individualVolSum - portfolioVol) / individualVolSum);
   }
 
@@ -444,17 +444,20 @@ export class RiskAnalyzer {
       return 0.2;
     });
 
-    return liquidityScores.reduce((sum, professional_score) => sum + professional_score, 0) / liquidityScores.length;
+    return (
+      liquidityScores.reduce((sum, professional_score) => sum + professional_score, 0) /
+      liquidityScores.length
+    );
   }
 
   private async calculateOverallRiskScore(metrics: any): Promise<number> {
     const weights = {
       exposure: 0.25,
-      var: 0.20,
-      concentration: 0.20,
+      var: 0.2,
+      concentration: 0.2,
       correlation: 0.15,
-      liquidity: 0.10,
-      diversification: -0.10 // Negative weight (diversification reduces risk)
+      liquidity: 0.1,
+      diversification: -0.1, // Negative weight (diversification reduces risk)
     };
 
     // Normalize metrics to 0-1 scale
@@ -464,11 +467,13 @@ export class RiskAnalyzer {
       concentration: Math.min(metrics.concentrationRisk / 0.5, 1),
       correlation: Math.min(metrics.correlationRisk / 0.8, 1),
       liquidity: Math.min(metrics.liquidityRisk / 0.8, 1),
-      diversification: metrics.diversificationBenefit
+      diversification: metrics.diversificationBenefit,
     };
 
     const riskScore = Object.entries(weights).reduce((professional_score, [metric, weight]) => {
-      return professional_score + weight * normalizedMetrics[metric as keyof typeof normalizedMetrics];
+      return (
+        professional_score + weight * normalizedMetrics[metric as keyof typeof normalizedMetrics]
+      );
     }, 0);
 
     return Math.max(0, Math.min(1, riskScore));
@@ -481,37 +486,41 @@ export class RiskAnalyzer {
     const marketStress = await this.calculateScenario(positions, 'market_stress', {
       correlationIncrease: 0.3,
       volatilityIncrease: 0.5,
-      returnDecrease: 0.2
+      returnDecrease: 0.2,
     });
     scenarios.push(marketStress);
 
     // Liquidity crisis scenario
     const liquidityCrisis = await this.calculateScenario(positions, 'liquidity_crisis', {
       liquidityDecrease: 0.4,
-      spreadIncrease: 0.3
+      spreadIncrease: 0.3,
     });
     scenarios.push(liquidityCrisis);
 
     // Black swan scenario
     const blackSwan = await this.calculateScenario(positions, 'black_swan', {
       extremeMove: 0.8,
-      correlationSpike: 0.9
+      correlationSpike: 0.9,
     });
     scenarios.push(blackSwan);
 
     return scenarios;
   }
 
-  private async calculateScenario(positions: Position[], scenarioName: string, parameters: any): Promise<ScenarioAnalysis> {
+  private async calculateScenario(
+    positions: Position[],
+    scenarioName: string,
+    parameters: any
+  ): Promise<ScenarioAnalysis> {
     // Simplified scenario calculation
     const baseReturn = positions.reduce((sum, pos) => sum + pos.expectedValue * pos.stake, 0);
-    
+
     let adjustedReturn = baseReturn;
     if (parameters.returnDecrease) {
-      adjustedReturn *= (1 - parameters.returnDecrease);
+      adjustedReturn *= 1 - parameters.returnDecrease;
     }
     if (parameters.extremeMove) {
-      adjustedReturn *= (1 - parameters.extremeMove);
+      adjustedReturn *= 1 - parameters.extremeMove;
     }
 
     return {
@@ -520,7 +529,7 @@ export class RiskAnalyzer {
       expectedReturn: adjustedReturn,
       worstCaseReturn: adjustedReturn * 0.5,
       bestCaseReturn: adjustedReturn * 1.2,
-      impactDescription: this.getScenarioDescription(scenarioName)
+      impactDescription: this.getScenarioDescription(scenarioName),
     };
   }
 
@@ -528,7 +537,7 @@ export class RiskAnalyzer {
     const probabilities: Record<string, number> = {
       market_stress: 0.15,
       liquidity_crisis: 0.05,
-      black_swan: 0.01
+      black_swan: 0.01,
     };
     return probabilities[scenarioName] || 0.1;
   }
@@ -537,23 +546,23 @@ export class RiskAnalyzer {
     const descriptions: Record<string, string> = {
       market_stress: 'Market-wide stress increases correlations and volatility',
       liquidity_crisis: 'Reduced liquidity increases spreads and execution risk',
-      black_swan: 'Extreme unexpected event causes significant losses'
+      black_swan: 'Extreme unexpected event causes significant losses',
     };
     return descriptions[scenarioName] || 'Unexpected market scenario';
   }
 
   private async calculatePairwiseCorrelation(pos1: Position, pos2: Position): Promise<number> {
     // Simplified correlation calculation based on bet types and games
-    
+
     // Same game = high correlation
     if (pos1.gameId === pos2.gameId) return 0.8;
-    
+
     // Same sport, same day = medium correlation
     if (this.isSameSport(pos1, pos2) && this.isSameDay(pos1, pos2)) return 0.4;
-    
+
     // Same sport, different day = low correlation
     if (this.isSameSport(pos1, pos2)) return 0.2;
-    
+
     // Different sports = minimal correlation
     return 0.05;
   }
@@ -571,18 +580,22 @@ export class RiskAnalyzer {
 
   private async calculatePortfolioVolatility(positions: Position[]): Promise<number> {
     // Simplified portfolio volatility calculation
-    const weights = positions.map(pos => pos.stake / positions.reduce((sum, p) => sum + p.stake, 0));
+    const weights = positions.map(
+      pos => pos.stake / positions.reduce((sum, p) => sum + p.stake, 0)
+    );
     const volatilities = positions.map(pos => pos.volatility);
-    
+
     let portfolioVariance = 0;
-    
+
     for (let i = 0; i < positions.length; i++) {
       for (let j = 0; j < positions.length; j++) {
-        const correlation = i === j ? 1 : await this.calculatePairwiseCorrelation(positions[i], positions[j]);
-        portfolioVariance += weights[i] * weights[j] * volatilities[i] * volatilities[j] * correlation;
+        const correlation =
+          i === j ? 1 : await this.calculatePairwiseCorrelation(positions[i], positions[j]);
+        portfolioVariance +=
+          weights[i] * weights[j] * volatilities[i] * volatilities[j] * correlation;
       }
     }
-    
+
     return Math.sqrt(portfolioVariance);
   }
 
@@ -603,7 +616,7 @@ export class RiskAnalyzer {
       kurtosis: 3, // Simplified
       sharpeRatio: this.calculateSharpeRatio(returns),
       sortintoRatio: 0, // Simplified
-      calmarRatio: 0 // Simplified
+      calmarRatio: 0, // Simplified
     };
   }
 
@@ -620,12 +633,15 @@ export class RiskAnalyzer {
       sport_specific: 0.8,
       time_decay: 0.3,
       liquidity: 0.4,
-      correlation: 0.6
+      correlation: 0.6,
     };
     return exposureMap[factor] || 0.5;
   }
 
-  private async calculateFactorContribution(positions: Position[], factor: string): Promise<number> {
+  private async calculateFactorContribution(
+    positions: Position[],
+    factor: string
+  ): Promise<number> {
     // Simplified factor contribution calculation
     return Math.random() * 0.3; // 0-30% contribution
   }
@@ -639,12 +655,12 @@ export class RiskAnalyzer {
     for (const [pair, correlation] of correlations) {
       const history = this.correlationHistory.get(pair) || [];
       history.push(correlation);
-      
+
       // Keep only last 30 observations
       if (history.length > 30) {
         history.shift();
       }
-      
+
       this.correlationHistory.set(pair, history);
     }
   }
@@ -653,7 +669,7 @@ export class RiskAnalyzer {
     const models = {
       var_model: { confidence_level: 0.05, lookback_days: 30 },
       correlation_model: { decay_factor: 0.94, min_observations: 10 },
-      stress_model: { severity_levels: [0.1, 0.25, 0.5, 0.95] }
+      stress_model: { severity_levels: [0.1, 0.25, 0.5, 0.95] },
     };
 
     for (const [modelName, model] of Object.entries(models)) {
@@ -665,7 +681,7 @@ export class RiskAnalyzer {
     // Load benchmark data for comparison
     const benchmarks = {
       market_return: [0.02, 0.01, -0.01, 0.03, 0.02],
-      risk_free_rate: [0.005, 0.005, 0.005, 0.005, 0.005]
+      risk_free_rate: [0.005, 0.005, 0.005, 0.005, 0.005],
     };
 
     for (const [benchmark, data] of Object.entries(benchmarks)) {
@@ -678,18 +694,18 @@ export class RiskAnalyzer {
       market_stress: {
         description: 'Market stress with increased correlations',
         probability: 0.15,
-        parameters: { correlation_increase: 0.3, volatility_increase: 0.5 }
+        parameters: { correlation_increase: 0.3, volatility_increase: 0.5 },
       },
       liquidity_crisis: {
         description: 'Liquidity crisis with wider spreads',
         probability: 0.05,
-        parameters: { liquidity_decrease: 0.4, spread_increase: 0.3 }
+        parameters: { liquidity_decrease: 0.4, spread_increase: 0.3 },
       },
       black_swan: {
         description: 'Extreme unexpected event',
         probability: 0.01,
-        parameters: { extreme_move: 0.8, correlation_spike: 0.9 }
-      }
+        parameters: { extreme_move: 0.8, correlation_spike: 0.9 },
+      },
     };
 
     for (const [scenarioName, scenario] of Object.entries(scenarios)) {
@@ -700,7 +716,7 @@ export class RiskAnalyzer {
   private async loadCorrelationHistory(): Promise<void> {
     try {
       const cachedHistory = await redisCache.getPattern('risk:correlation_history:*');
-      
+
       for (const [key, data] of cachedHistory) {
         const pair = key.split(':').pop();
         if (pair) {
@@ -733,7 +749,7 @@ export class RiskAnalyzer {
     this.riskModels.clear();
     this.benchmarkData.clear();
     this.stressScenarios.clear();
-    
+
     this.logger.info('🧹 RiskAnalyzer cleanup completed');
   }
 }

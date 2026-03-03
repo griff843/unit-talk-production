@@ -1,10 +1,15 @@
-import { startMetricsServer, ingestedCounter, errorCounter, durationHistogram } from '../../services/metricsServer';
+import {
+  startMetricsServer,
+  ingestedCounter,
+  errorCounter,
+  durationHistogram,
+} from '../../services/metricsServer';
 import { BaseAgent } from '../BaseAgent/index';
-import { 
-  BaseAgentConfig, 
+import {
+  BaseAgentConfig,
   BaseAgentDependencies,
   HealthStatus,
-  BaseMetrics
+  BaseMetrics,
 } from '../BaseAgent/types';
 
 import { promoteToDailyPicks } from './promoteToDailyPicks';
@@ -20,19 +25,19 @@ export class EligibilityAgent extends BaseAgent {
 
   protected async initialize(): Promise<void> {
     this.logger.info('Initializing EligibilityAgent...');
-    
+
     try {
       // Start metrics server if not already started
       if (!this.metricsStarted) {
         startMetricsServer(9001); // Dedicated port for eligibility agent metrics
         this.metricsStarted = true;
       }
-      
+
       await this.validateDependencies();
       this.logger.info('EligibilityAgent initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize EligibilityAgent:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       this.errorHandler?.handleError(error as Error);
       throw error;
@@ -48,10 +53,7 @@ export class EligibilityAgent extends BaseAgent {
     }
 
     for (const table of tables) {
-      const { error } = await this.supabase
-        .from(table)
-        .select('id')
-        .limit(1);
+      const { error } = await this.supabase.from(table).select('id').limit(1);
 
       if (error) {
         throw new Error(`Failed to access ${table} table: ${error.message}`);
@@ -61,20 +63,19 @@ export class EligibilityAgent extends BaseAgent {
 
   protected async process(): Promise<void> {
     const startTime = Date.now();
-    
+
     try {
       ingestedCounter.inc(); // Increment the ingestion counter
-      
+
       await this.runPromotionCycle();
-      
+
       // Record successful processing time
       const duration = (Date.now() - startTime) / 1000;
       durationHistogram.observe(duration);
-      
     } catch (error) {
       errorCounter.inc(); // Increment error counter
       this.logger.error('Promotion cycle failed:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       this.errorHandler?.handleError(error as Error);
       throw error;
@@ -103,9 +104,13 @@ export class EligibilityAgent extends BaseAgent {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
-      const hasRecentActivity = data && data.length > 0 && 
+      const hasRecentActivity =
+        data &&
+        data.length > 0 &&
         new Date(data[0]!.created_at).getTime() > Date.now() - 24 * 60 * 60 * 1000; // 24 hours
 
       return {
@@ -113,17 +118,16 @@ export class EligibilityAgent extends BaseAgent {
         timestamp: new Date().toISOString(),
         details: {
           hasRecentActivity,
-          lastActivity: data?.[0]?.created_at
-        }
+          lastActivity: data?.[0]?.created_at,
+        },
       };
-
     } catch (error) {
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
         details: {
-          err: error instanceof Error ? error.message : String(error)
-        }
+          err: error instanceof Error ? error.message : String(error),
+        },
       };
     }
   }
@@ -139,7 +143,9 @@ export class EligibilityAgent extends BaseAgent {
         .select('id')
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
       const promotionCount = data?.length || 0;
       const memoryUsage = process.memoryUsage().heapUsed / 1024 / 1024; // MB
@@ -150,12 +156,11 @@ export class EligibilityAgent extends BaseAgent {
         errorCount: 0, // Would need to track this separately
         warningCount: 0,
         processingTimeMs: 0, // Would need to track this
-        memoryUsageMb: memoryUsage
+        memoryUsageMb: memoryUsage,
       };
-
     } catch (error) {
       this.logger.error('Failed to collect metrics:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       return {
         agentName: this.config.name,
@@ -163,7 +168,7 @@ export class EligibilityAgent extends BaseAgent {
         errorCount: 1,
         warningCount: 0,
         processingTimeMs: 0,
-        memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+        memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
       };
     }
   }
@@ -189,15 +194,15 @@ export function initializeEligibilityAgent(): EligibilityAgent {
     logLevel: 'info',
     metrics: {
       enabled: true,
-      interval: 60
-    }
+      interval: 60,
+    },
   };
 
   // Dependencies would be injected here
   const deps: BaseAgentDependencies = {
     supabase: {} as any, // Would be actual Supabase client
-    logger: {} as any,   // Would be actual logger
-    errorHandler: {} as any // Would be actual error handler
+    logger: {} as any, // Would be actual logger
+    errorHandler: {} as any, // Would be actual error handler
   };
 
   instance = new EligibilityAgent(config, deps);

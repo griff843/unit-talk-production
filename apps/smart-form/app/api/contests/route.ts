@@ -110,7 +110,10 @@ export async function GET(request: NextRequest) {
           (new Date(contest.start_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
         ),
         // Sort participants by professional_score for leaderboard
-        contest_participants: contest.contest_participants?.sort((a, b) => b.professional_score - a.professional_score) || [],
+        contest_participants:
+          contest.contest_participants?.sort(
+            (a, b) => b.professional_score - a.professional_score
+          ) || [],
       })) || [];
 
     // Calculate analytics

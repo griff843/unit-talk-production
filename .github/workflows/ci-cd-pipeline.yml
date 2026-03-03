@@ -40,6 +40,11 @@ jobs:
       - name: Run linting
         run: npm run lint
 
+      - name: Build shared packages (required for cross-workspace type-check)
+        run: |
+          npm run build --workspace=@unit-talk/shared-types
+          npm run build --workspace=@unit-talk/shared-utils
+
       - name: Run type checking
         run: npm run type-check
 

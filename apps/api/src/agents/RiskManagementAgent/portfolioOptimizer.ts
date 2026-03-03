@@ -77,25 +77,24 @@ export class PortfolioOptimizer {
 
   async initialize(): Promise<void> {
     this.logger.info('🎯 Initializing PortfolioOptimizer');
-    
+
     await this.loadRiskModels();
     await this.loadCorrelationData();
     await this.loadOptimizationHistory();
-    
+
     this.logger.info('✅ PortfolioOptimizer initialized');
   }
 
   async optimizePortfolio(
-    positions: Position[], 
+    positions: Position[],
     constraints: PortfolioConstraints,
     params: OptimizationParams,
     totalCapital: number
   ): Promise<OptimizationResult> {
-    
     this.logger.info('🎯 Optimizing portfolio', {
       positionCount: positions.length,
       totalCapital,
-      method: params.optimizationMethod
+      method: params.optimizationMethod,
     });
 
     try {
@@ -111,16 +110,33 @@ export class PortfolioOptimizer {
 
       switch (params.optimizationMethod) {
         case 'markowitz':
-          result = await this.markowitzOptimization(positions, expectedReturns, covarianceMatrix, constraints, params);
+          result = await this.markowitzOptimization(
+            positions,
+            expectedReturns,
+            covarianceMatrix,
+            constraints,
+            params
+          );
           break;
         case 'black_litterman':
-          result = await this.blackLittermanOptimization(positions, expectedReturns, covarianceMatrix, constraints, params);
+          result = await this.blackLittermanOptimization(
+            positions,
+            expectedReturns,
+            covarianceMatrix,
+            constraints,
+            params
+          );
           break;
         case 'risk_parity':
           result = await this.riskParityOptimization(positions, covarianceMatrix, constraints);
           break;
         case 'kelly':
-          result = await this.kellyCriterionOptimization(positions, expectedReturns, covarianceMatrix, constraints);
+          result = await this.kellyCriterionOptimization(
+            positions,
+            expectedReturns,
+            covarianceMatrix,
+            constraints
+          );
           break;
         default:
           throw new Error(`Unknown optimization method: ${params.optimizationMethod}`);
@@ -131,7 +147,12 @@ export class PortfolioOptimizer {
 
       // Calculate efficient frontier
       if (params.optimizationMethod === 'markowitz') {
-        result.efficientFrontier = await this.calculateEfficientFrontier(positions, expectedReturns, covarianceMatrix, constraints);
+        result.efficientFrontier = await this.calculateEfficientFrontier(
+          positions,
+          expectedReturns,
+          covarianceMatrix,
+          constraints
+        );
       }
 
       // Store optimization result
@@ -141,14 +162,13 @@ export class PortfolioOptimizer {
         expectedReturn: result.expectedReturn,
         expectedRisk: result.expectedRisk,
         sharpeRatio: result.sharpeRatio,
-        recommendations: result.recommendations.length
+        recommendations: result.recommendations.length,
       });
 
       return result;
-
     } catch (error) {
       this.logger.error('❌ Portfolio optimization failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -159,11 +179,10 @@ export class PortfolioOptimizer {
     bankroll: number,
     riskTolerance: number
   ): Promise<Map<string, number>> {
-    
     this.logger.info('💰 Optimizing position sizing', {
       positions: positions.length,
       bankroll,
-      riskTolerance
+      riskTolerance,
     });
 
     const optimalSizes = new Map<string, number>();
@@ -173,12 +192,15 @@ export class PortfolioOptimizer {
         const kellyFraction = await this.calculateKellyFraction(position);
         const adjustedFraction = this.adjustForRiskTolerance(kellyFraction, riskTolerance);
         const optimalSize = Math.min(adjustedFraction * bankroll, bankroll * 0.05); // Max 5% per position
-        
+
         optimalSizes.set(position.id, optimalSize);
       }
 
       // Ensure total allocation doesn't exceed limits
-      const totalAllocation = Array.from(optimalSizes.values()).reduce((sum, size) => sum + size, 0);
+      const totalAllocation = Array.from(optimalSizes.values()).reduce(
+        (sum, size) => sum + size,
+        0
+      );
       const maxAllocation = bankroll * 0.8; // Max 80% allocation
 
       if (totalAllocation > maxAllocation) {
@@ -189,10 +211,9 @@ export class PortfolioOptimizer {
       }
 
       return optimalSizes;
-
     } catch (error) {
       this.logger.error('❌ Position sizing optimization failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -205,47 +226,45 @@ export class PortfolioOptimizer {
     constraints: PortfolioConstraints,
     numPoints: number = 50
   ): Promise<EfficientFrontierPoint[]> {
-    
     const frontierPoints: EfficientFrontierPoint[] = [];
-    
+
     // Calculate minimum variance portfolio
     const minVarWeights = await this.calculateMinVarianceWeights(covarianceMatrix, constraints);
     const minVarReturn = this.calculatePortfolioReturn(minVarWeights, expectedReturns);
     const minVarRisk = Math.sqrt(this.calculatePortfolioVariance(minVarWeights, covarianceMatrix));
-    
+
     // Calculate maximum return portfolio
     const maxReturnWeights = await this.calculateMaxReturnWeights(expectedReturns, constraints);
     const maxReturn = this.calculatePortfolioReturn(maxReturnWeights, expectedReturns);
-    
+
     // Generate frontier points
     for (let i = 0; i < numPoints; i++) {
       const targetReturn = minVarReturn + (maxReturn - minVarReturn) * (i / (numPoints - 1));
-      
+
       try {
         const weights = await this.optimizeForTargetReturn(
-          expectedReturns, 
-          covarianceMatrix, 
-          targetReturn, 
+          expectedReturns,
+          covarianceMatrix,
+          targetReturn,
           constraints
         );
-        
+
         const risk = Math.sqrt(this.calculatePortfolioVariance(weights, covarianceMatrix));
         const portfolioReturn = this.calculatePortfolioReturn(weights, expectedReturns);
         const sharpeRatio = risk > 0 ? portfolioReturn / risk : 0;
-        
+
         frontierPoints.push({
           risk,
           return: portfolioReturn,
           weights: new Map(weights.map((w, idx) => [positions[idx].id, w])),
-          sharpeRatio
+          sharpeRatio,
         });
-        
       } catch (error) {
         // Skip points that can't be optimized
         continue;
       }
     }
-    
+
     return frontierPoints.sort((a, b) => a.risk - b.risk);
   }
 
@@ -257,14 +276,20 @@ export class PortfolioOptimizer {
     constraints: PortfolioConstraints,
     params: OptimizationParams
   ): Promise<OptimizationResult> {
-    
     // Mean-variance optimization
-    const weights = await this.optimizeForSharpeRatio(expectedReturns, covarianceMatrix, constraints);
-    
+    const weights = await this.optimizeForSharpeRatio(
+      expectedReturns,
+      covarianceMatrix,
+      constraints
+    );
+
     const expectedReturn = this.calculatePortfolioReturn(weights, expectedReturns);
     const expectedRisk = Math.sqrt(this.calculatePortfolioVariance(weights, covarianceMatrix));
     const sharpeRatio = expectedRisk > 0 ? expectedReturn / expectedRisk : 0;
-    const diversificationRatio = await this.calculateDiversificationRatio(weights, covarianceMatrix);
+    const diversificationRatio = await this.calculateDiversificationRatio(
+      weights,
+      covarianceMatrix
+    );
     const concentrationRisk = this.calculateConcentrationRisk(weights);
 
     return {
@@ -274,7 +299,7 @@ export class PortfolioOptimizer {
       sharpeRatio,
       diversificationRatio,
       concentrationRisk,
-      recommendations: []
+      recommendations: [],
     };
   }
 
@@ -285,28 +310,43 @@ export class PortfolioOptimizer {
     constraints: PortfolioConstraints,
     params: OptimizationParams
   ): Promise<OptimizationResult> {
-    
     // Black-Litterman model with investor views
     const marketWeights = await this.getMarketCapWeights(positions);
     const tau = 0.025; // Scaling factor
     const riskAversion = 3.0; // Risk aversion coefficient
-    
+
     // Calculate implied equilibrium returns
-    const impliedReturns = this.calculateImpliedReturns(marketWeights, covarianceMatrix, riskAversion);
-    
+    const impliedReturns = this.calculateImpliedReturns(
+      marketWeights,
+      covarianceMatrix,
+      riskAversion
+    );
+
     // Apply investor views (simplified - would normally get from external source)
     const adjustedReturns = await this.applyInvestorViews(impliedReturns, positions);
-    
+
     // Calculate posterior distribution
-    const posteriorReturns = this.calculatePosteriorReturns(impliedReturns, adjustedReturns, covarianceMatrix, tau);
-    
+    const posteriorReturns = this.calculatePosteriorReturns(
+      impliedReturns,
+      adjustedReturns,
+      covarianceMatrix,
+      tau
+    );
+
     // Optimize with posterior returns
-    const weights = await this.optimizeForSharpeRatio(posteriorReturns, covarianceMatrix, constraints);
-    
+    const weights = await this.optimizeForSharpeRatio(
+      posteriorReturns,
+      covarianceMatrix,
+      constraints
+    );
+
     const expectedReturn = this.calculatePortfolioReturn(weights, posteriorReturns);
     const expectedRisk = Math.sqrt(this.calculatePortfolioVariance(weights, covarianceMatrix));
     const sharpeRatio = expectedRisk > 0 ? expectedReturn / expectedRisk : 0;
-    const diversificationRatio = await this.calculateDiversificationRatio(weights, covarianceMatrix);
+    const diversificationRatio = await this.calculateDiversificationRatio(
+      weights,
+      covarianceMatrix
+    );
     const concentrationRisk = this.calculateConcentrationRisk(weights);
 
     return {
@@ -316,7 +356,7 @@ export class PortfolioOptimizer {
       sharpeRatio,
       diversificationRatio,
       concentrationRisk,
-      recommendations: []
+      recommendations: [],
     };
   }
 
@@ -325,17 +365,19 @@ export class PortfolioOptimizer {
     covarianceMatrix: number[][],
     constraints: PortfolioConstraints
   ): Promise<OptimizationResult> {
-    
     // Risk parity: equal risk contribution from each position
     const weights = await this.calculateRiskParityWeights(covarianceMatrix, constraints);
-    
+
     // Use historical returns for return calculation
     const expectedReturns = await this.getHistoricalReturns(positions);
-    
+
     const expectedReturn = this.calculatePortfolioReturn(weights, expectedReturns);
     const expectedRisk = Math.sqrt(this.calculatePortfolioVariance(weights, covarianceMatrix));
     const sharpeRatio = expectedRisk > 0 ? expectedReturn / expectedRisk : 0;
-    const diversificationRatio = await this.calculateDiversificationRatio(weights, covarianceMatrix);
+    const diversificationRatio = await this.calculateDiversificationRatio(
+      weights,
+      covarianceMatrix
+    );
     const concentrationRisk = this.calculateConcentrationRisk(weights);
 
     return {
@@ -345,7 +387,7 @@ export class PortfolioOptimizer {
       sharpeRatio,
       diversificationRatio,
       concentrationRisk,
-      recommendations: []
+      recommendations: [],
     };
   }
 
@@ -355,19 +397,15 @@ export class PortfolioOptimizer {
     covarianceMatrix: number[][],
     constraints: PortfolioConstraints
   ): Promise<OptimizationResult> {
-    
     // Kelly criterion for optimal position sizing
     const weights = new Array(positions.length).fill(0);
-    
+
     for (let i = 0; i < positions.length; i++) {
       const position = positions[i];
       const kellyFraction = await this.calculateKellyFraction(position);
-      
+
       // Apply constraints
-      weights[i] = Math.min(
-        Math.max(kellyFraction, constraints.minWeight),
-        constraints.maxWeight
-      );
+      weights[i] = Math.min(Math.max(kellyFraction, constraints.minWeight), constraints.maxWeight);
     }
 
     // Normalize weights
@@ -381,7 +419,10 @@ export class PortfolioOptimizer {
     const expectedReturn = this.calculatePortfolioReturn(weights, expectedReturns);
     const expectedRisk = Math.sqrt(this.calculatePortfolioVariance(weights, covarianceMatrix));
     const sharpeRatio = expectedRisk > 0 ? expectedReturn / expectedRisk : 0;
-    const diversificationRatio = await this.calculateDiversificationRatio(weights, covarianceMatrix);
+    const diversificationRatio = await this.calculateDiversificationRatio(
+      weights,
+      covarianceMatrix
+    );
     const concentrationRisk = this.calculateConcentrationRisk(weights);
 
     return {
@@ -391,7 +432,7 @@ export class PortfolioOptimizer {
       sharpeRatio,
       diversificationRatio,
       concentrationRisk,
-      recommendations: []
+      recommendations: [],
     };
   }
 
@@ -407,8 +448,10 @@ export class PortfolioOptimizer {
 
   private async calculateCovarianceMatrix(positions: Position[]): Promise<number[][]> {
     const n = positions.length;
-    const matrix: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
-    
+    const matrix: number[][] = Array(n)
+      .fill(null)
+      .map(() => Array(n).fill(0));
+
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         if (i === j) {
@@ -421,17 +464,17 @@ export class PortfolioOptimizer {
         }
       }
     }
-    
+
     return matrix;
   }
 
   private async calculateKellyFraction(position: Position): Promise<number> {
     const p = 1 / position.odds + position.expectedValue; // Win probability
     const b = position.odds - 1; // Net odds
-    
+
     // Kelly fraction: f = (bp - q) / b = (p * b - (1-p)) / b
     const kellyFraction = (p * b - (1 - p)) / b;
-    
+
     // Apply safety margin (fractional Kelly)
     return Math.max(0, kellyFraction * 0.25); // Use 25% of Kelly
   }
@@ -446,17 +489,16 @@ export class PortfolioOptimizer {
     covarianceMatrix: number[][],
     constraints: PortfolioConstraints
   ): Promise<number[]> {
-    
     // Simplified optimization using equal weights as starting point
     // In production, this would use proper quadratic programming
     const n = expectedReturns.length;
     const weights = new Array(n).fill(1 / n);
-    
+
     // Apply constraints
     for (let i = 0; i < n; i++) {
       weights[i] = Math.min(Math.max(weights[i], constraints.minWeight), constraints.maxWeight);
     }
-    
+
     // Normalize
     const sum = weights.reduce((acc, w) => acc + w, 0);
     return weights.map(w => w / sum);
@@ -469,22 +511,29 @@ export class PortfolioOptimizer {
   private calculatePortfolioVariance(weights: number[], covarianceMatrix: number[][]): number {
     let variance = 0;
     const n = weights.length;
-    
+
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         variance += weights[i] * weights[j] * covarianceMatrix[i][j];
       }
     }
-    
+
     return variance;
   }
 
-  private async calculateDiversificationRatio(weights: number[], covarianceMatrix: number[][]): Promise<number> {
+  private async calculateDiversificationRatio(
+    weights: number[],
+    covarianceMatrix: number[][]
+  ): Promise<number> {
     // Diversification ratio = weighted average volatility / portfolio volatility
-    const portfolioVolatility = Math.sqrt(this.calculatePortfolioVariance(weights, covarianceMatrix));
-    const weightedAvgVolatility = weights.reduce((sum, weight, i) => 
-      sum + weight * Math.sqrt(covarianceMatrix[i][i]), 0);
-    
+    const portfolioVolatility = Math.sqrt(
+      this.calculatePortfolioVariance(weights, covarianceMatrix)
+    );
+    const weightedAvgVolatility = weights.reduce(
+      (sum, weight, i) => sum + weight * Math.sqrt(covarianceMatrix[i][i]),
+      0
+    );
+
     return portfolioVolatility > 0 ? weightedAvgVolatility / portfolioVolatility : 1;
   }
 
@@ -498,18 +547,18 @@ export class PortfolioOptimizer {
     result: OptimizationResult,
     totalCapital: number
   ): Promise<OptimizationRecommendation[]> {
-    
     const recommendations: OptimizationRecommendation[] = [];
-    
+
     for (let i = 0; i < positions.length; i++) {
       const position = positions[i];
       const currentWeight = position.stake / totalCapital;
       const recommendedWeight = result.optimizedWeights.get(position.id) || 0;
       const weightDifference = Math.abs(recommendedWeight - currentWeight);
-      
-      if (weightDifference > 0.01) { // 1% threshold
+
+      if (weightDifference > 0.01) {
+        // 1% threshold
         let action: 'increase' | 'decrease' | 'close' | 'maintain';
-        
+
         if (recommendedWeight > currentWeight * 1.1) {
           action = 'increase';
         } else if (recommendedWeight < currentWeight * 0.9) {
@@ -517,7 +566,7 @@ export class PortfolioOptimizer {
         } else {
           action = 'maintain';
         }
-        
+
         recommendations.push({
           positionId: position.id,
           currentWeight,
@@ -527,13 +576,13 @@ export class PortfolioOptimizer {
           impact: {
             riskChange: (recommendedWeight - currentWeight) * position.volatility,
             returnChange: (recommendedWeight - currentWeight) * position.expectedReturn,
-            diversificationChange: 0 // Would calculate actual impact
+            diversificationChange: 0, // Would calculate actual impact
           },
-          priority: weightDifference > 0.05 ? 'high' : weightDifference > 0.02 ? 'medium' : 'low'
+          priority: weightDifference > 0.05 ? 'high' : weightDifference > 0.02 ? 'medium' : 'low',
         });
       }
     }
-    
+
     return recommendations.sort((a, b) => {
       const priorityOrder = { high: 3, medium: 2, low: 1 };
       return priorityOrder[b.priority] - priorityOrder[a.priority];
@@ -545,20 +594,26 @@ export class PortfolioOptimizer {
       increase: `Increase position by ${(weightDifference * 100).toFixed(1)}% to improve risk-adjusted returns`,
       decrease: `Decrease position by ${(weightDifference * 100).toFixed(1)}% to reduce concentration risk`,
       close: 'Close position to eliminate negative expected value',
-      maintain: 'Position is optimally sized'
+      maintain: 'Position is optimally sized',
     };
-    
+
     return reasons[action as keyof typeof reasons] || 'Optimize position sizing';
   }
 
   // Stub methods for complex calculations
-  private async calculateMinVarianceWeights(covarianceMatrix: number[][], constraints: PortfolioConstraints): Promise<number[]> {
+  private async calculateMinVarianceWeights(
+    covarianceMatrix: number[][],
+    constraints: PortfolioConstraints
+  ): Promise<number[]> {
     // Simplified - would use proper optimization
     const n = covarianceMatrix.length;
     return new Array(n).fill(1 / n);
   }
 
-  private async calculateMaxReturnWeights(expectedReturns: number[], constraints: PortfolioConstraints): Promise<number[]> {
+  private async calculateMaxReturnWeights(
+    expectedReturns: number[],
+    constraints: PortfolioConstraints
+  ): Promise<number[]> {
     // Simplified - would find position with highest expected return
     const maxReturnIndex = expectedReturns.indexOf(Math.max(...expectedReturns));
     const weights = new Array(expectedReturns.length).fill(0);
@@ -583,21 +638,28 @@ export class PortfolioOptimizer {
     return new Array(n).fill(1 / n);
   }
 
-  private calculateImpliedReturns(marketWeights: number[], covarianceMatrix: number[][], riskAversion: number): number[] {
+  private calculateImpliedReturns(
+    marketWeights: number[],
+    covarianceMatrix: number[][],
+    riskAversion: number
+  ): number[] {
     // Implied returns = risk_aversion * covariance_matrix * market_weights
     const n = marketWeights.length;
     const impliedReturns = new Array(n).fill(0);
-    
+
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         impliedReturns[i] += riskAversion * covarianceMatrix[i][j] * marketWeights[j];
       }
     }
-    
+
     return impliedReturns;
   }
 
-  private async applyInvestorViews(impliedReturns: number[], positions: Position[]): Promise<number[]> {
+  private async applyInvestorViews(
+    impliedReturns: number[],
+    positions: Position[]
+  ): Promise<number[]> {
     // Simplified - would incorporate actual investor views
     return impliedReturns.map((ret, i) => ret + positions[i].expectedValue * 0.1);
   }
@@ -612,16 +674,19 @@ export class PortfolioOptimizer {
     return impliedReturns.map((ret, i) => (ret + adjustedReturns[i]) / 2);
   }
 
-  private async calculateRiskParityWeights(covarianceMatrix: number[][], constraints: PortfolioConstraints): Promise<number[]> {
+  private async calculateRiskParityWeights(
+    covarianceMatrix: number[][],
+    constraints: PortfolioConstraints
+  ): Promise<number[]> {
     // Simplified risk parity calculation
     const n = covarianceMatrix.length;
     const weights = new Array(n);
-    
+
     // Start with equal weights
     for (let i = 0; i < n; i++) {
       weights[i] = 1 / Math.sqrt(covarianceMatrix[i][i]); // Inverse volatility
     }
-    
+
     // Normalize
     const sum = weights.reduce((acc, w) => acc + w, 0);
     return weights.map(w => w / sum);
@@ -632,15 +697,19 @@ export class PortfolioOptimizer {
     return positions.map(p => p.expectedReturn);
   }
 
-  private async validateInputs(positions: Position[], constraints: PortfolioConstraints, params: OptimizationParams): Promise<void> {
+  private async validateInputs(
+    positions: Position[],
+    constraints: PortfolioConstraints,
+    params: OptimizationParams
+  ): Promise<void> {
     if (positions.length === 0) {
       throw new Error('No positions provided for optimization');
     }
-    
+
     if (positions.length > params.maxPositions) {
       throw new Error(`Too many positions: ${positions.length} > ${params.maxPositions}`);
     }
-    
+
     // Additional validation logic...
   }
 
@@ -650,9 +719,9 @@ export class PortfolioOptimizer {
       expectedReturn: result.expectedReturn,
       expectedRisk: result.expectedRisk,
       sharpeRatio: result.sharpeRatio,
-      recommendationCount: result.recommendations.length
+      recommendationCount: result.recommendations.length,
     };
-    
+
     await redisCache.set(
       `optimization:result:${Date.now()}`,
       JSON.stringify(resultData),
@@ -665,7 +734,7 @@ export class PortfolioOptimizer {
     const models = {
       single_game: { volatility: 0.4, correlation_decay: 0.1 },
       same_sport: { correlation_factor: 0.3, volatility_adjustment: 1.2 },
-      cross_sport: { correlation_factor: 0.05, volatility_adjustment: 1.0 }
+      cross_sport: { correlation_factor: 0.05, volatility_adjustment: 1.0 },
     };
 
     for (const [modelName, model] of Object.entries(models)) {
@@ -689,7 +758,7 @@ export class PortfolioOptimizer {
   private async loadOptimizationHistory(): Promise<void> {
     try {
       const cachedHistory = await redisCache.getPattern('optimization:history:*');
-      
+
       for (const [key, data] of cachedHistory) {
         const userId = key.split(':').pop();
         if (userId) {
@@ -721,7 +790,7 @@ export class PortfolioOptimizer {
     this.optimizationHistory.clear();
     this.correlationMatrix.clear();
     this.riskModels.clear();
-    
+
     this.logger.info('🧹 PortfolioOptimizer cleanup completed');
   }
 }

@@ -684,7 +684,10 @@ export function UnitTalkDashboard() {
                         dataKey="percentage"
                       >
                         {data.portfolio.allocation.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={CHART_COLORS[index % CHART_COLORS.length]}
+                          />
                         ))}
                       </Pie>
                       <RechartsTooltip

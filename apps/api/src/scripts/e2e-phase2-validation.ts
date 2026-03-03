@@ -2,7 +2,7 @@
 /**
  * Phase 2 E2E Validation Report
  * Date: 2025-10-20
- * 
+ *
  * Validates dual-track pipeline and generates comprehensive report
  */
 
@@ -47,10 +47,10 @@ async function runE2EValidation(): Promise<E2EReport> {
     overallStatus: 'FAIL',
     commandCenter: {
       healthy: false,
-      url: 'http://localhost:3004'
+      url: 'http://localhost:3004',
     },
     recommendations: [],
-    nextSteps: []
+    nextSteps: [],
   };
 
   const today = new Date().toISOString().split('T')[0];
@@ -68,9 +68,12 @@ async function runE2EValidation(): Promise<E2EReport> {
     count: rawPropsCount || 0,
     target: 1000,
     status: (rawPropsCount || 0) >= 1000 ? 'PASS' : 'FAIL',
-    suggestion: (rawPropsCount || 0) < 1000 ? 'Run feed ingestion or check odds API connectivity' : undefined
+    suggestion:
+      (rawPropsCount || 0) < 1000 ? 'Run feed ingestion or check odds API connectivity' : undefined,
   });
-  console.log(`  Count: ${rawPropsCount || 0} (target: ≥1000) ${(rawPropsCount || 0) >= 1000 ? '✅' : '❌'}`);
+  console.log(
+    `  Count: ${rawPropsCount || 0} (target: ≥1000) ${(rawPropsCount || 0) >= 1000 ? '✅' : '❌'}`
+  );
 
   // Gate 2: market_props_today
   console.log('Gate 2: Checking market_props_today...');
@@ -84,9 +87,14 @@ async function runE2EValidation(): Promise<E2EReport> {
     count: marketPropsCount || 0,
     target: 1000,
     status: (marketPropsCount || 0) >= 1000 ? 'PASS' : 'FAIL',
-    suggestion: (marketPropsCount || 0) < 1000 ? 'Run backfill: npx tsx src/scripts/backfill-market-props.ts' : undefined
+    suggestion:
+      (marketPropsCount || 0) < 1000
+        ? 'Run backfill: npx tsx src/scripts/backfill-market-props.ts'
+        : undefined,
   });
-  console.log(`  Count: ${marketPropsCount || 0} (target: ≥1000) ${(marketPropsCount || 0) >= 1000 ? '✅' : '❌'}`);
+  console.log(
+    `  Count: ${marketPropsCount || 0} (target: ≥1000) ${(marketPropsCount || 0) >= 1000 ? '✅' : '❌'}`
+  );
 
   // Gate 3: scored_15m
   console.log('Gate 3: Checking scored_15m...');
@@ -100,9 +108,14 @@ async function runE2EValidation(): Promise<E2EReport> {
     count: scoredCount || 0,
     target: 50,
     status: (scoredCount || 0) >= 50 ? 'PASS' : 'FAIL',
-    suggestion: (scoredCount || 0) < 50 ? 'Start scoring agent or run: npx tsx src/scripts/score-market-props.ts' : undefined
+    suggestion:
+      (scoredCount || 0) < 50
+        ? 'Start scoring agent or run: npx tsx src/scripts/score-market-props.ts'
+        : undefined,
   });
-  console.log(`  Count: ${scoredCount || 0} (target: ≥50) ${(scoredCount || 0) >= 50 ? '✅' : '❌'}`);
+  console.log(
+    `  Count: ${scoredCount || 0} (target: ≥50) ${(scoredCount || 0) >= 50 ? '✅' : '❌'}`
+  );
 
   // Gate 4: v_prop_read_model
   console.log('Gate 4: Checking v_prop_read_model...');
@@ -115,10 +128,15 @@ async function runE2EValidation(): Promise<E2EReport> {
     count: readModelCount || 0,
     target: 1000,
     status: (readModelCount || 0) >= 1000 ? 'PASS' : 'FAIL',
-    suggestion: readModelError ? `View error: ${readModelError.message}. Check if view exists and has correct grants.` : 
-                (readModelCount || 0) < 1000 ? 'Refresh materialized view or check view definition' : undefined
+    suggestion: readModelError
+      ? `View error: ${readModelError.message}. Check if view exists and has correct grants.`
+      : (readModelCount || 0) < 1000
+        ? 'Refresh materialized view or check view definition'
+        : undefined,
   });
-  console.log(`  Count: ${readModelCount || 0} (target: ≥1000) ${(readModelCount || 0) >= 1000 ? '✅' : '❌'}`);
+  console.log(
+    `  Count: ${readModelCount || 0} (target: ≥1000) ${(readModelCount || 0) >= 1000 ? '✅' : '❌'}`
+  );
   if (readModelError) console.log(`  Error: ${readModelError.message}`);
 
   // Gate 5: v_daily_board
@@ -132,10 +150,15 @@ async function runE2EValidation(): Promise<E2EReport> {
     count: dailyBoardCount || 0,
     target: 50,
     status: (dailyBoardCount || 0) >= 50 ? 'PASS' : 'FAIL',
-    suggestion: dailyBoardError ? `View error: ${dailyBoardError.message}. Check if view exists and has correct grants.` :
-                (dailyBoardCount || 0) < 50 ? 'Refresh materialized view or check view definition' : undefined
+    suggestion: dailyBoardError
+      ? `View error: ${dailyBoardError.message}. Check if view exists and has correct grants.`
+      : (dailyBoardCount || 0) < 50
+        ? 'Refresh materialized view or check view definition'
+        : undefined,
   });
-  console.log(`  Count: ${dailyBoardCount || 0} (target: ≥50) ${(dailyBoardCount || 0) >= 50 ? '✅' : '❌'}`);
+  console.log(
+    `  Count: ${dailyBoardCount || 0} (target: ≥50) ${(dailyBoardCount || 0) >= 50 ? '✅' : '❌'}`
+  );
   if (dailyBoardError) console.log(`  Error: ${dailyBoardError.message}`);
 
   console.log('='.repeat(70));
@@ -149,7 +172,7 @@ async function runE2EValidation(): Promise<E2EReport> {
   // Generate recommendations
   if (!allPassed) {
     console.log('💡 Recommendations:\n');
-    
+
     const failedGates = report.gates.filter(g => g.status === 'FAIL');
     failedGates.forEach(gate => {
       if (gate.suggestion) {
@@ -180,7 +203,7 @@ async function runE2EValidation(): Promise<E2EReport> {
   // Write report
   const outDir = path.join(process.cwd(), 'apps/api/out/ops/verify');
   fs.mkdirSync(outDir, { recursive: true });
-  
+
   const jsonPath = path.join(outDir, 'E2E_VALIDATION_REPORT.json');
   fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2));
   console.log(`\n📄 JSON Report: ${jsonPath}`);
@@ -196,30 +219,30 @@ async function runE2EValidation(): Promise<E2EReport> {
 
 function generateMarkdownReport(report: E2EReport): string {
   const lines: string[] = [];
-  
+
   lines.push(`# Phase 2 E2E Validation Report`);
   lines.push(`**Date:** ${report.timestamp}`);
   lines.push(`**Phase:** ${report.phase}`);
   lines.push(`**Overall Status:** ${report.overallStatus === 'PASS' ? '✅ PASS' : '❌ FAIL'}`);
   lines.push('');
-  
+
   lines.push('## Gate Results');
   lines.push('');
   lines.push('| Gate | Count | Target | Status | Suggestion |');
   lines.push('|------|-------|--------|--------|------------|');
-  
+
   report.gates.forEach(gate => {
     const status = gate.status === 'PASS' ? '✅ PASS' : '❌ FAIL';
     const suggestion = gate.suggestion || '-';
     lines.push(`| ${gate.name} | ${gate.count} | ≥${gate.target} | ${status} | ${suggestion} |`);
   });
-  
+
   lines.push('');
   lines.push('## Command Center');
   lines.push(`- URL: ${report.commandCenter.url}`);
   lines.push(`- Status: ${report.commandCenter.healthy ? '✅ Healthy' : '⚠️ Not verified'}`);
   lines.push('');
-  
+
   if (report.recommendations.length > 0) {
     lines.push('## Recommendations');
     lines.push('');
@@ -228,7 +251,7 @@ function generateMarkdownReport(report: E2EReport): string {
     });
     lines.push('');
   }
-  
+
   if (report.nextSteps.length > 0) {
     lines.push('## Next Steps');
     lines.push('');
@@ -237,7 +260,7 @@ function generateMarkdownReport(report: E2EReport): string {
     });
     lines.push('');
   }
-  
+
   return lines.join('\n');
 }
 
@@ -245,4 +268,3 @@ runE2EValidation().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

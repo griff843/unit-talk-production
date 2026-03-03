@@ -80,7 +80,9 @@ export interface NotificationLogRecord extends NotificationPayload {
 
 export type NotificationPriority = 'low' | 'medium' | 'high' | 'critical';
 // DRAGON PATCH: add batchConfig if referenced
-export interface NotificationAgentConfig { batchConfig?: { maxBatchSize: number; }; }
+export interface NotificationAgentConfig {
+  batchConfig?: { maxBatchSize: number };
+}
 
 export interface NotificationChannelConfig {
   enabled: boolean;

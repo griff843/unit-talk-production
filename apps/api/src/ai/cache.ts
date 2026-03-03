@@ -4,6 +4,7 @@
  */
 
 import { createHash } from 'crypto';
+
 import { aiModelRouter } from './routing';
 
 export interface CacheEntry {
@@ -47,7 +48,7 @@ class AIResponseCache {
     hitRate: 0,
     costSavings: 0,
     tokensSaved: 0,
-    avgResponseTime: 0
+    avgResponseTime: 0,
   };
 
   private readonly DEFAULT_TTL_SEC = parseInt(process.env.ADVICE_CACHE_TTL_SEC || '86400'); // 24 hours
@@ -77,7 +78,11 @@ class AIResponseCache {
   /**
    * Check if cache entry is valid and should be used
    */
-  private isValidCacheEntry(entry: CacheEntry, currentOdds: number, currentContextHash: string): boolean {
+  private isValidCacheEntry(
+    entry: CacheEntry,
+    currentOdds: number,
+    currentContextHash: string
+  ): boolean {
     // Check if entry has expired
     if (new Date() > entry.expiresAt) {
       return false;
@@ -86,13 +91,17 @@ class AIResponseCache {
     // Check if odds have moved beyond threshold
     const oddsBps = aiModelRouter.calculateOddsBpsDifference(currentOdds, entry.lastOdds);
     if (oddsBps >= this.REQUERY_BPS_THRESHOLD) {
-      console.log(`🔄 Odds moved ${oddsBps.toFixed(1)} bps (threshold: ${this.REQUERY_BPS_THRESHOLD}), invalidating cache`);
+      console.log(
+        `🔄 Odds moved ${oddsBps.toFixed(1)} bps (threshold: ${this.REQUERY_BPS_THRESHOLD}), invalidating cache`
+      );
       return false;
     }
 
     // Check if context has changed
     if (entry.contextHash !== currentContextHash) {
-      console.log(`🔄 Context changed (${entry.contextHash.substring(0,8)} → ${currentContextHash.substring(0,8)}), invalidating cache`);
+      console.log(
+        `🔄 Context changed (${entry.contextHash.substring(0, 8)} → ${currentContextHash.substring(0, 8)}), invalidating cache`
+      );
       return false;
     }
 
@@ -137,10 +146,17 @@ class AIResponseCache {
   /**
    * Store response in cache
    */
-  public set(cacheKey: CacheKey, content: string, model: string, provider: string, tokenCount: number, cost: number): void {
+  public set(
+    cacheKey: CacheKey,
+    content: string,
+    model: string,
+    provider: string,
+    tokenCount: number,
+    cost: number
+  ): void {
     const key = this.generateCacheKey(cacheKey);
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + (this.DEFAULT_TTL_SEC * 1000));
+    const expiresAt = new Date(now.getTime() + this.DEFAULT_TTL_SEC * 1000);
 
     const entry: CacheEntry = {
       content,
@@ -152,7 +168,7 @@ class AIResponseCache {
       lastOdds: cacheKey.odds,
       contextHash: cacheKey.contextHash,
       hitCount: 0,
-      expiresAt
+      expiresAt,
     };
 
     this.cache.set(key, entry);
@@ -162,15 +178,20 @@ class AIResponseCache {
   /**
    * Generate advice cache key with full context
    */
-  public generateAdviceCacheKey(propId: string, odds: number, line: number | undefined, context: Record<string, any>): CacheKey {
+  public generateAdviceCacheKey(
+    propId: string,
+    odds: number,
+    line: number | undefined,
+    context: Record<string, any>
+  ): CacheKey {
     const contextHash = aiModelRouter.generateContextHash(context);
-    
+
     return {
       type: 'advice',
       propId,
       odds,
       line,
-      contextHash
+      contextHash,
     };
   }
 
@@ -179,12 +200,12 @@ class AIResponseCache {
    */
   public generateRecapCacheKey(date: string, context: Record<string, any>): CacheKey {
     const contextHash = aiModelRouter.generateContextHash(context);
-    
+
     return {
       type: 'recap',
       propId: `recap-${date}`,
       odds: 0, // Not applicable for recap
-      contextHash
+      contextHash,
     };
   }
 
@@ -193,12 +214,12 @@ class AIResponseCache {
    */
   public generateFormattingCacheKey(contentHash: string, format: string): CacheKey {
     const contextHash = aiModelRouter.generateContextHash({ format });
-    
+
     return {
       type: 'formatting',
       propId: `format-${contentHash}`,
       odds: 0, // Not applicable for formatting
-      contextHash
+      contextHash,
     };
   }
 
@@ -206,8 +227,8 @@ class AIResponseCache {
    * Check if requery is needed for advice
    */
   public shouldRequeryAdvice(
-    propId: string, 
-    currentOdds: number, 
+    propId: string,
+    currentOdds: number,
     currentLine: number | undefined,
     currentContext: Record<string, any>
   ): { shouldRequery: boolean; reason?: string; cachedEntry?: CacheEntry } {
@@ -225,19 +246,19 @@ class AIResponseCache {
 
     const oddsBps = aiModelRouter.calculateOddsBpsDifference(currentOdds, entry.lastOdds);
     if (oddsBps >= this.REQUERY_BPS_THRESHOLD) {
-      return { 
-        shouldRequery: true, 
+      return {
+        shouldRequery: true,
         reason: `Odds moved ${oddsBps.toFixed(1)} bps (threshold: ${this.REQUERY_BPS_THRESHOLD})`,
-        cachedEntry: entry 
+        cachedEntry: entry,
       };
     }
 
     const currentContextHash = aiModelRouter.generateContextHash(currentContext);
     if (entry.contextHash !== currentContextHash) {
-      return { 
-        shouldRequery: true, 
+      return {
+        shouldRequery: true,
         reason: 'Context changed',
-        cachedEntry: entry 
+        cachedEntry: entry,
       };
     }
 
@@ -249,7 +270,7 @@ class AIResponseCache {
    */
   public invalidateByPattern(pattern: string): number {
     let invalidatedCount = 0;
-    
+
     for (const [key, entry] of this.cache.entries()) {
       if (key.includes(pattern)) {
         this.cache.delete(key);
@@ -293,9 +314,10 @@ class AIResponseCache {
    * Update hit rate calculation
    */
   private updateHitRate(): void {
-    this.metrics.hitRate = this.metrics.totalRequests > 0 
-      ? (this.metrics.cacheHits / this.metrics.totalRequests) * 100 
-      : 0;
+    this.metrics.hitRate =
+      this.metrics.totalRequests > 0
+        ? (this.metrics.cacheHits / this.metrics.totalRequests) * 100
+        : 0;
   }
 
   /**
@@ -327,14 +349,14 @@ class AIResponseCache {
       if (now > entry.expiresAt) {
         expiredCount++;
       }
-      
+
       totalHits += entry.hitCount;
       totalSize += key.length + entry.content.length + 200; // Approximate size
-      
+
       if (!oldestDate || entry.timestamp < oldestDate) {
         oldestDate = entry.timestamp;
       }
-      
+
       if (!newestDate || entry.timestamp > newestDate) {
         newestDate = entry.timestamp;
       }
@@ -346,7 +368,7 @@ class AIResponseCache {
       averageHitsPerEntry: this.cache.size > 0 ? totalHits / this.cache.size : 0,
       totalSize,
       oldestEntry: oldestDate,
-      newestEntry: newestDate
+      newestEntry: newestDate,
     };
   }
 
@@ -366,7 +388,7 @@ class AIResponseCache {
   public logMetrics(): void {
     const metrics = this.getMetrics();
     const stats = this.getCacheStats();
-    
+
     console.log('💾 AI CACHE METRICS');
     console.log('===================');
     console.log(`Total Requests: ${metrics.totalRequests}`);
@@ -375,13 +397,13 @@ class AIResponseCache {
     console.log(`Hit Rate: ${metrics.hitRate.toFixed(1)}%`);
     console.log(`Cost Savings: $${metrics.costSavings.toFixed(4)}`);
     console.log(`Tokens Saved: ${metrics.tokensSaved.toLocaleString()}`);
-    
+
     console.log('\n📊 Cache Statistics:');
     console.log(`Total Entries: ${stats.totalEntries}`);
     console.log(`Expired Entries: ${stats.expiredEntries}`);
     console.log(`Average Hits/Entry: ${stats.averageHitsPerEntry.toFixed(1)}`);
     console.log(`Cache Size: ${(stats.totalSize / 1024).toFixed(1)} KB`);
-    
+
     if (stats.totalEntries > 0) {
       console.log('\n🏆 Most Popular Entries:');
       const popular = this.getPopularEntries(5);

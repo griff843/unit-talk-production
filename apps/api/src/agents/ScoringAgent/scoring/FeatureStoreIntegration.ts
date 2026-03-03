@@ -1,14 +1,14 @@
 /**
  * Feature Store Integration
- * 
+ *
  * Stub implementation for TypeScript compilation.
  * Integrates with FeatureStoreService for time-series feature retrieval.
- * 
+ *
  * @module FeatureStoreIntegration
  */
 
-import { createLogger } from '../../../utils/logger';
 import { FeatureStoreService } from '../../../services/FeatureStoreService';
+import { createLogger } from '../../../utils/logger';
 
 const logger = createLogger('FeatureStoreIntegration');
 
@@ -58,14 +58,14 @@ export class FeatureStoreIntegration {
     if (this.initialized) {
       return;
     }
-    
+
     logger.info('Initializing FeatureStoreIntegration...');
     this.initialized = true;
   }
 
   /**
    * Get time-series features for a prop
-   * 
+   *
    * @param propId - Prop identifier
    * @returns Time-series features
    */
@@ -104,7 +104,7 @@ export class FeatureStoreIntegration {
 
   /**
    * Batch fetch features for multiple props
-   * 
+   *
    * @param propIds - Array of prop identifiers
    * @returns Array of prop features
    */
@@ -114,7 +114,7 @@ export class FeatureStoreIntegration {
 
   /**
    * Update features for a prop
-   * 
+   *
    * @param propId - Prop identifier
    * @param features - Updated features
    */
@@ -147,4 +147,3 @@ export function getFeatureStoreIntegration(): FeatureStoreIntegration {
   }
   return integrationInstance;
 }
-

@@ -13,14 +13,21 @@
  */
 
 import { Client } from 'discord.js';
+
 import { makeLogger } from '../../utils/logger';
-import {
-  OpsIncidentRouter,
-  createOpsIncidentRouter,
-} from './OpsIncidentRouter';
-import { OpsDiscordSender, initializeOpsDiscordSender, createDiscordSenderFn } from './OpsDiscordSender';
-import { OpsNotionLogger, initializeOpsNotionLogger, createNotionSenderFn } from './OpsNotionLogger';
+
 import { OpsDigestScheduler, createOpsDigestScheduler } from './OpsDigestScheduler';
+import {
+  OpsDiscordSender,
+  initializeOpsDiscordSender,
+  createDiscordSenderFn,
+} from './OpsDiscordSender';
+import { OpsIncidentRouter, createOpsIncidentRouter } from './OpsIncidentRouter';
+import {
+  OpsNotionLogger,
+  initializeOpsNotionLogger,
+  createNotionSenderFn,
+} from './OpsNotionLogger';
 
 const logger = makeLogger('OpsNotificationWorker');
 

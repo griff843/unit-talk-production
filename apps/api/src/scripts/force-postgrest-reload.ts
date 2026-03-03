@@ -17,13 +17,14 @@ async function main() {
   }
   const client = new Client({ connectionString, ssl: { rejectUnauthorized: true } });
   await client.connect();
-  await client.query(`DO $$ BEGIN PERFORM pg_notify('pgrst', 'reload schema'); EXCEPTION WHEN OTHERS THEN NULL; END $$;`);
+  await client.query(
+    `DO $$ BEGIN PERFORM pg_notify('pgrst', 'reload schema'); EXCEPTION WHEN OTHERS THEN NULL; END $$;`
+  );
   await client.end();
   console.log('✅ PostgREST schema reload notification sent');
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error('❌ Failed to reload PostgREST schema:', err.message);
   process.exit(1);
 });
-

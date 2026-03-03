@@ -1,17 +1,17 @@
 import 'dotenv/config';
-import { 
-  eventDrivenGradingWorkflow, 
+import { createLogger } from '../utils/logger';
+import {
+  eventDrivenGradingWorkflow,
   replayGradingWorkflow,
   EventDrivenGradingWorkflowParams,
-  GradingWorkflowResult 
+  GradingWorkflowResult,
 } from '../workflows/event-driven-grading-simple';
-import { createLogger } from '../utils/logger';
 
 const logger = createLogger('temporal-grading-test');
 
 /**
  * Test the enhanced Temporal Grading workflow with idempotent processing
- * 
+ *
  * Tests:
  * 1. Single ticket grading with professional features
  * 2. Multi-leg ticket processing with individual leg idempotency
@@ -36,14 +36,16 @@ async function testTemporalGrading(): Promise<void> {
         sport: 'NFL',
         ticket_type: 'single',
         is_live: false,
-        selections: [{
-          player_name: 'Josh Allen',
-          stat_type: 'passing_yards',
-          line: 275.5,
-          selection: 'over',
-          odds: -110,
-          book: 'DraftKings',
-        }],
+        selections: [
+          {
+            player_name: 'Josh Allen',
+            stat_type: 'passing_yards',
+            line: 275.5,
+            selection: 'over',
+            odds: -110,
+            book: 'DraftKings',
+          },
+        ],
         source: 'bridge_outbox',
         processed_from_outbox: true,
       },
@@ -109,7 +111,7 @@ async function testTemporalGrading(): Promise<void> {
             odds: +100,
             book: 'Caesars',
             injury_status: 'questionable',
-          }
+          },
         ],
         source: 'events',
       },
@@ -178,7 +180,10 @@ async function testTemporalGrading(): Promise<void> {
       idempotencyChecks: duplicateResult.processingMetrics.idempotencyChecks,
       stepsCompleted: duplicateResult.processingMetrics.stepsCompleted,
       processingTime: duplicateResult.processingMetrics.totalProcessingTime,
-      note: duplicateResult.processingStatus === 'skipped' ? 'Successfully skipped duplicate' : 'Unexpected behavior',
+      note:
+        duplicateResult.processingStatus === 'skipped'
+          ? 'Successfully skipped duplicate'
+          : 'Unexpected behavior',
     });
 
     // Test 5: Error handling and circuit breaker
@@ -223,7 +228,6 @@ async function testTemporalGrading(): Promise<void> {
     logger.info('   ✅ Comprehensive metrics and monitoring data');
 
     logger.info('✅ All Temporal Grading workflow tests completed successfully!');
-
   } catch (error) {
     logger.error('❌ Temporal Grading workflow test failed:', {
       error: error instanceof Error ? error.message : String(error),
@@ -240,7 +244,7 @@ if (require.main === module) {
       logger.info('Temporal Grading workflow test completed successfully');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       logger.error('Temporal Grading workflow test failed:', error);
       process.exit(1);
     });

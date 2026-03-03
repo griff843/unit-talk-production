@@ -12,11 +12,9 @@
  */
 
 import { Client, TextChannel, EmbedBuilder, Message } from 'discord.js';
+
 import { makeLogger } from '../../utils/logger';
-import {
-  DiscordPayload,
-  NotificationResult,
-} from './OpsIncidentRouter';
+
 import {
   buildIncidentEmbed,
   buildEscalationContent,
@@ -24,6 +22,7 @@ import {
   buildDigestContent,
   OpsDigestData,
 } from './OpsDiscordEmbedBuilder';
+import { DiscordPayload, NotificationResult } from './OpsIncidentRouter';
 
 const logger = makeLogger('OpsDiscordSender');
 
@@ -80,10 +79,7 @@ export class OpsDiscordSender {
   /**
    * Retry with exponential backoff
    */
-  private async retryWithBackoff<T>(
-    operation: () => Promise<T>,
-    attempt: number = 1
-  ): Promise<T> {
+  private async retryWithBackoff<T>(operation: () => Promise<T>, attempt: number = 1): Promise<T> {
     try {
       return await operation();
     } catch (error) {
@@ -93,9 +89,12 @@ export class OpsDiscordSender {
 
       const delay = Math.pow(this.config.backoffMultiplier, attempt - 1) * 1000;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.warn(`Discord send failed (attempt ${attempt}/${this.config.maxRetries}), retrying in ${delay}ms`, {
-        error: errorMessage,
-      });
+      logger.warn(
+        `Discord send failed (attempt ${attempt}/${this.config.maxRetries}), retrying in ${delay}ms`,
+        {
+          error: errorMessage,
+        }
+      );
 
       await new Promise(resolve => setTimeout(resolve, delay));
       return this.retryWithBackoff(operation, attempt + 1);

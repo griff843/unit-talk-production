@@ -41,7 +41,8 @@ interface MonitoringSummary {
 
 async function monitorLineChanges(): Promise<void> {
   // Use Supabase pooler URL (production database)
-  const connectionString = process.env.DATABASE_POOLER_URL ||
+  const connectionString =
+    process.env.DATABASE_POOLER_URL ||
     'postgresql://postgres.cqfnsozknjzvyiziwicl:Adalise843!@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require';
 
   const client = new Client({
@@ -108,7 +109,7 @@ async function monitorLineChanges(): Promise<void> {
     `;
 
     const result = await client.query(query);
-    const lineChanges: LineChangeStats[] = result.rows.map((row) => ({
+    const lineChanges: LineChangeStats[] = result.rows.map(row => ({
       propGroup: row.prop_group,
       playerName: row.player_name,
       sport: row.sport,
@@ -148,7 +149,8 @@ async function monitorLineChanges(): Promise<void> {
     printDetailedStats(lineChanges);
 
     // Save to file
-    const outputPath = 'C:\\Users\\griff\\OneDrive\\Desktop\\unit-talk-production-main\\apps\\api\\out\\ops\\line-changes-monitor.json';
+    const outputPath =
+      'C:\\Users\\griff\\OneDrive\\Desktop\\unit-talk-production-main\\apps\\api\\out\\ops\\line-changes-monitor.json';
     const fs = require('fs');
     const output = {
       generatedAt: new Date().toISOString(),
@@ -158,7 +160,6 @@ async function monitorLineChanges(): Promise<void> {
     };
     fs.writeFileSync(outputPath, JSON.stringify(output, null, 2));
     console.log(`\n💾 Full report saved to: ${outputPath}`);
-
   } catch (error) {
     console.error('❌ Error monitoring line changes:', error);
     throw error;
@@ -172,14 +173,14 @@ function generateSummary(lineChanges: LineChangeStats[]): MonitoringSummary {
   const bySport: Record<string, number> = {};
   const byBookmaker: Record<string, number> = {};
 
-  lineChanges.forEach((lc) => {
+  lineChanges.forEach(lc => {
     bySport[lc.sport] = (bySport[lc.sport] || 0) + 1;
     byBookmaker[lc.bookmaker] = (byBookmaker[lc.bookmaker] || 0) + 1;
   });
 
   return {
     totalProps: lineChanges.length,
-    propsWithMovement: lineChanges.filter((lc) => lc.lineMovement !== 0).length,
+    propsWithMovement: lineChanges.filter(lc => lc.lineMovement !== 0).length,
     totalSnapshots,
     averageSnapshotsPerProp: lineChanges.length > 0 ? totalSnapshots / lineChanges.length : 0,
     topMovers: lineChanges.slice(0, 5),
@@ -223,15 +224,24 @@ function printTopMovers(topMovers: LineChangeStats[]): void {
 
   topMovers.forEach((mover, idx) => {
     const direction = mover.lineMovement > 0 ? '📈' : '📉';
-    const velocity = mover.timespanSeconds > 0
-      ? (Math.abs(mover.lineMovement) / (mover.timespanSeconds / 3600)).toFixed(4)
-      : 'N/A';
+    const velocity =
+      mover.timespanSeconds > 0
+        ? (Math.abs(mover.lineMovement) / (mover.timespanSeconds / 3600)).toFixed(4)
+        : 'N/A';
 
-    console.log(`\n${idx + 1}. ${direction} ${mover.playerName} - ${mover.sport} ${mover.statType}`);
+    console.log(
+      `\n${idx + 1}. ${direction} ${mover.playerName} - ${mover.sport} ${mover.statType}`
+    );
     console.log(`   Bookmaker: ${mover.bookmaker}`);
-    console.log(`   Line: ${mover.firstLine} → ${mover.lastLine} (${mover.lineMovement > 0 ? '+' : ''}${mover.lineMovement})`);
-    console.log(`   Odds: O${mover.firstOdds.over}/U${mover.firstOdds.under} → O${mover.lastOdds.over}/U${mover.lastOdds.under}`);
-    console.log(`   Snapshots: ${mover.snapshotCount} over ${(mover.timespanSeconds / 60).toFixed(1)} minutes`);
+    console.log(
+      `   Line: ${mover.firstLine} → ${mover.lastLine} (${mover.lineMovement > 0 ? '+' : ''}${mover.lineMovement})`
+    );
+    console.log(
+      `   Odds: O${mover.firstOdds.over}/U${mover.firstOdds.under} → O${mover.lastOdds.over}/U${mover.lastOdds.under}`
+    );
+    console.log(
+      `   Snapshots: ${mover.snapshotCount} over ${(mover.timespanSeconds / 60).toFixed(1)} minutes`
+    );
     console.log(`   Velocity: ${velocity} points/hour`);
   });
 }
@@ -247,11 +257,12 @@ function printDetailedStats(lineChanges: LineChangeStats[]): void {
   }
 
   // Calculate statistics
-  const movements = lineChanges.map((lc) => Math.abs(lc.lineMovement)).filter((m) => m > 0);
-  const snapshots = lineChanges.map((lc) => lc.snapshotCount);
-  const timespans = lineChanges.map((lc) => lc.timespanSeconds);
+  const movements = lineChanges.map(lc => Math.abs(lc.lineMovement)).filter(m => m > 0);
+  const snapshots = lineChanges.map(lc => lc.snapshotCount);
+  const timespans = lineChanges.map(lc => lc.timespanSeconds);
 
-  const avgMovement = movements.length > 0 ? movements.reduce((a, b) => a + b, 0) / movements.length : 0;
+  const avgMovement =
+    movements.length > 0 ? movements.reduce((a, b) => a + b, 0) / movements.length : 0;
   const maxMovement = movements.length > 0 ? Math.max(...movements) : 0;
   const avgSnapshots = snapshots.reduce((a, b) => a + b, 0) / snapshots.length;
   const maxSnapshots = Math.max(...snapshots);
@@ -264,15 +275,19 @@ function printDetailedStats(lineChanges: LineChangeStats[]): void {
   console.log(`Average Timespan: ${(avgTimespan / 60).toFixed(1)} minutes`);
 
   // Steam detection opportunity
-  const steamCandidates = lineChanges.filter((lc) => {
-    const velocity = lc.timespanSeconds > 0 ? Math.abs(lc.lineMovement) / (lc.timespanSeconds / 3600) : 0;
+  const steamCandidates = lineChanges.filter(lc => {
+    const velocity =
+      lc.timespanSeconds > 0 ? Math.abs(lc.lineMovement) / (lc.timespanSeconds / 3600) : 0;
     return velocity > 0.5; // Moving >0.5 points/hour
   });
 
   if (steamCandidates.length > 0) {
     console.log(`\n🔥 STEAM CANDIDATES: ${steamCandidates.length} props with velocity >0.5 pts/hr`);
-    steamCandidates.slice(0, 5).forEach((candidate) => {
-      const velocity = (Math.abs(candidate.lineMovement) / (candidate.timespanSeconds / 3600)).toFixed(3);
+    steamCandidates.slice(0, 5).forEach(candidate => {
+      const velocity = (
+        Math.abs(candidate.lineMovement) /
+        (candidate.timespanSeconds / 3600)
+      ).toFixed(3);
       console.log(`   ${candidate.playerName} (${candidate.sport}): ${velocity} pts/hr`);
     });
   }
@@ -285,7 +300,7 @@ if (require.main === module) {
       console.log('\n✅ Line change monitoring complete');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('❌ Fatal error:', error);
       process.exit(1);
     });

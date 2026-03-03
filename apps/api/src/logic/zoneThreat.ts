@@ -49,7 +49,7 @@ export function calculateZoneThreat(data: any, config: ZoneThreatConfig): ZoneTh
   return {
     level,
     score: professional_score,
-    factors
+    factors,
   };
 }
 

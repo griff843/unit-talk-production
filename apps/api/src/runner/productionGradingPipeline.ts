@@ -1,9 +1,9 @@
 /**
  * Production-Scale Grading Pipeline
- * 
+ *
  * Processes all ungraded raw props through the professional grading system
  * with batch processing, progress tracking, and error handling.
- * 
+ *
  * Usage: npx tsx src/runner/productionGradingPipeline.ts [--batch-size=100] [--max-concurrent=5]
  */
 
@@ -28,7 +28,7 @@ class ProductionGradingPipeline {
     ungradedProps: 0,
     processed: 0,
     errors: 0,
-    startTime: Date.now()
+    startTime: Date.now(),
   };
 
   private batchSize: number;
@@ -103,12 +103,21 @@ class ProductionGradingPipeline {
 
       // Process each prop through professional grading
       const results = await Promise.allSettled(
-        props.map(async (prop) => {
+        props.map(async prop => {
           try {
             // Simple professional grading simulation
             // In production, this would call the actual ProfessionalPropProcessor
             const edgeScore = Math.floor(Math.random() * 10); // Integer professional_score 0-9
-            const tier = edgeScore >= 8 ? 'S' : edgeScore >= 6 ? 'A' : edgeScore >= 4 ? 'B' : edgeScore >= 2 ? 'C' : 'D';
+            const tier =
+              edgeScore >= 8
+                ? 'S'
+                : edgeScore >= 6
+                  ? 'A'
+                  : edgeScore >= 4
+                    ? 'B'
+                    : edgeScore >= 2
+                      ? 'C'
+                      : 'D';
             const autoApproved = tier === 'S' || tier === 'A';
 
             // Update the prop with grading results
@@ -119,7 +128,7 @@ class ProductionGradingPipeline {
                 tier: tier,
                 auto_approved: autoApproved,
                 confidence: Math.floor((Math.random() * 0.4 + 0.6) * 100) / 100, // Round to 2 decimal places
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
               })
               .eq('id', prop.id);
 
@@ -136,10 +145,11 @@ class ProductionGradingPipeline {
       );
 
       const processed = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
-      const errors = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
+      const errors = results.filter(
+        r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)
+      ).length;
 
       return { processed, errors };
-
     } catch (error) {
       logger.error('Batch processing failed', { offset, error });
       return { processed: 0, errors: 1 };
@@ -154,10 +164,12 @@ class ProductionGradingPipeline {
 
     const progressPercent = ((this.stats.processed / this.stats.ungradedProps) * 100).toFixed(1);
 
-    console.log(`📊 Progress: ${this.stats.processed}/${this.stats.ungradedProps} (${progressPercent}%) | ` +
-                `⚡ Rate: ${rate.toFixed(1)}/sec | ` +
-                `⏱️  ETA: ${Math.ceil(eta / 60)}min | ` +
-                `❌ Errors: ${this.stats.errors}`);
+    console.log(
+      `📊 Progress: ${this.stats.processed}/${this.stats.ungradedProps} (${progressPercent}%) | ` +
+        `⚡ Rate: ${rate.toFixed(1)}/sec | ` +
+        `⏱️  ETA: ${Math.ceil(eta / 60)}min | ` +
+        `❌ Errors: ${this.stats.errors}`
+    );
   }
 
   async run(): Promise<void> {
@@ -172,12 +184,15 @@ class ProductionGradingPipeline {
     let offset = 0;
     while (this.stats.processed < this.stats.ungradedProps) {
       const batchResult = await this.processBatch(offset);
-      
+
       this.stats.processed += batchResult.processed;
       this.stats.errors += batchResult.errors;
 
       // Show progress every 10 batches or when complete
-      if (offset % (this.batchSize * 10) === 0 || this.stats.processed >= this.stats.ungradedProps) {
+      if (
+        offset % (this.batchSize * 10) === 0 ||
+        this.stats.processed >= this.stats.ungradedProps
+      ) {
         this.showProgress();
       }
 
@@ -207,7 +222,9 @@ class ProductionGradingPipeline {
     console.log(`❌ Errors: ${this.stats.errors}`);
     console.log(`⏱️  Total Time: ${Math.ceil(totalTime / 60)} minutes`);
     console.log(`⚡ Average Rate: ${rate.toFixed(1)} props/second`);
-    console.log(`🎯 Success Rate: ${((this.stats.processed / (this.stats.processed + this.stats.errors)) * 100).toFixed(1)}%`);
+    console.log(
+      `🎯 Success Rate: ${((this.stats.processed / (this.stats.processed + this.stats.errors)) * 100).toFixed(1)}%`
+    );
     console.log('='.repeat(80));
 
     if (this.stats.errors > 0) {

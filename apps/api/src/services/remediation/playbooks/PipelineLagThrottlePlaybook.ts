@@ -9,7 +9,6 @@
  * @module services/remediation/playbooks/PipelineLagThrottlePlaybook
  */
 
-import { BasePlaybook } from './BasePlaybook';
 import {
   ActionRecord,
   ExecutionContext,
@@ -17,6 +16,8 @@ import {
   ExecutionType,
   PlaybookId,
 } from '../types';
+
+import { BasePlaybook } from './BasePlaybook';
 
 // ============================================================================
 // PipelineLagThrottlePlaybook Class
@@ -52,11 +53,13 @@ export class PipelineLagThrottlePlaybook extends BasePlaybook {
       // If already in log_only or off, we're already throttled
       if (previousMode === 'log_only' || previousMode === 'off') {
         this.logger.info('Autopilot already throttled', { currentMode: previousMode });
-        actions.push(this.createAction('check_autopilot_mode', true, {
-          targetKnob: 'AUTOPILOT_MODE',
-          previousValue: previousMode,
-          newValue: previousMode,
-        }));
+        actions.push(
+          this.createAction('check_autopilot_mode', true, {
+            targetKnob: 'AUTOPILOT_MODE',
+            previousValue: previousMode,
+            newValue: previousMode,
+          })
+        );
 
         return this.createSuccessResult(actions, dryRun, context);
       }
@@ -69,12 +72,14 @@ export class PipelineLagThrottlePlaybook extends BasePlaybook {
         dryRun
       );
 
-      actions.push(this.createAction('set_autopilot_mode', result.success, {
-        targetKnob: 'AUTOPILOT_MODE',
-        previousValue: result.previousValue,
-        newValue: dryRun ? `${targetMode} (dry run)` : result.newValue,
-        error: result.error,
-      }));
+      actions.push(
+        this.createAction('set_autopilot_mode', result.success, {
+          targetKnob: 'AUTOPILOT_MODE',
+          previousValue: result.previousValue,
+          newValue: dryRun ? `${targetMode} (dry run)` : result.newValue,
+          error: result.error,
+        })
+      );
 
       if (!result.success) {
         return this.createFailedResult(result.error || 'Failed to toggle autopilot mode', dryRun);
@@ -91,10 +96,12 @@ export class PipelineLagThrottlePlaybook extends BasePlaybook {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to execute pipeline throttle', { error: errorMessage });
 
-      actions.push(this.createAction('set_autopilot_mode', false, {
-        targetKnob: 'AUTOPILOT_MODE',
-        error: errorMessage,
-      }));
+      actions.push(
+        this.createAction('set_autopilot_mode', false, {
+          targetKnob: 'AUTOPILOT_MODE',
+          error: errorMessage,
+        })
+      );
 
       return this.createFailedResult(errorMessage, dryRun);
     }
@@ -108,7 +115,7 @@ export class PipelineLagThrottlePlaybook extends BasePlaybook {
       '1. Check if pipeline lag has resolved',
       '2. If lag is acceptable, restore autopilot mode:',
       '   - Via API: POST /api/admin/autopilot/mode with body { "mode": "prod" }',
-      '   - Via RPC: SELECT set_autopilot_mode(\'prod\', \'ops_team\', true, null)',
+      "   - Via RPC: SELECT set_autopilot_mode('prod', 'ops_team', true, null)",
       '3. Monitor pipeline metrics for 5-10 minutes after restoration',
       '4. If lag returns, keep in throttled mode and investigate root cause',
       '',
@@ -134,7 +141,7 @@ export class PipelineLagThrottlePlaybook extends BasePlaybook {
       '',
       '3. Check pipeline backlog:',
       '   SELECT COUNT(*) FROM events WHERE processed = false;',
-      '   SELECT COUNT(*) FROM bridge_outbox WHERE status = \'pending\';',
+      "   SELECT COUNT(*) FROM bridge_outbox WHERE status = 'pending';",
       '',
       '4. Monitor after throttling:',
       '   - Watch event processing rate',

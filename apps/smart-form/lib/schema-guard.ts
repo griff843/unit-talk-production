@@ -26,7 +26,7 @@ const CONTRACT_COLUMNS = [
   'units',
 ] as const;
 
-type ContractColumn = typeof CONTRACT_COLUMNS[number];
+type ContractColumn = (typeof CONTRACT_COLUMNS)[number];
 
 interface SchemaCheckResult {
   checked: boolean;
@@ -98,10 +98,7 @@ class SchemaGuard {
       } else {
         // No data - probe columns individually
         for (const col of CONTRACT_COLUMNS) {
-          const { error: probeError } = await supabase
-            .from('unified_picks')
-            .select(col)
-            .limit(0);
+          const { error: probeError } = await supabase.from('unified_picks').select(col).limit(0);
 
           if (!probeError) {
             existingColumns.push(col);
@@ -123,11 +120,15 @@ class SchemaGuard {
 
       // Log the result for debugging
       if (this._result.hasAllColumns) {
-        console.log('[SCHEMA-GUARD] Contract columns present:', presentColumns.length + '/' + CONTRACT_COLUMNS.length);
+        console.log(
+          '[SCHEMA-GUARD] Contract columns present:',
+          presentColumns.length + '/' + CONTRACT_COLUMNS.length
+        );
       } else {
         console.warn(
           '[SCHEMA-GUARD] WARNING: Contract columns MISSING - using legacy mode.',
-          '\n  Missing:', missingColumns.join(', ')
+          '\n  Missing:',
+          missingColumns.join(', ')
         );
       }
     } catch (err) {

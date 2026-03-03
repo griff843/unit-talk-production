@@ -33,7 +33,11 @@ export interface AdaptationTrigger {
 }
 
 export interface ModelUpdate {
-  type: 'comprehensive_retraining' | 'feature_engineering_update' | 'risk_adjustment' | 'incremental_update';
+  type:
+    | 'comprehensive_retraining'
+    | 'feature_engineering_update'
+    | 'risk_adjustment'
+    | 'incremental_update';
   parameters: any;
   confidence: number;
   timestamp: number;
@@ -98,4 +102,4 @@ export interface ModelHealth {
   lastAdaptation: number;
   adaptationCount: number;
   performanceTrend: 'improving' | 'stable' | 'declining';
-} 
+}

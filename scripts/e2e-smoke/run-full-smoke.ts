@@ -44,7 +44,7 @@ if (fs.existsSync(smokeEnvPath)) {
   }
 }
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Generate a valid UUID v4
 function generateUUID(): string {
@@ -114,7 +114,7 @@ function generateTraceId(): string {
 // ============================================================
 
 async function stage1_SeedBridgeOutbox(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   traceId: string
 ): Promise<SmokeResult> {
   const startTime = Date.now();
@@ -189,7 +189,7 @@ async function stage1_SeedBridgeOutbox(
 }
 
 async function stage2_VerifyBridgeProcessed(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   betSlipId: string
 ): Promise<SmokeResult> {
   const startTime = Date.now();
@@ -273,7 +273,7 @@ async function stage2_VerifyBridgeProcessed(
 }
 
 async function stage3_VerifyUnifiedPick(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   betSlipId: string
 ): Promise<SmokeResult> {
   const startTime = Date.now();
@@ -323,7 +323,7 @@ async function stage3_VerifyUnifiedPick(
 }
 
 async function stage4_VerifyGrading(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   pickId: string
 ): Promise<SmokeResult> {
   const startTime = Date.now();
@@ -396,7 +396,7 @@ async function stage4_VerifyGrading(
 }
 
 async function stage5_VerifyDiscordMock(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   pickId: string
 ): Promise<SmokeResult> {
   const startTime = Date.now();
@@ -453,7 +453,7 @@ async function stage5_VerifyDiscordMock(
 }
 
 async function stage6_CleanupTestData(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   betSlipId: string
 ): Promise<SmokeResult> {
   const startTime = Date.now();
@@ -586,7 +586,8 @@ async function runSmokeTest(): Promise<void> {
     process.exit(1);
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  // Non-null assertion safe: missingVars guard above exits if either is undefined
+  const supabase = createClient(SUPABASE_URL as string, SUPABASE_SERVICE_KEY as string);
   const traceId = generateTraceId();
   const runId = `smoke_${Date.now()}`;
 

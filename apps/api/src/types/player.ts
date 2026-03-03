@@ -27,7 +27,7 @@ export class PlayerPhysicalUtils {
    * @returns Height in centimeters (rounded to nearest integer)
    */
   static feetInchesToCm(feet: number, inches: number = 0): number {
-    const totalInches = (feet * 12) + inches;
+    const totalInches = feet * 12 + inches;
     return Math.round(totalInches * 2.54);
   }
 
@@ -37,8 +37,10 @@ export class PlayerPhysicalUtils {
    * @returns Height in centimeters or null if parsing fails
    */
   static parseHeightToCm(heightStr: string): number | null {
-    if (!heightStr) {return null;}
-    
+    if (!heightStr) {
+      return null;
+    }
+
     // Handle formats like "6'2\"", "6'2", "6-2", "6 2"
     const match = heightStr.match(/(\d+)['"\-\s]+(\d+)/);
     if (match && match[1] && match[2]) {
@@ -72,8 +74,10 @@ export class PlayerPhysicalUtils {
    * @returns Weight in kilograms or null if parsing fails
    */
   static parseWeightToKg(weightStr: string): number | null {
-    if (!weightStr) {return null;}
-    
+    if (!weightStr) {
+      return null;
+    }
+
     const match = weightStr.match(/(\d+)/);
     if (match && match[1]) {
       const pounds = parseInt(match[1]);
@@ -89,12 +93,16 @@ export class PlayerPhysicalUtils {
    * @returns ISO date string (YYYY-MM-DD) or null if invalid
    */
   static parseBirthday(dateStr: string): string | null {
-    if (!dateStr) {return null;}
-    
+    if (!dateStr) {
+      return null;
+    }
+
     try {
       const date = new Date(dateStr);
-      if (isNaN(date.getTime())) {return null;}
-      
+      if (isNaN(date.getTime())) {
+        return null;
+      }
+
       // Return in YYYY-MM-DD format
       const isoString = date.toISOString().split('T')[0];
       return isoString || null;

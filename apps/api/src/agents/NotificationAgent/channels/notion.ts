@@ -13,7 +13,7 @@ export async function sendNotionNotification(
   if (!config.enabled || !config.apiKey) {
     return;
   }
-  
+
   // TODO: Implement Notion notification sending
   console.log('[Notion] Would send notification:', payload);
-} 
+}

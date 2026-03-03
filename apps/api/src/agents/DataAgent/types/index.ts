@@ -7,16 +7,16 @@ export const DataAgentConfigSchema = z.object({
   etlConfig: z.object({
     batchSize: z.number().min(1),
     maxRetries: z.number().min(0),
-    timeoutMs: z.number().min(1000)
+    timeoutMs: z.number().min(1000),
   }),
   qualityConfig: z.object({
     enabledChecks: z.array(z.string()),
-    thresholds: z.record(z.number())
+    thresholds: z.record(z.number()),
   }),
   enrichmentConfig: z.object({
     enabledPipelines: z.array(z.string()),
-    maxConcurrency: z.number().min(1)
-  })
+    maxConcurrency: z.number().min(1),
+  }),
 });
 
 export type DataAgentConfig = z.infer<typeof DataAgentConfigSchema>;
@@ -66,7 +66,7 @@ export interface EnrichmentPipeline {
   enrich: (data: any[]) => Promise<any[]>;
 }
 
-export type DataAgentEventType = 
+export type DataAgentEventType =
   | 'etl_started'
   | 'etl_completed'
   | 'etl_failed'

@@ -45,7 +45,7 @@ export class TemporalTestRunner {
       logger.info('✅ All Temporal tests passed', {});
 
       return;
-} catch (_error) {
+    } catch (_error) {
       errorHandlerInstance.handleError(_error as Error);
       throw _error;
     } finally {
@@ -56,12 +56,12 @@ export class TemporalTestRunner {
   private async setupTemporal(): Promise<void> {
     try {
       this.connection = await Connection.connect({
-        address: process.env.TEMPORAL_ADDRESS || 'localhost:7233'
+        address: process.env.TEMPORAL_ADDRESS || 'localhost:7233',
       });
 
       this.client = new Client({
         connection: this.connection,
-        namespace: process.env.TEMPORAL_NAMESPACE || 'default'
+        namespace: process.env.TEMPORAL_NAMESPACE || 'default',
       });
 
       logger.info('✅ Temporal infrastructure ready', {});
@@ -73,20 +73,24 @@ export class TemporalTestRunner {
 
   private async testBasicWorkflows(): Promise<void> {
     logger.info('🔄 Testing basic workflows...', {});
-    
+
     try {
-      if (!this.client) {throw new Error('Temporal client not initialized');}
-      
+      if (!this.client) {
+        throw new Error('Temporal client not initialized');
+      }
+
       // Test analytics workflow
       const analyticsHandle = await this.client.workflow.start('analyticsWorkflow', {
         args: [{ test: true }],
         taskQueue: process.env['TEMPORAL_TASK_QUEUE'] || 'unit-talk-local',
-        workflowId: `test-analytics-${Date.now()}`
+        workflowId: `test-analytics-${Date.now()}`,
       });
 
       await Promise.race([
         analyticsHandle.result(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Analytics workflow timeout')), 10000))
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Analytics workflow timeout')), 10000)
+        ),
       ]);
 
       logger.info('✅ Analytics workflow test passed', {});
@@ -95,16 +99,17 @@ export class TemporalTestRunner {
       const notificationHandle = await this.client.workflow.start('notificationWorkflow', {
         args: [{ test: true }],
         taskQueue: process.env['TEMPORAL_TASK_QUEUE'] || 'unit-talk-local',
-        workflowId: `test-notification-${Date.now()}`
+        workflowId: `test-notification-${Date.now()}`,
       });
 
       await Promise.race([
         notificationHandle.result(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Notification workflow timeout')), 10000))
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Notification workflow timeout')), 10000)
+        ),
       ]);
 
       logger.info('✅ Notification workflow test passed', {});
-      
     } catch (_error) {
       logger.error('❌ Basic workflow test failed:', _error);
       throw _error;
@@ -113,20 +118,24 @@ export class TemporalTestRunner {
 
   private async testSyndicateWorkflows(): Promise<void> {
     logger.info('🔄 Testing syndicate workflows...', {});
-    
+
     try {
-      if (!this.client) {throw new Error('Temporal client not initialized');}
-      
+      if (!this.client) {
+        throw new Error('Temporal client not initialized');
+      }
+
       // Test league ingestion workflow
       const ingestionHandle = await this.client.workflow.start('leagueIngestionWorkflow', {
         args: [{ league: 'MLB', isLiveMode: true, cycleCount: 1 }],
         taskQueue: process.env['TEMPORAL_TASK_QUEUE'] || 'unit-talk-local',
-        workflowId: `test-ingestion-${Date.now()}`
+        workflowId: `test-ingestion-${Date.now()}`,
       });
 
       await Promise.race([
         ingestionHandle.result(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Ingestion workflow timeout')), 15000))
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Ingestion workflow timeout')), 15000)
+        ),
       ]);
 
       logger.info('✅ League ingestion workflow test passed', {});
@@ -135,12 +144,14 @@ export class TemporalTestRunner {
       const uspHandle = await this.client.workflow.start('uspProcessingWorkflow', {
         args: [{ leagues: ['MLB'], isLiveMode: true, cycleCount: 1 }],
         taskQueue: process.env['TEMPORAL_TASK_QUEUE'] || 'unit-talk-local',
-        workflowId: `test-usp-${Date.now()}`
+        workflowId: `test-usp-${Date.now()}`,
       });
 
       await Promise.race([
         uspHandle.result(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('USP workflow timeout')), 15000))
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('USP workflow timeout')), 15000)
+        ),
       ]);
 
       logger.info('✅ USP processing workflow test passed', {});
@@ -149,12 +160,14 @@ export class TemporalTestRunner {
       const gradingHandle = await this.client.workflow.start('gradingAndScoringWorkflow', {
         args: [{ leagues: ['MLB'], isLiveMode: true, cycleCount: 1 }],
         taskQueue: process.env['TEMPORAL_TASK_QUEUE'] || 'unit-talk-local',
-        workflowId: `test-grading-${Date.now()}`
+        workflowId: `test-grading-${Date.now()}`,
       });
 
       await Promise.race([
         gradingHandle.result(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Grading workflow timeout')), 15000))
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Grading workflow timeout')), 15000)
+        ),
       ]);
 
       logger.info('✅ Grading and scoring workflow test passed', {});
@@ -163,29 +176,29 @@ export class TemporalTestRunner {
       const alertHandle = await this.client.workflow.start('discordAlertWorkflow', {
         args: [{ cycleCount: 1, isLiveMode: true }],
         taskQueue: process.env['TEMPORAL_TASK_QUEUE'] || 'unit-talk-local',
-        workflowId: `test-alert-${Date.now()}`
+        workflowId: `test-alert-${Date.now()}`,
       });
 
       await Promise.race([
         alertHandle.result(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Alert workflow timeout')), 10000))
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Alert workflow timeout')), 10000)
+        ),
       ]);
 
       logger.info('✅ Discord alert workflow test passed', {});
-      
     } catch (_error) {
       logger.error('❌ Syndicate workflow test failed:', _error);
       throw _error;
     }
   }
 
-
   private async cleanup(): Promise<void> {
     try {
       if (this.worker) {
         await this.worker.shutdown();
         return;
-}
+      }
 
       if (this.connection) {
         await this.connection.close();
@@ -201,7 +214,7 @@ export class TemporalTestRunner {
 // CLI execution
 if (require.main === module) {
   const runner = new TemporalTestRunner();
-  runner.run().catch((error) => {
+  runner.run().catch(error => {
     console.error('❌ Temporal test failed:', error);
     process.exit(1);
   });
