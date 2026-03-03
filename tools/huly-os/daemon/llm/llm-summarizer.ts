@@ -1,47 +1,113 @@
-// Scaffold: LLM-based report summarizer (next sprint)
+// SPRINT-LLM-REALITY-SUMMARIZER-005: Deterministic report summarizer
 // Input: RealityReport JSON
-// Output: ReportSummary (structured summary, risks, suggested tasks)
-// No LLM provider integrated yet — this is a typed interface only.
+// Output: ReportSummary (structured summary, risks, suggested actions, priority items)
+// Future: swap deterministic logic for LLM provider call.
 
 import type { RealityReport } from '../adapters/types.js';
 
 export interface ReportSummary {
   summary: string;
   risks: string[];
-  suggestedTasks: string[];
+  suggestedActions: string[];
+  priorityItems: string[];
 }
 
 /**
  * Generate a structured summary from a RealityReport.
  *
- * TODO (next sprint): Integrate LLM provider to generate summary from report data.
- * For now, returns a placeholder that extracts basic stats from the report.
+ * Uses deterministic extraction — no external LLM provider yet.
+ * Designed so the return type is stable when an LLM provider replaces this logic.
  */
 export function summarizeReport(report: RealityReport): ReportSummary {
-  const driftErrors = report.drift.errors;
-  const driftWarnings = report.drift.warnings;
-  const issuesWithoutProof = report.hulySummary?.issuesWithoutProof ?? 0;
+  const { meta, githubSummary, hulySummary, drift, auditStats } = report;
+
+  const driftErrors = drift.errors;
+  const driftWarnings = drift.warnings;
+  const issuesWithoutProof = hulySummary?.issuesWithoutProof ?? 0;
+  const failedCalls = auditStats.failedCalls;
+
+  // --- Summary ---
+  const summaryLines: string[] = [
+    `Report generated ${meta.generatedAt} (${meta.dryRun ? 'dry-run' : 'live'}).`,
+    `GitHub: ${githubSummary.openPrs} open PRs, ${githubSummary.recentlyMergedPrs} recently merged.`,
+  ];
+
+  if (hulySummary) {
+    const statusBreakdown = Object.entries(hulySummary.byStatus)
+      .map(([s, n]) => `${n} ${s}`)
+      .join(', ');
+    summaryLines.push(`Huly: ${hulySummary.totalIssues} issues (${statusBreakdown}).`);
+  } else {
+    summaryLines.push('Huly: unavailable.');
+  }
+
+  summaryLines.push(`Drift: ${driftErrors} errors, ${driftWarnings} warnings.`);
+
+  if (failedCalls > 0) {
+    summaryLines.push(`Audit: ${failedCalls}/${auditStats.totalCalls} API calls failed.`);
+  }
+
+  // --- Risks ---
+  const risks: string[] = [];
+
+  if (driftErrors > 0) {
+    risks.push(`${driftErrors} error-severity drift violation(s) detected`);
+  }
+  if (issuesWithoutProof > 0) {
+    risks.push(`${issuesWithoutProof} issue(s) marked Done without proof artifacts`);
+  }
+  if (!meta.hulyAvailable) {
+    risks.push('Huly platform unreachable — no write operations possible');
+  }
+  if (!meta.githubAvailable) {
+    risks.push('GitHub API unreachable — data may be stale');
+  }
+  if (failedCalls > 0) {
+    const failRate = Math.round((failedCalls / auditStats.totalCalls) * 100);
+    risks.push(`${failRate}% API call failure rate (${failedCalls}/${auditStats.totalCalls})`);
+  }
+  if (driftWarnings >= 10) {
+    risks.push(`High warning count: ${driftWarnings} drift warnings`);
+  }
+
+  // --- Suggested Actions ---
+  const suggestedActions: string[] = [];
+
+  if (driftErrors > 0) {
+    suggestedActions.push('Review and resolve error-severity drift violations');
+  }
+  if (issuesWithoutProof > 0) {
+    suggestedActions.push('Add proof_url to Done issues missing proof artifacts');
+  }
+  if (!meta.hulyAvailable) {
+    suggestedActions.push('Investigate Huly connectivity and restart services if needed');
+  }
+  if (failedCalls > 0) {
+    suggestedActions.push('Investigate API call failures in audit.jsonl');
+  }
+  if (driftWarnings > 0) {
+    suggestedActions.push('Triage drift warnings and resolve or suppress known-good items');
+  }
+
+  // --- Priority Items (error-severity violations first) ---
+  const priorityItems: string[] = [];
+
+  for (const v of drift.violations) {
+    if (v.severity === 'error') {
+      priorityItems.push(`[${v.ruleId}] ${v.entityType}:${v.entityId} — ${v.message}`);
+    }
+  }
+  if (issuesWithoutProof > 0) {
+    priorityItems.push(`${issuesWithoutProof} Done issue(s) need proof artifacts`);
+  }
+  if (!meta.hulyAvailable) {
+    priorityItems.push('Restore Huly platform connectivity');
+  }
 
   return {
-    summary: [
-      `Report generated ${report.meta.generatedAt}.`,
-      `GitHub: ${report.githubSummary.openPrs} open PRs, ${report.githubSummary.recentlyMergedPrs} recently merged.`,
-      report.hulySummary
-        ? `Huly: ${report.hulySummary.totalIssues} issues tracked.`
-        : 'Huly: unavailable.',
-      `Drift: ${driftErrors} errors, ${driftWarnings} warnings.`,
-    ].join(' '),
-    risks: [
-      ...(driftErrors > 0 ? [`${driftErrors} error-severity drift violations detected`] : []),
-      ...(issuesWithoutProof > 0
-        ? [`${issuesWithoutProof} issues marked Done without proof artifacts`]
-        : []),
-      ...(!report.meta.hulyAvailable ? ['Huly platform unreachable'] : []),
-    ],
-    suggestedTasks: [
-      ...(driftErrors > 0 ? ['Review and resolve error-severity drift violations'] : []),
-      ...(issuesWithoutProof > 0 ? ['Add proof_url to Done issues missing proof artifacts'] : []),
-      ...(!report.meta.hulyAvailable ? ['Investigate Huly connectivity'] : []),
-    ],
+    summary: summaryLines.join(' '),
+    risks,
+    suggestedActions,
+    priorityItems,
   };
 }

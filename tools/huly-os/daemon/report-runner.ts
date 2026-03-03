@@ -11,6 +11,8 @@ import { loadConfig, loadConfigGitHubOnly, type DaemonConfig } from './config.js
 import { evaluateDrift } from './drift-rules.js';
 import { buildReport, type ReportInputs } from './formatters/json-report.js';
 import { renderMarkdown } from './formatters/markdown-report.js';
+import { summarizeReport } from './llm/llm-summarizer.js';
+import { renderSummaryMarkdown } from './llm/render-summary.js';
 import { publish } from './publish-orchestrator.js';
 
 import type { HulyIssue, RealityReport } from './adapters/types.js';
@@ -123,7 +125,24 @@ export async function runReport(options: RunOptions): Promise<void> {
     };
 
     const report: RealityReport = buildReport(reportInputs);
-    const markdownContent = renderMarkdown(report);
+    let markdownContent = renderMarkdown(report);
+
+    // AI summarization step — fail-safe (never blocks publishing)
+    try {
+      console.log('Generating AI summary...');
+      const summary = summarizeReport(report);
+      const summaryMd = renderSummaryMarkdown(summary);
+      markdownContent += '\n\n---\n\n' + summaryMd;
+      writeArtifact(audit, outDir, 'summary.json', JSON.stringify(summary, null, 2));
+      writeArtifact(audit, outDir, 'summary.md', summaryMd);
+      console.log(
+        `AI summary: ${summary.risks.length} risks, ` +
+          `${summary.suggestedActions.length} actions, ` +
+          `${summary.priorityItems.length} priority items`
+      );
+    } catch (err) {
+      console.warn(`AI summarizer failed (non-fatal): ${(err as Error).message}`);
+    }
 
     // Write local artifacts
     console.log(`Writing artifacts to ${outDir}/`);
