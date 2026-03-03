@@ -84,7 +84,12 @@
     "mcp:workspace": "node scripts/mcp-wrappers/pnpm-workspace-mcp.mjs",
     "mcp:supabase": "node scripts/mcp-wrappers/supabase-schema-mcp.mjs",
     "mcp:typescript": "node scripts/mcp-wrappers/typescript-lsp-mcp.mjs",
-    "e2e:smoke:full": "npx tsx scripts/e2e-smoke/run-full-smoke.ts"
+    "e2e:smoke:full": "npx tsx scripts/e2e-smoke/run-full-smoke.ts",
+    "huly-os:report:dry-run": "pnpm --filter @unit-talk/huly-os report:dry-run",
+    "huly-os:report:run": "pnpm --filter @unit-talk/huly-os report:run",
+    "huly-os:huly:smoke": "pnpm --filter @unit-talk/huly-os huly:smoke",
+    "huly-os:up": "docker compose -f tools/huly-os/docker/compose.yml up -d",
+    "huly-os:down": "docker compose -f tools/huly-os/docker/compose.yml down"
   },
   "keywords": [
     "sports-betting",

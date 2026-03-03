@@ -301,3 +301,11 @@ apps/command-center/tests/screenshots/
 # Sprint proofs (uncommitted by default, override if needed)
 # out/sprints/ is covered by out/ above
 # To commit proofs, use: git add -f out/sprints/<SPRINT>/
+
+tools/huly-os/.env.local
+
+tools/huly-os/.env
+
+tools/huly-os/.env
+
+tools/huly-os/.env.local
