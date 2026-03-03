@@ -3,17 +3,17 @@ name: E2E Business Flow - Staging
 on:
   schedule:
     # Run nightly at 10:10 PM ET (2:10 AM UTC during EST, 3:10 AM UTC during EDT)
-    - cron: '10 2 * * *'  # Adjust for timezone as needed
+    - cron: "10 2 * * *" # Adjust for timezone as needed
   workflow_dispatch: # Allow manual trigger
     inputs:
       sport:
-        description: 'Sport to test (MLB, NBA, NFL, NHL)'
+        description: "Sport to test (MLB, NBA, NFL, NHL)"
         required: false
-        default: 'MLB'
+        default: "MLB"
       window:
-        description: 'Time window (next-1h, next-3h, next-6h)'
+        description: "Time window (next-1h, next-3h, next-6h)"
         required: false
-        default: 'next-3h'
+        default: "next-3h"
 
 env:
   NODE_ENV: staging
@@ -25,8 +25,9 @@ env:
 jobs:
   e2e-business-flow:
     runs-on: ubuntu-latest
+    environment: staging
     timeout-minutes: 20
-    
+
     services:
       postgres:
         image: postgres:15-alpine
@@ -49,9 +50,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'apps/api/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "apps/api/package-lock.json"
 
       - name: Install dependencies
         working-directory: apps/api
@@ -77,7 +78,7 @@ jobs:
           npm run start:staging &
           API_PID=$!
           echo "API_PID=$API_PID" >> $GITHUB_ENV
-          
+
           # Wait for API to be ready
           timeout 60 bash -c 'until curl -f http://localhost:3010/api/health; do sleep 2; done'
 
@@ -91,7 +92,7 @@ jobs:
         run: |
           sport="${{ github.event.inputs.sport || 'MLB' }}"
           window="${{ github.event.inputs.window || 'next-3h' }}"
-          
+
           echo "Running E2E test for $sport with $window window"
           npx tsx scripts/e2e-business-flow.ts --sport="$sport" --window="$window"
 
@@ -220,25 +221,25 @@ jobs:
             const emoji = '${{ steps.test_results.outputs.status_emoji }}';
             const duration = '${{ steps.test_results.outputs.duration }}';
             const assertions = '${{ steps.test_results.outputs.assertions }}';
-            
+
             const comment = `## ${emoji} E2E Business Flow Test Results
-            
+
             - **Status:** ${status}
             - **Duration:** ${duration}
             - **Assertions:** ${assertions}
             - **Sport:** ${{ github.event.inputs.sport || 'MLB' }}
-            
+
             <details>
             <summary>View Report Summary</summary>
-            
+
             \`\`\`
             ${{ steps.report_content.outputs.report_content }}
             \`\`\`
             </details>
-            
+
             [View Full Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             `;
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

@@ -19,6 +19,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    environment: staging
     defaults:
       run:
         working-directory: apps/api

@@ -6,6 +6,7 @@ on:
 jobs:
   secrets-guard:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Secrets Guard
         run: |

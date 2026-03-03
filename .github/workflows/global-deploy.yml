@@ -60,6 +60,7 @@ jobs:
     name: Pre-Deployment Verification
     runs-on: ubuntu-latest
     needs: [validate]
+    environment: ${{ needs.validate.outputs.env }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -186,6 +187,7 @@ jobs:
     name: Post-Deployment Verification
     runs-on: ubuntu-latest
     needs: [validate, deploy]
+    environment: ${{ needs.validate.outputs.env }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

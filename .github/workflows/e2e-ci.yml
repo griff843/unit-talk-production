@@ -18,6 +18,7 @@ jobs:
   verify-e2e:
     name: Supabase migrate → admin RPCs → Gates → SLOs
     runs-on: ubuntu-latest
+    environment: ci
     timeout-minutes: 30
     # Skip for forked PRs (secrets not available)
     # For main repo PRs and pushes, secrets must be configured
