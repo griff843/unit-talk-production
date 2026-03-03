@@ -124,7 +124,7 @@ jobs:
             SMOKE_FLAG="--smoke"
           fi
 
-          npx tsx scripts/verify-agent-control-plane.ts --env=${{ env.ENV_NAME }} $SMOKE_FLAG
+          pnpm exec tsx scripts/verify-agent-control-plane.ts --env=${{ env.ENV_NAME }} $SMOKE_FLAG
 
       - name: Upload verification reports
         if: always()

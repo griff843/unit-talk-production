@@ -15,6 +15,9 @@
     "build": "npm run build --workspaces",
     "dev": "npm run dev --workspaces",
     "test": "npm run test --workspaces",
+    "test:unit": "npm run test:unit --workspaces --if-present",
+    "test:integration": "npm run test:integration --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
     "format:check": "prettier --check \"apps/*/src/**/*.{ts,tsx}\" \"apps/*/app/**/*.{ts,tsx}\" \"apps/*/components/**/*.{ts,tsx}\" \"apps/*/lib/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\"",
     "format:write": "prettier --write \"apps/*/src/**/*.{ts,tsx}\" \"apps/*/app/**/*.{ts,tsx}\" \"apps/*/components/**/*.{ts,tsx}\" \"apps/*/lib/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\"",
     "lint": "npm run lint --workspaces",
@@ -113,6 +116,8 @@
     "lint-staged": "^16.1.4",
     "pg": "^8.18.0",
     "prettier": "^3.0.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.6.0",
     "typescript": "^5.0.0"
   },
   "lint-staged": {

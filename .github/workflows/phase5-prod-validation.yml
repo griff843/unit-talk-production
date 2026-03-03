@@ -211,7 +211,7 @@ jobs:
       - name: Install Playwright browsers
         run: |
           cd apps/smart-form
-          npx playwright install --with-deps chromium
+          pnpm exec playwright install --with-deps chromium
 
       - name: Mask PROD secrets
         run: |
@@ -260,7 +260,7 @@ jobs:
           cd apps/smart-form
 
           echo "🧪 Running PROD smoke pack..."
-          npx playwright test tests/smoke-pack.spec.ts \
+          pnpm exec playwright test tests/smoke-pack.spec.ts \
             --reporter=list \
             --workers=1 \
             --project=chromium \

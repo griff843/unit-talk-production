@@ -43,7 +43,7 @@ jobs:
           SGO_API_KEY: ${{ secrets.SGO_API }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://cqfnsozknjzvyiziwicl.supabase.co' }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npx tsx src/scripts/sgo/sync-teams.ts --sport=${{ inputs.sports }}
+        run: pnpm exec tsx src/scripts/sgo/sync-teams.ts --sport=${{ inputs.sports }}
 
       - name: Sync Players
         if: ${{ inputs.sync_type == 'players' || inputs.sync_type == 'both' }}
@@ -51,4 +51,4 @@ jobs:
           SGO_API_KEY: ${{ secrets.SGO_API }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://cqfnsozknjzvyiziwicl.supabase.co' }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npx tsx src/scripts/sgo/sync-players.ts --sport=${{ inputs.sports }}
+        run: pnpm exec tsx src/scripts/sgo/sync-players.ts --sport=${{ inputs.sports }}
