@@ -1,9 +1,11 @@
-// SPRINT-LLM-REALITY-SUMMARIZER-005: Deterministic report summarizer
-// Input: RealityReport JSON
-// Output: ReportSummary (structured summary, risks, suggested actions, priority items)
-// Future: swap deterministic logic for LLM provider call.
+// SPRINT-LLM-PROVIDER-INTEGRATION-008: Report summarizer with optional LLM provider
+// Flow: if LLM_PROVIDER set → try LLM → validate → return. On failure → deterministic fallback.
+
+import { generateSummaryFromLLM } from './llm-client.js';
 
 import type { RealityReport } from '../adapters/types.js';
+
+export type SummaryProvider = 'openai' | 'anthropic' | 'deterministic';
 
 export interface ReportSummary {
   summary: string;
@@ -12,13 +14,37 @@ export interface ReportSummary {
   priorityItems: string[];
 }
 
+export interface SummarizeResult {
+  summary: ReportSummary;
+  provider: SummaryProvider;
+}
+
 /**
  * Generate a structured summary from a RealityReport.
  *
- * Uses deterministic extraction — no external LLM provider yet.
- * Designed so the return type is stable when an LLM provider replaces this logic.
+ * If LLM_PROVIDER is set, attempts LLM summarization first.
+ * On any failure (timeout, schema mismatch, API error), falls back to deterministic.
  */
-export function summarizeReport(report: RealityReport): ReportSummary {
+export async function summarizeReport(report: RealityReport): Promise<SummarizeResult> {
+  const llmProvider = process.env.LLM_PROVIDER;
+
+  if (llmProvider === 'openai' || llmProvider === 'anthropic') {
+    try {
+      const summary = await generateSummaryFromLLM(report);
+      return { summary, provider: llmProvider };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`LLM summarizer failed, falling back to deterministic: ${msg}`);
+    }
+  }
+
+  return { summary: summarizeDeterministic(report), provider: 'deterministic' };
+}
+
+/**
+ * Deterministic summarizer — always available, no external dependencies.
+ */
+export function summarizeDeterministic(report: RealityReport): ReportSummary {
   const { meta, githubSummary, hulySummary, drift, auditStats } = report;
 
   const driftErrors = drift.errors;

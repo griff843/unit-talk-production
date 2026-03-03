@@ -12,7 +12,7 @@ import { loadConfig, loadConfigGitHubOnly, type DaemonConfig } from './config.js
 import { evaluateDrift } from './drift-rules.js';
 import { buildReport, type ReportInputs } from './formatters/json-report.js';
 import { renderMarkdown } from './formatters/markdown-report.js';
-import { summarizeReport, type ReportSummary } from './llm/llm-summarizer.js';
+import { summarizeReport, type ReportSummary, type SummarizeResult } from './llm/llm-summarizer.js';
 import { renderSummaryMarkdown } from './llm/render-summary.js';
 import { generateTasks, renderTasksMarkdown } from './llm/task-generator.js';
 import { publish } from './publish-orchestrator.js';
@@ -133,7 +133,9 @@ export async function runReport(options: RunOptions): Promise<void> {
     let summary: ReportSummary | null = null;
     try {
       console.log('Generating AI summary...');
-      summary = summarizeReport(report);
+      const result: SummarizeResult = await summarizeReport(report);
+      summary = result.summary;
+      console.log(`llm_summary_provider=${result.provider}`);
       const summaryMd = renderSummaryMarkdown(summary);
       markdownContent += '\n\n---\n\n' + summaryMd;
       writeArtifact(audit, outDir, 'summary.json', JSON.stringify(summary, null, 2));
