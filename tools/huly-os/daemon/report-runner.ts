@@ -1,4 +1,5 @@
-// SPRINT-HULY-WORKOS-V1-LOCAL-001: Report runner orchestrator
+// SPRINT-HULY-OS-WRITE-SURFACE-STABILIZATION-003: Report runner orchestrator
+// Uses layered publish strategy via publish-orchestrator.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -10,10 +11,11 @@ import { loadConfig, loadConfigGitHubOnly, type DaemonConfig } from './config.js
 import { evaluateDrift } from './drift-rules.js';
 import { buildReport, type ReportInputs } from './formatters/json-report.js';
 import { renderMarkdown } from './formatters/markdown-report.js';
+import { publish } from './publish-orchestrator.js';
 
 import type { HulyIssue, RealityReport } from './adapters/types.js';
 
-const SPRINT_ID = 'SPRINT-HULY-WORKOS-V1-LOCAL-001';
+const SPRINT_ID = 'SPRINT-HULY-OS-WRITE-SURFACE-STABILIZATION-003';
 
 export interface RunOptions {
   dryRun: boolean;
@@ -86,14 +88,9 @@ export async function runReport(options: RunOptions): Promise<void> {
       console.log(`Huly: ${hulyIssues.length} issues found`);
     } catch (err) {
       const msg = (err as Error).message;
-      if (!dryRun) {
-        // --run mode: Huly is required, fail hard
-        console.error(`FATAL: Huly unavailable in --run mode: ${msg}`);
-        flushArtifacts(audit, logLines, outDir);
-        process.exit(1);
-      }
-      // --dry-run mode: Huly optional, continue without it
-      console.warn(`Huly unreachable (continuing in dry-run mode): ${msg}`);
+      // Huly connection failed — log and continue.
+      // In --run mode the publish orchestrator will attempt fallback surfaces.
+      console.warn(`Huly unreachable: ${msg}`);
       audit.log({
         source: 'daemon',
         op: 'huly_unavailable',
@@ -133,12 +130,23 @@ export async function runReport(options: RunOptions): Promise<void> {
     writeArtifact(audit, outDir, 'report.json', JSON.stringify(report, null, 2));
     writeArtifact(audit, outDir, 'report.md', markdownContent);
 
-    // Write Huly doc (--run mode only)
+    // Publish to Huly via layered strategy (--run mode only)
     if (!dryRun && hulyAvailable) {
-      console.log('Writing Huly doc...');
-      const docTitle = `Reality Report ${dateStr}`;
-      const result = await huly.upsertDoc(config.HULY_TEAMSPACE, docTitle, markdownContent);
-      console.log(`Huly doc ${result.created ? 'created' : 'updated'}: ${result.id}`);
+      console.log('Publishing report via layered strategy...');
+      const artifactRelPath = `out/ops/reality/${dateStr}/report.md`;
+      const publishResult = await publish(
+        huly,
+        {
+          teamspaceName: config.HULY_TEAMSPACE,
+          projectIdentifier: config.HULY_PROJECT,
+          title: `Reality Report \u2014 ${dateStr}`,
+          markdownContent,
+          artifactPath: artifactRelPath,
+          fallbackIssueId: config.HULY_REPORT_FALLBACK_ISSUE_ID,
+        },
+        audit
+      );
+      console.log(`Published via [${publishResult.surface}]: ${publishResult.id}`);
     }
 
     // Flush audit + run log

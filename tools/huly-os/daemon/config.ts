@@ -26,6 +26,9 @@ const DaemonConfigSchema = z.object({
   HULY_PROJECT: z.string().min(1).default('UT'),
   HULY_TEAMSPACE: z.string().min(1).default('Operations'),
 
+  // Publish fallback: known issue ID for comment-based fallback
+  HULY_REPORT_FALLBACK_ISSUE_ID: z.string().optional(),
+
   // Output
   OUTPUT_DIR: z.string().min(1).default(DEFAULT_OUTPUT_DIR),
 });
@@ -69,6 +72,7 @@ export function loadConfigGitHubOnly(): DaemonConfig {
     HULY_WORKSPACE: z.string().default('ws1'),
     HULY_PROJECT: z.string().default('UT'),
     HULY_TEAMSPACE: z.string().default('Operations'),
+    HULY_REPORT_FALLBACK_ISSUE_ID: z.string().optional(),
     OUTPUT_DIR: z.string().default(DEFAULT_OUTPUT_DIR),
   });
   const result = GithubOnlySchema.safeParse(process.env);

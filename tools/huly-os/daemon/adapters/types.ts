@@ -87,6 +87,13 @@ export interface RealityReport {
   };
 }
 
+/** Result of a publish operation through the layered strategy */
+export interface PublishResult {
+  surface: 'doc' | 'issue' | 'comment';
+  id: string;
+  url?: string;
+}
+
 /** Huly platform adapter interface */
 export interface IHulyAdapter {
   connect(): Promise<void>;
@@ -97,6 +104,9 @@ export interface IHulyAdapter {
     docTitle: string,
     markdownContent: string
   ): Promise<{ id: string; created: boolean }>;
+  createIssue(projectIdentifier: string, title: string, body: string): Promise<{ id: string }>;
+  updateIssue(issueId: string, body: string): Promise<void>;
+  addComment(issueId: string, body: string): Promise<{ id: string }>;
 }
 
 /** GitHub adapter interface */

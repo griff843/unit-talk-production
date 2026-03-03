@@ -318,6 +318,129 @@ export class HulyAdapter implements IHulyAdapter {
     });
   }
 
+  /** Create a new tracker issue in a project */
+  async createIssue(
+    projectIdentifier: string,
+    title: string,
+    body: string
+  ): Promise<{ id: string }> {
+    if (!this.workspaceToken || !this.workspaceId) {
+      throw new Error('HulyAdapter not connected. Call connect() first.');
+    }
+
+    const issueId = await this.audit.traced(
+      'huly',
+      'create_issue',
+      `${projectIdentifier}/${title}`,
+      async () => {
+        const id = `issue-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        const tx = {
+          _class: 'core:class:TxCreateDoc',
+          objectId: id,
+          objectClass: 'tracker:class:Issue',
+          objectSpace: projectIdentifier,
+          attributes: { title, description: body },
+        };
+
+        const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.workspaceToken}`,
+          },
+          body: JSON.stringify(tx),
+        });
+
+        if (!res.ok) {
+          const snippet = await res.text().catch(() => '');
+          throw new Error(
+            `Huly createIssue HTTP ${res.status}: ${res.statusText}` +
+              (snippet ? ` — ${snippet.slice(0, 200)}` : '')
+          );
+        }
+
+        return id;
+      }
+    );
+
+    return { id: issueId };
+  }
+
+  /** Update an existing issue's description */
+  async updateIssue(issueId: string, body: string): Promise<void> {
+    if (!this.workspaceToken || !this.workspaceId) {
+      throw new Error('HulyAdapter not connected. Call connect() first.');
+    }
+
+    await this.audit.traced('huly', 'update_issue', issueId, async () => {
+      const tx = {
+        _class: 'core:class:TxUpdateDoc',
+        objectId: issueId,
+        objectClass: 'tracker:class:Issue',
+        objectSpace: 'tracker:project:default',
+        operations: { description: body },
+      };
+
+      const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.workspaceToken}`,
+        },
+        body: JSON.stringify(tx),
+      });
+
+      if (!res.ok) {
+        const snippet = await res.text().catch(() => '');
+        throw new Error(
+          `Huly updateIssue HTTP ${res.status}: ${res.statusText}` +
+            (snippet ? ` — ${snippet.slice(0, 200)}` : '')
+        );
+      }
+    });
+  }
+
+  /** Add a comment to an existing issue */
+  async addComment(issueId: string, body: string): Promise<{ id: string }> {
+    if (!this.workspaceToken || !this.workspaceId) {
+      throw new Error('HulyAdapter not connected. Call connect() first.');
+    }
+
+    const commentId = await this.audit.traced('huly', 'add_comment', issueId, async () => {
+      const id = `comment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      const tx = {
+        _class: 'core:class:TxCreateDoc',
+        objectId: id,
+        objectClass: 'chunter:class:ChatMessage',
+        objectSpace: issueId,
+        attributes: { message: body },
+      };
+
+      const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.workspaceToken}`,
+        },
+        body: JSON.stringify(tx),
+      });
+
+      if (!res.ok) {
+        const snippet = await res.text().catch(() => '');
+        throw new Error(
+          `Huly addComment HTTP ${res.status}: ${res.statusText}` +
+            (snippet ? ` — ${snippet.slice(0, 200)}` : '')
+        );
+      }
+
+      return id;
+    });
+
+    return { id: commentId };
+  }
+
   /** Resolve a Huly issue's status category name from raw data */
   private resolveStatusName(raw: Record<string, unknown>): string {
     // Huly stores status as a reference. We extract the category if available,
