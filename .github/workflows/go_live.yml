@@ -27,6 +27,7 @@ jobs:
   preflight:
     name: 0. Preflight Check
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Verify required secrets exist
         run: |
@@ -86,6 +87,7 @@ jobs:
   migrations:
     name: 1. Apply Migrations (MANDATORY)
     runs-on: ubuntu-latest
+    environment: production
     needs: [preflight]
     # SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Migrations always run - no skip option
     outputs:
