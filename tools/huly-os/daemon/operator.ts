@@ -9,7 +9,14 @@ import { GitHubAdapter } from './adapters/github-adapter.js';
 import { HulyAdapter } from './adapters/huly-adapter.js';
 import { HULY_STATUS } from './adapters/types.js';
 import { AuditLogger } from './audit-log.js';
+import {
+  BroadcastListener,
+  issueStatusChangeRule,
+  issueCreatedRule,
+} from './broadcast-listener.js';
 import { loadConfig, REPO_ROOT } from './config.js';
+import { renderTemplate } from './issue-templates.js';
+import { LiveQueryBridge } from './livequery-bridge.js';
 import { evaluateSprints, applySprintTransitions, branchToSprintId } from './sprint-manager.js';
 
 import type { GitHubPR, HulyIssue, WorkflowRun } from './adapters/types.js';
@@ -156,6 +163,18 @@ export async function runOperatorCycle(opts?: {
 
   console.log('[operator] Connected to Huly + GitHub');
 
+  // ── Wire broadcast listener + livequery bridge ─────────────────────
+  const listener = new BroadcastListener(audit, huly.getSocialId());
+  listener.addRule(issueStatusChangeRule);
+  listener.addRule(issueCreatedRule);
+
+  const bridge = new LiveQueryBridge();
+  for (const rule of bridge.buildRules()) {
+    listener.addRule(rule);
+  }
+
+  huly.setBroadcastListener(listener);
+
   // ── Phase 1: GitHub Scan ─────────────────────────────────────────────
   let openPRs: GitHubPR[] = [];
   let mergedPRs: GitHubPR[] = [];
@@ -221,6 +240,9 @@ export async function runOperatorCycle(opts?: {
 
   console.log(`[operator] Huly: ${hulyIssues.length} issues (${result.huly.sprintIssues} sprints)`);
 
+  // Seed livequery bridge with initial state
+  bridge.seed(hulyIssues.map(i => ({ id: i.id, title: i.title, status: i.status })));
+
   // ── Phase 3: Sprint Correlation + Huly Sync ──────────────────────────
   // For each sprint branch, ensure a [SPRINT] issue exists and is linked
   for (const branch of sprintBranches) {
@@ -230,12 +252,17 @@ export async function runOperatorCycle(opts?: {
 
     const sprintTitle = `[SPRINT] ${sprintId}`;
 
-    // Upsert sprint issue (idempotent by title)
+    // Upsert sprint issue (idempotent by title, using sprint template)
     try {
+      const sprintBody = renderTemplate('sprint', {
+        title: sprintTitle,
+        sprintId,
+        description: `Branch: ${branch}\nAuto-managed by Huly-OS operator.`,
+      });
       const { id, created } = await huly.upsertIssueByTitle(
         config.HULY_PROJECT,
         sprintTitle,
-        `Sprint: ${sprintId}\nBranch: ${branch}\nAuto-managed by Huly-OS operator.`
+        sprintBody
       );
 
       if (created) {
@@ -351,6 +378,19 @@ export async function runOperatorCycle(opts?: {
       if (created) {
         result.actions.incidentsCreated++;
         console.log(`[operator] Created incident: ${incidentTitle}`);
+
+        // Notify Chunter channel if available
+        try {
+          const channelId = await huly.resolveChannel('huly-os-alerts');
+          if (channelId) {
+            await huly.sendChannelMessage(
+              channelId,
+              `**Incident:** ${incidentTitle}\nBranch: ${run.headBranch}\nCI Run: ${run.url}`
+            );
+          }
+        } catch {
+          // best-effort chunter notification
+        }
 
         // Comment on sprint issue with CI failure link
         const sprintIssue = hulyIssues.find(
@@ -517,6 +557,15 @@ export async function runOperatorCycle(opts?: {
       }
     }
   }
+
+  // ── LiveQuery snapshot ──────────────────────────────────────────────
+  const snapshot = bridge.getSnapshot();
+  console.log(
+    `[operator] LiveQuery: ${snapshot.totalIssues} issues tracked — ` +
+      Object.entries(snapshot.byStatus)
+        .map(([s, n]) => `${s}: ${n}`)
+        .join(', ')
+  );
 
   result.durationMs = Date.now() - start;
   console.log(

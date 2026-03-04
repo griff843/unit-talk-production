@@ -54,6 +54,11 @@ export class HulyAdapter implements IHulyAdapter {
   // UT-154: Broadcast listener for UI-driven changes
   private broadcastListener: BroadcastListener | null = null;
 
+  // UT-142: WebSocket auto-reconnect state
+  private wsReconnectAttempts = 0;
+  private wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private wsDisconnecting = false;
+
   constructor(config: DaemonConfig, audit: AuditLogger) {
     this.baseUrl = config.HULY_URL.replace(/\/$/, '');
     this.email = config.HULY_EMAIL;
@@ -236,12 +241,40 @@ export class HulyAdapter implements IHulyAdapter {
           pending.reject(new Error('WebSocket closed'));
           this.wsPending.delete(id);
         }
+        // Auto-reconnect with exponential backoff (unless disconnecting intentionally)
+        if (!this.wsDisconnecting && this.workspaceToken) {
+          this.scheduleReconnect();
+        }
       };
     });
   }
 
+  /** Schedule a WebSocket reconnect with exponential backoff */
+  private scheduleReconnect(): void {
+    const delay = Math.min(1000 * Math.pow(2, this.wsReconnectAttempts), 30_000);
+    this.wsReconnectAttempts++;
+    console.warn(
+      `[HulyAdapter] WebSocket closed, reconnecting in ${delay}ms (attempt ${this.wsReconnectAttempts})`
+    );
+    this.wsReconnectTimer = setTimeout(() => {
+      this.connectWebSocket()
+        .then(() => {
+          this.wsReconnectAttempts = 0;
+          console.log('[HulyAdapter] WebSocket reconnected');
+        })
+        .catch(() => {
+          // Will trigger onclose → scheduleReconnect again
+        });
+    }, delay);
+  }
+
   /** Close the WebSocket connection cleanly */
   async disconnect(): Promise<void> {
+    this.wsDisconnecting = true;
+    if (this.wsReconnectTimer) {
+      clearTimeout(this.wsReconnectTimer);
+      this.wsReconnectTimer = null;
+    }
     if (this.ws) {
       this.ws.close();
       this.ws = null;
