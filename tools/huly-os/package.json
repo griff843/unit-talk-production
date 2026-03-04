@@ -17,6 +17,7 @@
     "huly:report:weekly": "tsx daemon/operator-cli.ts report-weekly",
     "huly:backfill": "tsx scripts/backfill-huly-issues.ts",
     "huly:publish-os": "tsx scripts/publish-os-docs.ts",
+    "sprint:close": "tsx scripts/sprint-close.ts",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts"
   },

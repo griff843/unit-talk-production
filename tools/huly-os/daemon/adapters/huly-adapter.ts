@@ -372,9 +372,13 @@ export class HulyAdapter implements IHulyAdapter {
       objectSpace: 'core:space:Space',
       attributes: {
         name,
+        title: name,
         description: `${name} — auto-created by HULY-OS operator`,
+        type: 'document:spaceType:DefaultTeamspaceType',
+        autoJoin: true,
         private: false,
         archived: false,
+        owners: [this.socialId],
         members: [this.socialId],
       },
     });
@@ -593,6 +597,15 @@ export class HulyAdapter implements IHulyAdapter {
           attributes: {
             title: docTitle,
             content: markdownContent,
+            // Required for Documents LiveQuery visibility (same pattern as issues)
+            parent: 'document:ids:NoParent',
+            rank: '0|hzzzzz:',
+            attachments: 0,
+            comments: 0,
+            docUpdateMessages: 0,
+            embeddings: 0,
+            labels: 0,
+            references: 0,
           },
         });
 

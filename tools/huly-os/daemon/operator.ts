@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 
 import { GitHubAdapter } from './adapters/github-adapter.js';
 import { HulyAdapter } from './adapters/huly-adapter.js';
+import { HULY_STATUS } from './adapters/types.js';
 import { AuditLogger } from './audit-log.js';
 import { loadConfig, REPO_ROOT } from './config.js';
 import { evaluateSprints, applySprintTransitions, branchToSprintId } from './sprint-manager.js';
@@ -451,6 +452,68 @@ export async function runOperatorCycle(opts?: {
             `Drift issue creation failed: ${sprintId} — ${(err as Error).message}`
           );
         }
+      }
+    }
+  }
+
+  // ── Phase 6: Bidirectional GitHub↔Huly sync ─────────────────────────
+  // [ENH][P0] Auto-transition issues based on PR state:
+  //   - Merged PR → linked issue to Done
+  //   - Open PR → linked issue to In Progress
+
+  // Build issue lookup by identifier (e.g. "UT-42")
+  const issueByIdent = new Map<string, HulyIssue>();
+  for (const issue of hulyIssues) {
+    if (issue.identifier) issueByIdent.set(issue.identifier, issue);
+  }
+
+  // Merged PR → linked issues to Done
+  for (const pr of mergedPRs) {
+    for (const ref of pr.linkedIssueRefs) {
+      const issue = issueByIdent.get(ref);
+      if (!issue || issue.status === 'Done' || issue.status === 'Cancelled') continue;
+      // Skip meta-issues (sprints, incidents, drift, enhancements)
+      if (/^\[(SPRINT|INCIDENT|DRIFT|ENH)\]/.test(issue.title)) continue;
+
+      const key = dedupKey('autoresolve', ref, pr.number);
+      if (alreadySeen(key)) continue;
+
+      try {
+        await huly.updateIssueStatus(issue.id, HULY_STATUS.Done, issue.project);
+        await huly.addComment(
+          issue.id,
+          `**Auto-resolved:** PR #${pr.number} merged → Done\n\nPR: ${pr.url}`
+        );
+        result.actions.statusTransitions++;
+        console.log(`[operator] Auto-resolved: ${ref} → Done (PR #${pr.number} merged)`);
+      } catch (err) {
+        result.errors.push(`Auto-resolve failed: ${ref} — ${(err as Error).message}`);
+      }
+    }
+  }
+
+  // Open PR → linked issues to In Progress
+  for (const pr of openPRs) {
+    for (const ref of pr.linkedIssueRefs) {
+      const issue = issueByIdent.get(ref);
+      if (!issue) continue;
+      if (issue.status === 'In Progress' || issue.status === 'Done' || issue.status === 'Cancelled')
+        continue;
+      if (/^\[(SPRINT|INCIDENT|DRIFT|ENH)\]/.test(issue.title)) continue;
+
+      const key = dedupKey('autoprogress', ref, pr.number);
+      if (alreadySeen(key)) continue;
+
+      try {
+        await huly.updateIssueStatus(issue.id, HULY_STATUS.InProgress, issue.project);
+        await huly.addComment(
+          issue.id,
+          `**Auto-transitioned:** PR #${pr.number} opened → In Progress\n\nPR: ${pr.url}`
+        );
+        result.actions.statusTransitions++;
+        console.log(`[operator] Auto-progress: ${ref} → In Progress (PR #${pr.number} open)`);
+      } catch (err) {
+        result.errors.push(`Auto-progress failed: ${ref} — ${(err as Error).message}`);
       }
     }
   }
