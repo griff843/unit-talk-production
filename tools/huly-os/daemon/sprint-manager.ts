@@ -4,7 +4,9 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { SPRINT_PHASE_STATUS, SPRINT_PHASE_LABELS } from './adapters/types.js';
 import { REPO_ROOT } from './config.js';
+
 
 import type { HulyAdapter } from './adapters/huly-adapter.js';
 import type { GitHubPR, HulyIssue, HulyStatusId, WorkflowRun } from './adapters/types.js';
@@ -56,20 +58,14 @@ function issueStatusToSprintState(status: string): SprintState {
   }
 }
 
-/** Map sprint state to Huly status ID */
+/** Map sprint state to Huly status ID using phase-aligned mapping */
 function sprintStateToStatusId(state: SprintState): HulyStatusId {
-  switch (state) {
-    case 'Planning':
-      return 'tracker:status:Todo';
-    case 'In Progress':
-      return 'tracker:status:InProgress';
-    case 'Blocked':
-      return 'tracker:status:InProgress'; // no native blocked status
-    case 'Ready for Closeout':
-      return 'tracker:status:InProgress'; // still in progress until closed
-    case 'Closed':
-      return 'tracker:status:Done';
-  }
+  return SPRINT_PHASE_STATUS[state] ?? SPRINT_PHASE_STATUS['Implementing'];
+}
+
+/** Get the human-readable phase label for a sprint state */
+export function sprintStateToPhaseLabel(state: SprintState): string {
+  return SPRINT_PHASE_LABELS[state] ?? state;
 }
 
 /** Extract sprint ID from issue title */
@@ -254,10 +250,12 @@ export async function applySprintTransitions(
       const statusId = sprintStateToStatusId(transition.to);
       await huly.updateIssueStatus(sprint.issue.id, statusId, sprint.issue.project);
 
-      // Add comment documenting the transition
+      // Add comment documenting the transition with phase labels
+      const fromLabel = sprintStateToPhaseLabel(transition.from);
+      const toLabel = sprintStateToPhaseLabel(transition.to);
       await huly.addComment(
         sprint.issue.id,
-        `**Sprint state:** ${transition.from} → ${transition.to}\n\nReason: ${transition.reason}`
+        `**Sprint phase:** ${fromLabel} → ${toLabel}\n\nReason: ${transition.reason}`
       );
 
       applied++;
