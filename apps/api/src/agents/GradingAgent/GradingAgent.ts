@@ -16,6 +16,8 @@ import {
 } from '../BaseAgent/types';
 
 import { SyndicateGradingEngine, GradingResult, ScoringConfig } from './scoring/gradingEngine';
+
+import type { Tier } from './scoring/TierScale';
 // import { Pick, GradeResult } from './types';
 // import { PerformanceAnalyzer } from './scoring/performanceAnalyzer';
 // import { RiskManager } from './scoring/riskManager';
@@ -390,33 +392,41 @@ export class GradingAgent extends BaseAgent {
     proResult: ProfessionalPropResult,
     features: GradingFeatureSet
   ): GradingResult {
-    // Create a standardized GradingResult from ProfessionalPropProcessor output
+    const insights = proResult.professional_insights || {};
+
     const result: GradingResult = {
       propId: proResult.pickId,
       finalScore: proResult.professionalScore,
       confidence: proResult.confidence,
-      tier: proResult.tier,
-      edgeScore: proResult.devigged_edge * 100, // Convert to percentage
+      tier: proResult.tier as Tier,
+      edgeScore: proResult.devigged_edge * 100,
 
-      // Professional insights from processor
-      featureContributions: proResult.professional_insights?.featureContributions || {},
-      modelContributions: proResult.professional_insights?.modelContributions || {},
+      featureContributions: (insights.featureContributions as Record<string, number>) || {},
+      modelContributions: (insights.modelContributions as Record<string, number>) || {},
 
-      // Risk management
       kellyFraction: proResult.kelly_fraction,
-      positionSize: Math.max(0.005, proResult.kelly_fraction * 0.25), // Kelly * multiplier
-      riskScore: proResult.professional_insights?.riskScore || 3,
-      correlationRisk: proResult.professional_insights?.correlationRisk || 0,
+      positionSize: Math.max(0.005, proResult.kelly_fraction * 0.25),
+      riskScore: (insights.riskScore as number) || 3,
+      correlationRisk: (insights.correlationRisk as number) || 0,
 
-      // Scenario analysis
-      scenarioAnalysis: proResult.professional_insights?.scenarioAnalysis || {
+      scenarioAnalysis: (insights.scenarioAnalysis as GradingResult['scenarioAnalysis']) || {
         bullCase: { score: proResult.professionalScore * 1.2, probability: 0.3 },
         baseCase: { score: proResult.professionalScore, probability: 0.4 },
         bearCase: { score: proResult.professionalScore * 0.8, probability: 0.3 },
       },
 
-      // Professional insights
-      professionalInsights: proResult.professional_insights || {},
+      professionalInsights: {
+        steamMoveDetected: false,
+        predictedClosingLine: features.market?.line || 0,
+        optimalBettingTime: 'professional',
+        bestAvailableLine: features.market?.line || 0,
+        bestBook: features.book || 'Unknown',
+        publicBettingPercentage: 50,
+        sharpBettingPercentage: 50,
+        contrarianOpportunity: false,
+        injuryTimingAdvantage: 0,
+        crossMarketArbitrage: 0,
+      },
       deviggingResult: {
         originalEdge: proResult.devigged_edge || 0,
         deviggedEdge: proResult.devigged_edge || 0,
@@ -425,7 +435,6 @@ export class GradingAgent extends BaseAgent {
         trueValue: (proResult.devigged_edge || 0) > 0.02,
       },
 
-      // Metadata
       dataQuality: 0.95,
       modelAgreement: 0.85,
       historicalAccuracy: 0.78,

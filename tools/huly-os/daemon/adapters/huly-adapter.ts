@@ -3,6 +3,7 @@
 // Uses: /_accounts/ (JSON-RPC) + WebSocket (TX writes) + REST (reads)
 
 import type { AuditLogger } from '../audit-log.js';
+import type { BroadcastListener } from '../broadcast-listener.js';
 import type { DaemonConfig } from '../config.js';
 import type { HulyIssue, HulyStatusId, IHulyAdapter } from './types.js';
 
@@ -50,12 +51,30 @@ export class HulyAdapter implements IHulyAdapter {
   private wsReqId = 0;
   private wsPending = new Map<number, WsPendingRequest>();
 
+  // UT-154: Broadcast listener for UI-driven changes
+  private broadcastListener: BroadcastListener | null = null;
+
+  // UT-142: WebSocket auto-reconnect state
+  private wsReconnectAttempts = 0;
+  private wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private wsDisconnecting = false;
+
   constructor(config: DaemonConfig, audit: AuditLogger) {
     this.baseUrl = config.HULY_URL.replace(/\/$/, '');
     this.email = config.HULY_EMAIL;
     this.password = config.HULY_PASSWORD;
     this.workspaceName = config.HULY_WORKSPACE;
     this.audit = audit;
+  }
+
+  /** Attach a broadcast listener for UI-driven change detection (UT-154) */
+  setBroadcastListener(listener: BroadcastListener): void {
+    this.broadcastListener = listener;
+  }
+
+  /** Get the socialId for this adapter session */
+  getSocialId(): string {
+    return this.socialId ?? '';
   }
 
   /** Step 1: Login via account service JSON-RPC */
@@ -201,7 +220,10 @@ export class HulyAdapter implements IHulyAdapter {
           return;
         }
 
-        // Broadcasts (no id) — ignore silently
+        // Broadcasts (no id) — route to listener if attached (UT-154)
+        if (this.broadcastListener) {
+          void this.broadcastListener.onMessage(data);
+        }
       };
 
       socket.onerror = () => {
@@ -219,12 +241,40 @@ export class HulyAdapter implements IHulyAdapter {
           pending.reject(new Error('WebSocket closed'));
           this.wsPending.delete(id);
         }
+        // Auto-reconnect with exponential backoff (unless disconnecting intentionally)
+        if (!this.wsDisconnecting && this.workspaceToken) {
+          this.scheduleReconnect();
+        }
       };
     });
   }
 
+  /** Schedule a WebSocket reconnect with exponential backoff */
+  private scheduleReconnect(): void {
+    const delay = Math.min(1000 * Math.pow(2, this.wsReconnectAttempts), 30_000);
+    this.wsReconnectAttempts++;
+    console.warn(
+      `[HulyAdapter] WebSocket closed, reconnecting in ${delay}ms (attempt ${this.wsReconnectAttempts})`
+    );
+    this.wsReconnectTimer = setTimeout(() => {
+      this.connectWebSocket()
+        .then(() => {
+          this.wsReconnectAttempts = 0;
+          console.log('[HulyAdapter] WebSocket reconnected');
+        })
+        .catch(() => {
+          // Will trigger onclose → scheduleReconnect again
+        });
+    }, delay);
+  }
+
   /** Close the WebSocket connection cleanly */
   async disconnect(): Promise<void> {
+    this.wsDisconnecting = true;
+    if (this.wsReconnectTimer) {
+      clearTimeout(this.wsReconnectTimer);
+      this.wsReconnectTimer = null;
+    }
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -372,9 +422,13 @@ export class HulyAdapter implements IHulyAdapter {
       objectSpace: 'core:space:Space',
       attributes: {
         name,
+        title: name,
         description: `${name} — auto-created by HULY-OS operator`,
+        type: 'document:spaceType:DefaultTeamspaceType',
+        autoJoin: true,
         private: false,
         archived: false,
+        owners: [this.socialId],
         members: [this.socialId],
       },
     });
@@ -593,6 +647,15 @@ export class HulyAdapter implements IHulyAdapter {
           attributes: {
             title: docTitle,
             content: markdownContent,
+            // Required for Documents LiveQuery visibility (same pattern as issues)
+            parent: 'document:ids:NoParent',
+            rank: '0|hzzzzz:',
+            attachments: 0,
+            comments: 0,
+            docUpdateMessages: 0,
+            embeddings: 0,
+            labels: 0,
+            references: 0,
           },
         });
 
@@ -887,6 +950,43 @@ export class HulyAdapter implements IHulyAdapter {
     const marker = `<!-- pr-link:${prNumber} -->`;
     const message = `${marker}\n**Linked PR #${prNumber}:** [${prTitle}](${prUrl})`;
     await this.addComment(issueId, message);
+  }
+
+  // ── UT-158: Chunter (chat) support ───────────────────────────────────
+
+  /** Resolve or find a Chunter channel by name */
+  async resolveChannel(name: string): Promise<string | null> {
+    const channels = await this.findAllRaw('chunter:class:Channel');
+    for (const ch of channels) {
+      if (String(ch.name ?? '') === name || String(ch.title ?? '') === name) {
+        return String(ch._id);
+      }
+    }
+    return null;
+  }
+
+  /** Send a message to a Chunter channel */
+  async sendChannelMessage(channelId: string, message: string): Promise<{ id: string }> {
+    if (!this.workspaceToken || !this.workspaceId) {
+      throw new Error('HulyAdapter not connected. Call connect() first.');
+    }
+
+    const msgId = await this.audit.traced('huly', 'send_channel_message', channelId, async () => {
+      const id = `chunter-msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      const tx = this.buildTx({
+        _class: 'core:class:TxCreateDoc',
+        objectId: id,
+        objectClass: 'chunter:class:ChatMessage',
+        objectSpace: channelId,
+        attributes: { message },
+      });
+
+      await this.sendTx(tx);
+      return id;
+    });
+
+    return { id: msgId };
   }
 
   /** Resolve a Huly issue's status category name from raw data */

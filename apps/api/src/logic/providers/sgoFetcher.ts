@@ -32,6 +32,7 @@ export async function fetchSGOEvents({
   startsAfter,
   startsBefore,
   includeAltLine = true,
+  includeOpposingOdds = true,
   oddsAvailable = true,
   limit = 50,
 }: {
@@ -40,6 +41,7 @@ export async function fetchSGOEvents({
   startsAfter: string;
   startsBefore: string;
   includeAltLine?: boolean;
+  includeOpposingOdds?: boolean;
   oddsAvailable?: boolean;
   limit?: number;
 }): Promise<any[]> {
@@ -50,6 +52,7 @@ export async function fetchSGOEvents({
     startsAfter,
     startsBefore,
     includeAltLine,
+    includeOpposingOdds,
     oddsAvailable,
     limit,
   };
@@ -143,10 +146,118 @@ export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
   return results;
 }
 
+// ---- Paired prop type ----
+export interface SGOPairedProp {
+  eventID: string;
+  leagueID: string;
+  sportID: string;
+  startsAtUTC: string;
+  startsAtET: string;
+  homeTeam: string;
+  homeTeamID: string;
+  awayTeam: string;
+  awayTeamID: string;
+  playerId: string | null;
+  playerName: string | null;
+  statType: string;
+  line: number | string | null;
+  overOdds: number | null;
+  underOdds: number | null;
+  overMarketKey: string | null;
+  underMarketKey: string | null;
+  sportsbook: string | null;
+  period: string | null;
+  devig_mode: 'PAIRED' | 'FALLBACK_SINGLE_SIDED';
+  meta: any;
+}
+
+// ---- Pair Over/Under props ----
+export function pairOverUnderProps(flattened: SGOFlattenedProp[]): SGOPairedProp[] {
+  // Group by eventID + playerName + statType + line
+  const groups = new Map<string, SGOFlattenedProp[]>();
+
+  for (const prop of flattened) {
+    const normalizedLine = prop.line != null ? String(prop.line) : '_';
+    const key = [prop.eventID, prop.playerName ?? '_', prop.statType, normalizedLine].join('||');
+
+    const group = groups.get(key);
+    if (group) {
+      group.push(prop);
+    } else {
+      groups.set(key, [prop]);
+    }
+  }
+
+  const paired: SGOPairedProp[] = [];
+
+  for (const members of groups.values()) {
+    let overProp: SGOFlattenedProp | null = null;
+    let underProp: SGOFlattenedProp | null = null;
+
+    for (const m of members) {
+      const dir = (m.direction ?? '').toLowerCase();
+      if (dir === 'over' && !overProp) {
+        overProp = m;
+      } else if (dir === 'under' && !underProp) {
+        underProp = m;
+      }
+    }
+
+    // At least one side must exist
+    const anchor = overProp ?? underProp;
+    if (!anchor) continue;
+
+    const toNum = (v: number | string | null): number | null => {
+      if (v == null) return null;
+      const n = Number(v);
+      return isFinite(n) ? n : null;
+    };
+
+    const overOdds = overProp ? toNum(overProp.odds) : null;
+    const underOdds = underProp ? toNum(underProp.odds) : null;
+    const hasBothSides = overOdds != null && underOdds != null;
+
+    paired.push({
+      eventID: anchor.eventID,
+      leagueID: anchor.leagueID,
+      sportID: anchor.sportID,
+      startsAtUTC: anchor.startsAtUTC,
+      startsAtET: anchor.startsAtET,
+      homeTeam: anchor.homeTeam,
+      homeTeamID: anchor.homeTeamID,
+      awayTeam: anchor.awayTeam,
+      awayTeamID: anchor.awayTeamID,
+      playerId: anchor.playerId,
+      playerName: anchor.playerName,
+      statType: anchor.statType,
+      line: anchor.line,
+      overOdds,
+      underOdds,
+      overMarketKey: overProp?.marketKey ?? null,
+      underMarketKey: underProp?.marketKey ?? null,
+      sportsbook: anchor.sportsbook,
+      period: anchor.period,
+      devig_mode: hasBothSides ? 'PAIRED' : 'FALLBACK_SINGLE_SIDED',
+      meta: anchor.meta,
+    });
+  }
+
+  return paired;
+}
+
 // ---- COMBINED: Fetch and Flatten in One ----
 export async function fetchAndFlattenSGOProps(
   opts: Parameters<typeof fetchSGOEvents>[0]
 ): Promise<SGOFlattenedProp[]> {
   const events = await fetchSGOEvents(opts);
   return flattenSGOEvents(events);
+}
+
+// ---- COMBINED: Fetch, Flatten, and Pair ----
+export async function fetchAndPairSGOProps(
+  opts: Parameters<typeof fetchSGOEvents>[0]
+): Promise<SGOPairedProp[]> {
+  const events = await fetchSGOEvents(opts);
+  const flattened = flattenSGOEvents(events);
+  return pairOverUnderProps(flattened);
 }

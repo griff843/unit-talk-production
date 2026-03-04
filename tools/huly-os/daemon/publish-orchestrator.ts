@@ -1,5 +1,6 @@
 // SPRINT-HULY-OS-WRITE-SURFACE-STABILIZATION-003: Layered publish strategy
-// Surfaces: doc → issue → comment. Fail only if ALL surfaces fail.
+// Surfaces: doc → issue → comment → chunter. Fail only if ALL surfaces fail.
+// UT-158: Added chunter channel as 4th publish surface.
 
 import type { HulyAdapter } from './adapters/huly-adapter.js';
 import type { PublishResult } from './adapters/types.js';
@@ -18,6 +19,8 @@ export interface PublishPayload {
   artifactPath?: string;
   /** Known fallback issue ID for comment surface */
   fallbackIssueId?: string;
+  /** Chunter channel ID for chat surface (UT-158) */
+  chunterChannelId?: string;
 }
 
 interface SurfaceFailure {
@@ -49,6 +52,10 @@ export async function publish(
   // Surface 3: comment on fallback issue
   const commentResult = await attemptComment(huly, payload, failures);
   if (commentResult) return commentResult;
+
+  // Surface 4: Chunter channel message (UT-158)
+  const chunterResult = await attemptChunter(huly, payload, failures);
+  if (chunterResult) return chunterResult;
 
   // All surfaces failed — log structured multi-surface failure
   audit.log({
@@ -122,6 +129,29 @@ async function attemptComment(
     const failure = buildFailure('comment', err);
     failures.push(failure);
     logSurfaceFailure('comment', err);
+    return null;
+  }
+}
+
+/** Surface 4: Attempt Chunter channel message (UT-158) */
+async function attemptChunter(
+  huly: HulyAdapter,
+  payload: PublishPayload,
+  failures: SurfaceFailure[]
+): Promise<PublishResult | null> {
+  if (!payload.chunterChannelId) {
+    failures.push({ surface: 'chunter', error: 'No chunterChannelId configured' });
+    return null;
+  }
+
+  try {
+    const body = `**${payload.title}**\n\n${payload.markdownContent}`;
+    const result = await huly.sendChannelMessage(payload.chunterChannelId, body);
+    return { surface: 'chunter', id: result.id };
+  } catch (err) {
+    const failure = buildFailure('chunter', err);
+    failures.push(failure);
+    logSurfaceFailure('chunter', err);
     return null;
   }
 }

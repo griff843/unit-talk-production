@@ -89,7 +89,7 @@ export interface RealityReport {
 
 /** Result of a publish operation through the layered strategy */
 export interface PublishResult {
-  surface: 'doc' | 'issue' | 'comment';
+  surface: 'doc' | 'issue' | 'comment' | 'chunter';
   id: string;
   url?: string;
 }
@@ -118,6 +118,30 @@ export const HULY_STATUS = {
 } as const;
 
 export type HulyStatusId = (typeof HULY_STATUS)[keyof typeof HULY_STATUS];
+
+/**
+ * Sprint-phase status mapping.
+ * Maps governance phases to the best-available Huly status.
+ * When custom statuses are added to the Huly workspace, update mappings here.
+ */
+export const SPRINT_PHASE_STATUS: Record<string, HulyStatusId> = {
+  Planning: HULY_STATUS.Todo,
+  Implementing: HULY_STATUS.InProgress,
+  Verifying: HULY_STATUS.InProgress,
+  Blocked: HULY_STATUS.InProgress, // no native blocked; stays InProgress
+  'Ready for Closeout': HULY_STATUS.InProgress,
+  Closing: HULY_STATUS.Done,
+};
+
+/** Sprint phase label used in issue comments for richer status context */
+export const SPRINT_PHASE_LABELS: Record<string, string> = {
+  Planning: 'Planning',
+  Implementing: 'Implementing',
+  Verifying: 'Verifying',
+  Blocked: 'Blocked',
+  'Ready for Closeout': 'Ready for Closeout',
+  Closing: 'Closing',
+};
 
 /** Huly platform adapter interface */
 export interface IHulyAdapter {
