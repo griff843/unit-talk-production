@@ -122,6 +122,7 @@ export type HulyStatusId = (typeof HULY_STATUS)[keyof typeof HULY_STATUS];
 /** Huly platform adapter interface */
 export interface IHulyAdapter {
   connect(): Promise<void>;
+  disconnect(): Promise<void>;
   ping(): Promise<boolean>;
   listIssues(projectIdentifier: string): Promise<HulyIssue[]>;
   upsertDoc(
