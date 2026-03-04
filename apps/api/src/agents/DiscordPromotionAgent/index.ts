@@ -21,6 +21,7 @@ import {
   resolveTargetSurface,
 } from '../../lib/executionTelemetry';
 import { atomicClaimForPost, atomicClaimParlayForPost, lifecycleUpdate } from '../../lib/lifecycle';
+import { BlockedError } from '../../lib/lifecycle/errors';
 import { logger } from '../../services/logging';
 import { buildPickPresentation } from '../../services/pickPresentationBuilder';
 import { supabase } from '../../services/supabaseClient';
@@ -346,6 +347,28 @@ function buildEliteEmbed(pick: any) {
  */
 // eslint-disable-next-line max-lines-per-function, complexity
 async function postEliteCardToDiscord(pick: any): Promise<string | null> {
+  // SPRINT-SCORING-PIPELINE-ACTIVATION-018: Promotion guardrail (P0)
+  // Fail-closed: block any pick that should not reach Discord.
+  // Must run BEFORE autopilot guard to prevent any bypass.
+  if (pick.tier === 'F') {
+    throw new BlockedError(
+      'BLOCKED_PROMOTION_INELIGIBLE',
+      `Pick ${pick.id} blocked: tier F cannot be posted to Discord`
+    );
+  }
+  if (!pick.promotion_band) {
+    throw new BlockedError(
+      'BLOCKED_PROMOTION_INELIGIBLE',
+      `Pick ${pick.id} blocked: promotion_band is missing or NULL`
+    );
+  }
+  if (pick.promotion_band !== 'HARD') {
+    throw new BlockedError(
+      'BLOCKED_PROMOTION_INELIGIBLE',
+      `Pick ${pick.id} blocked: promotion_band is '${pick.promotion_band}', must be 'HARD'`
+    );
+  }
+
   if (!getDiscordWebhookUrl()) {
     logger.error('No Discord webhook URL set!');
     return null;
