@@ -32,8 +32,6 @@ import { useAgentMonitoring } from '@/hooks/useAgentMonitoring';
 import { AgentStatus } from '@/lib/agentMonitoring';
 import { getStatusColor, timeAgo } from '@/lib/utils';
 
-
-
 // Agent descriptions mapping
 const agentDescriptions = {
   AlertAgent: 'Handles real-time Discord alerts and notifications',
