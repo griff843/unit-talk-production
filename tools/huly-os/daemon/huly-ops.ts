@@ -865,6 +865,112 @@ async function cmdBootstrap(): Promise<void> {
   console.log('═══════════════════════════════════════════════════\n');
 }
 
+// ── Command: workspace-status ────────────────────────────────────────────
+
+async function cmdWorkspaceStatus(): Promise<void> {
+  const cfg = loadHulyConfig();
+  printBanner(cfg);
+
+  console.log('Connecting to Huly...');
+  const session = await connect(cfg);
+  console.log(`Connected. WorkspaceID: ${session.workspaceId}\n`);
+
+  console.log('── WORKSPACE STATUS ───────────────────────────────\n');
+
+  // 1. Projects
+  const projects = await findAll(session, 'tracker:class:Project');
+  console.log(`Projects (${projects.length}):`);
+  let utSpace: string | null = null;
+  for (const p of projects) {
+    const ident = String(p.identifier ?? '');
+    const name = String(p.name ?? '');
+    const id = String(p._id ?? '');
+    const match = ident === cfg.project || name === cfg.project;
+    const marker = match ? ' ← CONFIGURED' : '';
+    console.log(`  ${ident} | ${name} | space: ${id}${marker}`);
+    if (match) utSpace = id;
+  }
+  if (!utSpace) {
+    console.log(`  ⚠ Configured project "${cfg.project}" NOT FOUND`);
+  }
+  console.log('');
+
+  // 2. Teamspaces
+  const teamspaces = await findAll(session, 'document:class:Teamspace');
+  console.log(`Teamspaces (${teamspaces.length}):`);
+  let opsTeamspace: string | null = null;
+  for (const t of teamspaces) {
+    const name = String(t.name ?? '');
+    const id = String(t._id ?? '');
+    const marker = name === cfg.teamspace ? ' ← CONFIGURED' : '';
+    console.log(`  ${name} | space: ${id}${marker}`);
+    if (name === cfg.teamspace) opsTeamspace = id;
+  }
+  if (!opsTeamspace) {
+    console.log(`  ⚠ Configured teamspace "${cfg.teamspace}" NOT FOUND`);
+  }
+  console.log('');
+
+  // 3. Issues in target project
+  const issues = await findAll(session, 'tracker:class:Issue');
+  const projectIssues = utSpace ? issues.filter((i: any) => String(i.space) === utSpace) : [];
+  console.log(`Issues in project "${cfg.project}" (${projectIssues.length}):`);
+  const byType = { epics: 0, sprints: 0, tasks: 0 };
+  for (const i of projectIssues) {
+    const title = String(i.title ?? '');
+    if (title.startsWith('[EPIC]')) byType.epics++;
+    else if (title.startsWith('[SPRINT]')) byType.sprints++;
+    else byType.tasks++;
+  }
+  console.log(`  Epics: ${byType.epics}  Sprints: ${byType.sprints}  Tasks: ${byType.tasks}`);
+  console.log('');
+
+  // 4. Documents in target teamspace
+  const docs = await findAll(session, 'document:class:Document');
+  const tsDocs = opsTeamspace ? docs.filter((d: any) => String(d.space) === opsTeamspace) : [];
+  console.log(`Documents in teamspace "${cfg.teamspace}" (${tsDocs.length}):`);
+  for (const d of tsDocs) {
+    console.log(`  ${d._id}: "${String(d.title ?? '?')}"`);
+  }
+  if (tsDocs.length === 0 && opsTeamspace) {
+    console.log('  (empty)');
+  }
+  console.log('');
+
+  // 5. Orphan check — issues NOT in target project space
+  const orphanIssues = utSpace ? issues.filter((i: any) => String(i.space) !== utSpace) : [];
+  if (orphanIssues.length > 0) {
+    console.log(`⚠ Orphan issues (not in ${cfg.project}): ${orphanIssues.length}`);
+    const bySpace = new Map<string, number>();
+    for (const i of orphanIssues) {
+      const sp = String(i.space ?? '?');
+      bySpace.set(sp, (bySpace.get(sp) ?? 0) + 1);
+    }
+    for (const [sp, count] of bySpace) {
+      console.log(`  ${sp}: ${count}`);
+    }
+    console.log('');
+  }
+
+  // Summary
+  console.log('── VERDICT ────────────────────────────────────────');
+  const problems: string[] = [];
+  if (!utSpace) problems.push(`Project "${cfg.project}" missing`);
+  if (!opsTeamspace) problems.push(`Teamspace "${cfg.teamspace}" missing`);
+  if (projectIssues.length === 0) problems.push('No issues in target project');
+  if (tsDocs.length === 0) problems.push('No documents in target teamspace');
+
+  if (problems.length === 0) {
+    console.log('  ✓ Workspace structure HEALTHY');
+  } else {
+    console.log('  ⚠ Workspace has problems:');
+    for (const p of problems) {
+      console.log(`    - ${p}`);
+    }
+  }
+  console.log('═══════════════════════════════════════════════════\n');
+}
+
 // ── CLI Program ─────────────────────────────────────────────────────────
 
 const program = new Command();
@@ -912,6 +1018,13 @@ program
   .description('Full OS setup: rebuild + publish docs + backfill PRs')
   .action(async () => {
     await cmdBootstrap();
+  });
+
+program
+  .command('workspace-status')
+  .description('Validate workspace structure: projects, teamspaces, issues, docs')
+  .action(async () => {
+    await cmdWorkspaceStatus();
   });
 
 // Strip the literal '--' separator that pnpm injects when using: pnpm run huly:ops -- <cmd>

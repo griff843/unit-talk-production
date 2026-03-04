@@ -15,6 +15,7 @@
     "huly:operator:once": "tsx daemon/operator-cli.ts --once",
     "huly:report:daily": "tsx daemon/operator-cli.ts report-daily",
     "huly:report:weekly": "tsx daemon/operator-cli.ts report-weekly",
+    "huly:workspace-status": "tsx daemon/huly-ops.ts workspace-status",
     "huly:backfill": "tsx scripts/backfill-huly-issues.ts",
     "huly:publish-os": "tsx scripts/publish-os-docs.ts",
     "type-check": "tsc --noEmit",

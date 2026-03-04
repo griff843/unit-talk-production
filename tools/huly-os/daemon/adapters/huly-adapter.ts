@@ -31,6 +31,10 @@ export class HulyAdapter implements IHulyAdapter {
   private workspaceId: string | null = null;
   private socialId: string | null = null;
 
+  // SPRINT-HULY-WORKSPACE-AUDIT-BOOTSTRAP-015B: Space resolution cache
+  private projectSpaceCache = new Map<string, string>();
+  private teamspaceCache = new Map<string, string>();
+
   constructor(config: DaemonConfig, audit: AuditLogger) {
     this.baseUrl = config.HULY_URL.replace(/\/$/, '');
     this.email = config.HULY_EMAIL;
@@ -128,6 +132,109 @@ export class HulyAdapter implements IHulyAdapter {
       modifiedOn: Date.now(),
       ...fields,
     };
+  }
+
+  // SPRINT-HULY-WORKSPACE-AUDIT-BOOTSTRAP-015B: Shared TX send helper
+  private async sendTx(tx: Record<string, unknown>): Promise<unknown> {
+    const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.workspaceToken}`,
+      },
+      body: JSON.stringify(tx),
+    });
+
+    if (!res.ok) {
+      const snippet = await res.text().catch(() => '');
+      throw new Error(`Huly TX HTTP ${res.status}: ${res.statusText} — ${snippet.slice(0, 200)}`);
+    }
+
+    return res.json();
+  }
+
+  /** Generic findAll query for any Huly class */
+  private async findAllRaw(cls: string, limit = 500): Promise<Record<string, unknown>[]> {
+    const opts = JSON.stringify({ limit });
+    const url =
+      `${this.baseUrl}/_transactor/api/v1/find-all/${this.workspaceId}` +
+      `?class=${encodeURIComponent(cls)}&options=${encodeURIComponent(opts)}`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${this.workspaceToken}` },
+    });
+
+    if (!res.ok) throw new Error(`findAll(${cls}) HTTP ${res.status}`);
+
+    const body = await res.json();
+    if (Array.isArray(body)) return body;
+    if (Array.isArray(body?.value)) return body.value;
+    if (Array.isArray(body?.docs)) return body.docs;
+    if (Array.isArray(body?.result)) return body.result;
+    return [];
+  }
+
+  /**
+   * Resolve a project identifier (e.g. "UT") to its actual space ID.
+   * Caches the result for the lifetime of this adapter instance.
+   */
+  async resolveProjectSpace(identifier: string): Promise<string> {
+    const cached = this.projectSpaceCache.get(identifier);
+    if (cached) return cached;
+
+    const projects = await this.findAllRaw('tracker:class:Project');
+    for (const p of projects) {
+      const pIdent = String(p.identifier ?? '');
+      const pName = String(p.name ?? '');
+      if (pIdent === identifier || pName === identifier) {
+        const spaceId = String(p._id);
+        this.projectSpaceCache.set(identifier, spaceId);
+        return spaceId;
+      }
+    }
+
+    throw new Error(
+      `Project "${identifier}" not found in Huly workspace. ` +
+        `Available: ${projects.map(p => `${p.identifier}(${p._id})`).join(', ')}`
+    );
+  }
+
+  /**
+   * Resolve a teamspace by name, or create it if it doesn't exist.
+   * Caches the result for the lifetime of this adapter instance.
+   */
+  async resolveOrCreateTeamspace(name: string): Promise<string> {
+    const cached = this.teamspaceCache.get(name);
+    if (cached) return cached;
+
+    const teamspaces = await this.findAllRaw('document:class:Teamspace');
+    for (const t of teamspaces) {
+      if (String(t.name ?? '') === name) {
+        const spaceId = String(t._id);
+        this.teamspaceCache.set(name, spaceId);
+        return spaceId;
+      }
+    }
+
+    // Teamspace doesn't exist — create it
+    const id = `teamspace-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const tx = this.buildTx({
+      _class: 'core:class:TxCreateDoc',
+      objectId: id,
+      objectClass: 'document:class:Teamspace',
+      objectSpace: 'core:space:Space',
+      attributes: {
+        name,
+        description: `${name} — auto-created by HULY-OS operator`,
+        private: false,
+        archived: false,
+        members: [this.socialId],
+      },
+    });
+
+    await this.sendTx(tx);
+    this.teamspaceCache.set(name, id);
+    return id;
   }
 
   async ping(): Promise<boolean> {
@@ -246,24 +353,15 @@ export class HulyAdapter implements IHulyAdapter {
           },
         });
 
-        const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.workspaceToken}`,
-          },
-          body: JSON.stringify(tx),
-        });
-
-        if (!res.ok) {
-          throw new Error(`Huly updateDoc HTTP ${res.status}: ${res.statusText}`);
-        }
+        await this.sendTx(tx);
       });
 
       return { id: existing.id, created: false };
     }
 
-    // Step 2: Create new document
+    // Step 2: Create new document — resolve teamspace to real space ID
+    const resolvedTeamspace = await this.resolveOrCreateTeamspace(teamspaceName);
+
     const newId = await this.audit.traced(
       'huly',
       'create_doc',
@@ -275,26 +373,14 @@ export class HulyAdapter implements IHulyAdapter {
           _class: 'core:class:TxCreateDoc',
           objectId: docId,
           objectClass: 'document:class:Document',
-          objectSpace: teamspaceName,
+          objectSpace: resolvedTeamspace,
           attributes: {
             title: docTitle,
             content: markdownContent,
           },
         });
 
-        const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.workspaceToken}`,
-          },
-          body: JSON.stringify(tx),
-        });
-
-        if (!res.ok) {
-          throw new Error(`Huly createDoc HTTP ${res.status}: ${res.statusText}`);
-        }
-
+        await this.sendTx(tx);
         return docId;
       }
     );
@@ -349,6 +435,9 @@ export class HulyAdapter implements IHulyAdapter {
       throw new Error('HulyAdapter not connected. Call connect() first.');
     }
 
+    // SPRINT-HULY-WORKSPACE-AUDIT-BOOTSTRAP-015B: Resolve to real space ID
+    const resolvedSpace = await this.resolveProjectSpace(projectIdentifier);
+
     const issueId = await this.audit.traced(
       'huly',
       'create_issue',
@@ -360,27 +449,11 @@ export class HulyAdapter implements IHulyAdapter {
           _class: 'core:class:TxCreateDoc',
           objectId: id,
           objectClass: 'tracker:class:Issue',
-          objectSpace: projectIdentifier,
+          objectSpace: resolvedSpace,
           attributes: { title, description: body },
         });
 
-        const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.workspaceToken}`,
-          },
-          body: JSON.stringify(tx),
-        });
-
-        if (!res.ok) {
-          const snippet = await res.text().catch(() => '');
-          throw new Error(
-            `Huly createIssue HTTP ${res.status}: ${res.statusText}` +
-              (snippet ? ` — ${snippet.slice(0, 200)}` : '')
-          );
-        }
-
+        await this.sendTx(tx);
         return id;
       }
     );
@@ -394,31 +467,21 @@ export class HulyAdapter implements IHulyAdapter {
       throw new Error('HulyAdapter not connected. Call connect() first.');
     }
 
+    // SPRINT-HULY-WORKSPACE-AUDIT-BOOTSTRAP-015B: Look up the issue's actual space
+    const issues = await this.findAllRaw('tracker:class:Issue');
+    const issue = issues.find(i => String(i._id) === issueId);
+    const space = issue ? String(issue.space) : 'tracker:project:DefaultProject';
+
     await this.audit.traced('huly', 'update_issue', issueId, async () => {
       const tx = this.buildTx({
         _class: 'core:class:TxUpdateDoc',
         objectId: issueId,
         objectClass: 'tracker:class:Issue',
-        objectSpace: 'tracker:project:default',
+        objectSpace: space,
         operations: { description: body },
       });
 
-      const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.workspaceToken}`,
-        },
-        body: JSON.stringify(tx),
-      });
-
-      if (!res.ok) {
-        const snippet = await res.text().catch(() => '');
-        throw new Error(
-          `Huly updateIssue HTTP ${res.status}: ${res.statusText}` +
-            (snippet ? ` — ${snippet.slice(0, 200)}` : '')
-        );
-      }
+      await this.sendTx(tx);
     });
   }
 
@@ -439,23 +502,7 @@ export class HulyAdapter implements IHulyAdapter {
         attributes: { message: body },
       });
 
-      const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.workspaceToken}`,
-        },
-        body: JSON.stringify(tx),
-      });
-
-      if (!res.ok) {
-        const snippet = await res.text().catch(() => '');
-        throw new Error(
-          `Huly addComment HTTP ${res.status}: ${res.statusText}` +
-            (snippet ? ` — ${snippet.slice(0, 200)}` : '')
-        );
-      }
-
+      await this.sendTx(tx);
       return id;
     });
 
@@ -485,6 +532,8 @@ export class HulyAdapter implements IHulyAdapter {
       throw new Error('HulyAdapter not connected. Call connect() first.');
     }
 
+    // SPRINT-HULY-WORKSPACE-AUDIT-BOOTSTRAP-015B: Resolve to real space ID
+    const resolvedSpace = await this.resolveProjectSpace(projectIdentifier);
     const existing = await this.findIssueByTitle(projectIdentifier, title);
 
     if (existing) {
@@ -498,25 +547,11 @@ export class HulyAdapter implements IHulyAdapter {
             _class: 'core:class:TxUpdateDoc',
             objectId: existing.id,
             objectClass: 'tracker:class:Issue',
-            objectSpace: projectIdentifier,
+            objectSpace: resolvedSpace,
             operations: { description: body, ...extra },
           });
 
-          const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${this.workspaceToken}`,
-            },
-            body: JSON.stringify(tx),
-          });
-
-          if (!res.ok) {
-            const snippet = await res.text().catch(() => '');
-            throw new Error(
-              `Huly upsertIssue(update) HTTP ${res.status}: ${snippet.slice(0, 200)}`
-            );
-          }
+          await this.sendTx(tx);
         }
       );
 
@@ -535,24 +570,11 @@ export class HulyAdapter implements IHulyAdapter {
           _class: 'core:class:TxCreateDoc',
           objectId: id,
           objectClass: 'tracker:class:Issue',
-          objectSpace: projectIdentifier,
+          objectSpace: resolvedSpace,
           attributes: { title, description: body, ...extra },
         });
 
-        const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.workspaceToken}`,
-          },
-          body: JSON.stringify(tx),
-        });
-
-        if (!res.ok) {
-          const snippet = await res.text().catch(() => '');
-          throw new Error(`Huly upsertIssue(create) HTTP ${res.status}: ${snippet.slice(0, 200)}`);
-        }
-
+        await this.sendTx(tx);
         return id;
       }
     );
@@ -575,19 +597,7 @@ export class HulyAdapter implements IHulyAdapter {
         operations: { status: statusId },
       });
 
-      const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.workspaceToken}`,
-        },
-        body: JSON.stringify(tx),
-      });
-
-      if (!res.ok) {
-        const snippet = await res.text().catch(() => '');
-        throw new Error(`Huly updateIssueStatus HTTP ${res.status}: ${snippet.slice(0, 200)}`);
-      }
+      await this.sendTx(tx);
     });
   }
 
