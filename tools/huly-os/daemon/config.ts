@@ -31,6 +31,29 @@ const DaemonConfigSchema = z.object({
 
   // Output
   OUTPUT_DIR: z.string().min(1).default(DEFAULT_OUTPUT_DIR),
+
+  // Auto PR (opt-in — disabled by default)
+  AUTO_PR_ENABLED: z
+    .string()
+    .transform(v => v === 'true' || v === '1')
+    .default('false'),
+  AUTO_PR_MAX_TASKS: z.coerce.number().int().min(0).max(10).default(2),
+  AUTO_PR_BRANCH_PREFIX: z.string().min(1).default('sprint/huly-auto-pr-'),
+  AUTO_PR_LABEL: z.string().min(1).default('autopr'),
+  AUTO_PR_BASE: z.string().min(1).default('main'),
+  AUTO_PR_ALLOWED_PATHS: z
+    .string()
+    .default('tools/huly-os/,docs/huly-os/')
+    .transform(v =>
+      v
+        .split(',')
+        .map(p => p.trim())
+        .filter(Boolean)
+    ),
+  AUTO_PR_REQUIRE_GREEN_LOCAL: z
+    .string()
+    .transform(v => v === 'true' || v === '1')
+    .default('true'),
 });
 
 export type DaemonConfig = z.infer<typeof DaemonConfigSchema>;
@@ -74,6 +97,27 @@ export function loadConfigGitHubOnly(): DaemonConfig {
     HULY_TEAMSPACE: z.string().default('Operations'),
     HULY_REPORT_FALLBACK_ISSUE_ID: z.string().optional(),
     OUTPUT_DIR: z.string().default(DEFAULT_OUTPUT_DIR),
+    AUTO_PR_ENABLED: z
+      .string()
+      .transform(v => v === 'true' || v === '1')
+      .default('false'),
+    AUTO_PR_MAX_TASKS: z.coerce.number().int().min(0).max(10).default(2),
+    AUTO_PR_BRANCH_PREFIX: z.string().min(1).default('sprint/huly-auto-pr-'),
+    AUTO_PR_LABEL: z.string().min(1).default('autopr'),
+    AUTO_PR_BASE: z.string().min(1).default('main'),
+    AUTO_PR_ALLOWED_PATHS: z
+      .string()
+      .default('tools/huly-os/,docs/huly-os/')
+      .transform(v =>
+        v
+          .split(',')
+          .map(p => p.trim())
+          .filter(Boolean)
+      ),
+    AUTO_PR_REQUIRE_GREEN_LOCAL: z
+      .string()
+      .transform(v => v === 'true' || v === '1')
+      .default('true'),
   });
   const result = GithubOnlySchema.safeParse(process.env);
   if (!result.success) {

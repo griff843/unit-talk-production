@@ -12,9 +12,10 @@ import { loadConfig, loadConfigGitHubOnly, type DaemonConfig } from './config.js
 import { evaluateDrift } from './drift-rules.js';
 import { buildReport, type ReportInputs } from './formatters/json-report.js';
 import { renderMarkdown } from './formatters/markdown-report.js';
+import { orchestrateAutoPRs, renderAutoPRMarkdown } from './llm/auto-pr-orchestrator.js';
 import { summarizeReport, type ReportSummary, type SummarizeResult } from './llm/llm-summarizer.js';
 import { renderSummaryMarkdown } from './llm/render-summary.js';
-import { generateTasks, renderTasksMarkdown } from './llm/task-generator.js';
+import { buildTaskCandidates, generateTasks, renderTasksMarkdown } from './llm/task-generator.js';
 import { publish } from './publish-orchestrator.js';
 
 import type { HulyIssue, RealityReport } from './adapters/types.js';
@@ -150,12 +151,14 @@ export async function runReport(options: RunOptions): Promise<void> {
     }
 
     // Task generation step — fail-safe (never blocks publishing)
+    let taskCandidates: ReturnType<typeof buildTaskCandidates> = [];
     if (!dryRun && summary) {
       try {
         console.log('Generating GitHub tasks from summary...');
         const issuesAdapter = await GitHubIssuesAdapter.create(config, audit);
         const repo = `${config.GITHUB_OWNER}/${config.GITHUB_REPO}`;
         const taskResult = await generateTasks(issuesAdapter, summary, SPRINT_ID, repo);
+        taskCandidates = taskResult.candidates;
         const tasksMd = renderTasksMarkdown(taskResult);
         if (tasksMd) {
           markdownContent += '\n\n---\n\n' + tasksMd;
@@ -168,6 +171,30 @@ export async function runReport(options: RunOptions): Promise<void> {
         );
       } catch (err) {
         console.warn(`Task generator failed (non-fatal): ${(err as Error).message}`);
+      }
+    }
+
+    // Auto PR generation step — fail-safe, opt-in (never blocks publishing)
+    if (!dryRun && taskCandidates.length > 0) {
+      try {
+        console.log('Auto PR generation...');
+        const autoPRResult = await orchestrateAutoPRs(taskCandidates, config, audit);
+        if (autoPRResult) {
+          const autoPRMd = renderAutoPRMarkdown(autoPRResult);
+          if (autoPRMd) {
+            markdownContent += '\n\n---\n\n' + autoPRMd;
+          }
+          writeArtifact(audit, outDir, 'auto-prs.json', JSON.stringify(autoPRResult, null, 2));
+          console.log(
+            `Auto PRs: ${autoPRResult.created.length} created, ` +
+              `${autoPRResult.skipped.length} skipped, ` +
+              `${autoPRResult.failed.length} failed`
+          );
+        } else {
+          console.log('Auto PR: disabled (AUTO_PR_ENABLED=false)');
+        }
+      } catch (err) {
+        console.warn(`Auto PR generation failed (non-fatal): ${(err as Error).message}`);
       }
     }
 
