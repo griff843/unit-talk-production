@@ -304,9 +304,31 @@ export async function runOperatorCycle(opts?: {
   }
 
   // ── Phase 5: Additional Drift/Incident Rules ─────────────────────────
+
+  // Build set of "active" sprint branches — those with at least one open PR.
+  // Branches that are fully merged have no open work and should not generate
+  // new incidents or drift issues (prevents stale noise).
+  const activeBranches = new Set<string>();
+  for (const pr of openPRs) {
+    if (pr.headBranch.startsWith('sprint/')) {
+      activeBranches.add(pr.headBranch);
+    }
+  }
+
+  // Also treat workflow runs younger than 7 days as potentially active
+  // (covers branches where the PR was just opened or CI re-triggered).
+  const STALE_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
   // CI Failure Incidents (per sprint branch, per run — idempotent)
   for (const run of workflowRuns) {
     if (run.conclusion !== 'failure') continue;
+
+    // Skip stale runs on branches with no open PR
+    if (!activeBranches.has(run.headBranch)) {
+      const runAge = now - new Date(run.createdAt).getTime();
+      if (runAge > STALE_THRESHOLD_MS) continue;
+    }
 
     const sprintId =
       extractSprintId([run.headBranch]) ?? branchToNormalizedSprintId(run.headBranch);

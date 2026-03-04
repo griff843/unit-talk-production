@@ -12,6 +12,7 @@
     "event:emit": "tsx daemon/event-bus/emit-cli.ts",
     "huly:ops": "tsx daemon/huly-ops.ts",
     "huly:operator": "tsx daemon/operator-cli.ts",
+    "huly:operator:once": "tsx daemon/operator-cli.ts --once",
     "huly:report:daily": "tsx daemon/operator-cli.ts report-daily",
     "huly:report:weekly": "tsx daemon/operator-cli.ts report-weekly",
     "huly:backfill": "tsx scripts/backfill-huly-issues.ts",

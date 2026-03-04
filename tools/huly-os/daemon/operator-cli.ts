@@ -1,6 +1,8 @@
-// SPRINT-HULY-OPERATOR-014: CLI entry point for operator + reports
+// SPRINT-HULY-OPERATOR-CLI-FIX-015A: CLI entry point for operator + reports
 // Usage:
-//   pnpm -C tools/huly-os run huly:operator -- [options]
+//   pnpm -C tools/huly-os run huly:operator          (continuous loop)
+//   pnpm -C tools/huly-os run huly:operator:once      (single cycle)
+//   pnpm -C tools/huly-os run huly:operator -- --once  (single cycle, flag style)
 //   pnpm -C tools/huly-os run huly:report:daily
 //   pnpm -C tools/huly-os run huly:report:weekly
 
@@ -14,48 +16,70 @@ import { publishDailyReport, publishWeeklyReport } from './report-generator.js';
 
 loadDotenv({ path: resolve(import.meta.dirname ?? '.', '..', '.env') });
 
+// ── Argv Sanitization ───────────────────────────────────────────────────
+// pnpm injects a literal "--" separator between script args and user args.
+// tsx may also shift argv positions. Strip ALL bare "--" arguments that are
+// not part of a known flag value to prevent commander from choking.
+const argv = process.argv.filter(arg => arg !== '--');
+
+// ── Shared operator action ──────────────────────────────────────────────
+
+async function runOperator(opts: { once?: boolean; interval: string }): Promise<void> {
+  const intervalSec = parseInt(opts.interval, 10);
+  if (isNaN(intervalSec) || intervalSec < 5) {
+    console.error('Interval must be >= 5 seconds');
+    process.exit(1);
+  }
+
+  const state = await startOperatorLoop({
+    once: opts.once,
+    intervalSec,
+  });
+
+  if (opts.once) {
+    if (state.lastResult) {
+      console.log('\n── Operator Cycle Result ──');
+      console.log(JSON.stringify(state.lastResult, null, 2));
+    }
+    const hasErrors = (state.lastResult?.errors.length ?? 0) > 0;
+    process.exit(hasErrors ? 1 : 0);
+  }
+
+  // Long-running mode — handle shutdown
+  const shutdown = () => {
+    console.log('\n[operator] Received shutdown signal');
+    stopOperatorLoop(state);
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+
+  // Keep-alive
+  await new Promise(() => {});
+}
+
+// ── CLI Definition ──────────────────────────────────────────────────────
+
 const program = new Command();
 
-program.name('huly-operator').description('HULY-OS Autonomous Operator').version('1.0.0');
-
 program
-  .command('run')
-  .description('Start the operator polling loop')
+  .name('huly-operator')
+  .description('HULY-OS Autonomous Operator')
+  .version('1.0.0')
   .option('--once', 'Run exactly one cycle then exit')
   .option('--interval <seconds>', 'Polling interval in seconds', '60')
   .action(async (opts: { once?: boolean; interval: string }) => {
-    const intervalSec = parseInt(opts.interval, 10);
-    if (isNaN(intervalSec) || intervalSec < 5) {
-      console.error('Interval must be >= 5 seconds');
-      process.exit(1);
-    }
+    await runOperator(opts);
+  });
 
-    const state = await startOperatorLoop({
-      once: opts.once,
-      intervalSec,
-    });
-
-    if (opts.once) {
-      // Single cycle — report and exit
-      if (state.lastResult) {
-        console.log('\n── Operator Cycle Result ──');
-        console.log(JSON.stringify(state.lastResult, null, 2));
-      }
-      const hasErrors = (state.lastResult?.errors.length ?? 0) > 0;
-      process.exit(hasErrors ? 1 : 0);
-    }
-
-    // Long-running mode — handle shutdown
-    const shutdown = () => {
-      console.log('\n[operator] Received shutdown signal');
-      stopOperatorLoop(state);
-      process.exit(0);
-    };
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
-
-    // Keep-alive
-    await new Promise(() => {});
+// Keep 'run' as an explicit subcommand alias for backwards compatibility
+program
+  .command('run')
+  .description('Start the operator polling loop (alias for default)')
+  .option('--once', 'Run exactly one cycle then exit')
+  .option('--interval <seconds>', 'Polling interval in seconds', '60')
+  .action(async (opts: { once?: boolean; interval: string }) => {
+    await runOperator(opts);
   });
 
 program
@@ -85,14 +109,6 @@ program
       process.exit(1);
     }
   });
-
-// Default command: if invoked without a subcommand, show help
-program.command('help-operator', { isDefault: true, hidden: true }).action(() => {
-  program.outputHelp();
-});
-
-// Strip pnpm '--' separator
-const argv = process.argv.filter((arg, i) => !(arg === '--' && i === 2));
 
 program.parseAsync(argv).catch(err => {
   console.error('FATAL:', err instanceof Error ? err.message : err);

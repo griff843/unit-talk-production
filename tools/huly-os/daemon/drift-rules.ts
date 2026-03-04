@@ -39,6 +39,16 @@ export function evaluateDrift(
   const prBranches = new Set(allPRs.map(pr => pr.headBranch));
   const prLinkedRefs = new Set(allPRs.flatMap(pr => pr.linkedIssueRefs));
 
+  // Build set of active sprint branches (those with open PRs).
+  // Stale branches (merged, no open PR) should not generate CI failure drift.
+  const activeBranches = new Set<string>();
+  for (const pr of openPRs) {
+    if (pr.headBranch.startsWith('sprint/')) {
+      activeBranches.add(pr.headBranch);
+    }
+  }
+  const STALE_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
+
   // Rule 1: PR_WITHOUT_ISSUE — open PR with no Huly issue ref
   for (const pr of openPRs) {
     if (pr.linkedIssueRefs.length === 0) {
@@ -124,25 +134,34 @@ export function evaluateDrift(
   }
 
   // Rule 5: CI_FAILURE_ON_SPRINT_BRANCH — sprint branch has failing CI
+  // Only report failures on active branches (open PR) or recent runs (< 7 days).
+  // Stale merged branches should not generate noise.
   if (workflowRuns) {
+    const now = Date.now();
     const sprintBranchRuns = workflowRuns.filter(r => r.headBranch.startsWith('sprint/'));
     for (const run of sprintBranchRuns) {
-      if (run.conclusion === 'failure') {
-        violations.push({
-          ruleId: 'CI_FAILURE_ON_SPRINT_BRANCH',
-          severity: 'error',
-          entityType: 'pr',
-          entityId: `run:${run.id}`,
-          entityTitle: run.name,
-          message: `CI workflow "${run.name}" failed on sprint branch ${run.headBranch}`,
-          evidence: {
-            branch: run.headBranch,
-            sha: run.headSha,
-            conclusion: run.conclusion,
-            url: run.url,
-          },
-        });
+      if (run.conclusion !== 'failure') continue;
+
+      // Skip stale runs on branches with no open PR
+      if (!activeBranches.has(run.headBranch)) {
+        const runAge = now - new Date(run.createdAt).getTime();
+        if (runAge > STALE_THRESHOLD_MS) continue;
       }
+
+      violations.push({
+        ruleId: 'CI_FAILURE_ON_SPRINT_BRANCH',
+        severity: 'error',
+        entityType: 'pr',
+        entityId: `run:${run.id}`,
+        entityTitle: run.name,
+        message: `CI workflow "${run.name}" failed on sprint branch ${run.headBranch}`,
+        evidence: {
+          branch: run.headBranch,
+          sha: run.headSha,
+          conclusion: run.conclusion,
+          url: run.url,
+        },
+      });
     }
   }
 
