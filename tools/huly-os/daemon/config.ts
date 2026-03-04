@@ -54,6 +54,15 @@ const DaemonConfigSchema = z.object({
     .string()
     .transform(v => v === 'true' || v === '1')
     .default('true'),
+
+  // Operator scheduler (opt-in — disabled by default)
+  OPERATOR_ENABLED: z
+    .string()
+    .transform(v => v === 'true' || v === '1')
+    .default('false'),
+  OPERATOR_INTERVAL_MINUTES: z.coerce.number().int().min(1).max(1440).default(60),
+  OPERATOR_DEEP_RUN_HOUR: z.coerce.number().int().min(0).max(23).default(3),
+  OPERATOR_MAX_CONCURRENT: z.coerce.number().int().min(1).max(4).default(1),
 });
 
 export type DaemonConfig = z.infer<typeof DaemonConfigSchema>;
@@ -118,6 +127,13 @@ export function loadConfigGitHubOnly(): DaemonConfig {
       .string()
       .transform(v => v === 'true' || v === '1')
       .default('true'),
+    OPERATOR_ENABLED: z
+      .string()
+      .transform(v => v === 'true' || v === '1')
+      .default('false'),
+    OPERATOR_INTERVAL_MINUTES: z.coerce.number().int().min(1).max(1440).default(60),
+    OPERATOR_DEEP_RUN_HOUR: z.coerce.number().int().min(0).max(23).default(3),
+    OPERATOR_MAX_CONCURRENT: z.coerce.number().int().min(1).max(4).default(1),
   });
   const result = GithubOnlySchema.safeParse(process.env);
   if (!result.success) {

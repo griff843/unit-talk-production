@@ -24,19 +24,27 @@ const SPRINT_ID = 'SPRINT-HULY-OS-WRITE-SURFACE-STABILIZATION-003';
 
 export interface RunOptions {
   dryRun: boolean;
+  /** When true, throw instead of calling process.exit(). Used by the operator scheduler. */
+  suppressExit?: boolean;
 }
 
 export async function runReport(options: RunOptions): Promise<void> {
-  const { dryRun } = options;
+  const { dryRun, suppressExit } = options;
   const audit = new AuditLogger();
+
+  function exitOrThrow(code: number, message: string): never {
+    if (suppressExit) throw new Error(message);
+    process.exit(code);
+  }
 
   // Load config — dry-run only requires GitHub
   let config: DaemonConfig;
   try {
     config = dryRun ? loadConfigGitHubOnly() : loadConfig();
   } catch (err) {
-    console.error(`FATAL: ${(err as Error).message}`);
-    process.exit(1);
+    const msg = (err as Error).message;
+    console.error(`FATAL: ${msg}`);
+    exitOrThrow(1, msg);
   }
 
   const dateStr = new Date().toISOString().slice(0, 10);
@@ -232,13 +240,15 @@ export async function runReport(options: RunOptions): Promise<void> {
     // dry-run always exits 0 (violations are informational)
     // run mode exits 1 if there are error-severity drift violations
     if (!dryRun && errors > 0) {
-      console.warn(`Exiting with code 1: ${errors} error-severity drift violations`);
-      process.exit(1);
+      const msg = `${errors} error-severity drift violations`;
+      console.warn(`Exiting with code 1: ${msg}`);
+      exitOrThrow(1, msg);
     }
   } catch (err) {
-    console.error(`FATAL: Unhandled error: ${(err as Error).message}`);
+    const msg = (err as Error).message;
+    console.error(`FATAL: Unhandled error: ${msg}`);
     flushArtifacts(audit, logLines, outDir);
-    process.exit(1);
+    exitOrThrow(1, msg);
   } finally {
     // Restore console
     console.log = origLog;

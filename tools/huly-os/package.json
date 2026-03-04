@@ -7,6 +7,7 @@
     "report:dry-run": "tsx daemon/index.ts --dry-run",
     "report:run": "tsx daemon/index.ts --run",
     "huly:smoke": "tsx daemon/index.ts --smoke",
+    "operator": "tsx daemon/index.ts --operator",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts"
   },
