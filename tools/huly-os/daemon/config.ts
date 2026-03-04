@@ -6,7 +6,7 @@ import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
 
 // Repo root: tools/huly-os/daemon/config.ts -> ../../.. = repo root
-const REPO_ROOT = path.resolve(import.meta.dirname ?? __dirname, '..', '..', '..');
+export const REPO_ROOT = path.resolve(import.meta.dirname ?? __dirname, '..', '..', '..');
 const DEFAULT_OUTPUT_DIR = path.join(REPO_ROOT, 'out', 'ops', 'reality');
 
 // Load .env from tools/huly-os/ directory
@@ -63,6 +63,27 @@ const DaemonConfigSchema = z.object({
   OPERATOR_INTERVAL_MINUTES: z.coerce.number().int().min(1).max(1440).default(60),
   OPERATOR_DEEP_RUN_HOUR: z.coerce.number().int().min(0).max(23).default(3),
   OPERATOR_MAX_CONCURRENT: z.coerce.number().int().min(1).max(4).default(1),
+
+  // Event bus (opt-in — disabled by default)
+  EVENTBUS_ENABLED: z
+    .string()
+    .transform(v => v === 'true' || v === '1')
+    .default('false'),
+  EVENTBUS_REDIS_URL: z.string().optional(),
+  EVENTBUS_STREAM: z.string().min(1).default('ut:events'),
+  EVENTBUS_GROUP: z.string().min(1).default('huly-os'),
+  EVENTBUS_CONSUMER: z.string().optional(),
+  EVENTBUS_BLOCK_MS: z.coerce.number().int().min(0).max(60_000).default(5000),
+  EVENTBUS_DEDUPE_TTL_SECONDS: z.coerce.number().int().min(0).max(86_400).default(300),
+  EVENTBUS_ALLOW_LIVE: z
+    .string()
+    .transform(v => v === 'true' || v === '1')
+    .default('false'),
+  EVENTBUS_MAX_BATCH: z.coerce.number().int().min(1).max(100).default(10),
+  EVENTBUS_CI_ALLOW: z
+    .string()
+    .transform(v => v === 'true' || v === '1')
+    .default('false'),
 });
 
 export type DaemonConfig = z.infer<typeof DaemonConfigSchema>;
@@ -72,6 +93,13 @@ function guardOutputDir(config: DaemonConfig): void {
   const resolved = path.resolve(config.OUTPUT_DIR);
   if (resolved.includes(path.join('tools', 'huly-os', 'out'))) {
     throw new Error(`OUTPUT_DIR must be repo-root out/*, got: ${resolved}`);
+  }
+}
+
+/** Fail-closed guard: EVENTBUS_ENABLED requires EVENTBUS_REDIS_URL */
+function guardEventBus(config: DaemonConfig): void {
+  if (config.EVENTBUS_ENABLED && !config.EVENTBUS_REDIS_URL) {
+    throw new Error('EVENTBUS_ENABLED=true requires EVENTBUS_REDIS_URL to be set');
   }
 }
 
@@ -86,6 +114,7 @@ export function loadConfig(): DaemonConfig {
     throw new Error(`Config validation failed (fail-closed):\n${issues}`);
   }
   guardOutputDir(result.data);
+  guardEventBus(result.data);
   return result.data;
 }
 
@@ -134,6 +163,25 @@ export function loadConfigGitHubOnly(): DaemonConfig {
     OPERATOR_INTERVAL_MINUTES: z.coerce.number().int().min(1).max(1440).default(60),
     OPERATOR_DEEP_RUN_HOUR: z.coerce.number().int().min(0).max(23).default(3),
     OPERATOR_MAX_CONCURRENT: z.coerce.number().int().min(1).max(4).default(1),
+    EVENTBUS_ENABLED: z
+      .string()
+      .transform(v => v === 'true' || v === '1')
+      .default('false'),
+    EVENTBUS_REDIS_URL: z.string().optional(),
+    EVENTBUS_STREAM: z.string().min(1).default('ut:events'),
+    EVENTBUS_GROUP: z.string().min(1).default('huly-os'),
+    EVENTBUS_CONSUMER: z.string().optional(),
+    EVENTBUS_BLOCK_MS: z.coerce.number().int().min(0).max(60_000).default(5000),
+    EVENTBUS_DEDUPE_TTL_SECONDS: z.coerce.number().int().min(0).max(86_400).default(300),
+    EVENTBUS_ALLOW_LIVE: z
+      .string()
+      .transform(v => v === 'true' || v === '1')
+      .default('false'),
+    EVENTBUS_MAX_BATCH: z.coerce.number().int().min(1).max(100).default(10),
+    EVENTBUS_CI_ALLOW: z
+      .string()
+      .transform(v => v === 'true' || v === '1')
+      .default('false'),
   });
   const result = GithubOnlySchema.safeParse(process.env);
   if (!result.success) {
@@ -141,5 +189,6 @@ export function loadConfigGitHubOnly(): DaemonConfig {
     throw new Error(`Config validation failed (fail-closed):\n${issues}`);
   }
   guardOutputDir(result.data as DaemonConfig);
+  guardEventBus(result.data as DaemonConfig);
   return result.data as DaemonConfig;
 }

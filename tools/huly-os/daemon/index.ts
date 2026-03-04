@@ -1,6 +1,7 @@
-// SPRINT-OPERATOR-SCHEDULER-010: CLI entry point for Truth Daemon
+// SPRINT-EVENT-BUS-011: CLI entry point for Truth Daemon
 
 import { loadConfig, loadConfigGitHubOnly } from './config.js';
+import { startConsumer } from './event-bus/consumer.js';
 import { runSmoke } from './huly-smoke.js';
 import { startOperator, stopOperator } from './operator-scheduler.js';
 import { runReport } from './report-runner.js';
@@ -16,6 +17,7 @@ Usage:
   tsx daemon/index.ts --run        Generate report + write Huly doc (both required)
   tsx daemon/index.ts --smoke      Huly connectivity proof (create→read→verify doc)
   tsx daemon/index.ts --operator   Start automated scheduler (requires OPERATOR_ENABLED=true)
+  tsx daemon/index.ts --bus        Start event bus consumer (requires EVENTBUS_ENABLED=true)
 
 Environment variables: See .env.example
 
@@ -34,6 +36,8 @@ async function main(): Promise<void> {
     await runSmoke();
   } else if (args.includes('--operator')) {
     await runOperator();
+  } else if (args.includes('--bus')) {
+    await runBus();
   } else {
     printUsage();
     process.exit(1);
@@ -76,6 +80,23 @@ async function runOperator(): Promise<void> {
   await new Promise(() => {
     // Never resolves — process stays alive until signal
   });
+}
+
+async function runBus(): Promise<void> {
+  let config;
+  try {
+    config = loadConfig();
+  } catch {
+    config = loadConfigGitHubOnly();
+  }
+
+  if (!config.EVENTBUS_ENABLED) {
+    console.error('EVENTBUS_ENABLED is not set to true. Set EVENTBUS_ENABLED=true in .env');
+    process.exit(1);
+  }
+
+  // startConsumer blocks until SIGINT/SIGTERM
+  await startConsumer(config);
 }
 
 main().catch(err => {
