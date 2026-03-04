@@ -7,12 +7,19 @@
     "report:dry-run": "tsx daemon/index.ts --dry-run",
     "report:run": "tsx daemon/index.ts --run",
     "huly:smoke": "tsx daemon/index.ts --smoke",
+    "operator": "tsx daemon/index.ts --operator",
+    "bus": "tsx daemon/index.ts --bus",
+    "event:emit": "tsx daemon/event-bus/emit-cli.ts",
+    "huly:ops": "tsx daemon/huly-ops.ts",
+    "huly:backfill": "tsx scripts/backfill-huly-issues.ts",
+    "huly:publish-os": "tsx scripts/publish-os-docs.ts",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
     "@octokit/rest": "^21.1.1",
     "dotenv": "^17.2.1",
+    "ioredis": "^5.10.0",
     "zod": "^3.24.4"
   },
   "devDependencies": {

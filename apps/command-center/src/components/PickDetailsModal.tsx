@@ -34,7 +34,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pick } from '@/hooks/usePicks';
 import { buildTimeline, deriveLifecycleStage } from '@/lib/lifecycleDisplay';
-import { getTierColor, formatCurrency, formatPercentage , cn } from '@/lib/utils';
+import { getTierColor, formatCurrency, formatPercentage, cn } from '@/lib/utils';
 
 interface PickDetailsModalProps {
   pick: Pick | null;

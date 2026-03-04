@@ -1,35 +1,50 @@
-// SPRINT-HULY-WORKOS-V1-LOCAL-001: Report runner orchestrator
+// SPRINT-HULY-OS-WRITE-SURFACE-STABILIZATION-003: Report runner orchestrator
+// Uses layered publish strategy via publish-orchestrator.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { GitHubAdapter } from './adapters/github-adapter.js';
+import { GitHubIssuesAdapter } from './adapters/github-issues.js';
 import { HulyAdapter } from './adapters/huly-adapter.js';
 import { AuditLogger } from './audit-log.js';
 import { loadConfig, loadConfigGitHubOnly, type DaemonConfig } from './config.js';
 import { evaluateDrift } from './drift-rules.js';
 import { buildReport, type ReportInputs } from './formatters/json-report.js';
 import { renderMarkdown } from './formatters/markdown-report.js';
+import { orchestrateAutoPRs, renderAutoPRMarkdown } from './llm/auto-pr-orchestrator.js';
+import { summarizeReport, type ReportSummary, type SummarizeResult } from './llm/llm-summarizer.js';
+import { renderSummaryMarkdown } from './llm/render-summary.js';
+import { buildTaskCandidates, generateTasks, renderTasksMarkdown } from './llm/task-generator.js';
+import { publish } from './publish-orchestrator.js';
 
 import type { HulyIssue, RealityReport } from './adapters/types.js';
 
-const SPRINT_ID = 'SPRINT-HULY-WORKOS-V1-LOCAL-001';
+const SPRINT_ID = 'SPRINT-HULY-OS-WRITE-SURFACE-STABILIZATION-003';
 
 export interface RunOptions {
   dryRun: boolean;
+  /** When true, throw instead of calling process.exit(). Used by the operator scheduler. */
+  suppressExit?: boolean;
 }
 
 export async function runReport(options: RunOptions): Promise<void> {
-  const { dryRun } = options;
+  const { dryRun, suppressExit } = options;
   const audit = new AuditLogger();
+
+  function exitOrThrow(code: number, message: string): never {
+    if (suppressExit) throw new Error(message);
+    process.exit(code);
+  }
 
   // Load config — dry-run only requires GitHub
   let config: DaemonConfig;
   try {
     config = dryRun ? loadConfigGitHubOnly() : loadConfig();
   } catch (err) {
-    console.error(`FATAL: ${(err as Error).message}`);
-    process.exit(1);
+    const msg = (err as Error).message;
+    console.error(`FATAL: ${msg}`);
+    exitOrThrow(1, msg);
   }
 
   const dateStr = new Date().toISOString().slice(0, 10);
@@ -86,14 +101,9 @@ export async function runReport(options: RunOptions): Promise<void> {
       console.log(`Huly: ${hulyIssues.length} issues found`);
     } catch (err) {
       const msg = (err as Error).message;
-      if (!dryRun) {
-        // --run mode: Huly is required, fail hard
-        console.error(`FATAL: Huly unavailable in --run mode: ${msg}`);
-        flushArtifacts(audit, logLines, outDir);
-        process.exit(1);
-      }
-      // --dry-run mode: Huly optional, continue without it
-      console.warn(`Huly unreachable (continuing in dry-run mode): ${msg}`);
+      // Huly connection failed — log and continue.
+      // In --run mode the publish orchestrator will attempt fallback surfaces.
+      console.warn(`Huly unreachable: ${msg}`);
       audit.log({
         source: 'daemon',
         op: 'huly_unavailable',
@@ -126,19 +136,98 @@ export async function runReport(options: RunOptions): Promise<void> {
     };
 
     const report: RealityReport = buildReport(reportInputs);
-    const markdownContent = renderMarkdown(report);
+    let markdownContent = renderMarkdown(report);
+
+    // AI summarization step — fail-safe (never blocks publishing)
+    let summary: ReportSummary | null = null;
+    try {
+      console.log('Generating AI summary...');
+      const result: SummarizeResult = await summarizeReport(report);
+      summary = result.summary;
+      console.log(`llm_summary_provider=${result.provider}`);
+      const summaryMd = renderSummaryMarkdown(summary);
+      markdownContent += '\n\n---\n\n' + summaryMd;
+      writeArtifact(audit, outDir, 'summary.json', JSON.stringify(summary, null, 2));
+      writeArtifact(audit, outDir, 'summary.md', summaryMd);
+      console.log(
+        `AI summary: ${summary.risks.length} risks, ` +
+          `${summary.suggestedActions.length} actions, ` +
+          `${summary.priorityItems.length} priority items`
+      );
+    } catch (err) {
+      console.warn(`AI summarizer failed (non-fatal): ${(err as Error).message}`);
+    }
+
+    // Task generation step — fail-safe (never blocks publishing)
+    let taskCandidates: ReturnType<typeof buildTaskCandidates> = [];
+    if (!dryRun && summary) {
+      try {
+        console.log('Generating GitHub tasks from summary...');
+        const issuesAdapter = await GitHubIssuesAdapter.create(config, audit);
+        const repo = `${config.GITHUB_OWNER}/${config.GITHUB_REPO}`;
+        const taskResult = await generateTasks(issuesAdapter, summary, SPRINT_ID, repo);
+        taskCandidates = taskResult.candidates;
+        const tasksMd = renderTasksMarkdown(taskResult);
+        if (tasksMd) {
+          markdownContent += '\n\n---\n\n' + tasksMd;
+        }
+        writeArtifact(audit, outDir, 'tasks.json', JSON.stringify(taskResult, null, 2));
+        console.log(
+          `Tasks: ${taskResult.created.length} created, ` +
+            `${taskResult.updated.length} updated, ` +
+            `${taskResult.failed.length} failed`
+        );
+      } catch (err) {
+        console.warn(`Task generator failed (non-fatal): ${(err as Error).message}`);
+      }
+    }
+
+    // Auto PR generation step — fail-safe, opt-in (never blocks publishing)
+    if (!dryRun && taskCandidates.length > 0) {
+      try {
+        console.log('Auto PR generation...');
+        const autoPRResult = await orchestrateAutoPRs(taskCandidates, config, audit);
+        if (autoPRResult) {
+          const autoPRMd = renderAutoPRMarkdown(autoPRResult);
+          if (autoPRMd) {
+            markdownContent += '\n\n---\n\n' + autoPRMd;
+          }
+          writeArtifact(audit, outDir, 'auto-prs.json', JSON.stringify(autoPRResult, null, 2));
+          console.log(
+            `Auto PRs: ${autoPRResult.created.length} created, ` +
+              `${autoPRResult.skipped.length} skipped, ` +
+              `${autoPRResult.failed.length} failed`
+          );
+        } else {
+          console.log('Auto PR: disabled (AUTO_PR_ENABLED=false)');
+        }
+      } catch (err) {
+        console.warn(`Auto PR generation failed (non-fatal): ${(err as Error).message}`);
+      }
+    }
 
     // Write local artifacts
     console.log(`Writing artifacts to ${outDir}/`);
     writeArtifact(audit, outDir, 'report.json', JSON.stringify(report, null, 2));
     writeArtifact(audit, outDir, 'report.md', markdownContent);
 
-    // Write Huly doc (--run mode only)
+    // Publish to Huly via layered strategy (--run mode only)
     if (!dryRun && hulyAvailable) {
-      console.log('Writing Huly doc...');
-      const docTitle = `Reality Report ${dateStr}`;
-      const result = await huly.upsertDoc(config.HULY_TEAMSPACE, docTitle, markdownContent);
-      console.log(`Huly doc ${result.created ? 'created' : 'updated'}: ${result.id}`);
+      console.log('Publishing report via layered strategy...');
+      const artifactRelPath = `out/ops/reality/${dateStr}/report.md`;
+      const publishResult = await publish(
+        huly,
+        {
+          teamspaceName: config.HULY_TEAMSPACE,
+          projectIdentifier: config.HULY_PROJECT,
+          title: `Reality Report \u2014 ${dateStr}`,
+          markdownContent,
+          artifactPath: artifactRelPath,
+          fallbackIssueId: config.HULY_REPORT_FALLBACK_ISSUE_ID,
+        },
+        audit
+      );
+      console.log(`Published via [${publishResult.surface}]: ${publishResult.id}`);
     }
 
     // Flush audit + run log
@@ -151,13 +240,15 @@ export async function runReport(options: RunOptions): Promise<void> {
     // dry-run always exits 0 (violations are informational)
     // run mode exits 1 if there are error-severity drift violations
     if (!dryRun && errors > 0) {
-      console.warn(`Exiting with code 1: ${errors} error-severity drift violations`);
-      process.exit(1);
+      const msg = `${errors} error-severity drift violations`;
+      console.warn(`Exiting with code 1: ${msg}`);
+      exitOrThrow(1, msg);
     }
   } catch (err) {
-    console.error(`FATAL: Unhandled error: ${(err as Error).message}`);
+    const msg = (err as Error).message;
+    console.error(`FATAL: Unhandled error: ${msg}`);
     flushArtifacts(audit, logLines, outDir);
-    process.exit(1);
+    exitOrThrow(1, msg);
   } finally {
     // Restore console
     console.log = origLog;

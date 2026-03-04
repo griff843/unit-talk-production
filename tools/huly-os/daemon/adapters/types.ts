@@ -87,6 +87,38 @@ export interface RealityReport {
   };
 }
 
+/** Result of a publish operation through the layered strategy */
+export interface PublishResult {
+  surface: 'doc' | 'issue' | 'comment';
+  id: string;
+  url?: string;
+}
+
+/** GitHub workflow run */
+export interface WorkflowRun {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  headBranch: string;
+  headSha: string;
+  event: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Huly issue status IDs (from live audit) */
+export const HULY_STATUS = {
+  Backlog: 'tracker:status:Backlog',
+  Todo: 'tracker:status:Todo',
+  InProgress: 'tracker:status:InProgress',
+  Done: 'tracker:status:Done',
+  Canceled: 'tracker:status:Canceled',
+} as const;
+
+export type HulyStatusId = (typeof HULY_STATUS)[keyof typeof HULY_STATUS];
+
 /** Huly platform adapter interface */
 export interface IHulyAdapter {
   connect(): Promise<void>;
@@ -97,6 +129,20 @@ export interface IHulyAdapter {
     docTitle: string,
     markdownContent: string
   ): Promise<{ id: string; created: boolean }>;
+  createIssue(projectIdentifier: string, title: string, body: string): Promise<{ id: string }>;
+  updateIssue(issueId: string, body: string): Promise<void>;
+  addComment(issueId: string, body: string): Promise<{ id: string }>;
+
+  // HULY-OS v1 extensions
+  findIssueByTitle(projectIdentifier: string, title: string): Promise<HulyIssue | null>;
+  upsertIssueByTitle(
+    projectIdentifier: string,
+    title: string,
+    body: string,
+    extra?: Record<string, unknown>
+  ): Promise<{ id: string; created: boolean }>;
+  updateIssueStatus(issueId: string, statusId: HulyStatusId, space: string): Promise<void>;
+  linkIssueToPR(issueId: string, prNumber: number, prTitle: string, prUrl: string): Promise<void>;
 }
 
 /** GitHub adapter interface */
@@ -109,4 +155,5 @@ export interface IGitHubAdapter {
     lastCommitSha: string;
     lastCommitDate: string;
   }>;
+  getWorkflowRuns(branch?: string, status?: string): Promise<WorkflowRun[]>;
 }

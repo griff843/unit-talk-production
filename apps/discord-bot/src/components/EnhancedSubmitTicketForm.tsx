@@ -2,7 +2,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, Clock, User, Tag, FileText, Send, Plus, X } from 'lucide-react';
-import React, { useState, useEffect , useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Alert, AlertDescription } from '../components/ui/alert';
@@ -19,10 +21,6 @@ import {
 } from '../components/ui/select';
 import { Separator } from '../components/ui/separator';
 import { Textarea } from '../components/ui/textarea';
-
-import { useForm, useFieldArray } from 'react-hook-form';
-import { toast } from 'sonner';
-
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   EnhancedTicketFormData,
