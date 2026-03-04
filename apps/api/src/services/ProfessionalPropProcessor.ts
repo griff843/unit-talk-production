@@ -1,66 +1,159 @@
-// @ts-nocheck
 /**
  * Professional Prop Processor
+ * Sprint: SPRINT-SCORING-PIPELINE-ACTIVATION-018
  *
- * Ensures ALL props receive full professional treatment:
- * - Devigging FIRST (removes hidden vig)
- * - CLV tracking (monitors line movement)
- * - Professional grading (45+ factors)
- * - Risk assessment (Kelly sizing)
- * - Performance monitoring
+ * Canonical scoring path for SGO-derived props:
+ *   A) Determine devig mode (paired vs single-sided)
+ *   B) DeviggingService.devigTwoWay() → market probabilities
+ *   C) computeProbabilityLayer() → p_final, edge_final, uncertainty_final, clv_forecast
+ *   D) computeScoreV2() → tier, score, ev, feature_audit
+ *   E) evaluatePromotion() → promotion_band
+ *   F) lifecycleInsert() → single-writer compliant write
  *
- * This is the MISSING LINK between raw props and professional insights.
+ * INVARIANTS:
+ * - No inline edge calculation. All scoring via production modules.
+ * - Single-writer discipline via lifecycleInsert only.
+ * - Single-sided odds cannot qualify for HARD promotion band.
+ * - Probability layer fail-closed: missing primitives → Gate 8 blocks promotion.
  */
 
-import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
+import { computeScoreV2 } from '../agents/GradingAgent/scoring/computeScoreV2';
+import {
+  evaluatePromotion,
+  parsePromotionPolicyConfig,
+} from '../agents/GradingAgent/scoring/promotionPolicy';
+import { MODEL_VERSION } from '../agents/ScoringAgent/scoring/edgeEngineV1';
+import { lifecycleInsert } from '../lib/lifecycle/write-adapter';
+import { PROBABILITY_MODEL_VERSION } from '../lib/probability/devigConsensus';
+import { computeProbabilityLayer } from '../lib/probability/probabilityLayer';
 import { createLogger } from '../utils/logger';
 
 import { CLVTrackingService } from './clv/CLVTrackingService';
 import { DeviggingService } from './devigging/DeviggingService';
 import { supabaseClient } from './supabaseClient';
 
-import type { RawProp, UnifiedPick } from '../types/supabase-types';
+import type { ComputeScoreV2Result } from '../agents/GradingAgent/scoring/computeScoreV2';
+import type {
+  ProbabilityPrimitives,
+  PromotionBand,
+  PromotionDecision,
+} from '../agents/GradingAgent/scoring/promotionPolicy';
+import type { WriteResult } from '../lib/lifecycle/write-adapter';
+import type {
+  BookOffer,
+  BookProfile,
+  DataQuality,
+  LiquidityTier,
+} from '../lib/probability/devigConsensus';
+import type {
+  ProbabilityInput,
+  ProbabilityOutput,
+  ProbabilityOutputOk,
+} from '../lib/probability/probabilityLayer';
+import type { GradingFeatureSet } from '../types/GradingFeatureSet';
+
+// ---------------------------------------------------------------------------
+// Raw prop type (matches raw_props table schema)
+// ---------------------------------------------------------------------------
+
+interface RawPropRow {
+  id: string;
+  player_name?: string | null;
+  team?: string | null;
+  opponent?: string | null;
+  sport?: string | null;
+  stat_type?: string | null;
+  market_type?: string | null;
+  line?: number | null;
+  over_odds?: number | null;
+  under_odds?: number | null;
+  provider?: string | null;
+  game_time?: string | null;
+  matchup?: string | null;
+  processed_at?: string | null;
+  error_message?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
+// ---------------------------------------------------------------------------
+// Devig result type (from DeviggingService.devigTwoWay)
+// ---------------------------------------------------------------------------
+
+interface DevigTwoWayResult {
+  outcome1: {
+    trueProb: number;
+    fairOdds: number;
+    totalVig: number;
+    edge: number;
+    impliedProbability: number;
+  };
+  outcome2: {
+    trueProb: number;
+    fairOdds: number;
+    totalVig: number;
+    edge: number;
+    impliedProbability: number;
+  };
+  totalVig: number;
+  deviggedEdge?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Public types
+// ---------------------------------------------------------------------------
+
+type DevigMode = 'PAIRED' | 'FALLBACK_SINGLE_SIDED';
 
 export interface ProfessionalPropResult {
   pickId: string;
   professionalScore: number;
-  tier: 'S' | 'A' | 'B' | 'C' | 'D';
+  tier: string;
   confidence: number;
   devigged_edge: number;
   kelly_fraction: number;
-  professional_insights: any;
+  professional_insights: Record<string, unknown>;
   clv_tracking_id: string;
   auto_approved: boolean;
   processing_time: number;
+  p_final: number | null;
+  edge_final: number | null;
+  uncertainty_final: number | null;
+  clv_forecast: number | null;
+  promotion_band: string;
+  model_version: string;
+  devig_mode: DevigMode;
 }
 
 export interface PropProcessingOptions {
-  auto_approve_threshold: number; // Professional professional_score threshold for auto-approval
-  require_admin_review: string[]; // Tiers that require admin review
+  auto_approve_threshold: number;
+  require_admin_review: string[];
   max_batch_size: number;
   timeout_ms: number;
 }
 
+// ---------------------------------------------------------------------------
+// Processor
+// ---------------------------------------------------------------------------
+
 export class ProfessionalPropProcessor {
   private static instance: ProfessionalPropProcessor;
-  private logger: any;
-  private deviggingService: DeviggingService;
-  private clvTrackingService: CLVTrackingService;
-  private gradingEngine: SyndicateGradingEngine;
+  private readonly logger: ReturnType<typeof createLogger>;
+  private readonly deviggingService: DeviggingService;
+  private readonly clvTrackingService: CLVTrackingService;
 
-  // Default processing options
-  private defaultOptions: PropProcessingOptions = {
-    auto_approve_threshold: 3.0, // S/A tier auto-approved
+  private readonly defaultOptions: PropProcessingOptions = {
+    auto_approve_threshold: 3.0,
     require_admin_review: ['B', 'C', 'D'],
     max_batch_size: 50,
-    timeout_ms: 30000, // 30 second timeout per prop
+    timeout_ms: 30_000,
   };
 
   private constructor() {
     this.logger = createLogger('ProfessionalPropProcessor');
     this.deviggingService = DeviggingService.getInstance();
     this.clvTrackingService = CLVTrackingService.getInstance();
-    this.gradingEngine = new SyndicateGradingEngine();
   }
 
   public static getInstance(): ProfessionalPropProcessor {
@@ -70,9 +163,10 @@ export class ProfessionalPropProcessor {
     return ProfessionalPropProcessor.instance;
   }
 
-  /**
-   * Main entry point - processes raw props through professional system
-   */
+  // =========================================================================
+  // MAIN ENTRY POINT
+  // =========================================================================
+
   async processRawProps(
     options?: Partial<PropProcessingOptions>
   ): Promise<ProfessionalPropResult[]> {
@@ -82,7 +176,6 @@ export class ProfessionalPropProcessor {
     this.logger.info('Starting professional prop processing...');
 
     try {
-      // 1. Get unprocessed raw props
       const rawProps = await this.getUnprocessedRawProps(config.max_batch_size);
 
       if (rawProps.length === 0) {
@@ -90,15 +183,12 @@ export class ProfessionalPropProcessor {
         return results;
       }
 
-      this.logger.info(`Processing ${rawProps.length} raw props through professional system`);
+      this.logger.info(`Processing ${rawProps.length} raw props through production pipeline`);
 
-      // 2. Process each prop through professional pipeline
       for (const rawProp of rawProps) {
         try {
           const result = await this.processIndividualProp(rawProp, config);
           results.push(result);
-
-          // Mark raw prop as processed
           await this.markRawPropProcessed(rawProp.id);
         } catch (error) {
           this.logger.error(`Failed to process prop ${rawProp.id}`, error);
@@ -110,9 +200,7 @@ export class ProfessionalPropProcessor {
       }
 
       this.logger.info(`Successfully processed ${results.length}/${rawProps.length} props`);
-
-      // 3. Generate processing summary
-      await this.generateProcessingSummary(results);
+      this.logProcessingSummary(results);
 
       return results;
     } catch (error) {
@@ -121,79 +209,105 @@ export class ProfessionalPropProcessor {
     }
   }
 
-  /**
-   * Process individual raw prop through complete professional pipeline
-   */
+  // =========================================================================
+  // PIPELINE: strict order A → F
+  // =========================================================================
+
   private async processIndividualProp(
-    rawProp: RawProp,
+    rawProp: RawPropRow,
     config: PropProcessingOptions
   ): Promise<ProfessionalPropResult> {
     const startTime = Date.now();
     const propLogger = this.logger.child({ propId: rawProp.id, sport: rawProp.sport });
 
     try {
-      propLogger.info('Starting professional processing for prop');
+      // ── A) Determine devig mode ──────────────────────────────────────────
+      const devigMode = this.determineDevigMode(rawProp);
+      propLogger.info('Devig mode determined', { devigMode });
 
-      // STEP 1: DEVIG ODDS (CRITICAL - ALL SHARP SYSTEMS DO THIS FIRST)
-      const deviggingResult = await this.deviggOdds(rawProp);
+      // ── B) Devig odds ────────────────────────────────────────────────────
+      const deviggingResult = this.deviggOdds(rawProp, devigMode);
       propLogger.info('Devigging completed', {
-        totalVig: (deviggingResult.totalVig || 0).toFixed(2) + '%',
-        trueProbabilities: {
-          over: (deviggingResult.outcome1?.trueProb || 0).toFixed(3),
-          under: (deviggingResult.outcome2?.trueProb || 0).toFixed(3),
-        },
+        totalVig: deviggingResult.totalVig.toFixed(4),
+        overTrueProb: deviggingResult.outcome1.trueProb.toFixed(4),
+        underTrueProb: deviggingResult.outcome2.trueProb.toFixed(4),
       });
 
-      // STEP 2: START CLV TRACKING
-      const clvTrackingId = await this.startCLVTracking(rawProp, deviggingResult);
-      propLogger.info('CLV tracking initiated', { clvTrackingId });
-
-      // STEP 3: PROFESSIONAL GRADING WITH DEVIGGED ODDS
-      const gradingResult = await this.runProfessionalGrading(rawProp, deviggingResult);
-      propLogger.info('Professional grading completed', {
-        finalScore: gradingResult.finalScore.toFixed(2),
-        tier: gradingResult.tier,
-        confidence: (gradingResult.confidence * 100).toFixed(1) + '%',
+      // ── C) Probability layer ─────────────────────────────────────────────
+      const side = this.determineBetSide(deviggingResult);
+      const probResult = this.runProbabilityLayer(rawProp, side, devigMode);
+      propLogger.info('Probability layer completed', {
+        ok: probResult.ok,
+        reason: probResult.ok ? undefined : (probResult as { reason: string }).reason,
       });
 
-      // STEP 4: RISK ASSESSMENT
-      const riskAssessment = await this.calculateRiskAssessment(gradingResult);
+      // ── D) CLV tracking ──────────────────────────────────────────────────
+      const clvTrackingId = await this.startCLVTracking(rawProp, deviggingResult, side);
 
-      // STEP 5: DETERMINE AUTO-APPROVAL
-      const autoApproved = this.shouldAutoApprove(gradingResult, config);
+      // ── E) Grading via computeScoreV2 ────────────────────────────────────
+      const v2Result = this.runScoring(rawProp, deviggingResult);
+      propLogger.info('Scoring completed', {
+        score: v2Result.score,
+        tier: v2Result.tier,
+        ev: v2Result.ev.toFixed(4),
+      });
 
-      // STEP 6: CREATE UNIFIED PICK WITH PROFESSIONAL DATA
+      // ── F) Promotion evaluation ──────────────────────────────────────────
+      const { promoDecision, dbPromotionBand } = this.runPromotionEvaluation(
+        rawProp,
+        v2Result,
+        probResult,
+        devigMode
+      );
+      propLogger.info('Promotion evaluated', {
+        band: dbPromotionBand,
+        promote: promoDecision.promote,
+      });
+
+      // ── G) Auto-approval check ──────────────────────────────────────────
+      const autoApproved = this.shouldAutoApprove(v2Result, config);
+
+      // ── H) Write via lifecycleInsert ─────────────────────────────────────
       const pickId = await this.createUnifiedPick(
         rawProp,
-        gradingResult,
-        riskAssessment,
+        v2Result,
+        probResult,
+        promoDecision,
+        dbPromotionBand,
+        devigMode,
+        deviggingResult,
         clvTrackingId,
-        autoApproved
+        autoApproved,
+        side
       );
 
       const processingTime = Date.now() - startTime;
-      propLogger.info('Professional processing completed', {
-        pickId,
-        processingTime: `${processingTime}ms`,
-        autoApproved,
-        tier: gradingResult.tier,
-      });
+      propLogger.info('Processing completed', { pickId, processingTime: `${processingTime}ms` });
 
       return {
         pickId,
-        professionalScore: gradingResult.finalScore,
-        tier: gradingResult.tier,
-        confidence: gradingResult.confidence,
-        devigged_edge: gradingResult.edgeScore,
-        kelly_fraction: gradingResult.kellyFraction,
-        professional_insights: gradingResult.professionalInsights,
+        professionalScore: v2Result.score,
+        tier: v2Result.tier,
+        confidence: v2Result.score / 100,
+        devigged_edge: v2Result.ev,
+        kelly_fraction: 0,
+        professional_insights: {},
         clv_tracking_id: clvTrackingId,
         auto_approved: autoApproved,
         processing_time: processingTime,
+        p_final: probResult.ok ? (probResult as ProbabilityOutputOk).pFinal : null,
+        edge_final: probResult.ok ? (probResult as ProbabilityOutputOk).edgeFinal : null,
+        uncertainty_final: probResult.ok
+          ? (probResult as ProbabilityOutputOk).uncertaintyFinal
+          : null,
+        clv_forecast: probResult.ok ? (probResult as ProbabilityOutputOk).clvForecast : null,
+        promotion_band: dbPromotionBand,
+        model_version: MODEL_VERSION,
+        devig_mode: devigMode,
       };
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      propLogger.error('Professional processing failed', {
+      propLogger.error('Processing failed', {
         error: error instanceof Error ? error.message : String(error),
         processingTime: `${processingTime}ms`,
       });
@@ -201,194 +315,317 @@ export class ProfessionalPropProcessor {
     }
   }
 
-  /**
-   * Devig odds using professional devigging service
-   */
-  private async deviggOdds(rawProp: RawProp) {
-    return this.deviggingService.devigTwoWay({
-      odds1: rawProp.over_odds,
-      odds2: rawProp.under_odds,
-    });
+  // =========================================================================
+  // STEP A: Determine devig mode
+  // =========================================================================
+
+  private determineDevigMode(rawProp: RawPropRow): DevigMode {
+    const hasOver = rawProp.over_odds != null && isFinite(Number(rawProp.over_odds));
+    const hasUnder = rawProp.under_odds != null && isFinite(Number(rawProp.under_odds));
+    return hasOver && hasUnder ? 'PAIRED' : 'FALLBACK_SINGLE_SIDED';
   }
 
-  /**
-   * Start CLV tracking for the prop
-   */
-  private async startCLVTracking(rawProp: RawProp, deviggingResult: any): Promise<string> {
-    // Determine which side we would bet (higher true probability)
-    const option1TrueProb = deviggingResult.outcome1?.trueProb || 0.5;
-    const option2TrueProb = deviggingResult.outcome2?.trueProb || 0.5;
-    const prediction = option1TrueProb > option2TrueProb ? 'over' : 'under';
-    const betOdds = prediction === 'over' ? rawProp.over_odds : rawProp.under_odds;
+  // =========================================================================
+  // STEP B: Devig odds
+  // =========================================================================
 
-    await this.clvTrackingService.trackPick({
-      propId: rawProp.id,
-      userId: 'system', // System-generated picks
-      sport: rawProp.sport,
-      market: rawProp.stat_type,
-      book: 'aggregated', // Multiple book average
-      openingLine: rawProp.line,
-      openingOdds: betOdds,
-      betLine: rawProp.line,
-      betOdds: betOdds,
-      gameTime: new Date(Date.now() + 4 * 60 * 60 * 1000), // Assume 4 hours from now
-      modelEdge: this.deviggingService.calculateEdge(
-        prediction === 'over' ? option1TrueProb : option2TrueProb,
-        betOdds,
-        false
-      ),
-    });
+  private deviggOdds(rawProp: RawPropRow, devigMode: DevigMode): DevigTwoWayResult {
+    const overOdds = Number(rawProp.over_odds) || -110;
+    const underOdds = Number(rawProp.under_odds) || -110;
 
-    return rawProp.id; // Use prop ID as CLV tracking ID
-  }
-
-  /**
-   * Run professional grading with enhanced features
-   */
-  private async runProfessionalGrading(rawProp: RawProp, deviggingResult: any) {
-    // Create enhanced features object with devigged data
-    const enhancedFeatures = {
-      // Raw prop data
-      propId: rawProp.id,
-      sport: rawProp.sport,
-      statType: rawProp.stat_type,
-      playerName: rawProp.player_name,
-      line: rawProp.line,
-
-      // Original odds
-      overOdds: rawProp.over_odds,
-      underOdds: rawProp.under_odds,
-
-      // 🆕 DEVIGGED DATA (CRITICAL FOR PROFESSIONAL GRADING)
-      devigged: {
-        totalVig: deviggingResult.totalVig,
-        overTrueProb: deviggingResult.option1TrueProb,
-        underTrueProb: deviggingResult.option2TrueProb,
-        trueEdge: {
-          over: this.deviggingService.calculateEdge(
-            deviggingResult.option1TrueProb,
-            rawProp.over_odds,
-            false
-          ),
-          under: this.deviggingService.calculateEdge(
-            deviggingResult.option2TrueProb,
-            rawProp.under_odds,
-            false
-          ),
-        },
-      },
-
-      // Market context
-      marketType: 'player_props',
-      gameTime: new Date(Date.now() + 4 * 60 * 60 * 1000),
-
-      // Professional indicators (would be populated by data feeds)
-      steamMove: false,
-      sharpAction: 0.5,
-      publicBetting: 0.5,
-      lineMovement: 0,
-
-      // Default values for comprehensive grading
-      playerForm: 0.7,
-      matchupRating: 0.6,
-      injuryImpact: 0,
-      weatherImpact: 0,
-      venueAdvantage: 0,
-      motivation: 0.5,
-    };
-
-    // Use the professional grading engine
-    return await this.gradingEngine.gradeWithEnhancedFeatures(enhancedFeatures);
-  }
-
-  /**
-   * Calculate risk assessment and Kelly sizing
-   */
-  private async calculateRiskAssessment(gradingResult: any) {
-    return {
-      kelly_fraction: gradingResult.kellyFraction,
-      position_size: gradingResult.positionSize,
-      risk_score: gradingResult.riskScore,
-      correlation_risk: gradingResult.correlationRisk,
-      portfolio_impact: gradingResult.portfolioImpact || 0,
-      max_exposure: Math.min(gradingResult.kellyFraction * 0.25, 0.05), // 5% max position
-    };
-  }
-
-  /**
-   * Determine if prop should be auto-approved
-   */
-  private shouldAutoApprove(gradingResult: any, config: PropProcessingOptions): boolean {
-    // Auto-approve high-tier picks with good professional scores
-    if (gradingResult.tier === 'S' || gradingResult.tier === 'A') {
-      return gradingResult.finalScore >= config.auto_approve_threshold;
+    if (devigMode === 'FALLBACK_SINGLE_SIDED') {
+      // For single-sided: use -110 as synthetic complementary side
+      // This allows devig to run but results carry higher uncertainty
+      this.logger.warn(`Single-sided odds for prop ${rawProp.id}, using synthetic complement`);
     }
 
-    // All other tiers require manual review
+    return this.deviggingService.devigTwoWay({
+      odds1: overOdds,
+      odds2: underOdds,
+    });
+  }
+
+  // =========================================================================
+  // STEP C: Probability layer
+  // =========================================================================
+
+  private determineBetSide(deviggingResult: DevigTwoWayResult): 'over' | 'under' {
+    return deviggingResult.outcome1.trueProb > deviggingResult.outcome2.trueProb ? 'over' : 'under';
+  }
+
+  private runProbabilityLayer(
+    rawProp: RawPropRow,
+    side: 'over' | 'under',
+    devigMode: DevigMode
+  ): ProbabilityOutput {
+    // Build BookOffer from raw_props data.
+    // NOTE: Currently raw_props stores single-book odds from SGO.
+    // SGO API supports multi-book via byBookmaker — when sgoFetcher is updated
+    // to store per-book odds, this should build multiple BookOffers to meet
+    // MIN_BOOKS_FOR_CONSENSUS (2). Until then, probability layer will correctly
+    // return INSUFFICIENT_BOOKS (fail-closed).
+    const bookOffer: BookOffer = {
+      bookId: String(rawProp.provider || 'sgo'),
+      bookName: String(rawProp.provider || 'SGO'),
+      overOdds: Number(rawProp.over_odds) || -110,
+      underOdds: Number(rawProp.under_odds) || -110,
+      bookProfile: 'retail' as BookProfile,
+      liquidityTier: 'medium' as LiquidityTier,
+      dataQuality: (devigMode === 'PAIRED' ? 'good' : 'partial') as DataQuality,
+    };
+
+    const entryOdds =
+      side === 'over' ? Number(rawProp.over_odds) || -110 : Number(rawProp.under_odds) || -110;
+
+    const input: ProbabilityInput = {
+      confidenceScore: 5.0, // Neutral (market-anchored delta = 0)
+      bookOffers: [bookOffer],
+      side,
+      entryOdds,
+      sport: String(rawProp.sport || 'NBA'),
+      marketType: String(rawProp.stat_type || 'unknown'),
+      hoursToStart: null,
+      featureCompleteness: devigMode === 'PAIRED' ? 0.7 : 0.4,
+    };
+
+    return computeProbabilityLayer(input);
+  }
+
+  // =========================================================================
+  // STEP D: CLV tracking
+  // =========================================================================
+
+  private async startCLVTracking(
+    rawProp: RawPropRow,
+    deviggingResult: DevigTwoWayResult,
+    side: 'over' | 'under'
+  ): Promise<string> {
+    const betOdds =
+      side === 'over' ? Number(rawProp.over_odds) || -110 : Number(rawProp.under_odds) || -110;
+    const modelProb =
+      side === 'over' ? deviggingResult.outcome1.trueProb : deviggingResult.outcome2.trueProb;
+
+    try {
+      await this.clvTrackingService.trackPick({
+        propId: rawProp.id,
+        userId: 'system',
+        sport: String(rawProp.sport || 'NBA'),
+        market: String(rawProp.stat_type || 'unknown'),
+        book: String(rawProp.provider || 'sgo'),
+        openingLine: Number(rawProp.line) || 0,
+        openingOdds: betOdds,
+        betLine: Number(rawProp.line) || 0,
+        betOdds: betOdds,
+        gameTime: rawProp.game_time
+          ? new Date(rawProp.game_time)
+          : new Date(Date.now() + 4 * 60 * 60 * 1000),
+        modelEdge: this.deviggingService.calculateEdge(modelProb, betOdds, false).edge,
+      });
+    } catch (err) {
+      this.logger.warn(`CLV tracking failed for prop ${rawProp.id}`, err);
+    }
+
+    return rawProp.id;
+  }
+
+  // =========================================================================
+  // STEP E: Scoring via computeScoreV2
+  // =========================================================================
+
+  private runScoring(
+    rawProp: RawPropRow,
+    deviggingResult: DevigTwoWayResult
+  ): ComputeScoreV2Result {
+    const featureSet = this.buildGradingFeatureSet(rawProp, deviggingResult);
+    return computeScoreV2(featureSet);
+  }
+
+  private buildGradingFeatureSet(
+    rawProp: RawPropRow,
+    deviggingResult: DevigTwoWayResult
+  ): GradingFeatureSet {
+    return {
+      propId: rawProp.id,
+      sport: String(rawProp.sport || 'NBA'),
+      league: String(rawProp.sport || 'NBA'),
+      player: rawProp.player_name || undefined,
+      marketType: String(rawProp.stat_type || 'unknown'),
+      date: new Date().toISOString(),
+      market: {
+        type: String(rawProp.stat_type || 'unknown'),
+        odds: Number(rawProp.over_odds) || -110,
+        line: Number(rawProp.line) || 0,
+      },
+      expectedValue: deviggingResult.deviggedEdge || 0,
+      lineMovement: 0,
+      matchupRating: 0.6,
+      playerForm: 0.7,
+      injuryImpact: 0,
+      weatherImpact: 0,
+      marketIntelligence: 0.5,
+      sharpMoney: 0.5,
+      volumeProfile: 0.5,
+      closingLineValue: 0,
+      playerFatigue: 0.5,
+      venueAdvantage: 0,
+      refereeImpact: 0,
+      paceImpact: 0.5,
+      motivationalFactors: 0.5,
+      correlationRisk: 0,
+      volatility: 0.5,
+      portfolioImpact: 0,
+      dataQuality: {
+        dataValidationScore: 0.8,
+        outlierScore: 0.9,
+        consistencyScore: 0.85,
+        completeness: 0.7,
+      },
+      timestamp: new Date().toISOString(),
+      version: MODEL_VERSION,
+      source: 'ProfessionalPropProcessor',
+      confidence: 5.0,
+    };
+  }
+
+  // =========================================================================
+  // STEP F: Promotion evaluation
+  // =========================================================================
+
+  private runPromotionEvaluation(
+    rawProp: RawPropRow,
+    v2Result: ComputeScoreV2Result,
+    probResult: ProbabilityOutput,
+    devigMode: DevigMode
+  ): { promoDecision: PromotionDecision; dbPromotionBand: string } {
+    const promoCfg = parsePromotionPolicyConfig();
+
+    const probabilityPrimitives: ProbabilityPrimitives | undefined = probResult.ok
+      ? {
+          pFinal: (probResult as ProbabilityOutputOk).pFinal,
+          uncertaintyFinal: (probResult as ProbabilityOutputOk).uncertaintyFinal,
+          pMarketDevig: (probResult as ProbabilityOutputOk).pMarketDevig,
+          edgeFinal: (probResult as ProbabilityOutputOk).edgeFinal,
+          clvForecast: (probResult as ProbabilityOutputOk).clvForecast,
+        }
+      : undefined; // null primitives → Gate 8 blocks promotion
+
+    const promoDecision = evaluatePromotion(
+      v2Result,
+      String(rawProp.sport || 'NBA'),
+      rawProp.id,
+      promoCfg,
+      probabilityPrimitives
+    );
+
+    // Single-sided fallback: HARD band not eligible
+    let promotionBand: PromotionBand = promoDecision.band;
+    if (devigMode === 'FALLBACK_SINGLE_SIDED' && promotionBand === 'HARD') {
+      promotionBand = 'SOFT';
+      this.logger.info(`Prop ${rawProp.id}: HARD→SOFT downgrade (single-sided odds)`);
+    }
+
+    // Map NONE → NO_POST for DB storage
+    const dbPromotionBand = promotionBand === 'NONE' ? 'NO_POST' : promotionBand;
+
+    return { promoDecision, dbPromotionBand };
+  }
+
+  // =========================================================================
+  // STEP G: Auto-approval
+  // =========================================================================
+
+  private shouldAutoApprove(
+    v2Result: ComputeScoreV2Result,
+    config: PropProcessingOptions
+  ): boolean {
+    if (v2Result.tier === 'S' || v2Result.tier === 'A') {
+      return v2Result.score >= config.auto_approve_threshold * 100;
+    }
     return false;
   }
 
-  /**
-   * Create unified pick with professional data
-   */
-  private async createUnifiedPick(
-    rawProp: RawProp,
-    gradingResult: any,
-    riskAssessment: any,
-    clvTrackingId: string,
-    autoApproved: boolean
-  ): Promise<string> {
-    // Determine prediction based on best edge
-    const overEdge = gradingResult.professionalInsights?.devigged?.trueEdge?.over || 0;
-    const underEdge = gradingResult.professionalInsights?.devigged?.trueEdge?.under || 0;
-    const prediction = overEdge > underEdge ? 'over' : 'under';
+  // =========================================================================
+  // STEP H: Create unified pick via lifecycleInsert
+  // =========================================================================
 
-    const unifiedPick: Partial<
-      UnifiedPick & {
-        professional_score: number;
-        devigged_edge: number;
-        kelly_fraction: number;
-        professional_insights: any;
-        clv_tracking_id: string;
-        feature_contributions: any;
-        risk_assessment: any;
-      }
-    > = {
+  private async createUnifiedPick(
+    rawProp: RawPropRow,
+    v2Result: ComputeScoreV2Result,
+    probResult: ProbabilityOutput,
+    promoDecision: PromotionDecision,
+    dbPromotionBand: string,
+    devigMode: DevigMode,
+    deviggingResult: DevigTwoWayResult,
+    clvTrackingId: string,
+    autoApproved: boolean,
+    side: 'over' | 'under'
+  ): Promise<string> {
+    const prediction = side;
+
+    const pickId = crypto.randomUUID();
+
+    const pickPayload = {
+      id: pickId,
       raw_prop_id: rawProp.id,
       user_id: 'system',
       sport: rawProp.sport,
-      prediction: prediction,
-      confidence: gradingResult.confidence,
-      status: autoApproved ? 'approved' : 'pending_review',
-      tier: gradingResult.tier,
+      prediction,
+      confidence: v2Result.score / 100,
+      status: 'pending' as const,
+      tier: v2Result.tier,
+      professional_score: v2Result.score,
 
-      // 🆕 PROFESSIONAL DATA
-      professional_score: gradingResult.finalScore,
-      devigged_edge: gradingResult.edgeScore,
-      kelly_fraction: gradingResult.kellyFraction,
-      professional_insights: gradingResult.professionalInsights,
-      clv_tracking_id: clvTrackingId,
-      feature_contributions: gradingResult.featureContributions,
-      risk_assessment: riskAssessment,
+      // Probability primitives (null when layer fails — fail-closed)
+      p_final: probResult.ok ? (probResult as ProbabilityOutputOk).pFinal : null,
+      edge_final: probResult.ok ? (probResult as ProbabilityOutputOk).edgeFinal : null,
+      uncertainty_final: probResult.ok
+        ? (probResult as ProbabilityOutputOk).uncertaintyFinal
+        : null,
+      clv_forecast: probResult.ok ? (probResult as ProbabilityOutputOk).clvForecast : null,
+
+      // Promotion
+      promotion_band: dbPromotionBand,
+
+      // Model versioning
+      model_version: MODEL_VERSION,
+      feature_set_version: PROBABILITY_MODEL_VERSION,
+
+      // Devig results
+      devigged_edge: deviggingResult.deviggedEdge ?? 0,
+
+      // Metadata
+      meta: {
+        devig_mode: devigMode,
+        sprint: 'SPRINT-SCORING-PIPELINE-ACTIVATION-018',
+        total_vig: deviggingResult.totalVig,
+        over_true_prob: deviggingResult.outcome1.trueProb,
+        under_true_prob: deviggingResult.outcome2.trueProb,
+        promotion_reason_codes: promoDecision.reason_codes,
+        promotion_notes: promoDecision.notes,
+        probability_layer_ok: probResult.ok,
+        probability_layer_reason: probResult.ok ? null : (probResult as { reason: string }).reason,
+      },
+
+      posted_to_discord: false,
     };
 
-    const { data, error } = await supabaseClient
-      .from('unified_picks')
-      .insert(unifiedPick)
-      .select('id')
-      .single();
+    const writeResult: WriteResult = await lifecycleInsert(supabaseClient, pickPayload, {
+      writerRole: 'submitter',
+      traceId: `ppp-${rawProp.id}`,
+    });
 
-    if (error) {
-      throw new Error(`Failed to create unified pick: ${error.message}`);
+    if (!writeResult.success) {
+      throw new Error(`lifecycleInsert failed: ${writeResult.error}`);
     }
 
-    return data.id;
+    return writeResult.pickId ?? pickId;
   }
 
-  /**
-   * Get unprocessed raw props
-   */
-  private async getUnprocessedRawProps(limit: number): Promise<RawProp[]> {
+  // =========================================================================
+  // DB helpers
+  // =========================================================================
+
+  private async getUnprocessedRawProps(limit: number): Promise<RawPropRow[]> {
     const { data, error } = await supabaseClient
       .from('raw_props')
       .select('*')
@@ -401,12 +638,9 @@ export class ProfessionalPropProcessor {
       throw new Error(`Failed to fetch raw props: ${error.message}`);
     }
 
-    return data || [];
+    return (data as RawPropRow[]) || [];
   }
 
-  /**
-   * Mark raw prop as processed
-   */
   private async markRawPropProcessed(propId: string): Promise<void> {
     const { error } = await supabaseClient
       .from('raw_props')
@@ -421,9 +655,6 @@ export class ProfessionalPropProcessor {
     }
   }
 
-  /**
-   * Mark raw prop with error
-   */
   private async markRawPropError(propId: string, errorMessage: string): Promise<void> {
     const { error } = await supabaseClient
       .from('raw_props')
@@ -438,77 +669,48 @@ export class ProfessionalPropProcessor {
     }
   }
 
-  /**
-   * Generate processing summary for monitoring
-   */
-  private async generateProcessingSummary(results: ProfessionalPropResult[]): Promise<void> {
+  // =========================================================================
+  // Monitoring
+  // =========================================================================
+
+  private logProcessingSummary(results: ProfessionalPropResult[]): void {
+    if (results.length === 0) return;
+
     const summary = {
       total_processed: results.length,
-      auto_approved: results.filter(r => r.published).length,
-      manual_review: results.filter(r => !r.published).length,
+      auto_approved: results.filter(r => r.auto_approved).length,
+      manual_review: results.filter(r => !r.auto_approved).length,
       tier_distribution: {
         S: results.filter(r => r.tier === 'S').length,
         A: results.filter(r => r.tier === 'A').length,
         B: results.filter(r => r.tier === 'B').length,
         C: results.filter(r => r.tier === 'C').length,
         D: results.filter(r => r.tier === 'D').length,
+        F: results.filter(r => r.tier === 'F').length,
+      },
+      promotion_band_distribution: {
+        HARD: results.filter(r => r.promotion_band === 'HARD').length,
+        SOFT: results.filter(r => r.promotion_band === 'SOFT').length,
+        NO_POST: results.filter(r => r.promotion_band === 'NO_POST').length,
+      },
+      devig_mode_distribution: {
+        PAIRED: results.filter(r => r.devig_mode === 'PAIRED').length,
+        FALLBACK_SINGLE_SIDED: results.filter(r => r.devig_mode === 'FALLBACK_SINGLE_SIDED').length,
       },
       avg_processing_time: results.reduce((sum, r) => sum + r.processing_time, 0) / results.length,
       avg_professional_score:
         results.reduce((sum, r) => sum + r.professionalScore, 0) / results.length,
-      avg_confidence: results.reduce((sum, r) => sum + r.confidence, 0) / results.length,
     };
 
-    this.logger.info('Professional processing summary', summary);
-
-    // Store summary for monitoring
-    await supabaseClient.from('processing_logs').insert({
-      processor: 'professional_prop_processor',
-      summary,
-      processed_at: new Date().toISOString(),
-    });
+    this.logger.info('Processing summary', summary);
   }
 
   /**
-   * Process SmartForm submissions through professional system
+   * Process a single prop from GradingFeatureSet (called by GradingAgent).
+   * Routes through production pipeline: devig → probability → scoring → promotion.
    */
-  async processSmartFormSubmission(ticketId: string): Promise<ProfessionalPropResult> {
-    this.logger.info(`Processing SmartForm submission ${ticketId} through professional system`);
-
-    // Get smart ticket data
-    const { data: smartTicket, error } = await supabaseClient
-      .from('smart_tickets')
-      .select('*')
-      .eq('id', ticketId)
-      .single();
-
-    if (error || !smartTicket) {
-      throw new Error(`Smart ticket not found: ${ticketId}`);
-    }
-
-    // Convert SmartForm data to raw prop format
-    const rawProp: Partial<RawProp> = {
-      id: ticketId,
-      sport: smartTicket.sport,
-      stat_type: smartTicket.market_type,
-      player_name: smartTicket.player_name,
-      line: smartTicket.line,
-      over_odds: smartTicket.over_odds || -110,
-      under_odds: smartTicket.under_odds || -110,
-      created_at: smartTicket.created_at,
-      updated_at: new Date().toISOString(),
-    };
-
-    // Process through professional pipeline
-    return await this.processIndividualProp(rawProp as RawProp, this.defaultOptions);
-  }
-
-  /**
-   * Process a single prop from GradingFeatureSet
-   */
-  async processGradingFeatureSet(features: any): Promise<ProfessionalPropResult> {
-    // Convert GradingFeatureSet to RawProp format
-    const rawProp: Partial<any> = {
+  async processGradingFeatureSet(features: GradingFeatureSet): Promise<ProfessionalPropResult> {
+    const rawProp: RawPropRow = {
       id: features.propId,
       sport: features.sport,
       stat_type: features.market?.type || features.marketType,
@@ -520,14 +722,13 @@ export class ProfessionalPropProcessor {
       updated_at: new Date().toISOString(),
     };
 
-    // Process through professional pipeline
-    return await this.processIndividualProp(rawProp as any, this.defaultOptions);
+    return this.processIndividualProp(rawProp, this.defaultOptions);
   }
 
   /**
-   * Get processing statistics
+   * Get processing statistics from recent logs
    */
-  async getProcessingStats(): Promise<any> {
+  async getProcessingStats(): Promise<Record<string, unknown>> {
     const { data: stats } = await supabaseClient
       .from('processing_logs')
       .select('*')
@@ -537,10 +738,11 @@ export class ProfessionalPropProcessor {
 
     return {
       recent_runs: stats,
-      avg_processing_time:
-        stats?.reduce((sum, s) => sum + (s.summary?.avg_processing_time || 0), 0) /
-        (stats?.length || 1),
-      total_processed: stats?.reduce((sum, s) => sum + (s.summary?.total_processed || 0), 0) || 0,
+      total_processed:
+        stats?.reduce(
+          (sum, s) => sum + ((s.summary as Record<string, number>)?.total_processed || 0),
+          0
+        ) || 0,
     };
   }
 }
