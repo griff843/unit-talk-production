@@ -1,12 +1,20 @@
-// SPRINT-HULY-WORKOS-V1-LOCAL-001: Drift detection rules
+// HULY-OS v1: Drift detection rules
 
-import type { DriftViolation, GitHubPR, HulyIssue } from './adapters/types.js';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+import { REPO_ROOT } from './config.js';
+
+import type { DriftViolation, GitHubPR, HulyIssue, WorkflowRun } from './adapters/types.js';
 
 export type DriftRuleId =
   | 'PR_WITHOUT_ISSUE'
   | 'ISSUE_IN_PROGRESS_WITHOUT_PR'
   | 'DONE_WITHOUT_PROOF_URL'
-  | 'PR_MERGED_ISSUE_NOT_DONE';
+  | 'PR_MERGED_ISSUE_NOT_DONE'
+  | 'CI_FAILURE_ON_SPRINT_BRANCH'
+  | 'PROOF_BUNDLE_MISSING'
+  | 'ORPHAN_PR';
 
 /**
  * Run all drift rules against gathered data.
@@ -15,7 +23,8 @@ export type DriftRuleId =
 export function evaluateDrift(
   openPRs: GitHubPR[],
   mergedPRs: GitHubPR[],
-  hulyIssues: HulyIssue[]
+  hulyIssues: HulyIssue[],
+  workflowRuns?: WorkflowRun[]
 ): DriftViolation[] {
   const violations: DriftViolation[] = [];
 
@@ -111,6 +120,82 @@ export function evaluateDrift(
           },
         });
       }
+    }
+  }
+
+  // Rule 5: CI_FAILURE_ON_SPRINT_BRANCH — sprint branch has failing CI
+  if (workflowRuns) {
+    const sprintBranchRuns = workflowRuns.filter(r => r.headBranch.startsWith('sprint/'));
+    for (const run of sprintBranchRuns) {
+      if (run.conclusion === 'failure') {
+        violations.push({
+          ruleId: 'CI_FAILURE_ON_SPRINT_BRANCH',
+          severity: 'error',
+          entityType: 'pr',
+          entityId: `run:${run.id}`,
+          entityTitle: run.name,
+          message: `CI workflow "${run.name}" failed on sprint branch ${run.headBranch}`,
+          evidence: {
+            branch: run.headBranch,
+            sha: run.headSha,
+            conclusion: run.conclusion,
+            url: run.url,
+          },
+        });
+      }
+    }
+  }
+
+  // Rule 6: PROOF_BUNDLE_MISSING — [SPRINT] issue marked Done but proof dir missing
+  const SPRINT_ID_RE = /SPRINT-[\w-]+-\d+/;
+  for (const issue of hulyIssues) {
+    if (!issue.title.startsWith('[SPRINT]')) continue;
+    if (issue.status !== 'Done') continue;
+
+    const sprintIdMatch = issue.title.match(SPRINT_ID_RE);
+    if (!sprintIdMatch) continue;
+
+    const proofDir = resolve(REPO_ROOT, 'out', 'sprints', sprintIdMatch[0]);
+    if (!existsSync(proofDir)) {
+      violations.push({
+        ruleId: 'PROOF_BUNDLE_MISSING',
+        severity: 'error',
+        entityType: 'issue',
+        entityId: issue.identifier || issue.id,
+        entityTitle: issue.title,
+        message: `Sprint marked Done but proof bundle directory missing: ${proofDir}`,
+        evidence: {
+          sprintId: sprintIdMatch[0],
+          expectedPath: proofDir,
+        },
+      });
+    }
+  }
+
+  // Rule 7: ORPHAN_PR — merged PR on sprint branch with no matching Huly issue
+  for (const pr of mergedPRs) {
+    if (!pr.headBranch.startsWith('sprint/')) continue;
+    if (pr.linkedIssueRefs.length > 0) continue;
+
+    // Check if any Huly issue title contains this branch's sprint pattern
+    const branchSuffix = pr.headBranch.replace('sprint/', '').toUpperCase();
+    const hasMatchingIssue = hulyIssues.some(
+      i => i.title.includes(branchSuffix) || i.title.includes(`SPRINT-${branchSuffix}`)
+    );
+
+    if (!hasMatchingIssue) {
+      violations.push({
+        ruleId: 'ORPHAN_PR',
+        severity: 'warning',
+        entityType: 'pr',
+        entityId: `#${pr.number}`,
+        entityTitle: pr.title,
+        message: `Merged PR on sprint branch ${pr.headBranch} has no matching Huly issue`,
+        evidence: {
+          branch: pr.headBranch,
+          mergedAt: pr.mergedAt,
+        },
+      });
     }
   }
 

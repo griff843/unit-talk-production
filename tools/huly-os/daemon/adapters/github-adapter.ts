@@ -4,7 +4,7 @@ import { Octokit } from '@octokit/rest';
 
 import type { AuditLogger } from '../audit-log.js';
 import type { DaemonConfig } from '../config.js';
-import type { GitHubPR, IGitHubAdapter } from './types.js';
+import type { GitHubPR, IGitHubAdapter, WorkflowRun } from './types.js';
 
 /** Regex to extract Huly issue refs like UT-42 from text */
 const HULY_ISSUE_REF = /\b([A-Z]{2,10}-\d+)\b/g;
@@ -159,5 +159,41 @@ export class GitHubAdapter implements IGitHubAdapter {
       lastCommitSha: lastCommit?.sha.slice(0, 8) ?? 'unknown',
       lastCommitDate: lastCommit?.commit.committer?.date ?? 'unknown',
     };
+  }
+
+  async getWorkflowRuns(branch?: string, status?: string): Promise<WorkflowRun[]> {
+    const runs = await this.audit.traced(
+      'github',
+      'get_workflow_runs',
+      `${this.owner}/${this.repo}`,
+      async () => {
+        const params: Record<string, unknown> = {
+          owner: this.owner,
+          repo: this.repo,
+          per_page: 30,
+        };
+        if (branch) params.branch = branch;
+        if (status) params.status = status;
+
+        const { data } = await this.octokit.actions.listWorkflowRunsForRepo(
+          params as Parameters<typeof this.octokit.actions.listWorkflowRunsForRepo>[0]
+        );
+        return data.workflow_runs;
+      },
+      { branch, status }
+    );
+
+    return runs.map(run => ({
+      id: run.id,
+      name: run.name ?? '',
+      status: run.status ?? '',
+      conclusion: run.conclusion ?? null,
+      headBranch: run.head_branch ?? '',
+      headSha: (run.head_sha ?? '').slice(0, 8),
+      event: run.event,
+      url: run.html_url,
+      createdAt: run.created_at,
+      updatedAt: run.updated_at,
+    }));
   }
 }

@@ -10,6 +10,9 @@
     "operator": "tsx daemon/index.ts --operator",
     "bus": "tsx daemon/index.ts --bus",
     "event:emit": "tsx daemon/event-bus/emit-cli.ts",
+    "huly:ops": "tsx daemon/huly-ops.ts",
+    "huly:backfill": "tsx scripts/backfill-huly-issues.ts",
+    "huly:publish-os": "tsx scripts/publish-os-docs.ts",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts"
   },

@@ -3,7 +3,7 @@
 
 import type { AuditLogger } from '../audit-log.js';
 import type { DaemonConfig } from '../config.js';
-import type { HulyIssue, IHulyAdapter } from './types.js';
+import type { HulyIssue, HulyStatusId, IHulyAdapter } from './types.js';
 
 /** Regex to extract proof_url from issue description */
 const PROOF_URL_RE = /proof_url:\s*(https?:\/\/\S+|out\/proofs\/\S+)/i;
@@ -460,6 +460,147 @@ export class HulyAdapter implements IHulyAdapter {
     });
 
     return { id: commentId };
+  }
+
+  // ── HULY-OS v1 Extensions ────────────────────────────────────────────
+
+  /** Find a single issue by exact title match within a project */
+  async findIssueByTitle(projectIdentifier: string, title: string): Promise<HulyIssue | null> {
+    const issues = await this.listIssues(projectIdentifier);
+    return issues.find(i => i.title === title) ?? null;
+  }
+
+  /**
+   * Idempotent issue create-or-update by exact title match.
+   * If an issue with the same title exists, updates its description.
+   * Otherwise creates a new issue.
+   */
+  async upsertIssueByTitle(
+    projectIdentifier: string,
+    title: string,
+    body: string,
+    extra?: Record<string, unknown>
+  ): Promise<{ id: string; created: boolean }> {
+    if (!this.workspaceToken || !this.workspaceId) {
+      throw new Error('HulyAdapter not connected. Call connect() first.');
+    }
+
+    const existing = await this.findIssueByTitle(projectIdentifier, title);
+
+    if (existing) {
+      // Update description (idempotent — same content is a no-op on Huly side)
+      await this.audit.traced(
+        'huly',
+        'upsert_issue_update',
+        `${projectIdentifier}/${title}`,
+        async () => {
+          const tx = this.buildTx({
+            _class: 'core:class:TxUpdateDoc',
+            objectId: existing.id,
+            objectClass: 'tracker:class:Issue',
+            objectSpace: projectIdentifier,
+            operations: { description: body, ...extra },
+          });
+
+          const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${this.workspaceToken}`,
+            },
+            body: JSON.stringify(tx),
+          });
+
+          if (!res.ok) {
+            const snippet = await res.text().catch(() => '');
+            throw new Error(
+              `Huly upsertIssue(update) HTTP ${res.status}: ${snippet.slice(0, 200)}`
+            );
+          }
+        }
+      );
+
+      return { id: existing.id, created: false };
+    }
+
+    // Create new issue
+    const result = await this.audit.traced(
+      'huly',
+      'upsert_issue_create',
+      `${projectIdentifier}/${title}`,
+      async () => {
+        const id = `issue-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        const tx = this.buildTx({
+          _class: 'core:class:TxCreateDoc',
+          objectId: id,
+          objectClass: 'tracker:class:Issue',
+          objectSpace: projectIdentifier,
+          attributes: { title, description: body, ...extra },
+        });
+
+        const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.workspaceToken}`,
+          },
+          body: JSON.stringify(tx),
+        });
+
+        if (!res.ok) {
+          const snippet = await res.text().catch(() => '');
+          throw new Error(`Huly upsertIssue(create) HTTP ${res.status}: ${snippet.slice(0, 200)}`);
+        }
+
+        return id;
+      }
+    );
+
+    return { id: result, created: true };
+  }
+
+  /** Update an issue's status via TX API */
+  async updateIssueStatus(issueId: string, statusId: HulyStatusId, space: string): Promise<void> {
+    if (!this.workspaceToken || !this.workspaceId) {
+      throw new Error('HulyAdapter not connected. Call connect() first.');
+    }
+
+    await this.audit.traced('huly', 'update_issue_status', `${issueId}→${statusId}`, async () => {
+      const tx = this.buildTx({
+        _class: 'core:class:TxUpdateDoc',
+        objectId: issueId,
+        objectClass: 'tracker:class:Issue',
+        objectSpace: space,
+        operations: { status: statusId },
+      });
+
+      const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.workspaceToken}`,
+        },
+        body: JSON.stringify(tx),
+      });
+
+      if (!res.ok) {
+        const snippet = await res.text().catch(() => '');
+        throw new Error(`Huly updateIssueStatus HTTP ${res.status}: ${snippet.slice(0, 200)}`);
+      }
+    });
+  }
+
+  /** Link a Huly issue to a GitHub PR by adding a structured comment */
+  async linkIssueToPR(
+    issueId: string,
+    prNumber: number,
+    prTitle: string,
+    prUrl: string
+  ): Promise<void> {
+    const marker = `<!-- pr-link:${prNumber} -->`;
+    const message = `${marker}\n**Linked PR #${prNumber}:** [${prTitle}](${prUrl})`;
+    await this.addComment(issueId, message);
   }
 
   /** Resolve a Huly issue's status category name from raw data */
