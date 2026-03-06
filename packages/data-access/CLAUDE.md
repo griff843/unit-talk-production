@@ -44,10 +44,29 @@ import {
 ```typescript
 const client = createSupabaseClientFromConfig({
   url: process.env.SUPABASE_URL!,
-  serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  mode: 'service',
+  key: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  mode: 'service_role',
 });
 ```
+
+### ClientMode Options
+
+| Mode           | `persistSession` | `autoRefreshToken` | Use Case                |
+| -------------- | ---------------- | ------------------ | ----------------------- |
+| `service_role` | false            | false              | Server-side API, agents |
+| `anon`         | false            | false              | Public/unauthenticated  |
+| `user`         | true             | true               | Browser clients         |
+
+---
+
+## Adoption Status
+
+| App            | Status  | Notes                                             |
+| -------------- | ------- | ------------------------------------------------- |
+| API            | ADOPTED | `services/supabaseClient.ts`, `utils/supabase.ts` |
+| Command Center | PENDING | Complex wrapper (1000+ LOC)                       |
+| Discord Bot    | N/A     | Placeholder only                                  |
+| Smart Form     | PENDING | Minimal direct DB access                          |
 
 ---
 

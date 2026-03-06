@@ -91,6 +91,8 @@
   },
   "dependencies": {
     "@unit-talk/contracts": "workspace:*",
+    "@unit-talk/data-access": "workspace:*",
+    "@unit-talk/distribution": "workspace:*",
     "@unit-talk/observability": "workspace:*",
     "@anthropic-ai/sdk": "^0.56.0",
     "@notionhq/client": "^2.2.15",

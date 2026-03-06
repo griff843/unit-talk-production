@@ -31,7 +31,7 @@ to its actual location in the repository. Use this to find where things live.
 | observability  | `packages/observability/` | ACTIVE      | Renamed from telemetry (this sprint)                                     |
 | intelligence   | `packages/intelligence/`  | ACTIVE      | Probability layer (devigConsensus, probabilityLayer, calibrationCompute) |
 | distribution   | `packages/distribution/`  | TYPES-ONLY  | Distribution channel interfaces and payload types                        |
-| data-access    | `packages/data-access/`   | ACTIVE      | Supabase client factory (`createSupabaseClientFromConfig`)               |
+| data-access    | `packages/data-access/`   | ACTIVE      | Supabase client factory — adopted by API (this sprint)                   |
 | ui             | —                         | NOT CREATED | Blueprint v2 Phase 2; no immediate need                                  |
 | event-kit      | —                         | NOT CREATED | Blueprint v2 Phase 2; no immediate need                                  |
 | risk-engine    | —                         | NOT CREATED | Blueprint v2 Phase 3; depends on intelligence                            |
@@ -91,6 +91,70 @@ AutomatedOnboardingAgent, CampaignAgent, ContestAgent, DataLifecycleAgent,
 EligibilityAgent, FeedbackLoopAgent, MarketingAgent,
 PerformanceOptimizationAgent, PredictiveAnalyticsAgent, ProjectionAgent,
 ReferralAgent, RiskManagementAgent, UserRetentionAgent, V3ScoringAdapter
+
+---
+
+## Data Access Adoption Status
+
+The canonical Supabase client factory lives in `@unit-talk/data-access`. Apps
+should use `createSupabaseClientFromConfig()` instead of direct
+`createClient()`.
+
+| App            | Status  | Notes                                                            |
+| -------------- | ------- | ---------------------------------------------------------------- |
+| API            | ADOPTED | `services/supabaseClient.ts` and `utils/supabase.ts` use factory |
+| Command Center | PENDING | 1000+ LOC wrapper in `src/lib/supabase.ts` — needs separate task |
+| Discord Bot    | N/A     | Placeholder only (`supabase = null`)                             |
+| Smart Form     | PENDING | Uses API endpoints, minimal direct DB access                     |
+| Dashboard      | PENDING | Needs investigation                                              |
+
+---
+
+## Intelligence Domain Status
+
+`@unit-talk/intelligence` contains canonical probability, consensus, and
+calibration computation. `apps/api/src/lib/probability/` maintains local copies
+with "keep in sync" comments. Re-export stubs were attempted and reverted —
+local copies are authoritative for now.
+
+**Boundary**: intelligence = pure math (no I/O). Anything with Supabase or env
+access stays in API. `offerFetch.ts` stays in API (Supabase dependency).
+
+---
+
+## Distribution Domain Boundary
+
+`@unit-talk/distribution` defines type interfaces for distribution channels. The
+Blueprint v2 envisions two distribution systems:
+
+| System            | Current Location                             | Owner      |
+| ----------------- | -------------------------------------------- | ---------- |
+| Discord Publisher | `apps/api/src/agents/DiscordPromotionAgent/` | API        |
+| Discord Bot       | `apps/discord-bot/`                          | Standalone |
+
+Future: Both should implement `DistributionChannel` from
+`@unit-talk/distribution`. No code move needed yet — the boundary is documented
+and type imports are wired.
+
+---
+
+## Risk Domain
+
+Risk-related code lives in two locations within the API:
+
+| Location                                | Contents                                    | Type             |
+| --------------------------------------- | ------------------------------------------- | ---------------- |
+| `services/risk/RiskEngine.ts`           | Portfolio risk orchestration                | I/O-bound        |
+| `services/risk/PortfolioRiskManager.ts` | Portfolio-level exposure management         | I/O-bound        |
+| `services/risk/ExposureCalculator.ts`   | Exposure computation                        | Pure computation |
+| `services/risk/DriftEvaluator.ts`       | Drift detection                             | Pure computation |
+| `services/risk/RiskAlertEmitter.ts`     | Alert emission                              | I/O-bound        |
+| `services/risk/edge-validation/`        | Calibration, CLV robustness, ROI simulation | Mixed            |
+| `risk/enhanced-risk-manager.ts`         | Kelly criterion, VaR calculations           | Pure computation |
+
+**Boundary**: `@unit-talk/intelligence` = single-proposition math (probability,
+edge). Future `@unit-talk/risk-engine` = portfolio-level risk (VaR, Kelly,
+exposure, drift).
 
 ---
 

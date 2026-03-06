@@ -33,25 +33,62 @@ never touch Supabase, filesystem, or environment variables.
 ## Key Exports
 
 ```typescript
+// Devig/Consensus (22 exports)
 import {
   computeConsensus,
   calculateEdge,
   calculateBookWeight,
   americanToImplied,
   applyDevig,
+  calculateCLVProb,
+  type ConsensusResult,
+  type BookOffer,
+  type EdgeResult,
 } from '@unit-talk/intelligence';
 
-import { runProbabilityLayer } from '@unit-talk/intelligence';
+// Probability Layer (13 exports)
+import {
+  computeProbabilityLayer,
+  computeUncertainty,
+  computePFinal,
+  computeCLVForecast,
+  type ProbabilityInput,
+  type ProbabilityOutput,
+} from '@unit-talk/intelligence';
 
-import { computeCalibration } from '@unit-talk/intelligence';
+// Calibration (9 exports)
+import {
+  computeBrierScore,
+  computeCalibrationMetrics,
+  type CalibrationMetrics,
+} from '@unit-talk/intelligence';
 ```
 
 ---
 
-## Re-export Strategy
+## Sync Status
 
-Original files in `apps/api/src/lib/probability/` have been replaced with
-re-export stubs pointing to this package. Consumers need zero import changes.
+`apps/api/src/lib/probability/` maintains **local copies** of all functions with
+"keep in sync" comments. Re-export stubs were attempted and reverted — local
+copies are authoritative for the API. The package holds the canonical reference
+implementations. Both must stay in sync manually.
+
+Export parity verified: **MATCH** (44 shared exports across 3 modules).
+
+`offerFetch.ts` stays in API (has Supabase I/O dependency).
+
+---
+
+## Future Extraction Candidates
+
+Pure-computation functions still trapped in `apps/api/` that could move here:
+
+| Function                  | Location                             | Notes                         |
+| ------------------------- | ------------------------------------ | ----------------------------- |
+| `computeCLVForecastV2()`  | `analysis/models/clv-forecast.ts`    | Pure math, no deps            |
+| `computeModelBlend()`     | `analysis/models/model-blend.ts`     | Pure math, no deps            |
+| `computeSharpConsensus()` | `analysis/models/sharp-consensus.ts` | Depends on `getBookProfile()` |
+| `computeScoreV2()`        | `agents/GradingAgent/scoring/`       | Depends on config lookup      |
 
 ---
 

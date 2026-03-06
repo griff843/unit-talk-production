@@ -3,6 +3,8 @@ import 'dotenv/config';
 import axios from 'axios';
 import FormData from 'form-data';
 
+// SPRINT-REPO-TRUTH-LOCK-002: Distribution domain boundary — type-only import
+
 import { resolveDiscordRoutingConfig } from '../../config/discordRouting';
 import { autopilotGuard } from '../../lib/AutopilotGuard';
 import { getBuildInfo } from '../../lib/buildInfo';
@@ -33,6 +35,8 @@ import { supabase } from '../../services/supabaseClient';
 import { PickPresentation } from '../../types/pickPresentation';
 import { calculateParlayOdds } from '../AlertAgent/parlayEmbedBuilder';
 import { parsePromotionPolicyConfig } from '../GradingAgent/scoring/promotionPolicy';
+
+import type { DistributionChannel, DistributionResult } from '@unit-talk/distribution';
 
 // ---- CONFIG ----
 // SPRINT-SCHEMA-ENV-GATES-002: Lazy env access

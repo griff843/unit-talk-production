@@ -30,7 +30,7 @@ import type { SupabaseClientConfig } from './types';
 export function createSupabaseClientFromConfig(config: SupabaseClientConfig) {
   return createClient(config.url, config.key, {
     db: {
-      schema: config.schema ?? 'public',
+      schema: (config.schema ?? 'public') as 'public',
     },
     realtime: {
       params: {

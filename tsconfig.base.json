@@ -27,7 +27,9 @@
       "@unit-talk/shared": ["./packages/shared/src"],
       "@unit-talk/config": ["./packages/config/src"],
       "@unit-talk/intelligence": ["./packages/intelligence/src"],
-      "@unit-talk/data-access": ["./packages/data-access/src"]
+      "@unit-talk/data-access": ["./packages/data-access/src"],
+      "@unit-talk/distribution": ["./packages/distribution/src"],
+      "@unit-talk/observability": ["./packages/observability/src"]
     },
 
     // Strict Type Checking Options

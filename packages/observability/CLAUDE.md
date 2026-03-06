@@ -1,14 +1,14 @@
 # CLAUDE.md - Observability Package
 
-> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A **Status**: AUTHORITATIVE
-> **Role**: OBSERVABILITY **Last Updated**: 2026-02-22
+> **Sprint**: SPRINT-REPO-TRUTH-LOCK-002 **Status**: AUTHORITATIVE **Role**:
+> OBSERVABILITY **Last Updated**: 2026-03-06
 
 ---
 
 ## Overview
 
-The telemetry package provides OpenTelemetry instrumentation for distributed
-tracing, metrics, and logging across all services.
+The observability package provides OpenTelemetry instrumentation for distributed
+tracing, structured logging, and synthetic canary monitoring.
 
 ---
 
@@ -16,10 +16,11 @@ tracing, metrics, and logging across all services.
 
 ### This Package OWNS
 
-- OpenTelemetry configuration
-- Trace context propagation
-- Prometheus metrics registration
-- Structured logging utilities
+- OpenTelemetry SDK configuration (`UnitTalkTelemetry`)
+- Business operation span helpers (`UnitTalkTracing`)
+- Structured logging factory (`createLogger`)
+- Trace context propagation and middleware
+- Synthetic canary framework (`SyntheticCanary`)
 
 ### This Package MUST NOT
 
@@ -32,18 +33,37 @@ tracing, metrics, and logging across all services.
 ## Key Exports
 
 ```typescript
-// Tracing
-import { initTracing, getTracer, withSpan } from '@unit-talk/observability';
-
-// Metrics
+// Telemetry initialization
 import {
-  initMetrics,
-  createCounter,
-  createHistogram,
+  UnitTalkTelemetry,
+  getDefaultTelemetry,
+  telemetry,
+  type TelemetryConfig,
 } from '@unit-talk/observability';
 
+// Business operation tracing
+import { UnitTalkTracing } from '@unit-talk/observability';
+
 // Logging
-import { createLogger, withCorrelationId } from '@unit-talk/observability';
+import {
+  createLogger,
+  type Logger,
+  type LogLevel,
+} from '@unit-talk/observability';
+
+// Middleware & context
+import {
+  traceMiddleware,
+  getCurrentTraceId,
+  getCurrentSpanContext,
+  withTraceContext,
+} from '@unit-talk/observability';
+
+// Synthetic canary
+import { SyntheticCanary, type CanaryConfig } from '@unit-talk/observability';
+
+// OpenTelemetry re-exports
+import { trace, context, propagation } from '@unit-talk/observability';
 ```
 
 ---
@@ -53,38 +73,35 @@ import { createLogger, withCorrelationId } from '@unit-talk/observability';
 ### Service Initialization
 
 ```typescript
-import { initTracing, initMetrics } from '@unit-talk/observability';
+import { getDefaultTelemetry } from '@unit-talk/observability';
 
-// At service startup
-initTracing({
-  serviceName: 'api',
-  endpoint: process.env.OTEL_EXPORTER_ENDPOINT,
-});
-
-initMetrics({
-  serviceName: 'api',
-  port: 9090,
-});
+// Lazy-initialized singleton (reads env at first call)
+const telemetry = getDefaultTelemetry();
+telemetry.initialize();
 ```
 
 ### Creating Spans
 
 ```typescript
-import { withSpan } from '@unit-talk/observability';
+import { UnitTalkTracing } from '@unit-talk/observability';
 
-const result = await withSpan('processGrading', async span => {
-  span.setAttribute('pickId', pickId);
-  return await gradePick(pick);
-});
+const span = UnitTalkTracing.startPropProcessingSpan('scoring', propId);
+try {
+  const result = await scoreProp(prop);
+  UnitTalkTracing.recordSuccess(span, { duration: Date.now() - start });
+} catch (error) {
+  UnitTalkTracing.recordError(span, error as Error);
+} finally {
+  span.end();
+}
 ```
 
-### Logging with Correlation
+### Logging
 
 ```typescript
 import { createLogger } from '@unit-talk/observability';
 
 const logger = createLogger('GradingAgent');
-
 logger.info('Processing pick', { pickId, correlationId });
 ```
 
@@ -131,5 +148,15 @@ pnpm --filter observability test
 
 ---
 
-**Document Owner**: Engineering Team **Last Audit**:
-SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+## Adoption Status
+
+| App            | Status  | Notes                                                        |
+| -------------- | ------- | ------------------------------------------------------------ |
+| API            | ADOPTED | `createLogger` in 98 files, `getDefaultTelemetry` at startup |
+| Command Center | PARTIAL | Local mock `telemetry.ts` stub                               |
+| Discord Bot    | NONE    | No telemetry (lightweight service)                           |
+| Smart Form     | NONE    | No telemetry (frontend only)                                 |
+
+---
+
+**Document Owner**: Engineering Team **Last Audit**: SPRINT-REPO-TRUTH-LOCK-002
