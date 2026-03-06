@@ -69,14 +69,21 @@ new architecture decision and committed governance update.
 - Warning/critical severity thresholds
 - 24 unit tests
 
+### SPRINT-039 — Model Calibration Loop
+
+- Calibration engine (Platt scaling, histogram, identity methods)
+- Calibration analysis (Brier, log loss, ECE, reliability curves)
+- Pre/post calibration comparison with band-level breakdown
+- Versioned calibration profiles with deterministic transforms
+- 29 unit tests
+
 ---
 
 ## Next Sprint (LOCKED)
 
-### SPRINT-039 — Model Calibration Loop
+### SPRINT-040 — TBD
 
-Add governed calibration refinement loop using measured outcomes and drift
-evidence.
+Next intelligence pipeline sprint to be defined.
 
 ---
 
