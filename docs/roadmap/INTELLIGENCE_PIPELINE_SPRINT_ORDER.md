@@ -47,53 +47,31 @@ new architecture decision and committed governance update.
 - Pick policy
 - Promotion pipeline integration
 
----
-
-## Next Sprint (LOCKED)
-
 ### SPRINT-036 — Promotion Band Calibration
 
-Purpose: Determine the publication quality tier for each selected pick.
-
-Responsibilities:
-
-- Assign band tiers (A+, A, B, C)
-- Apply uncertainty caps
-- Apply CLV forecast adjustments
-- Enforce liquidity/risk downgrade rules
-- Emit deterministic suppression reasons when a pick must not be published
-
-Core Modules:
-
-- analysis/promotion/band-assignment.ts
-- analysis/promotion/band-thresholds.ts
-- analysis/promotion/band-downgrade-rules.ts
-
-Outputs:
-
-- band classification
-- downgrade reasons
-- suppression reasons
-
-Acceptance Criteria:
-
-- Every selected pick receives a deterministic band or suppression decision
-- Thresholds are versioned and testable
-- Band assignment is deterministic across runs
-- No selected pick reaches publication without passing band logic
-- Results are queryable by band for later ROI / CLV / calibration analysis
-
----
-
-## Future Sprint Order (Locked)
+- Band assignment (A+/A/B/C/SUPPRESS)
+- Band thresholds (versioned)
+- Band downgrade rules (uncertainty, CLV, liquidity, resistance, risk)
+- 49 unit tests
 
 ### SPRINT-037 — Walk-Forward Evaluation Hardening
 
-Formalize evaluation gates against the current model/selection/banding stack.
+- Band evaluation (CLV, ROI, calibration by band)
+- Downgrade effectiveness analysis
+- Regime stability (CV-based window analysis)
+- 26 unit tests
 
 ### SPRINT-038 — Daily Metrics + Drift Rollups
 
-Add daily rollups for CLV, ROI, attribution, and drift by model/band/market.
+- Daily rollup composition (band metrics + downgrade counts + attribution)
+- Drift detector (6 categories: ROI, CLV, calibration, distribution,
+  suppression, attribution)
+- Warning/critical severity thresholds
+- 24 unit tests
+
+---
+
+## Next Sprint (LOCKED)
 
 ### SPRINT-039 — Model Calibration Loop
 
@@ -105,8 +83,8 @@ evidence.
 ## Governance Rule
 
 Claude must not begin work on future market intelligence layers, dashboard
-polish, or unrelated feature expansion until Promotion Band Calibration
-(SPRINT-036) is complete, committed, and linked to Linear.
+polish, or unrelated feature expansion until the current locked sprint is
+complete, committed, and linked to Linear.
 
 No sprint reordering is allowed without:
 
