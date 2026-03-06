@@ -49,15 +49,8 @@ interface PropSettlement extends Partial<PropSettlementsRow> {
   confidence: number;
 }
 
-// DATA-MOAT-V3-INTEGRATION-001: Loss attribution types
-type LossClassification =
-  | 'PROJECTION_MISS'
-  | 'VARIANCE'
-  | 'EXECUTION_MISS'
-  | 'NEWS_MISS'
-  | 'CORRELATION_MISS'
-  | 'PRICE_MISS'
-  | 'UNKNOWN';
+// SPRINT-034: Import pure loss classification from analysis module
+import { classifyLoss, type LossClassification } from '../../analysis/outcomes/loss-attribution';
 
 export class SettlementAgent extends BaseAgent {
   private settlementMetrics: SettlementMetrics;
@@ -658,53 +651,34 @@ export class SettlementAgent extends BaseAgent {
         .eq('id', pickId)
         .single();
 
-      // DATA-MOAT-ACTIVATION-002: Comprehensive loss classification
-      // Every loss MUST receive a classification (fail-closed requirement)
+      // SPRINT-034: Use pure classifyLoss from analysis module
+      // Reads feature data, then delegates classification to pure function
+      let ev = 0;
+      let clvAtBet = 0;
+      let clvAtClose = 0;
+      let hasFeatureSnapshot = false;
+
       if (pick?.feature_snapshot_id) {
+        hasFeatureSnapshot = true;
         const { data: featureSnapshot } = await this.requireSupabase()
           .from('feature_snapshots')
           .select('feature_vector, clv_at_bet, clv_at_close')
           .eq('id', pick.feature_snapshot_id)
           .single();
 
-        const ev = pick.ev ?? (pick.edge_breakdown as { ev?: number } | null)?.ev ?? 0;
-        const clvAtBet = featureSnapshot?.clv_at_bet ?? pick.clv_at_bet ?? 0;
-        const clvAtClose = featureSnapshot?.clv_at_close ?? 0;
-
-        // Priority-ordered classification (first match wins)
-        // Category 1: PRICE_MISS - CLV at close is significantly negative
-        if (clvAtClose < -3 || clvAtBet < -3) {
-          classification = 'PRICE_MISS';
-          notes.push(`clv_at_bet=${clvAtBet.toFixed(2)}%,clv_at_close=${clvAtClose.toFixed(2)}%`);
-        }
-        // Category 2: VARIANCE - EV close to zero, normal variance
-        else if (Math.abs(ev) < 3) {
-          classification = 'VARIANCE';
-          notes.push(`ev=${ev.toFixed(2)}% within variance bounds`);
-        }
-        // Category 3: PROJECTION_MISS - positive EV but loss
-        else if (ev > 0) {
-          classification = 'PROJECTION_MISS';
-          notes.push(`ev=${ev.toFixed(2)}% but outcome=loss`);
-        }
-        // Category 4: Negative EV that wasn't caught by PRICE_MISS
-        else if (ev < 0) {
-          classification = 'PROJECTION_MISS';
-          notes.push(`negative_ev=${ev.toFixed(2)}%`);
-        }
-        // Fallback: should never reach but ensures classification
-        else {
-          classification = 'UNKNOWN';
-          notes.push('edge_case_classification');
-        }
-
-        // Note: EXECUTION_MISS, NEWS_MISS, CORRELATION_MISS require additional
-        // data sources not currently available. Future enhancement.
-      } else {
-        // No feature snapshot: classify as UNKNOWN but log for investigation
-        classification = 'UNKNOWN';
-        notes.push('no_feature_snapshot_available');
+        ev = pick.ev ?? (pick.edge_breakdown as { ev?: number } | null)?.ev ?? 0;
+        clvAtBet = featureSnapshot?.clv_at_bet ?? pick.clv_at_bet ?? 0;
+        clvAtClose = featureSnapshot?.clv_at_close ?? 0;
       }
+
+      const attribution = classifyLoss({
+        ev,
+        clv_at_bet: clvAtBet,
+        clv_at_close: clvAtClose,
+        has_feature_snapshot: hasFeatureSnapshot,
+      });
+      classification = attribution.classification;
+      notes.push(...attribution.notes);
 
       // INVARIANT: classification MUST be set at this point
       if (!classification) {
