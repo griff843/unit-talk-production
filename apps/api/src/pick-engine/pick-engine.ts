@@ -6,6 +6,7 @@
  * Operates on scored markets to select candidates for promotion.
  */
 
+import type { MarketPolicy } from './pick-policy';
 import type { JoinedScoringRecord } from '../analysis/edge-validation/types';
 
 // ── Input ───────────────────────────────────────────────────────────────────
@@ -71,6 +72,8 @@ export interface PickEngineConfig {
   line_move_reject_pct: number;
   p_final_min: number;
   skip_confidence: boolean;
+  market_policies?: MarketPolicy[];
+  market_type_map?: Map<number, string>;
 }
 
 export const DEFAULT_CONFIG: PickEngineConfig = {

@@ -10,6 +10,7 @@ import { applyEdgeFilter } from './edge-filter';
 import { applyLiquidityFilter } from './liquidity-filter';
 import { applyMarketResistanceFilter, computeLineMovePct } from './market-resistance';
 import { DEFAULT_CONFIG } from './pick-engine';
+import { applyPolicyFilter } from './pick-policy';
 import { applyProbabilitySanity, computeKellyFraction } from './risk-sizing';
 
 import type {
@@ -23,6 +24,7 @@ import type {
 
 const FILTER_ORDER = [
   'probability_sanity',
+  'market_policy',
   'liquidity',
   'edge',
   'confidence',
@@ -38,8 +40,10 @@ export function runPromotionPipeline(
 
   // Initialize cascade counters
   const cascade: Record<string, FilterCascadeEntry> = {};
+  const hasPolicies = config.market_policies && config.market_policies.length > 0;
   for (const name of FILTER_ORDER) {
     if (name === 'confidence' && config.skip_confidence) continue;
+    if (name === 'market_policy' && !hasPolicies) continue;
     cascade[name] = { input_count: 0, pass_count: 0, reject_count: 0, pass_rate_pct: 0 };
   }
 
@@ -60,7 +64,23 @@ export function runPromotionPipeline(
       cascade['probability_sanity']!.pass_count++;
     }
 
-    // 2. Liquidity
+    // 2. Market policy (skip if no policies loaded)
+    if (hasPolicies) {
+      const polResult = applyPolicyFilter(input, config.market_policies!, config.market_type_map);
+      filterResults.push(polResult);
+      if (stillPassing) {
+        cascade['market_policy']!.input_count++;
+        if (!polResult.passed) {
+          stillPassing = false;
+          firstReject = 'market_policy';
+          cascade['market_policy']!.reject_count++;
+        } else {
+          cascade['market_policy']!.pass_count++;
+        }
+      }
+    }
+
+    // 3. Liquidity
     const liqResult = applyLiquidityFilter(input, config);
     filterResults.push(liqResult);
     if (stillPassing) {
@@ -74,7 +94,7 @@ export function runPromotionPipeline(
       }
     }
 
-    // 3. Edge
+    // 4. Edge
     const edgeResult = applyEdgeFilter(input, config);
     filterResults.push(edgeResult);
     if (stillPassing) {
@@ -88,7 +108,7 @@ export function runPromotionPipeline(
       }
     }
 
-    // 4. Confidence (skippable)
+    // 5. Confidence (skippable)
     if (!config.skip_confidence) {
       const confPassed = input.score >= config.confidence_threshold;
       const confResult: FilterResult = {
@@ -113,7 +133,7 @@ export function runPromotionPipeline(
       }
     }
 
-    // 5. Market resistance
+    // 6. Market resistance
     const mrResult = applyMarketResistanceFilter(input, config);
     filterResults.push(mrResult);
     if (stillPassing) {

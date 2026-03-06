@@ -14,16 +14,9 @@ VALUES
   ('game_total', 'Game Total Points', 'game_line', 'over_under')
 ON CONFLICT (canonical_key) DO NOTHING;
 
--- ============================================================================
--- SEED MARKET TYPES (if not exists)
--- ============================================================================
-
-INSERT INTO market_types (market_key, display_name, category, bet_structure, participant_scope)
-VALUES
-  ('moneyline', 'Moneyline', 'game', 'two_way', 'NONE'),
-  ('spread', 'Point Spread', 'game', 'two_way', 'NONE'),
-  ('total', 'Over/Under Total', 'game', 'two_way', 'NONE')
-ON CONFLICT (market_key) DO NOTHING;
+-- NOTE: market_types seeding removed — canonical V3 seed (20260220110000)
+-- already creates market_types with proper schema (no category/bet_structure columns).
+-- The DO $$ block below gracefully handles NULL market_type_id lookups.
 
 -- ============================================================================
 -- SEED PROVIDER MARKET MAPPINGS
