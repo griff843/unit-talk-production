@@ -9,7 +9,7 @@ import { logger } from '../utils/logger';
 
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Import canonical unified_picks types from shared-types
 // Use canonical type directly without local alias
-import type { UnifiedPicksRow } from '@unit-talk/shared-types';
+import type { UnifiedPicksRow } from '@unit-talk/contracts';
 
 // Type aliases for better readability (discord-bot specific tables from local schema)
 type Tables = Database['public']['Tables'];

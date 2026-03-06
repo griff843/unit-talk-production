@@ -1,7 +1,7 @@
 // src/types/rawProp.ts
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical types from shared-types
 
-import type { RawPropsRow } from '@unit-talk/shared-types';
+import type { RawPropsRow } from '@unit-talk/contracts';
 
 /**
  * RawPropsRow - Canonical DB row type from shared-types

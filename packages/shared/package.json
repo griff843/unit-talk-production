@@ -1,0 +1,36 @@
+{
+  "name": "@unit-talk/shared",
+  "version": "1.0.0",
+  "description": "Shared utility functions for Unit Talk Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "lint": "echo 'No lint configured for shared package'",
+    "test": "jest",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "utilities",
+    "shared",
+    "typescript"
+  ],
+  "author": "Unit Talk Team",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@unit-talk/contracts": "workspace:*",
+    "ioredis": "^5.6.1",
+    "tslib": "^2.6.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*"
+  ]
+}

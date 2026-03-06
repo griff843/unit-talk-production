@@ -10,8 +10,7 @@ import * as alertActivities from './agents/AlertAgent/activities';
 import * as analyticsActivities from './agents/AnalyticsAgent/activities/index';
 import * as auditActivities from './agents/AuditAgent/activities';
 import * as baseActivities from './agents/BaseAgent/activities';
-import * as campaignActivities from './agents/CampaignAgent/activities';
-import * as contestActivities from './agents/ContestAgent/activities';
+// SPRINT-REPO-TRUTH-LOCK-002: CampaignAgent/ContestAgent archived to _archived/
 import * as feedActivities from './agents/FeedAgent/activities';
 import * as gradingActivities from './agents/GradingAgent/activities';
 import * as notificationActivities from './agents/NotificationAgent/activities';
@@ -58,8 +57,6 @@ export default async function startWorker() {
         ...auditActivities,
         ...gradingActivities,
         ...alertActivities,
-        ...campaignActivities,
-        ...contestActivities,
         ...operatorActivities,
         ...playerEnrichmentActivities,
         ...recapActivities,

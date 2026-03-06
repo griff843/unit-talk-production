@@ -14,7 +14,7 @@
 
 import { config } from 'dotenv';
 
-import { DataLifecycleAgent } from '../agents/DataLifecycleAgent';
+import { DataLifecycleAgent } from '../agents/_archived/DataLifecycleAgent';
 import { supabaseClient } from '../services/supabaseClient';
 import { Logger } from '../shared/logger';
 

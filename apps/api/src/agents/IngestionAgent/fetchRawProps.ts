@@ -1,10 +1,11 @@
 import { randomUUID } from 'crypto';
 
+import { flattenSGOEvents, pairOverUnderProps } from '../../logic/providers/sgoFetcher';
+import { getSGOClient } from '../../services/sgo/client';
 import { RawProp } from '../../types/rawProps';
 import { fetchUnifiedData } from '../FeedAgent/dataSourceRouter';
 
 import { DataProvider } from './types';
-// import { fetchOptimalProps } from '../FeedAgent/optimal'; // Unused import
 
 /**
  * Fetch raw props from a specific data provider
@@ -94,11 +95,113 @@ async function fetchFromOptimal(_provider: DataProvider): Promise<RawProp[]> {
 }
 
 /**
- * Placeholder for SGO provider - implement when ready
+ * Fetch live props from SGO via /v2/events
+ * SPRINT-027A: Replaced stub with real implementation
  */
 async function fetchFromSGO(_provider: DataProvider): Promise<RawProp[]> {
-  console.log(`[IngestionAgent] SGO provider not yet implemented, returning empty array`);
-  return [];
+  const leagues = ['NBA', 'MLB', 'NHL', 'NFL'];
+  const allProps: RawProp[] = [];
+  const client = getSGOClient();
+
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  for (const league of leagues) {
+    try {
+      console.log(`[IngestionAgent] Fetching ${league} props from SGO`);
+
+      const events = await client.fetchAllEvents({
+        leagueID: league,
+        startsAfter: now.toISOString(),
+        startsBefore: tomorrow.toISOString(),
+        includeOpposingOdds: true,
+        oddsAvailable: true,
+        limit: 50,
+      });
+
+      if (events.length === 0) continue;
+
+      // Flatten and pair
+      const flattened = flattenSGOEvents(events);
+      const paired = pairOverUnderProps(flattened);
+
+      for (const prop of paired) {
+        allProps.push({
+          id: randomUUID(),
+          provider: 'sgo',
+          player_name: prop.playerName ?? 'Unknown',
+          sport: league,
+          team: null,
+          stat_type: prop.statType,
+          outcome: null,
+          line:
+            typeof prop.line === 'number' ? prop.line : prop.line != null ? Number(prop.line) : 0,
+          odds: prop.overOdds ?? -110,
+          created_at: new Date().toISOString(),
+          source: 'sgo',
+          game_id: null,
+          scraped_at: new Date().toISOString(),
+          game_date: (prop.startsAtUTC ?? '').slice(0, 10),
+          matchup: `${prop.awayTeam} @ ${prop.homeTeam}`,
+          trend_confidence: 0,
+          matchup_quality: 0,
+          line_value_score: 0,
+          role_stability: 0,
+          confidence_score: 0,
+          edge_score: 0,
+          tier_tag: null,
+          auto_approved: false,
+          context_flag: false,
+          promoted_to_picks: false,
+          promoted_at: null,
+          promoted: false,
+          is_promoted: false,
+          bet_type: null,
+          market_type: prop.statType,
+          outcomes: null,
+          player_id: prop.playerId,
+          player_slug: null,
+          external_game_id: prop.eventID,
+          external_id: prop.eventID,
+          sport_key: league.toLowerCase(),
+          league,
+          over_odds: prop.overOdds ?? null,
+          under_odds: prop.underOdds ?? null,
+          fair_odds: null,
+          market: `player_${prop.statType.toLowerCase()}`,
+          game_time: prop.startsAtUTC ?? new Date().toISOString(),
+          start_time: prop.startsAtUTC ?? new Date().toISOString(),
+          home_team: prop.homeTeam,
+          home_team_id: prop.homeTeamID,
+          away_team: prop.awayTeam,
+          away_team_id: prop.awayTeamID,
+          opponent: null,
+          unit_size: null,
+          tier: null,
+          ev_percent: null,
+          trend_score: null,
+          matchup_score: null,
+          line_score: null,
+          role_score: null,
+          direction: null,
+          unique_key: null,
+          event_id: null,
+          book: null,
+          updated_at: null,
+          is_alt_line: null,
+          is_primary: null,
+          is_valid: undefined,
+        });
+      }
+
+      console.log(`[IngestionAgent] Fetched ${paired.length} ${league} props from SGO`);
+    } catch (error) {
+      console.error(`[IngestionAgent] SGO ${league} fetch failed:`, error);
+    }
+  }
+
+  console.log(`[IngestionAgent] Total SGO props: ${allProps.length}`);
+  return allProps;
 }
 
 /**

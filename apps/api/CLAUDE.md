@@ -197,13 +197,20 @@ import { BaseAgent } from '../BaseAgent';
 
 **Never redefine `BaseAgentConfig`** - always import from `@shared/types/base`.
 
-### Agent Categories
+### Agent Categories (Production)
 
-| Category              | Agents                                                             |
-| --------------------- | ------------------------------------------------------------------ |
-| Business Intelligence | GradingAgent, AnalyticsAgent, AlertAgent, FeedAgent, RecapAgent    |
-| Operational           | NotificationAgent, ContestAgent, PlayerEnrichmentAgent, AuditAgent |
-| Lifecycle             | DiscordPromotionAgent, SettlementAgent                             |
+| Category              | Agents                                                                         |
+| --------------------- | ------------------------------------------------------------------------------ |
+| Business Intelligence | GradingAgent, ScoringAgent, AnalyticsAgent, AlertAgent, FeedAgent, RecapAgent  |
+| Operational           | NotificationAgent, PlayerEnrichmentAgent, AuditAgent, DataAgent, OperatorAgent |
+| Lifecycle             | DiscordPromotionAgent, SettlementAgent                                         |
+| Data Pipeline         | IngestionAgent, BridgeWorker                                                   |
+
+### Archived Agents
+
+14 experimental/stub agents archived to `src/agents/_archived/` in
+SPRINT-REPO-TRUTH-LOCK-002. Do not extend or add new consumers of archived
+agents.
 
 ---
 

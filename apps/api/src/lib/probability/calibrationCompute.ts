@@ -1,3 +1,4 @@
+// SPRINT-REPO-TRUTH-LOCK-002: Canonical copy lives in @unit-talk/intelligence. Keep in sync.
 /**
  * Calibration Computation
  * Sprint: INTELLIGENCE-PROBABILITY-FOUNDATION-001

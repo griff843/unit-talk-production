@@ -14,7 +14,7 @@
  */
 
 import 'dotenv/config';
-import { getDefaultTelemetry } from '@unit-talk/telemetry';
+import { getDefaultTelemetry } from '@unit-talk/observability';
 
 import { enforceFailClosedBoot } from './lib/enforcement';
 import { getEnv } from './utils/getEnv';

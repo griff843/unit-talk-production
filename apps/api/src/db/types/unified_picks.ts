@@ -1,16 +1,11 @@
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical types from shared-types
 
-import type {
-  Database,
-  UnifiedPicksRow,
-  TablesInsert,
-  TablesUpdate,
-} from '@unit-talk/shared-types';
+import type { Database, UnifiedPicksRow, TablesInsert, TablesUpdate } from '@unit-talk/contracts';
 
 /**
  * UnifiedPick - Re-exported from shared-types canonical definitions
  */
-export type { UnifiedPicksRow, UnifiedPick } from '@unit-talk/shared-types';
+export type { UnifiedPicksRow, UnifiedPick } from '@unit-talk/contracts';
 
 // Alias for backward compatibility
 export type UnifiedPickInsert = Omit<UnifiedPicksRow, 'id' | 'created_at' | 'updated_at'>;

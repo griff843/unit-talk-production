@@ -1,4 +1,4 @@
-import { Position, RiskMetrics, KellyResult, RiskManagerConfig } from '../types/risk';
+import { Position, RiskMetrics, KellyResult, RiskManagerConfig } from '../services/risk/risk-types';
 
 export class EnhancedRiskManager {
   private config: RiskManagerConfig;

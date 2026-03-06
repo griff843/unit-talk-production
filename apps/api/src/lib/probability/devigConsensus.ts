@@ -1,3 +1,4 @@
+// SPRINT-REPO-TRUTH-LOCK-002: Canonical copy lives in @unit-talk/intelligence. Keep in sync.
 /**
  * Devig Consensus Computation
  * Sprint: INTELLIGENCE-PROBABILITY-FOUNDATION-001
@@ -371,7 +372,7 @@ export function computeConsensus(
   // Step 2: Normalize weights so Σ w_book = 1
   for (const book of devigedBooks) {
     book.normalizedWeight = roundTo(book.rawWeight / totalWeight, 6);
-    weightBreakdowns[book.bookId].normalizedWeight = book.normalizedWeight;
+    weightBreakdowns[book.bookId]!.normalizedWeight = book.normalizedWeight;
   }
 
   // Step 3: Compute weighted consensus
@@ -450,6 +451,6 @@ export function calculateCLVProb(entryDevigProb: number, closingDevigProb: numbe
 // EXPORTS
 // =============================================================================
 
-export const PROBABILITY_MODEL_VERSION = 'prob_v1.1.0_market_anchored';
+export const PROBABILITY_MODEL_VERSION = 'prob_v2.0.0_syndicate_layered';
 
 export { LIQUIDITY_WEIGHTS, SHARP_WEIGHTS, DATA_QUALITY_WEIGHTS, roundTo };

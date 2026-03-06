@@ -12,7 +12,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { isAutopilotFrozenAsync, getFreezeDetails } from '@unit-talk/shared-utils';
+import { isAutopilotFrozenAsync, getFreezeDetails } from '@unit-talk/shared';
 
 import { logger } from '../../services/logging';
 

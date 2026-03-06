@@ -35,7 +35,7 @@ interface GameResult {
 
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical PropSettlementsRow from shared-types
 // Note: This local interface is for in-memory processing, extends DB row with additional fields
-import type { PropSettlementsRow } from '@unit-talk/shared-types';
+import type { PropSettlementsRow } from '@unit-talk/contracts';
 
 interface PropSettlement extends Partial<PropSettlementsRow> {
   raw_prop_id: string;

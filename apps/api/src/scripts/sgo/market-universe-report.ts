@@ -8,7 +8,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical types from shared-types
-import type { PlayersRow } from '@unit-talk/shared-types';
+import type { PlayersRow } from '@unit-talk/contracts';
 
 type Player = PlayersRow;
 

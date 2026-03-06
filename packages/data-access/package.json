@@ -1,0 +1,32 @@
+{
+  "name": "@unit-talk/data-access",
+  "version": "0.0.1",
+  "description": "Database access layer, Supabase client management, and query builders for Unit Talk Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "lint": "echo 'No lint configured for data-access package'",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "data-access",
+    "supabase",
+    "database"
+  ],
+  "author": "Unit Talk Team",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@unit-talk/contracts": "workspace:*",
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*"
+  ]
+}

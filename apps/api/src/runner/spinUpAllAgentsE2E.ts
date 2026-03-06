@@ -10,9 +10,9 @@
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 
+import { EligibilityAgent } from '../agents/_archived/EligibilityAgent';
 import { AlertAgent } from '../agents/AlertAgent';
 import { BaseAgentConfig, BaseAgentDependencies } from '../agents/BaseAgent/types';
-import { EligibilityAgent } from '../agents/EligibilityAgent';
 import { FeedAgent } from '../agents/FeedAgent';
 import { GradingAgent } from '../agents/GradingAgent';
 import { IngestionAgent } from '../agents/IngestionAgent';

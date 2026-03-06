@@ -35,6 +35,12 @@ export async function fetchSGOEvents({
   includeOpposingOdds = true,
   oddsAvailable = true,
   limit = 50,
+  // SPRINT-027A: Historical params
+  finalized,
+  includeOpenCloseOdds,
+  ended,
+  expandResults,
+  bookmakerID,
 }: {
   apiKey: string;
   leagueID: string;
@@ -44,9 +50,14 @@ export async function fetchSGOEvents({
   includeOpposingOdds?: boolean;
   oddsAvailable?: boolean;
   limit?: number;
+  finalized?: boolean;
+  includeOpenCloseOdds?: boolean;
+  ended?: boolean;
+  expandResults?: boolean;
+  bookmakerID?: string;
 }): Promise<any[]> {
   const endpoint = 'https://api.sportsgameodds.com/v2/events';
-  const params = {
+  const params: Record<string, unknown> = {
     apiKey,
     leagueID,
     startsAfter,
@@ -56,6 +67,12 @@ export async function fetchSGOEvents({
     oddsAvailable,
     limit,
   };
+  if (finalized != null) params.finalized = finalized;
+  if (includeOpenCloseOdds != null) params.includeOpenCloseOdds = includeOpenCloseOdds;
+  if (ended != null) params.ended = ended;
+  if (expandResults != null) params.expandResults = expandResults;
+  if (bookmakerID) params.bookmakerID = bookmakerID;
+
   const resp = await axios.get(endpoint, { params });
   if (!resp.data?.success || !Array.isArray(resp.data?.data)) {
     throw new Error(`[SGO] Bad response: ${JSON.stringify(resp.data)}`);

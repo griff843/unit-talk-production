@@ -33,7 +33,7 @@ if [ -n "$STAGED_TS_FILES" ]; then
     STAGED_WORKSPACES="$STAGED_WORKSPACES -w apps/dashboard"
   fi
   if echo "$STAGED_TS_FILES" | grep -q "^packages/"; then
-    STAGED_WORKSPACES="$STAGED_WORKSPACES -w packages/config -w packages/database -w packages/shared-utils -w packages/shared-types"
+    STAGED_WORKSPACES="$STAGED_WORKSPACES -w packages/config -w packages/contracts -w packages/shared -w packages/observability -w packages/intelligence -w packages/data-access -w packages/distribution"
   fi
   if echo "$STAGED_TS_FILES" | grep -q "^scripts/"; then
     # Root scripts - run root type-check only

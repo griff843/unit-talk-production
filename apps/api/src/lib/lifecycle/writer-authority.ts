@@ -46,7 +46,11 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
     immutableAfterSet: true,
   },
   { field: 'line', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
-  { field: 'odds', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  {
+    field: 'odds',
+    allowedWriters: ['submitter', 'operator_override'],
+    immutableAfterSet: true,
+  },
   { field: 'stake', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
   { field: 'sport', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
   {
@@ -81,6 +85,49 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
     field: 'parlay_id',
     allowedWriters: ['submitter', 'operator_override'],
     immutableAfterSet: true,
+  },
+
+  // Scoring/pipeline fields (set at pick creation by ProfessionalPropProcessor)
+  // SPRINT-CANONICAL-SCORING-ACTIVATION-026: Add scoring fields for submitter
+  {
+    field: 'confidence',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
+  {
+    field: 'tier',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
+  {
+    field: 'professional_score',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
+  {
+    field: 'p_final',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
+  {
+    field: 'edge_final',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
+  {
+    field: 'uncertainty_final',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
+  {
+    field: 'clv_forecast',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
+  {
+    field: 'devigged_edge',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
   },
 
   // Timestamp fields (set by appropriate writers)
@@ -125,7 +172,7 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
   },
   {
     field: 'promotion_band',
-    allowedWriters: ['promoter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: false,
   },
   {
@@ -142,7 +189,7 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
   // Discord posting fields
   {
     field: 'posted_to_discord',
-    allowedWriters: ['poster', 'operator_override'],
+    allowedWriters: ['submitter', 'poster', 'operator_override'],
     immutableAfterSet: true,
   },
   {
@@ -185,8 +232,12 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
     immutableAfterSet: false,
   },
 
-  // Pick status (outcome) - derived from settlement
-  { field: 'status', allowedWriters: ['settler', 'operator_override'], immutableAfterSet: false },
+  // Pick status (outcome) - set by submitter at creation, updated by settler
+  {
+    field: 'status',
+    allowedWriters: ['submitter', 'settler', 'operator_override'],
+    immutableAfterSet: false,
+  },
 
   // Metadata (flexible)
   {

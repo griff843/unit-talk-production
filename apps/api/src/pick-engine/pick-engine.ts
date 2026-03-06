@@ -7,7 +7,7 @@
  */
 
 import type { MarketPolicy } from './pick-policy';
-import type { JoinedScoringRecord } from '../analysis/edge-validation/types';
+import type { JoinedScoringRecord } from '../services/risk/edge-validation/types';
 
 // ── Input ───────────────────────────────────────────────────────────────────
 

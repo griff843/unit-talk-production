@@ -1,7 +1,9 @@
+// SPRINT-REPO-TRUTH-LOCK-002: Canonical copy lives in @unit-talk/intelligence. Keep in sync.
 /**
  * Probability Layer
  * Sprint: INTELLIGENCE-PROBABILITY-FOUNDATION-001
  * Updated: INTELLIGENCE-PROBABILITY-INTEGRATION-002 (market-anchored, fail-closed)
+ * Updated: SPRINT-024-SCORING-ENHANCEMENT-LAYERING (syndicate model)
  *
  * Implements MODEL_ARCHITECTURE_SPEC_v1.md:
  * - P_final: Calibrated model probability (0-1)
@@ -9,8 +11,11 @@
  * - edge_final: P_final - P_market_devig
  * - clv_forecast: Predicted CLV direction and magnitude
  *
- * CRITICAL CHANGES (v1.1.0):
+ * CRITICAL CHANGES (v2.0.0 — syndicate layered):
  * - MARKET-ANCHORED: Confidence maps to delta AROUND p_market_devig, not absolute probability.
+ * - BOUNDED ADJUSTMENT: Delta capped by dynamic cap derived from book_count + agreement.
+ * - CONFIDENCE FACTOR: Multiplier (0..1) scales adjustment by data quality signals.
+ * - EXPLANATION PAYLOAD: Every computation produces an operator-readable explain_v3 object.
  * - FAIL-CLOSED: Returns { ok: false, reason } when primitives cannot be computed.
  * - NO fabricated defaults (0.5, entry-implied, etc.).
  */
@@ -41,6 +46,33 @@ export interface UncertaintyFactors {
   featureCompleteness: number;
 }
 
+/** Explanation payload for scoring transparency (SPRINT-024 Syndicate Model) */
+export interface ExplanationPayload {
+  model_version: string;
+  p_market_devig: number;
+  adjustment_raw: number;
+  adjustment_capped: number;
+  cap_value: number;
+  cap_reason: string;
+  uncertainty_final: number;
+  confidence_factor: number;
+  p_final: number;
+  edge_final: number;
+  clipped: boolean;
+  reason_codes: string[];
+  books_used: number;
+  book_spread: number;
+  feature_completeness: number;
+}
+
+/** Parameters for syndicate layer cap tuning */
+export interface SyndicateLayerParams {
+  maxDeltaOverride?: number;
+  minBooksForCapBoost?: number;
+  absoluteMaxCap?: number;
+  absoluteMinCap?: number;
+}
+
 /** Input for probability layer computation */
 export interface ProbabilityInput {
   /** Confidence score from existing scoring pipeline (0-10 scale) */
@@ -59,6 +91,8 @@ export interface ProbabilityInput {
   hoursToStart: number | null;
   /** Feature completeness score from feature snapshot (0-1) */
   featureCompleteness: number;
+  /** Optional syndicate layer parameters for cap tuning */
+  syndicateParams?: SyndicateLayerParams;
 }
 
 /** Successful probability computation result */
@@ -82,6 +116,8 @@ export interface ProbabilityOutputOk {
   probabilityModelVersion: string;
   /** Books used in consensus */
   booksUsed: number;
+  /** Scoring explanation payload (SPRINT-024 Syndicate Model) */
+  explain: ExplanationPayload;
 }
 
 /** Failed probability computation result */
@@ -225,39 +261,129 @@ export function computeUncertainty(factors: UncertaintyFactors): number {
 }
 
 // =============================================================================
-// P_FINAL COMPUTATION (MARKET-ANCHORED)
+// CONFIDENCE FACTOR (SPRINT-024 Syndicate Model)
 // =============================================================================
 
 /**
- * Compute P_final using market-anchored delta mapping.
+ * Compute confidence factor (0..1) for scaling the adjustment.
+ * Higher = more trust in our edge claim.
  *
- * P_final = p_market_devig + delta
+ * DISTINCT from uncertainty:
+ * - uncertainty = how unsure we are about market truth
+ * - confidence_factor = how much we trust our adjustment to be meaningful
  *
- * Where delta is derived from confidence score:
- * - Higher confidence → positive delta → P_final > P_market
- * - Lower confidence → negative delta → P_final < P_market
+ * Derived from: book_count, book agreement (spread), data completeness.
+ */
+export function computeConfidenceFactor(
+  booksUsed: number,
+  bookSpread: number,
+  featureCompleteness: number
+): number {
+  // More books → higher trust (2 books = 0.3, 5+ books = 1.0)
+  const bookCountFactor = clamp((booksUsed - 1) / 4, 0.3, 1.0);
+  // Lower spread → higher trust (spread 0 = 1.0, spread 0.06+ = 0.4)
+  const agreementFactor = clamp(1 - bookSpread / 0.06, 0.4, 1.0);
+  // Higher feature completeness → higher trust
+  const completenessFactor = clamp(featureCompleteness, 0.3, 1.0);
+
+  // Weighted blend: 40% books + 40% agreement + 20% completeness
+  const factor = bookCountFactor * 0.4 + agreementFactor * 0.4 + completenessFactor * 0.2;
+
+  return roundTo(clamp(factor, 0, 1), 6);
+}
+
+// =============================================================================
+// DYNAMIC CAP (SPRINT-024 Syndicate Model)
+// =============================================================================
+
+/**
+ * Compute dynamic cap for adjustment magnitude.
+ * Default cap = MAX_DELTA (0.04), adjusted by book_count and agreement.
+ * Bounded by absolute min/max to prevent extreme adjustments.
  *
- * Uncertainty shrinks P_final TOWARD market (reduces delta magnitude).
+ * More agreeing books → larger allowed cap (up to 0.06).
+ * High book spread → smaller cap (down to 0.01).
+ */
+export function computeDynamicCap(
+  booksUsed: number,
+  bookSpread: number,
+  params?: SyndicateLayerParams
+): { cap: number; reason: string } {
+  const baseCap = params?.maxDeltaOverride ?? MARKET_DELTA_PARAMS.MAX_DELTA;
+  const minBooksBoost = params?.minBooksForCapBoost ?? 5;
+  const absoluteMax = params?.absoluteMaxCap ?? 0.06;
+  const absoluteMin = params?.absoluteMinCap ?? 0.01;
+
+  // Scale cap by book count (more books = can trust larger adjustments)
+  const bookFactor = clamp(booksUsed / minBooksBoost, 0.6, 1.2);
+  // Scale cap by agreement (high spread = constrain adjustments)
+  const agreementFactor = clamp(1 - bookSpread / 0.08, 0.5, 1.0);
+  const dynamicCap = baseCap * bookFactor * agreementFactor;
+  const finalCap = roundTo(clamp(dynamicCap, absoluteMin, absoluteMax), 6);
+
+  const reasons: string[] = [];
+  reasons.push(`base=${baseCap}`);
+  reasons.push(`books=${booksUsed},bookFactor=${roundTo(bookFactor, 2)}`);
+  reasons.push(`spread=${roundTo(bookSpread, 4)},agreeFactor=${roundTo(agreementFactor, 2)}`);
+  if (finalCap === absoluteMax) reasons.push('hit_absolute_max');
+  if (finalCap === absoluteMin) reasons.push('hit_absolute_min');
+
+  return { cap: finalCap, reason: reasons.join(';') };
+}
+
+// =============================================================================
+// P_FINAL COMPUTATION (SYNDICATE-LAYERED)
+// =============================================================================
+
+/** Result of P_final computation with audit details */
+export interface PFinalResult {
+  pFinal: number;
+  adjustmentRaw: number;
+  adjustmentCapped: number;
+  clipped: boolean;
+}
+
+/**
+ * Compute P_final using syndicate-layered delta mapping (SPRINT-024).
+ *
+ * Formula:
+ *   delta = confidenceToDelta(confidence)                        // raw adjustment
+ *   capped_delta = clamp(delta, -dynamicCap, +dynamicCap)        // bounded
+ *   effective = capped_delta * confidenceFactor * (1 - uncertainty) // scaled
+ *   p_final = p_market_devig + effective                         // anchored
+ *
+ * Invariants:
+ * - p_final always in [0.01, 0.99]
+ * - |capped_delta| <= dynamicCap <= 0.06 (absolute max)
+ * - When confidence = 5.0 (neutral), delta = 0, so p_final = p_market_devig
  */
 export function computePFinal(
   confidenceScore: number,
   pMarketDevig: number,
-  uncertainty: number
-): number {
+  uncertainty: number,
+  confidenceFactor: number = 1.0,
+  dynamicCap: number = MARKET_DELTA_PARAMS.MAX_DELTA
+): PFinalResult {
   // Step 1: Get raw delta from confidence
-  const rawDelta = confidenceToDelta(confidenceScore);
+  const adjustmentRaw = confidenceToDelta(confidenceScore);
 
-  // Step 2: Shrink delta based on uncertainty
-  // Higher uncertainty → delta approaches 0 (agree with market)
-  // uncertainty 0 → full delta
-  // uncertainty 1 → delta = 0
-  const shrinkFactor = 1 - uncertainty;
-  const adjustedDelta = rawDelta * shrinkFactor;
+  // Step 2: Apply dynamic cap (bounded adjustment)
+  const adjustmentCapped = clamp(adjustmentRaw, -dynamicCap, dynamicCap);
 
-  // Step 3: Compute P_final = P_market + adjusted delta
-  const pFinal = pMarketDevig + adjustedDelta;
+  // Step 3: Scale by confidence factor and shrink by uncertainty
+  const effectiveAdjustment = adjustmentCapped * confidenceFactor * (1 - uncertainty);
 
-  return roundTo(clamp(pFinal, 0.01, 0.99), 6);
+  // Step 4: Compute P_final = P_market + effective adjustment
+  const pFinalRaw = pMarketDevig + effectiveAdjustment;
+  const pFinal = roundTo(clamp(pFinalRaw, 0.01, 0.99), 6);
+  const clipped = Math.abs(pFinalRaw - pFinal) > 1e-9;
+
+  return {
+    pFinal,
+    adjustmentRaw: roundTo(adjustmentRaw, 6),
+    adjustmentCapped: roundTo(adjustmentCapped, 6),
+    clipped,
+  };
 }
 
 // =============================================================================
@@ -372,8 +498,29 @@ export function computeProbabilityLayer(input: ProbabilityInput): ProbabilityOut
   };
   const uncertaintyFinal = computeUncertainty(uncertaintyFactors);
 
-  // Step 5: Compute P_final (market-anchored)
-  const pFinal = computePFinal(input.confidenceScore, pMarketDevig, uncertaintyFinal);
+  // Step 4b: Compute confidence factor (SPRINT-024 Syndicate Model)
+  const confidenceFactor = computeConfidenceFactor(
+    consensusOk.booksUsed,
+    bookSpread,
+    input.featureCompleteness
+  );
+
+  // Step 4c: Compute dynamic cap (SPRINT-024 Syndicate Model)
+  const { cap: dynamicCap, reason: capReason } = computeDynamicCap(
+    consensusOk.booksUsed,
+    bookSpread,
+    input.syndicateParams
+  );
+
+  // Step 5: Compute P_final (syndicate-layered)
+  const pFinalResult = computePFinal(
+    input.confidenceScore,
+    pMarketDevig,
+    uncertaintyFinal,
+    confidenceFactor,
+    dynamicCap
+  );
+  const pFinal = pFinalResult.pFinal;
 
   // Step 6: Compute edge
   const decimalOdds =
@@ -392,6 +539,36 @@ export function computeProbabilityLayer(input: ProbabilityInput): ProbabilityOut
     };
   }
 
+  // Step 8: Build reason codes (SPRINT-024)
+  const reasonCodes: string[] = [];
+  if (pFinalResult.clipped) reasonCodes.push('P_FINAL_CLIPPED');
+  if (dynamicCap < MARKET_DELTA_PARAMS.MAX_DELTA) reasonCodes.push('CAP_REDUCED');
+  if (dynamicCap > MARKET_DELTA_PARAMS.MAX_DELTA) reasonCodes.push('CAP_BOOSTED');
+  if (confidenceFactor < 0.5) reasonCodes.push('LOW_CONFIDENCE_FACTOR');
+  if (uncertaintyFinal > UNCERTAINTY_THRESHOLDS.SOFT_MAX) reasonCodes.push('HIGH_UNCERTAINTY');
+  if (bookSpread > 0.05) reasonCodes.push('HIGH_BOOK_SPREAD');
+  if (Math.abs(edge) > 0.05) reasonCodes.push('LARGE_EDGE');
+  if (Math.abs(edge) > 0.08) reasonCodes.push('EDGE_TOO_GOOD_TO_BE_TRUE');
+
+  // Step 9: Build explanation payload (SPRINT-024)
+  const explain: ExplanationPayload = {
+    model_version: PROBABILITY_MODEL_VERSION,
+    p_market_devig: pMarketDevig,
+    adjustment_raw: pFinalResult.adjustmentRaw,
+    adjustment_capped: pFinalResult.adjustmentCapped,
+    cap_value: dynamicCap,
+    cap_reason: capReason,
+    uncertainty_final: uncertaintyFinal,
+    confidence_factor: confidenceFactor,
+    p_final: pFinal,
+    edge_final: edge,
+    clipped: pFinalResult.clipped,
+    reason_codes: reasonCodes,
+    books_used: consensusOk.booksUsed,
+    book_spread: roundTo(bookSpread, 6),
+    feature_completeness: input.featureCompleteness,
+  };
+
   return {
     ok: true,
     pFinal,
@@ -403,5 +580,6 @@ export function computeProbabilityLayer(input: ProbabilityInput): ProbabilityOut
     consensusWeightsJson: consensusOk.consensusWeights,
     probabilityModelVersion: PROBABILITY_MODEL_VERSION,
     booksUsed: consensusOk.booksUsed,
+    explain,
   };
 }

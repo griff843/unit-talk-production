@@ -125,7 +125,7 @@ export interface Metrics extends FeedMetrics {
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Re-export canonical RawPropsRow from shared-types
 // Note: FeedAgent RawProp is a provider response format, slightly different from DB RawPropsRow
 // We keep this local interface for provider-specific fields, but re-export the canonical type
-export type { RawPropsRow } from '@unit-talk/shared-types';
+export type { RawPropsRow } from '@unit-talk/contracts';
 
 /** Provider response format - extends canonical DB row with provider-specific fields */
 export interface ProviderRawProp {

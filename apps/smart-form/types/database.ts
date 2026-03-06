@@ -1,11 +1,11 @@
 /**
  * SPRINT-DATABASE-TYPE-CENTRALIZATION-003: Smart Form Database Types
  *
- * Canonical database types are imported from @unit-talk/shared-types.
+ * Canonical database types are imported from @unit-talk/contracts.
  * App-specific extensions and additional tables are defined here.
  *
  * RULE: Do NOT redefine canonical table Row types (unified_picks, bridge_outbox, etc.)
- *       Import them from @unit-talk/shared-types instead.
+ *       Import them from @unit-talk/contracts instead.
  */
 
 // Import canonical types from shared-types
@@ -24,7 +24,7 @@ import type {
   GamesRow,
   RawPropsRow,
   SmartTicketsRow,
-} from '@unit-talk/shared-types';
+} from '@unit-talk/contracts';
 
 // Re-export canonical types for backwards compatibility
 export type {

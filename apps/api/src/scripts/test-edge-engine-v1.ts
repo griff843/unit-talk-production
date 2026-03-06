@@ -26,7 +26,7 @@ import {
 } from '../agents/ScoringAgent/scoring/edgeEngineV1';
 
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical types from shared-types
-import type { UnifiedPicksRow } from '@unit-talk/shared-types';
+import type { UnifiedPicksRow } from '@unit-talk/contracts';
 
 const DATABASE_URL =
   process.env.DATABASE_URL ||

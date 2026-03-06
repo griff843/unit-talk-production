@@ -3,7 +3,7 @@
  * SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Import canonical types from shared-types
  */
 
-import type { SmartTicketsRow } from '@unit-talk/shared-types';
+import type { SmartTicketsRow } from '@unit-talk/contracts';
 
 // Extended SmartTicket with form-specific fields not in DB
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use Omit to exclude conflicting Json type

@@ -15,7 +15,7 @@ import type {
   UnifiedPicksRow,
   UsersRow,
   AgentHealthRow,
-} from '@unit-talk/shared-types';
+} from '@unit-talk/contracts';
 
 // Re-export canonical types
 export type RawProp = RawPropsRow;

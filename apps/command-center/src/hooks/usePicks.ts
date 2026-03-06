@@ -237,26 +237,20 @@ export function usePicks() {
 
   const approvePick = async (pickId: string) => {
     try {
-      if (!supabase) {
-        throw new Error('Supabase client not initialized');
+      // SPRINT-023B: Route through API endpoint instead of direct DB write
+      const res = await fetch(`/api/ops/picks/${pickId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve', reason: 'Approved via Command Center' }),
+      });
+      const result = await res.json();
+
+      if (!res.ok || !result.success) {
+        console.error('❌ API error approving pick:', result.error);
+        throw new Error(`Failed to approve pick: ${result.error || 'Unknown error'}`);
       }
 
-      // For approved picks, update both status and workflow_stage to maintain consistency
-      const { error } = await supabase
-        .from('unified_picks')
-        .update({
-          status: 'pending', // status for betting outcome (pending until game settles)
-          workflow_stage: 'approved', // workflow progression for approval process
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', pickId);
-
-      if (error) {
-        console.error('❌ Database error approving pick:', error);
-        throw new Error(`Failed to approve pick: ${error.message}`);
-      }
-
-      console.log('✅ Pick approved successfully in database');
+      console.log('✅ Pick approved successfully via API');
 
       // Update local state
       setPicks(prevPicks =>
@@ -281,27 +275,20 @@ export function usePicks() {
 
   const rejectPick = async (pickId: string) => {
     try {
-      if (!supabase) {
-        throw new Error('Supabase client not initialized');
+      // SPRINT-023B: Route through API endpoint instead of direct DB write
+      const res = await fetch(`/api/ops/picks/${pickId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject', reason: 'Rejected via Command Center' }),
+      });
+      const result = await res.json();
+
+      if (!res.ok || !result.success) {
+        console.error('❌ API error rejecting pick:', result.error);
+        throw new Error(`Failed to reject pick: ${result.error || 'Unknown error'}`);
       }
 
-      // For rejected picks, update status to cancelled but keep workflow_stage as draft
-      // since rejected picks shouldn't progress through the workflow
-      const { error } = await supabase
-        .from('unified_picks')
-        .update({
-          status: 'cancelled', // matches schema constraint for rejected picks
-          workflow_stage: 'draft', // rejected picks revert to draft status
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', pickId);
-
-      if (error) {
-        console.error('❌ Database error rejecting pick:', error);
-        throw new Error(`Failed to reject pick: ${error.message}`);
-      }
-
-      console.log('✅ Pick rejected successfully in database');
+      console.log('✅ Pick rejected successfully via API');
 
       // Update local state
       setPicks(prevPicks =>

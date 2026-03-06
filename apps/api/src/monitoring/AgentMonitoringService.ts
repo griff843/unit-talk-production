@@ -1,3 +1,6 @@
+// SPRINT-REPO-TRUTH-LOCK-002: AgentMonitoringIntegration dependency removed.
+// This service's integration layer was coupled to 5 archived experimental agents.
+// The integration field is now typed as `any` until a replacement is built.
 import { EventEmitter } from 'events';
 
 import { BaseAgent } from '../agents/BaseAgent';
@@ -6,7 +9,6 @@ import { Logger } from '../shared/logger/types';
 
 import { AgentMetricsCollector } from './AgentMetricsCollector';
 import { AgentMonitoringDashboard } from './AgentMonitoringDashboard';
-import { AgentMonitoringIntegration } from './AgentMonitoringIntegration';
 
 interface MonitoringConfig {
   enabled: boolean;
@@ -35,7 +37,7 @@ export class AgentMonitoringService extends EventEmitter {
   private readonly config: MonitoringConfig;
   private metricsCollector: AgentMetricsCollector;
   private dashboard: AgentMonitoringDashboard;
-  private integration: AgentMonitoringIntegration;
+  private integration: any; // Was: AgentMonitoringIntegration (archived)
   private isInitialized: boolean = false;
   private startTime: Date = new Date();
   private healthCheckInterval: NodeJS.Timeout | null = null;
@@ -56,7 +58,7 @@ export class AgentMonitoringService extends EventEmitter {
     // Initialize components
     this.metricsCollector = new AgentMetricsCollector(this.logger);
     this.dashboard = new AgentMonitoringDashboard(this.logger, this.metricsCollector);
-    this.integration = new AgentMonitoringIntegration(this.logger, this.metricsCollector);
+    this.integration = null; // Integration archived — no-op until replacement built
   }
 
   async initialize(): Promise<void> {
@@ -78,7 +80,7 @@ export class AgentMonitoringService extends EventEmitter {
       // Initialize components in order
       await this.metricsCollector.initialize();
       await this.dashboard.initialize();
-      await this.integration.initialize();
+      // integration.initialize() removed — archived
 
       // Setup cross-component event handling
       this.setupEventHandlers();
@@ -112,10 +114,7 @@ export class AgentMonitoringService extends EventEmitter {
     this.logger.info('Registering agent for monitoring', { agentName });
 
     try {
-      // Register with integration layer
-      this.integration.registerAgent(agent);
-
-      // Create default alert rules for the agent
+      // Integration archived — skip agent-specific monitoring registration
       await this.createDefaultAlertRules(agentName);
 
       this.logger.info('✅ Agent registered successfully', { agentName });
@@ -138,8 +137,7 @@ export class AgentMonitoringService extends EventEmitter {
     this.logger.info('Unregistering agent from monitoring', { agentName });
 
     try {
-      this.integration.unregisterAgent(agentName);
-
+      // Integration archived — no-op
       this.logger.info('✅ Agent unregistered successfully', { agentName });
 
       this.emit('agent_unregistered', {
@@ -158,7 +156,7 @@ export class AgentMonitoringService extends EventEmitter {
     const components = {
       metricsCollector: await this.checkComponentHealth('metricsCollector'),
       dashboard: await this.checkComponentHealth('dashboard'),
-      integration: await this.checkComponentHealth('integration'),
+      integration: false, // Archived
       alerting: this.config.alertingEnabled,
     };
 
@@ -179,7 +177,7 @@ export class AgentMonitoringService extends EventEmitter {
     return {
       status,
       components,
-      uptime: uptime / 1000, // Convert to seconds
+      uptime: uptime / 1000,
       lastUpdate: new Date(),
       version: '1.0.0',
     };
@@ -260,7 +258,6 @@ export class AgentMonitoringService extends EventEmitter {
     return await this.dashboard.getDashboardLayouts();
   }
 
-  // WebSocket/SSE support for real-time dashboard updates
   registerDashboardConnection(connectionId: string): void {
     if (!this.isInitialized) {
       throw new Error('Monitoring service not initialized');
@@ -275,7 +272,6 @@ export class AgentMonitoringService extends EventEmitter {
     }
   }
 
-  // Event subscription for external systems
   onMetricsUpdate(callback: (metrics: any) => void): void {
     this.on('metrics_update', callback);
   }
@@ -294,10 +290,9 @@ export class AgentMonitoringService extends EventEmitter {
         case 'metricsCollector':
           return (await this.metricsCollector.isHealthy?.()) || true;
         case 'dashboard':
-          return true; // Dashboard doesn't have explicit health check
+          return true;
         case 'integration':
-          const integrationStatus = await this.integration.getIntegrationStatus();
-          return integrationStatus.monitoringActive;
+          return false; // Archived
         default:
           return false;
       }
@@ -308,7 +303,6 @@ export class AgentMonitoringService extends EventEmitter {
   }
 
   private setupEventHandlers(): void {
-    // Metrics collector events
     this.metricsCollector.on('metrics_collected', metrics => {
       this.emit('metrics_update', metrics);
     });
@@ -318,13 +312,10 @@ export class AgentMonitoringService extends EventEmitter {
       this.logger.warn('Agent alert triggered', alert);
     });
 
-    // Dashboard events
     this.dashboard.on('dashboard_update', data => {
-      // Forward dashboard updates to external listeners
       this.emit('dashboard_update', data);
     });
 
-    // System health monitoring
     this.on('metrics_update', async _metrics => {
       try {
         const systemStatus = await this.getServiceStatus();
@@ -342,7 +333,6 @@ export class AgentMonitoringService extends EventEmitter {
   }
 
   private startHealthMonitoring(): void {
-    // Check service health every 5 minutes
     this.healthCheckInterval = setInterval(async () => {
       try {
         const status = await this.getServiceStatus();
@@ -352,12 +342,11 @@ export class AgentMonitoringService extends EventEmitter {
           this.emit('service_health_change', status);
         }
 
-        // Store health status in Redis for external monitoring
         await redisCache.set('monitoring_service_health', JSON.stringify(status), 300);
       } catch (error) {
         this.logger.error('Health monitoring check failed', { error });
       }
-    }, 300000); // 5 minutes
+    }, 300000);
   }
 
   private async createDefaultAlertRules(agentName: string): Promise<void> {
@@ -401,7 +390,6 @@ export class AgentMonitoringService extends EventEmitter {
   }
 
   private setupCleanupHandlers(): void {
-    // Cleanup on process signals
     const cleanup = async () => {
       this.logger.info('🧹 Starting AgentMonitoringService cleanup...');
       await this.cleanup();
@@ -421,21 +409,13 @@ export class AgentMonitoringService extends EventEmitter {
     this.logger.info('🧹 Cleaning up AgentMonitoringService...');
 
     try {
-      // Stop health monitoring
       if (this.healthCheckInterval) {
         clearInterval(this.healthCheckInterval);
       }
 
-      // Cleanup components
-      await Promise.allSettled([
-        this.integration.cleanup(),
-        this.dashboard.cleanup(),
-        this.metricsCollector.cleanup(),
-      ]);
+      await Promise.allSettled([this.dashboard.cleanup(), this.metricsCollector.cleanup()]);
 
-      // Remove all event listeners
       this.removeAllListeners();
-
       this.isInitialized = false;
 
       this.logger.info('✅ AgentMonitoringService cleanup completed');
@@ -445,7 +425,6 @@ export class AgentMonitoringService extends EventEmitter {
     }
   }
 
-  // Static factory method for easy instantiation
   static async create(
     logger: Logger,
     config?: Partial<MonitoringConfig>
@@ -455,7 +434,6 @@ export class AgentMonitoringService extends EventEmitter {
     return service;
   }
 
-  // Getter methods for accessing components (for advanced use cases)
   get metrics(): AgentMetricsCollector {
     return this.metricsCollector;
   }
@@ -464,7 +442,7 @@ export class AgentMonitoringService extends EventEmitter {
     return this.dashboard;
   }
 
-  get integrationService(): AgentMonitoringIntegration {
+  get integrationService(): any {
     return this.integration;
   }
 

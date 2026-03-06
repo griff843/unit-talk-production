@@ -11,6 +11,7 @@ export interface HulyIssue {
   proofUrl: string | null; // extracted from description via regex
   modifiedOn: number;
   project: string;
+  space: string; // Huly space ID (e.g. "project-1772682311049-q1pijc")
 }
 
 /** A GitHub pull request */

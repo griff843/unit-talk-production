@@ -12,7 +12,11 @@ import crypto from 'crypto';
 import { Connection, Client } from '@temporalio/client';
 import express, { Router } from 'express';
 
-import { operatorAuth, AuthenticatedRequest } from '../middleware/operatorAuth';
+import {
+  operatorAuth,
+  requireOperatorRole,
+  AuthenticatedRequest,
+} from '../middleware/operatorAuth';
 import { getEnv } from '../utils/getEnv';
 import { createLogger } from '../utils/logger';
 
@@ -1823,5 +1827,766 @@ router.get('/gauntlet/reconciliation', gauntletGate, async (req, res) => {
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// SPRINT-023-PRODUCTION-SURFACE-LOCK: Operator Finalization API
+// Approve / Reject / Override picks with audit trail
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /ops/picks/:id/approve
+ * Approve a pick for publishing. Sets promotion_band and tier as specified.
+ * Requires operator role: admin, analyst, or operator.
+ */
+router.post(
+  '/picks/:id/approve',
+  operatorAuth,
+  requireOperatorRole(['admin', 'analyst', 'operator']),
+  async (req: AuthenticatedRequest, res) => {
+    const correlationId = `ops-approve-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const pickId = req.params['id'];
+    const operatorId = req.authenticatedOperatorId || 'unknown';
+    const { reason, promotion_band, tier } = req.body || {};
+
+    try {
+      if (!pickId) {
+        res.status(400).json({ success: false, error: 'pick id required', correlationId });
+        return;
+      }
+      if (!reason) {
+        res
+          .status(400)
+          .json({ success: false, error: 'reason required for audit trail', correlationId });
+        return;
+      }
+
+      const { supabaseClient } = await import('../services/supabaseClient');
+
+      // Fetch current state for before/after audit
+      const { data: before, error: fetchErr } = await supabaseClient
+        .from('unified_picks')
+        .select('id, promotion_band, tier, posted_to_discord, settlement_status, meta')
+        .eq('id', pickId)
+        .single();
+
+      if (fetchErr || !before) {
+        res.status(404).json({ success: false, error: 'Pick not found', correlationId });
+        return;
+      }
+
+      // Apply approval — operator_override direct write for business fields
+      // (promotion_band, tier are outside LifecyclePick state machine)
+      const newBand = promotion_band || before.promotion_band || 'HARD';
+      const newTier = tier || before.tier;
+      const existingMeta = before.meta && typeof before.meta === 'object' ? before.meta : {};
+      const { error: updateErr } = await supabaseClient
+        .from('unified_picks')
+        .update({
+          promotion_band: newBand,
+          tier: newTier,
+          meta: {
+            ...existingMeta,
+            operator_approved: true,
+            approved_by: operatorId,
+            approved_at: new Date().toISOString(),
+            approval_correlation_id: correlationId,
+          },
+        })
+        .eq('id', pickId);
+
+      if (updateErr) throw new Error(`Approval update failed: ${updateErr.message}`);
+
+      // Audit log
+      await supabaseClient.from('audit_log').insert({
+        actor: operatorId,
+        action: 'PICK_APPROVED',
+        entity_type: 'unified_picks',
+        entity_id: pickId,
+        details: {
+          before: { promotion_band: before.promotion_band, tier: before.tier },
+          after: { promotion_band: newBand, tier: newTier },
+          reason,
+          correlation_id: correlationId,
+        },
+        created_at: new Date().toISOString(),
+      });
+
+      logger.info({ pickId, operatorId, correlationId }, 'SPRINT-023: Pick approved by operator');
+
+      res.json({
+        success: true,
+        action: 'approved',
+        pick_id: pickId,
+        operator: operatorId,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error({ pickId, error, correlationId }, 'SPRINT-023: Pick approval failed');
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * POST /ops/picks/:id/reject
+ * Reject a pick — prevents it from publishing. Sets promotion_band to REJECT.
+ * Requires operator role: admin, analyst, or operator.
+ */
+router.post(
+  '/picks/:id/reject',
+  operatorAuth,
+  requireOperatorRole(['admin', 'analyst', 'operator']),
+  async (req: AuthenticatedRequest, res) => {
+    const correlationId = `ops-reject-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const pickId = req.params['id'];
+    const operatorId = req.authenticatedOperatorId || 'unknown';
+    const { reason, reason_code } = req.body || {};
+
+    try {
+      if (!pickId) {
+        res.status(400).json({ success: false, error: 'pick id required', correlationId });
+        return;
+      }
+      if (!reason) {
+        res
+          .status(400)
+          .json({ success: false, error: 'reason required for audit trail', correlationId });
+        return;
+      }
+
+      const { supabaseClient } = await import('../services/supabaseClient');
+
+      // Fetch current state
+      const { data: before, error: fetchErr } = await supabaseClient
+        .from('unified_picks')
+        .select('id, promotion_band, tier, posted_to_discord, meta')
+        .eq('id', pickId)
+        .single();
+
+      if (fetchErr || !before) {
+        res.status(404).json({ success: false, error: 'Pick not found', correlationId });
+        return;
+      }
+
+      if (before.posted_to_discord) {
+        res.status(409).json({
+          success: false,
+          error: 'Cannot reject an already-posted pick. Use override instead.',
+          correlationId,
+        });
+        return;
+      }
+
+      // Operator override direct write — promotion_band is outside LifecyclePick
+      const existingMeta = before.meta && typeof before.meta === 'object' ? before.meta : {};
+      const { error: updateErr } = await supabaseClient
+        .from('unified_picks')
+        .update({
+          promotion_band: 'REJECT',
+          meta: {
+            ...existingMeta,
+            operator_rejected: true,
+            rejected_by: operatorId,
+            rejected_at: new Date().toISOString(),
+            reject_reason: reason,
+            reject_reason_code: reason_code || 'OPERATOR_REJECT',
+            reject_correlation_id: correlationId,
+          },
+        })
+        .eq('id', pickId);
+
+      if (updateErr) throw new Error(`Rejection update failed: ${updateErr.message}`);
+
+      // Audit log
+      await supabaseClient.from('audit_log').insert({
+        actor: operatorId,
+        action: 'PICK_REJECTED',
+        entity_type: 'unified_picks',
+        entity_id: pickId,
+        details: {
+          before: { promotion_band: before.promotion_band, tier: before.tier },
+          after: { promotion_band: 'REJECT' },
+          reason,
+          reason_code: reason_code || 'OPERATOR_REJECT',
+          correlation_id: correlationId,
+        },
+        created_at: new Date().toISOString(),
+      });
+
+      logger.info({ pickId, operatorId, correlationId }, 'SPRINT-023: Pick rejected by operator');
+
+      res.json({
+        success: true,
+        action: 'rejected',
+        pick_id: pickId,
+        operator: operatorId,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error({ pickId, error, correlationId }, 'SPRINT-023: Pick rejection failed');
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * POST /ops/picks/:id/override
+ * Override any field on a pick. Admin-only. Full before/after audit.
+ * Requires operator role: admin.
+ */
+router.post(
+  '/picks/:id/override',
+  operatorAuth,
+  requireOperatorRole(['admin']),
+  async (req: AuthenticatedRequest, res) => {
+    const correlationId = `ops-override-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const pickId = req.params['id'];
+    const operatorId = req.authenticatedOperatorId || 'unknown';
+    const { reason, updates } = req.body || {};
+
+    try {
+      if (!pickId) {
+        res.status(400).json({ success: false, error: 'pick id required', correlationId });
+        return;
+      }
+      if (!reason) {
+        res
+          .status(400)
+          .json({ success: false, error: 'reason required for audit trail', correlationId });
+        return;
+      }
+      if (!updates || typeof updates !== 'object' || Object.keys(updates).length === 0) {
+        res.status(400).json({ success: false, error: 'updates object required', correlationId });
+        return;
+      }
+
+      // Block immutable fields
+      const immutableFields = ['id', 'created_at', 'bet_slip_id'];
+      const blocked = Object.keys(updates).filter(k => immutableFields.includes(k));
+      if (blocked.length > 0) {
+        res.status(400).json({
+          success: false,
+          error: `Cannot override immutable fields: ${blocked.join(', ')}`,
+          correlationId,
+        });
+        return;
+      }
+
+      const { supabaseClient } = await import('../services/supabaseClient');
+
+      // Fetch full before-state for audit
+      const { data: before, error: fetchErr } = await supabaseClient
+        .from('unified_picks')
+        .select('*')
+        .eq('id', pickId)
+        .single();
+
+      if (fetchErr || !before) {
+        res.status(404).json({ success: false, error: 'Pick not found', correlationId });
+        return;
+      }
+
+      // Build before snapshot (only the fields being changed)
+      const beforeSnapshot: Record<string, unknown> = {};
+      for (const key of Object.keys(updates)) {
+        beforeSnapshot[key] = (before as Record<string, unknown>)[key];
+      }
+
+      // Operator override direct write — supports any field outside LifecyclePick
+      const existingMeta =
+        before.meta && typeof before.meta === 'object'
+          ? (before.meta as Record<string, unknown>)
+          : {};
+      const { error: updateErr } = await supabaseClient
+        .from('unified_picks')
+        .update({
+          ...updates,
+          meta: {
+            ...existingMeta,
+            ...(typeof updates.meta === 'object' ? updates.meta : {}),
+            operator_override: true,
+            overridden_by: operatorId,
+            overridden_at: new Date().toISOString(),
+            override_correlation_id: correlationId,
+          },
+        })
+        .eq('id', pickId);
+
+      if (updateErr) throw new Error(`Override update failed: ${updateErr.message}`);
+
+      // Audit log with full before/after
+      await supabaseClient.from('audit_log').insert({
+        actor: operatorId,
+        action: 'PICK_OVERRIDE',
+        entity_type: 'unified_picks',
+        entity_id: pickId,
+        details: {
+          before: beforeSnapshot,
+          after: updates,
+          reason,
+          correlation_id: correlationId,
+          fields_changed: Object.keys(updates),
+        },
+        created_at: new Date().toISOString(),
+      });
+
+      logger.info(
+        { pickId, operatorId, fields: Object.keys(updates), correlationId },
+        'SPRINT-023: Pick overridden by operator'
+      );
+
+      res.json({
+        success: true,
+        action: 'overridden',
+        pick_id: pickId,
+        operator: operatorId,
+        fields_changed: Object.keys(updates),
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error({ pickId, error, correlationId }, 'SPRINT-023: Pick override failed');
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// SPRINT-023B-CC-WRITE-BAN-ENFORCEMENT: Additional operator endpoints
+// Unit reduction, demotion, workflow actions, settlement results
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /ops/picks/:id/reduce-units
+ * Reduce units on a pick for exposure management.
+ * Requires operator role: admin, analyst, operator.
+ */
+router.post(
+  '/picks/:id/reduce-units',
+  operatorAuth,
+  requireOperatorRole(['admin', 'analyst', 'operator']),
+  async (req: AuthenticatedRequest, res) => {
+    const correlationId = `ops-reduce-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const pickId = req.params['id'];
+    const operatorId = req.authenticatedOperatorId || 'unknown';
+    const { reason, reduction_factor } = req.body || {};
+
+    try {
+      if (!pickId) {
+        res.status(400).json({ success: false, error: 'pick id required', correlationId });
+        return;
+      }
+      if (!reason) {
+        res
+          .status(400)
+          .json({ success: false, error: 'reason required for audit trail', correlationId });
+        return;
+      }
+      const factor = typeof reduction_factor === 'number' ? reduction_factor : 0.5;
+      if (factor <= 0 || factor >= 1) {
+        res.status(400).json({
+          success: false,
+          error: 'reduction_factor must be between 0 and 1',
+          correlationId,
+        });
+        return;
+      }
+
+      const { supabaseClient } = await import('../services/supabaseClient');
+
+      const { data: before, error: fetchErr } = await supabaseClient
+        .from('unified_picks')
+        .select('id, units, meta')
+        .eq('id', pickId)
+        .single();
+
+      if (fetchErr || !before) {
+        res.status(404).json({ success: false, error: 'Pick not found', correlationId });
+        return;
+      }
+
+      const oldUnits = typeof before.units === 'number' ? before.units : 1;
+      const newUnits = Math.max(0.5, oldUnits * factor);
+
+      const existingMeta = before.meta && typeof before.meta === 'object' ? before.meta : {};
+      const { error: updateErr } = await supabaseClient
+        .from('unified_picks')
+        .update({
+          units: newUnits,
+          meta: {
+            ...existingMeta,
+            adjustment_reason: reason,
+            adjusted_at: new Date().toISOString(),
+            adjusted_by: operatorId,
+            adjustment_correlation_id: correlationId,
+          },
+        })
+        .eq('id', pickId);
+
+      if (updateErr) throw new Error(`Unit reduction failed: ${updateErr.message}`);
+
+      await supabaseClient.from('audit_log').insert({
+        actor: operatorId,
+        action: 'PICK_UNITS_REDUCED',
+        entity_type: 'unified_picks',
+        entity_id: pickId,
+        details: {
+          before: { units: oldUnits },
+          after: { units: newUnits },
+          reduction_factor: factor,
+          reason,
+          correlation_id: correlationId,
+        },
+        created_at: new Date().toISOString(),
+      });
+
+      logger.info(
+        { pickId, operatorId, oldUnits, newUnits, correlationId },
+        'SPRINT-023B: Pick units reduced'
+      );
+
+      res.json({
+        success: true,
+        action: 'units_reduced',
+        pick_id: pickId,
+        old_units: oldUnits,
+        new_units: newUnits,
+        operator: operatorId,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error({ pickId, error, correlationId }, 'SPRINT-023B: Unit reduction failed');
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * POST /ops/picks/:id/demote
+ * Demote a pick back to draft. Used by exposure management.
+ * Requires operator role: admin, analyst, operator.
+ */
+router.post(
+  '/picks/:id/demote',
+  operatorAuth,
+  requireOperatorRole(['admin', 'analyst', 'operator']),
+  async (req: AuthenticatedRequest, res) => {
+    const correlationId = `ops-demote-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const pickId = req.params['id'];
+    const operatorId = req.authenticatedOperatorId || 'unknown';
+    const { reason } = req.body || {};
+
+    try {
+      if (!pickId) {
+        res.status(400).json({ success: false, error: 'pick id required', correlationId });
+        return;
+      }
+      if (!reason) {
+        res
+          .status(400)
+          .json({ success: false, error: 'reason required for audit trail', correlationId });
+        return;
+      }
+
+      const { supabaseClient } = await import('../services/supabaseClient');
+
+      const { data: before, error: fetchErr } = await supabaseClient
+        .from('unified_picks')
+        .select('id, workflow_stage, published, meta')
+        .eq('id', pickId)
+        .single();
+
+      if (fetchErr || !before) {
+        res.status(404).json({ success: false, error: 'Pick not found', correlationId });
+        return;
+      }
+
+      const existingMeta = before.meta && typeof before.meta === 'object' ? before.meta : {};
+      const { error: updateErr } = await supabaseClient
+        .from('unified_picks')
+        .update({
+          workflow_stage: 'draft',
+          published: false,
+          meta: {
+            ...existingMeta,
+            demoted_reason: reason,
+            demoted_at: new Date().toISOString(),
+            demoted_by: operatorId,
+            demote_correlation_id: correlationId,
+          },
+        })
+        .eq('id', pickId);
+
+      if (updateErr) throw new Error(`Demotion failed: ${updateErr.message}`);
+
+      await supabaseClient.from('audit_log').insert({
+        actor: operatorId,
+        action: 'PICK_DEMOTED',
+        entity_type: 'unified_picks',
+        entity_id: pickId,
+        details: {
+          before: { workflow_stage: before.workflow_stage, published: before.published },
+          after: { workflow_stage: 'draft', published: false },
+          reason,
+          correlation_id: correlationId,
+        },
+        created_at: new Date().toISOString(),
+      });
+
+      logger.info({ pickId, operatorId, correlationId }, 'SPRINT-023B: Pick demoted to draft');
+
+      res.json({
+        success: true,
+        action: 'demoted',
+        pick_id: pickId,
+        operator: operatorId,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error({ pickId, error, correlationId }, 'SPRINT-023B: Demotion failed');
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * POST /ops/picks/:id/workflow
+ * Set workflow_stage on a pick (regrade, approve, reject, publish).
+ * Replaces CC direct writes for grading workflow actions.
+ * Requires operator role: admin, analyst, operator.
+ */
+router.post(
+  '/picks/:id/workflow',
+  operatorAuth,
+  requireOperatorRole(['admin', 'analyst', 'operator']),
+  async (req: AuthenticatedRequest, res) => {
+    const correlationId = `ops-workflow-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const pickId = req.params['id'];
+    const operatorId = req.authenticatedOperatorId || 'unknown';
+    const { action: workflowAction, reason } = req.body || {};
+
+    try {
+      if (!pickId) {
+        res.status(400).json({ success: false, error: 'pick id required', correlationId });
+        return;
+      }
+      if (!workflowAction) {
+        res.status(400).json({ success: false, error: 'action required', correlationId });
+        return;
+      }
+
+      const validActions: Record<string, string> = {
+        regrade: 'pending_review',
+        approve: 'approved',
+        reject: 'rejected',
+        publish: 'published',
+      };
+
+      const targetStage = validActions[workflowAction];
+      if (!targetStage) {
+        res.status(400).json({
+          success: false,
+          error: `Invalid action: ${workflowAction}. Valid: ${Object.keys(validActions).join(', ')}`,
+          correlationId,
+        });
+        return;
+      }
+
+      const { supabaseClient } = await import('../services/supabaseClient');
+
+      const { data: before, error: fetchErr } = await supabaseClient
+        .from('unified_picks')
+        .select('id, workflow_stage, status, meta')
+        .eq('id', pickId)
+        .single();
+
+      if (fetchErr || !before) {
+        res.status(404).json({ success: false, error: 'Pick not found', correlationId });
+        return;
+      }
+
+      const existingMeta = before.meta && typeof before.meta === 'object' ? before.meta : {};
+      const { error: updateErr } = await supabaseClient
+        .from('unified_picks')
+        .update({
+          workflow_stage: targetStage,
+          updated_at: new Date().toISOString(),
+          meta: {
+            ...existingMeta,
+            [`workflow_${workflowAction}_by`]: operatorId,
+            [`workflow_${workflowAction}_at`]: new Date().toISOString(),
+            workflow_correlation_id: correlationId,
+          },
+        })
+        .eq('id', pickId);
+
+      if (updateErr) throw new Error(`Workflow update failed: ${updateErr.message}`);
+
+      await supabaseClient.from('audit_log').insert({
+        actor: operatorId,
+        action: `PICK_WORKFLOW_${workflowAction.toUpperCase()}`,
+        entity_type: 'unified_picks',
+        entity_id: pickId,
+        details: {
+          before: { workflow_stage: before.workflow_stage },
+          after: { workflow_stage: targetStage },
+          reason: reason || `Workflow action: ${workflowAction}`,
+          correlation_id: correlationId,
+        },
+        created_at: new Date().toISOString(),
+      });
+
+      logger.info(
+        { pickId, operatorId, workflowAction, targetStage, correlationId },
+        'SPRINT-023B: Workflow action applied'
+      );
+
+      res.json({
+        success: true,
+        action: workflowAction,
+        workflow_stage: targetStage,
+        pick_id: pickId,
+        operator: operatorId,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error({ pickId, error, correlationId }, 'SPRINT-023B: Workflow action failed');
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * POST /ops/picks/:id/settle-result
+ * Set settlement result on a pick. Replaces CC direct writes for result updates.
+ * Requires operator role: admin, operator.
+ */
+router.post(
+  '/picks/:id/settle-result',
+  operatorAuth,
+  requireOperatorRole(['admin', 'operator']),
+  async (req: AuthenticatedRequest, res) => {
+    const correlationId = `ops-settle-result-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const pickId = req.params['id'];
+    const operatorId = req.authenticatedOperatorId || 'unknown';
+    const { result, reason } = req.body || {};
+
+    try {
+      if (!pickId) {
+        res.status(400).json({ success: false, error: 'pick id required', correlationId });
+        return;
+      }
+      if (!result || !['win', 'loss', 'push'].includes(result)) {
+        res
+          .status(400)
+          .json({ success: false, error: 'result must be win, loss, or push', correlationId });
+        return;
+      }
+
+      const { supabaseClient } = await import('../services/supabaseClient');
+
+      const { data: before, error: fetchErr } = await supabaseClient
+        .from('unified_picks')
+        .select('id, settlement_result, settlement_status, status, meta')
+        .eq('id', pickId)
+        .single();
+
+      if (fetchErr || !before) {
+        res.status(404).json({ success: false, error: 'Pick not found', correlationId });
+        return;
+      }
+
+      const existingMeta = before.meta && typeof before.meta === 'object' ? before.meta : {};
+      const { error: updateErr } = await supabaseClient
+        .from('unified_picks')
+        .update({
+          settlement_result: result,
+          status: 'settled',
+          updated_at: new Date().toISOString(),
+          meta: {
+            ...existingMeta,
+            settled_by: operatorId,
+            settle_result_at: new Date().toISOString(),
+            settle_result_correlation_id: correlationId,
+          },
+        })
+        .eq('id', pickId);
+
+      if (updateErr) throw new Error(`Settlement result update failed: ${updateErr.message}`);
+
+      await supabaseClient.from('audit_log').insert({
+        actor: operatorId,
+        action: 'PICK_RESULT_SETTLED',
+        entity_type: 'unified_picks',
+        entity_id: pickId,
+        details: {
+          before: { settlement_result: before.settlement_result, status: before.status },
+          after: { settlement_result: result, status: 'settled' },
+          reason: reason || `Manual settlement: ${result}`,
+          correlation_id: correlationId,
+        },
+        created_at: new Date().toISOString(),
+      });
+
+      logger.info(
+        { pickId, operatorId, result, correlationId },
+        'SPRINT-023B: Pick result settled'
+      );
+
+      res.json({
+        success: true,
+        action: 'settled',
+        result,
+        pick_id: pickId,
+        operator: operatorId,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error({ pickId, error, correlationId }, 'SPRINT-023B: Settlement result failed');
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
 
 export default router;

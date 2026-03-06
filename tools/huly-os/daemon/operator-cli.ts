@@ -6,11 +6,16 @@
 //   pnpm -C tools/huly-os run huly:report:daily
 //   pnpm -C tools/huly-os run huly:report:weekly
 
+import { execSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { Command } from 'commander';
 import { config as loadDotenv } from 'dotenv';
 
+import { HulyAdapter } from './adapters/huly-adapter.js';
+import { AuditLogger } from './audit-log.js';
+import { loadConfig } from './config.js';
 import { startOperatorLoop, stopOperatorLoop } from './operator.js';
 import { publishDailyReport, publishWeeklyReport } from './report-generator.js';
 
@@ -108,6 +113,73 @@ program
       console.error('FATAL:', (err as Error).message);
       process.exit(1);
     }
+  });
+
+program
+  .command('health')
+  .description('Check daemon health: pm2 status, Huly connectivity, last cycle')
+  .action(async () => {
+    const health: Record<string, unknown> = {
+      timestamp: new Date().toISOString(),
+      pm2: 'unknown',
+      huly: false,
+      github: false,
+      lastCycle: null,
+      uptime: null,
+    };
+
+    // pm2 status
+    try {
+      const pm2Out = execSync('npx pm2 jlist', { encoding: 'utf-8', timeout: 10_000 });
+      const pm2Apps = JSON.parse(pm2Out);
+      const op = pm2Apps.find((a: Record<string, unknown>) => a.name === 'huly-operator');
+      if (op) {
+        health.pm2 = op.pm2_env?.status ?? 'unknown';
+        const uptimeMs = op.pm2_env?.pm_uptime ? Date.now() - Number(op.pm2_env.pm_uptime) : null;
+        if (uptimeMs) {
+          const mins = Math.floor(uptimeMs / 60_000);
+          health.uptime = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h${mins % 60}m`;
+        }
+      } else {
+        health.pm2 = 'not_found';
+      }
+    } catch {
+      health.pm2 = 'pm2_unavailable';
+    }
+
+    // Huly connectivity
+    try {
+      const config = loadConfig();
+      const huly = new HulyAdapter(config, new AuditLogger());
+      await huly.connect();
+      health.huly = await huly.ping();
+      await huly.disconnect();
+    } catch {
+      health.huly = false;
+    }
+
+    // GitHub reachability
+    try {
+      const config = loadConfig();
+      const { Octokit } = await import('@octokit/rest');
+      const octokit = new Octokit({ auth: config.GITHUB_TOKEN });
+      await octokit.rateLimit.get();
+      health.github = true;
+    } catch {
+      health.github = false;
+    }
+
+    // Last cycle from health file
+    const healthFile = resolve(import.meta.dirname ?? '.', '..', 'logs', 'operator-health.json');
+    if (existsSync(healthFile)) {
+      try {
+        health.lastCycle = JSON.parse(readFileSync(healthFile, 'utf-8'));
+      } catch {
+        health.lastCycle = 'corrupt';
+      }
+    }
+
+    console.log(JSON.stringify(health, null, 2));
   });
 
 program.parseAsync(argv).catch(err => {

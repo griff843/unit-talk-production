@@ -8,8 +8,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Types available from shared-types if needed
-// import type { Game, Player } from '@unit-talk/shared-types';
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Types available from contracts if needed
+// import type { Game, Player } from '@unit-talk/contracts';
 
 const SUPABASE_URL = 'https://cqfnsozknjzvyiziwicl.supabase.co';
 const SUPABASE_ANON_KEY =

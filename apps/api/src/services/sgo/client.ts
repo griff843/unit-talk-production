@@ -85,6 +85,82 @@ export interface SGOPlayersResponse {
 }
 
 // ============================================================================
+// TYPES - Events
+// ============================================================================
+
+export interface FetchEventsOptions {
+  leagueID: string;
+  startsAfter?: string;
+  startsBefore?: string;
+  finalized?: boolean;
+  ended?: boolean;
+  includeAltLine?: boolean;
+  includeOpposingOdds?: boolean;
+  includeOpenCloseOdds?: boolean;
+  oddsAvailable?: boolean;
+  bookmakerID?: string;
+  expandResults?: boolean;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface SGOEventsResponse {
+  success: boolean;
+  data: SGOEvent[];
+  nextCursor?: string;
+}
+
+export interface SGOEvent {
+  eventID: string;
+  leagueID: string;
+  sportID: string;
+  startsAt?: string;
+  status?: {
+    startsAt?: string;
+    started?: boolean;
+    completed?: boolean;
+    cancelled?: boolean;
+    [key: string]: unknown;
+  };
+  teams?: {
+    home?: {
+      teamID: string;
+      names?: { full?: string; short?: string; medium?: string; long?: string };
+    };
+    away?: {
+      teamID: string;
+      names?: { full?: string; short?: string; medium?: string; long?: string };
+    };
+  };
+  players?: Record<
+    string,
+    { name?: string; teamID?: string; position?: string; [key: string]: unknown }
+  >;
+  odds?: Record<string, SGOOddsEntry>;
+  info?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface SGOOddsEntry {
+  statID?: string;
+  playerID?: string;
+  statEntityID?: string;
+  sideID?: string;
+  periodID?: string;
+  line?: number;
+  bookOdds?: number;
+  fairOdds?: number;
+  openBookOdds?: number;
+  openFairOdds?: number;
+  closeOdds?: number;
+  openOdds?: number;
+  fairOverUnder?: string;
+  openFairOverUnder?: string;
+  results?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+// ============================================================================
 // TYPES - Client Options
 // ============================================================================
 
@@ -390,6 +466,71 @@ export class SGOClient {
     console.log(`[SGO] Completed: ${allPlayers.length} players for ${leagueID}`);
     return allPlayers;
   }
+
+  // --------------------------------------------------------------------------
+  // Events Endpoint (SPRINT-027A)
+  // --------------------------------------------------------------------------
+
+  /**
+   * Fetch events from SGO API with optional historical params
+   * @param options - Filter options including finalized, includeOpenCloseOdds, etc.
+   * @returns Events response with data and optional nextCursor
+   */
+  async fetchEvents(options: FetchEventsOptions): Promise<SGOEventsResponse> {
+    const params: Record<string, unknown> = {};
+
+    params.leagueID = options.leagueID;
+    if (options.startsAfter) params.startsAfter = options.startsAfter;
+    if (options.startsBefore) params.startsBefore = options.startsBefore;
+    if (options.finalized != null) params.finalized = options.finalized;
+    if (options.ended != null) params.ended = options.ended;
+    if (options.includeAltLine != null) params.includeAltLine = options.includeAltLine;
+    if (options.includeOpposingOdds != null)
+      params.includeOpposingOdds = options.includeOpposingOdds;
+    if (options.includeOpenCloseOdds != null)
+      params.includeOpenCloseOdds = options.includeOpenCloseOdds;
+    if (options.oddsAvailable != null) params.oddsAvailable = options.oddsAvailable;
+    if (options.bookmakerID) params.bookmakerID = options.bookmakerID;
+    if (options.expandResults != null) params.expandResults = options.expandResults;
+    if (options.limit) params.limit = options.limit;
+    if (options.cursor) params.cursor = options.cursor;
+
+    return this.fetchWithRetry<SGOEventsResponse>('/events', params);
+  }
+
+  /**
+   * Fetch all events for a query with pagination
+   * @param options - Event query options
+   * @returns Array of all matching events
+   */
+  async fetchAllEvents(options: FetchEventsOptions): Promise<SGOEvent[]> {
+    const allEvents: SGOEvent[] = [];
+    let cursor: string | undefined;
+    let pageCount = 0;
+    const MAX_PAGES = 200;
+
+    do {
+      const response = await this.fetchEvents({ ...options, cursor });
+      allEvents.push(...response.data);
+      cursor = response.nextCursor;
+      pageCount++;
+
+      console.log(
+        `[SGO] Events page ${pageCount}: fetched ${response.data.length} events (total: ${allEvents.length})`
+      );
+
+      if (pageCount >= MAX_PAGES) {
+        console.warn(`[SGO] Reached max events pages limit (${MAX_PAGES})`);
+        break;
+      }
+    } while (cursor);
+
+    return allEvents;
+  }
+
+  // --------------------------------------------------------------------------
+  // Players Endpoint (continued)
+  // --------------------------------------------------------------------------
 
   /**
    * Fetch players for a specific team

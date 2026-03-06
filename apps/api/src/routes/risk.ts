@@ -13,7 +13,7 @@
 
 import express, { Router } from 'express';
 
-import { RiskEngine } from '../services/RiskEngine';
+import { RiskEngine } from '../services/risk/RiskEngine';
 import { supabase } from '../services/supabaseClient';
 import { createLogger } from '../utils/logger';
 

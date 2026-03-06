@@ -1,0 +1,31 @@
+{
+  "name": "@unit-talk/intelligence",
+  "version": "0.0.1",
+  "description": "Scoring, edge computation, and analytical intelligence for Unit Talk Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "lint": "echo 'No lint configured for intelligence package'",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "scoring",
+    "intelligence",
+    "edge-computation"
+  ],
+  "author": "Unit Talk Team",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@unit-talk/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*"
+  ]
+}
