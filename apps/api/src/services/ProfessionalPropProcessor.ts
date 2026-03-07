@@ -722,7 +722,7 @@ export class ProfessionalPropProcessor {
     };
 
     const writeResult: WriteResult = await lifecycleInsert(supabaseClient, pickPayload, {
-      writerRole: 'submitter',
+      writerRole: 'promoter',
       traceId: `ppp-${rawProp.id}`,
     });
 

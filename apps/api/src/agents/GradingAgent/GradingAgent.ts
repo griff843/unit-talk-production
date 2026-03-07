@@ -764,7 +764,7 @@ export class GradingAgent extends BaseAgent {
       const { success, error: lifecycleError } = await lifecycleInsert(
         this.requireSupabase(),
         pickData as any,
-        { writerRole: 'submitter' }
+        { writerRole: 'promoter' }
       );
 
       if (!success) {

@@ -1,7 +1,3 @@
----
-type: 'always_apply'
----
-
 # important
 
 always use byterover-retrive-knowledge tool to get the related context before

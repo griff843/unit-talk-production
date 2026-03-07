@@ -50,18 +50,8 @@ export const SINGLE_WRITER_ALLOWLIST: AllowlistEntry[] = [
     migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
     targetDate: '2026-02-25',
   },
-  {
-    file: 'agents/GradingAgent/GradingAgent.ts',
-    reason: 'Multi-line insert for pick promotion',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
-    targetDate: '2026-02-25',
-  },
-  {
-    file: 'agents/RecapAgent/index.ts',
-    reason: 'Multi-line update for Discord info',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
-    targetDate: '2026-02-25',
-  },
+  // SPRINT-E2E-PICK-MACHINE-REMEDIATION-041D: GradingAgent.ts RESOLVED — uses lifecycleInsert
+  // SPRINT-E2E-PICK-MACHINE-REMEDIATION-041D: RecapAgent/index.ts RESOLVED — uses lifecycleUpdate
   // === SERVICES (P1 - medium priority) ===
   {
     file: 'services/AutoRecheckService.ts',
@@ -81,12 +71,7 @@ export const SINGLE_WRITER_ALLOWLIST: AllowlistEntry[] = [
     migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
     targetDate: '2026-02-28',
   },
-  {
-    file: 'services/ProfessionalPropProcessor.ts',
-    reason: 'Multi-line insert for prop promotion',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
-    targetDate: '2026-02-28',
-  },
+  // SPRINT-E2E-PICK-MACHINE-REMEDIATION-041D: ProfessionalPropProcessor.ts RESOLVED — uses lifecycleInsert
   {
     file: 'services/STierEnforcer.ts',
     reason: 'Multi-line update for S-tier enforcement',
