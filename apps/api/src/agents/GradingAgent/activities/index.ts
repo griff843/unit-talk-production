@@ -1,6 +1,7 @@
 // SPRINT-035A B-1: Temporal-compatible barrel export (replaces factory pattern)
 // B-6: Does NOT export `initialize` to avoid collision with BaseAgent
 
+import { supabaseClient } from '../../../services/supabaseClient';
 import { makeLogger } from '../../../utils/logger';
 
 import { GradingAgentActivitiesImpl } from './activities';
@@ -37,7 +38,7 @@ function getImpl(): GradingAgentActivitiesImpl {
           jitter: true,
         },
       },
-      { logger, supabase: undefined as any }
+      { logger, supabase: supabaseClient }
     );
   }
   return implInstance;
