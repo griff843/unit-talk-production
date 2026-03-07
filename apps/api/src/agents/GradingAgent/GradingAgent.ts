@@ -386,6 +386,158 @@ export class GradingAgent extends BaseAgent {
     return await this.gradingEngine.gradeProps(propsList);
   }
 
+  // SPRINT-042C: Workflow-critical orchestration methods
+  // Called by gradingAndScoringWorkflow via GradingAgentActivitiesImpl
+
+  /**
+   * Fetch ungraded raw_props for a league, grade each, return top-tier results.
+   */
+  async gradeNewProps(params: {
+    league: string;
+    isLiveMode: boolean;
+    cycleCount: number;
+  }): Promise<{ league: string; topTierProps: any[]; gradedCount: number }> {
+    const { league, isLiveMode } = params;
+
+    if (!this.hasSupabase()) {
+      this.logger.warn('Supabase not available for gradeNewProps');
+      return { league, topTierProps: [], gradedCount: 0 };
+    }
+
+    // Query ungraded raw_props for this league
+    const limit = isLiveMode ? 500 : 200;
+    const query = this.requireSupabase()
+      .from('raw_props')
+      .select('*')
+      .eq('league', league)
+      .order('created_at', { ascending: true })
+      .limit(limit);
+
+    // Filter to unprocessed props based on scoring path
+    if (this.USE_PRO_SCORER) {
+      query.is('processed_at', null);
+    } else {
+      query.is('tier', null);
+    }
+
+    const { data: rawProps, error } = await query;
+
+    if (error) {
+      this.logger.error('Failed to fetch props for gradeNewProps', {
+        error: error.message,
+        league,
+      });
+      return { league, topTierProps: [], gradedCount: 0 };
+    }
+
+    if (!rawProps || rawProps.length === 0) {
+      this.logger.debug(`No ungraded props found for ${league}`);
+      return { league, topTierProps: [], gradedCount: 0 };
+    }
+
+    this.logger.info(`Grading ${rawProps.length} props for ${league}`);
+
+    const topTierProps: GradingResult[] = [];
+    let gradedCount = 0;
+
+    for (const prop of rawProps) {
+      try {
+        const features = this.convertToFeatureSet(prop);
+        const result = await this.gradeProp(features);
+        gradedCount++;
+
+        if (['S', 'A', 'B'].includes(result.tier)) {
+          topTierProps.push(result);
+        }
+      } catch (err) {
+        this.logger.debug('Failed to grade prop', {
+          propId: prop.id,
+          error: err instanceof Error ? err.message : 'Unknown',
+        });
+      }
+    }
+
+    this.logger.info(`Graded ${gradedCount} props for ${league}, ${topTierProps.length} top-tier`);
+    return { league, topTierProps, gradedCount };
+  }
+
+  /**
+   * Score top-tier picks with portfolio-level analysis.
+   */
+  async scoreTopTierPicks(params: {
+    gradedProps: any[];
+    league: string;
+    cycleCount: number;
+  }): Promise<{ league: string; scoredPicks: any[]; scoreCount: number }> {
+    const { gradedProps, league, cycleCount } = params;
+
+    const scoredPicks = gradedProps.map(prop => ({
+      ...prop,
+      scoredAt: new Date().toISOString(),
+      cycleCount,
+      portfolioScore: prop.finalScore * (prop.confidence / 100),
+    }));
+
+    // Sort by portfolio score descending
+    scoredPicks.sort((a, b) => (b.portfolioScore || 0) - (a.portfolioScore || 0));
+
+    this.logger.info(`Scored ${scoredPicks.length} top-tier picks for ${league}`);
+    return { league, scoredPicks, scoreCount: scoredPicks.length };
+  }
+
+  /**
+   * Persist scored picks to unified_picks via lifecycle adapter.
+   */
+  async updateUnifiedPicks(params: {
+    scoringResults: any[];
+    cycleCount: number;
+    timestamp: Date;
+  }): Promise<void> {
+    const { scoringResults } = params;
+
+    for (const leagueResult of scoringResults) {
+      const picks = leagueResult.scoredPicks || [];
+
+      for (const pick of picks) {
+        if (this.meetsPromotionCriteria(pick)) {
+          try {
+            await this.promoteToUnifiedPicks(pick);
+          } catch (err) {
+            this.logger.error('Failed to promote pick in updateUnifiedPicks', {
+              propId: pick.propId,
+              error: err instanceof Error ? err.message : 'Unknown',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Get recently created unified_picks for downstream notification.
+   */
+  async getNewUnifiedPicks(params: { cycleCount: number }): Promise<any[]> {
+    if (!this.hasSupabase()) {
+      return [];
+    }
+
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+    const { data, error } = await this.requireSupabase()
+      .from('unified_picks')
+      .select('*')
+      .gte('created_at', tenMinutesAgo)
+      .or('posted_to_discord.is.null,posted_to_discord.eq.false')
+      .limit(50);
+
+    if (error) {
+      this.logger.error('Failed to fetch new unified picks', { error: error.message });
+      return [];
+    }
+
+    return data || [];
+  }
+
   /**
    * Convert ProfessionalPropResult to GradingResult format
    */

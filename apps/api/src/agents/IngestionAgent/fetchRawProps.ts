@@ -161,6 +161,8 @@ async function fetchFromSGO(_provider: DataProvider): Promise<RawProp[]> {
           outcomes: null,
           player_id: prop.playerId,
           player_slug: null,
+          // SPRINT-042C: Persist SGO provider keys for settlement traceability
+          external_prop_id: prop.overMarketKey || prop.underMarketKey || null,
           external_game_id: prop.eventID,
           external_id: prop.eventID,
           sport_key: league.toLowerCase(),

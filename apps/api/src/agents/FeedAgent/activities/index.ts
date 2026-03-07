@@ -217,9 +217,16 @@ export async function ingestUnifiedData(params: {
         }
 
         // Prepare props for insertion with proper structure
+        // SPRINT-042C: Persist SGO provider keys for settlement traceability
         const propsForDB = response.data.map(prop => ({
           id: crypto.randomUUID(),
-          external_prop_id: prop.id || crypto.randomUUID(),
+          external_prop_id:
+            prop.marketKey ||
+            prop.market_key ||
+            prop.overMarketKey ||
+            prop.id ||
+            crypto.randomUUID(),
+          external_game_id: prop.eventID || prop.game_id || null,
           sport: params.league,
           league: params.league,
           player_name: prop.player_name,
@@ -243,6 +250,10 @@ export async function ingestUnifiedData(params: {
             batch_id: batchId,
             processing_time_ms: response.metadata.processingTimeMs,
             league: params.league,
+            sgo_market_key: prop.marketKey || prop.market_key || null,
+            sgo_event_id: prop.eventID || null,
+            over_market_key: prop.overMarketKey || null,
+            under_market_key: prop.underMarketKey || null,
           },
         }));
 
