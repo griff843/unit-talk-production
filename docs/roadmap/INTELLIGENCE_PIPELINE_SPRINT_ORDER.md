@@ -87,6 +87,23 @@ Next intelligence pipeline sprint to be defined.
 
 ---
 
+## Cross-Reference
+
+Architecture migration sprints (infrastructure/pipeline track) run in parallel
+with intelligence pipeline sprints:
+
+- **Roadmap**: `docs/roadmap/ARCHITECTURE_MIGRATION_SPRINT_ORDER.md`
+- **Gap analysis**: `docs/system/analysis/system-gap-analysis.md`
+- **Sprints 044A–044E**: Close 14 gaps between current and target architecture
+
+These tracks are independent but share dependencies:
+
+- Intelligence sprint work (scoring, CLV) depends on provider_offers being
+  populated (SPRINT-044B) and scoring migration (SPRINT-044D)
+- UNI-11, UNI-12, UNI-16 are blocked by architecture migration sprints
+
+---
+
 ## Governance Rule
 
 Claude must not begin work on future market intelligence layers, dashboard
