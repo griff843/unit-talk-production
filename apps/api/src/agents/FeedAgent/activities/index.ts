@@ -217,15 +217,11 @@ export async function ingestUnifiedData(params: {
         }
 
         // Prepare props for insertion with proper structure
-        // SPRINT-042C: Persist SGO provider keys for settlement traceability
+        // SPRINT-043A: Fixed column names to match raw_props schema
+        // (batch_id, raw_data, metadata, external_prop_id do not exist — use meta, external_id)
         const propsForDB = response.data.map(prop => ({
           id: crypto.randomUUID(),
-          external_prop_id:
-            prop.marketKey ||
-            prop.market_key ||
-            prop.overMarketKey ||
-            prop.id ||
-            crypto.randomUUID(),
+          external_id: prop.external_id || prop.id || crypto.randomUUID(),
           external_game_id: prop.eventID || prop.game_id || null,
           sport: params.league,
           league: params.league,
@@ -240,12 +236,22 @@ export async function ingestUnifiedData(params: {
           game_date: prop.game_date || timestamp.toISOString(),
           source: response.source,
           provider: response.source,
-          batch_id: batchId,
           created_at: timestamp.toISOString(),
           updated_at: timestamp.toISOString(),
           processed_at: null,
-          raw_data: JSON.stringify(prop),
-          metadata: {
+          home_team: prop.home_team || null,
+          away_team: prop.away_team || null,
+          home_team_id: prop.home_team_id || null,
+          away_team_id: prop.away_team_id || null,
+          matchup: prop.matchup || null,
+          market: prop.market || null,
+          market_type: prop.market_type || null,
+          sport_key: prop.sport_key || params.league.toLowerCase(),
+          game_time: prop.game_time || null,
+          start_time: prop.start_time || null,
+          scraped_at: prop.scraped_at || timestamp.toISOString(),
+          odds: prop.odds || null,
+          meta: {
             source: response.source,
             batch_id: batchId,
             processing_time_ms: response.metadata.processingTimeMs,
@@ -254,6 +260,7 @@ export async function ingestUnifiedData(params: {
             sgo_event_id: prop.eventID || null,
             over_market_key: prop.overMarketKey || null,
             under_market_key: prop.underMarketKey || null,
+            raw_data: prop,
           },
         }));
 

@@ -9,13 +9,17 @@
  * - Optimal API: Secondary for specialized player props in major sports
  */
 
+import { fetchAndPairSGOProps, SGOPairedProp } from '../../logic/providers/sgoFetcher';
 import { RawProp } from '../../types/rawProps';
 
 import { fetchOddsApiProps, fetchSettlementData, getCreditUsageStatus } from './oddsApi';
 import { fetchOptimalProps } from './optimal';
 
 // Data source identification
-export type DataSource = 'odds-api' | 'optimal-api' | 'unified';
+export type DataSource = 'odds-api' | 'optimal-api' | 'sgo' | 'unified';
+
+// SGO league support — leagues where SGO can provide player props
+const SGO_SUPPORTED_LEAGUES = new Set(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF', 'NCAAB', 'WNBA']);
 
 // Enhanced sport mapping with routing logic
 const SPORT_ROUTING_CONFIG = {
@@ -241,6 +245,87 @@ async function fetchFromOddsApi(request: DataRequest): Promise<RawProp[]> {
 }
 
 /**
+ * Map SGOPairedProp to RawProp for pipeline compatibility
+ * SPRINT-043A: Reuses mapping logic from IngestionAgent/fetchRawProps.ts
+ */
+function mapSGOPairedToRawProp(prop: SGOPairedProp, league: string): RawProp {
+  return {
+    id: crypto.randomUUID(),
+    provider: 'sgo',
+    player_name: prop.playerName ?? 'Unknown',
+    sport: league,
+    team: null,
+    stat_type: prop.statType,
+    outcome: null,
+    line: typeof prop.line === 'number' ? prop.line : prop.line != null ? Number(prop.line) : 0,
+    odds: prop.overOdds ?? -110,
+    created_at: new Date().toISOString(),
+    source: 'sgo',
+    game_id: null,
+    scraped_at: new Date().toISOString(),
+    game_date: (prop.startsAtUTC ?? '').slice(0, 10),
+    matchup: `${prop.awayTeam} @ ${prop.homeTeam}`,
+    over_odds: prop.overOdds ?? null,
+    under_odds: prop.underOdds ?? null,
+    external_prop_id: prop.overMarketKey || prop.underMarketKey || null,
+    external_game_id: prop.eventID,
+    // Composite external_id: eventID + marketKey + player for uniqueness
+    external_id: `sgo:${prop.eventID}:${prop.overMarketKey || prop.underMarketKey || 'unk'}:${(prop.playerName || 'game').replace(/\s/g, '_')}`,
+    sport_key: league.toLowerCase(),
+    league,
+    market: `player_${prop.statType.toLowerCase()}`,
+    game_time: prop.startsAtUTC ?? new Date().toISOString(),
+    start_time: prop.startsAtUTC ?? new Date().toISOString(),
+    home_team: prop.homeTeam,
+    home_team_id: null, // SGO team IDs are strings; column expects integer FK
+    away_team: prop.awayTeam,
+    away_team_id: null, // SGO team IDs are strings; column expects integer FK
+    market_type: prop.statType,
+    player_id: prop.playerId,
+    // SPRINT-042C: Provider keys for settlement traceability
+    overMarketKey: prop.overMarketKey,
+    underMarketKey: prop.underMarketKey,
+    eventID: prop.eventID,
+    marketKey: prop.overMarketKey || prop.underMarketKey || null,
+  } as RawProp;
+}
+
+/**
+ * Fetch data from SGO API
+ * SPRINT-043A: Integrates SportsGameOdds into the data source router
+ */
+async function fetchFromSGO(request: DataRequest): Promise<RawProp[]> {
+  const league = request.sport.toUpperCase();
+  console.log(`[DataRouter] Fetching from SGO API: ${league}`);
+
+  if (!SGO_SUPPORTED_LEAGUES.has(league)) {
+    throw new Error(`SGO does not support league: ${league}`);
+  }
+
+  const apiKey = process.env['SGO_API_KEY'];
+  if (!apiKey) {
+    throw new Error('SGO_API_KEY not configured');
+  }
+
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const paired = await fetchAndPairSGOProps({
+    apiKey,
+    leagueID: league,
+    startsAfter: now.toISOString(),
+    startsBefore: tomorrow.toISOString(),
+    includeOpposingOdds: true,
+    oddsAvailable: true,
+    limit: 50,
+  });
+
+  console.log(`[DataRouter] SGO returned ${paired.length} paired props for ${league}`);
+
+  return paired.map(prop => mapSGOPairedToRawProp(prop, league));
+}
+
+/**
  * Main unified data fetching function
  */
 export async function fetchUnifiedData(request: DataRequest): Promise<DataResponse> {
@@ -267,6 +352,8 @@ export async function fetchUnifiedData(request: DataRequest): Promise<DataRespon
       data = await fetchFromOptimal(request);
     } else if (routing.source === 'odds-api') {
       data = await fetchFromOddsApi(request);
+    } else if (routing.source === 'sgo') {
+      data = await fetchFromSGO(request);
     }
 
     console.log(`[DataRouter] Successfully fetched ${data.length} records from ${routing.source}`);
@@ -285,6 +372,8 @@ export async function fetchUnifiedData(request: DataRequest): Promise<DataRespon
           data = await fetchFromOptimal(request);
         } else if (routing.fallback === 'odds-api') {
           data = await fetchFromOddsApi(request);
+        } else if (routing.fallback === 'sgo') {
+          data = await fetchFromSGO(request);
         }
 
         console.log(
@@ -299,6 +388,26 @@ export async function fetchUnifiedData(request: DataRequest): Promise<DataRespon
         // Return empty result with errors
         actualSource = routing.source; // Keep original for error reporting
       }
+    }
+  }
+
+  // SPRINT-043A: Try SGO as final fallback if data is still empty
+  // Placed outside try/catch so it triggers even when primary returns 0 records without error
+  if (
+    data.length === 0 &&
+    SGO_SUPPORTED_LEAGUES.has(request.sport.toUpperCase()) &&
+    actualSource !== 'sgo'
+  ) {
+    try {
+      console.log(`[DataRouter] Attempting SGO as final fallback for ${request.sport}`);
+      data = await fetchFromSGO(request);
+      actualSource = 'sgo';
+      console.log(`[DataRouter] SGO fallback successful: ${data.length} records`);
+    } catch (sgoError) {
+      errors.push(
+        `SGO fallback failed: ${sgoError instanceof Error ? sgoError.message : 'Unknown error'}`
+      );
+      console.error(`[DataRouter] SGO fallback also failed for ${request.sport}`);
     }
   }
 
@@ -429,6 +538,11 @@ export async function getSystemStatus() {
       supportedSports: Object.keys(SPORT_ROUTING_CONFIG).filter(
         sport => SPORT_ROUTING_CONFIG[sport as SupportedSport].primary === 'optimal-api'
       ).length,
+    },
+    sgoApi: {
+      available: !!process.env['SGO_API_KEY'],
+      supportedLeagues: Array.from(SGO_SUPPORTED_LEAGUES),
+      role: 'fallback',
     },
     routing: {
       totalSports: Object.keys(SPORT_ROUTING_CONFIG).length,
