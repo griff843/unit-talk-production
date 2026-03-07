@@ -32,13 +32,14 @@ export async function runAnalysis(): Promise<{ success: boolean; message: string
   }
 }
 
-export async function performHealthCheck(): Promise<{
+// SPRINT-035A B-5: Renamed from performHealthCheck to resolve collision with healthMonitoring
+export async function performAnalyticsHealthCheck(): Promise<{
   success: boolean;
   message: string;
   data?: any;
 }> {
   try {
-    console.log('[AnalyticsAgent] Performing health check');
+    console.log('[AnalyticsAgent] Performing analytics health check');
 
     // Placeholder health check logic
     const healthData = {

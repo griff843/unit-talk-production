@@ -3,8 +3,9 @@ import { Client, Connection } from '@temporalio/client';
 import { createLogger } from '../utils/logger';
 import { getEnv } from '../utils/getEnv';
 // Import workflow functions
+// SPRINT-035A B-16: syndicateSchedulerWorkflow now imported from syndicate-scheduler (sole implementation)
+import { syndicateSchedulerWorkflow } from '../workflows/syndicate-scheduler';
 import {
-  syndicateSchedulerWorkflow,
   liveGameDetectorWorkflow,
   quotaMonitoringWorkflow,
   healthMonitoringWorkflow,

@@ -86,6 +86,43 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
     allowedWriters: ['submitter', 'operator_override'],
     immutableAfterSet: true,
   },
+  // SPRINT-035A B-2: Register remaining unified_picks business columns
+  // These were missing from the authority map, causing unknown-field rejection
+  {
+    field: 'pick_type',
+    allowedWriters: ['submitter', 'operator_override'],
+    immutableAfterSet: true,
+  },
+  {
+    field: 'potential_payout',
+    allowedWriters: ['submitter', 'operator_override'],
+    immutableAfterSet: false,
+  },
+  {
+    field: 'over_odds',
+    allowedWriters: ['submitter', 'operator_override'],
+    immutableAfterSet: true,
+  },
+  {
+    field: 'under_odds',
+    allowedWriters: ['submitter', 'operator_override'],
+    immutableAfterSet: true,
+  },
+  {
+    field: 'game_date',
+    allowedWriters: ['submitter', 'operator_override'],
+    immutableAfterSet: true,
+  },
+  {
+    field: 'tier_when_placed',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
+  {
+    field: 'kelly_bet_size',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
 
   // Scoring/pipeline fields (set at pick creation by ProfessionalPropProcessor)
   // SPRINT-CANONICAL-SCORING-ACTIVATION-026: Add scoring fields for submitter

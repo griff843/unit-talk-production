@@ -5,7 +5,6 @@ import type {
   AlertAgentActivities,
   OperatorAgentActivities,
   NotificationAgentActivities,
-  GradingAgentActivities,
 } from '../types/activities';
 
 // Export types that are imported elsewhere
@@ -60,76 +59,7 @@ const notificationActivities = proxyActivities<NotificationAgentActivities>({
   startToCloseTimeout: '30 seconds',
 });
 
-const gradingActivities = proxyActivities<GradingAgentActivities>({
-  startToCloseTimeout: '2 minutes',
-});
-
-/**
- * SYNDICATE SCHEDULER WORKFLOW
- * Main data ingestion and processing workflow (1 minute intervals)
- */
-export async function syndicateSchedulerWorkflow(): Promise<void> {
-  const shouldContinue = true;
-  const MAX_ITERATIONS = 1000000; // Prevent infinite loops
-  let iteration = 0;
-
-  while (shouldContinue && iteration < MAX_ITERATIONS) {
-    try {
-      const leagues = ['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF', 'NCAAB', 'WNBA'];
-
-      // 1. DATA INGESTION - Successfully fetching props
-      await feedActivities.fetchFeed({
-        timestamp: new Date(),
-        leagues,
-      });
-
-      // 2. PROFESSIONAL GRADING - Process ungraded props through professional system
-      for (const league of leagues) {
-        try {
-          await gradingActivities.gradeNewProps({
-            league,
-            isLiveMode: true,
-            cycleCount: iteration,
-          });
-        } catch (gradingError) {
-          await operatorActivities.logError({
-            error: `Professional grading failed for ${league}: ${gradingError}`,
-            workflow: 'syndicateSchedulerWorkflow',
-            timestamp: new Date(),
-          });
-        }
-      }
-
-      // 3. PROMOTE TOP TIER PICKS - Promote S/A tier picks to unified_picks
-      try {
-        const scoringResults = []; // Will be populated by individual league grading
-        await gradingActivities.updateUnifiedPicks({
-          scoringResults,
-          cycleCount: iteration,
-          timestamp: new Date(),
-        });
-      } catch (promotionError) {
-        await operatorActivities.logError({
-          error: `Pick promotion failed: ${promotionError}`,
-          workflow: 'syndicateSchedulerWorkflow',
-          timestamp: new Date(),
-        });
-      }
-
-      // Wait for next interval
-      await sleep('1 minute');
-      iteration++;
-    } catch (error) {
-      await operatorActivities.logError({
-        error: `Syndicate scheduler error: ${error}`,
-        workflow: 'syndicateSchedulerWorkflow',
-        timestamp: new Date(),
-      });
-      await sleep('5 minutes'); // Back off on error
-      iteration++;
-    }
-  }
-}
+// SPRINT-035A B-16: syndicateSchedulerWorkflow removed — sole implementation is in syndicate-scheduler.ts
 
 /**
  * LIVE GAME DETECTOR WORKFLOW

@@ -1,6 +1,7 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity, no-undef, no-return-await, no-unused-vars, max-depth, @typescript-eslint/no-unused-vars */
 import { randomUUID } from 'crypto';
 
+import { lifecycleInsert } from '../../lib/lifecycle';
 import {
   ProfessionalPropProcessor,
   ProfessionalPropResult,
@@ -737,35 +738,39 @@ export class GradingAgent extends BaseAgent {
       const pickSide = prop.line > 0 ? 'over' : 'under';
       const selection = `${prop.player_name} ${prop.stat_type} ${pickSide} ${Math.abs(prop.line)}`;
 
-      // Insert into unified_picks with actual v3.0.0 schema
-      const { error } = await this.requireSupabase()
-        .from('unified_picks')
-        .insert({
-          id: randomUUID(),
-          user_id: systemUser.id,
-          pick_type: 'parlay', // Valid pick_type from schema analysis
-          selection: selection,
-          odds: prop.odds || prop.over_odds || -110,
-          stake: result.positionSize * 100, // Convert position size to dollar stake
-          potential_payout: result.positionSize * 100 * (1 + Math.abs(result.kellyFraction)),
-          player_name: prop.player_name,
-          stat_type: prop.stat_type,
-          line: prop.line,
-          over_odds: prop.over_odds,
-          under_odds: prop.under_odds,
-          sport: prop.sport || 'Unknown',
-          game_date: prop.game_date,
-          confidence: result.confidence,
-          tier_when_placed: result.tier,
-          kelly_bet_size: result.kellyFraction,
-          promotion_band: result.promotionBand || null,
-          created_at: new Date().toISOString(),
-        });
+      // SPRINT-035A B-2: Use lifecycle adapter instead of direct insert
+      const pickId = randomUUID();
+      const pickData = {
+        id: pickId,
+        user_id: systemUser.id,
+        pick_type: 'parlay',
+        selection: selection,
+        odds: prop.odds || prop.over_odds || -110,
+        stake: result.positionSize * 100,
+        potential_payout: result.positionSize * 100 * (1 + Math.abs(result.kellyFraction)),
+        player_name: prop.player_name,
+        stat_type: prop.stat_type,
+        line: prop.line,
+        over_odds: prop.over_odds,
+        under_odds: prop.under_odds,
+        sport: prop.sport || 'Unknown',
+        game_date: prop.game_date,
+        confidence: result.confidence,
+        tier_when_placed: result.tier,
+        kelly_bet_size: result.kellyFraction,
+        promotion_band: result.promotionBand || null,
+        created_at: new Date().toISOString(),
+      };
+      const { success, error: lifecycleError } = await lifecycleInsert(
+        this.requireSupabase(),
+        pickData as any,
+        { writerRole: 'submitter' }
+      );
 
-      if (error) {
+      if (!success) {
         this.logger.error('❌ Failed to promote prop to unified_picks', {
           propId: result.propId,
-          error: error.message,
+          error: lifecycleError,
         });
       } else {
         this.logger.info('✅ Prop promoted to unified_picks', {

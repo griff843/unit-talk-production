@@ -15,8 +15,6 @@ import type {
   AuditAgentActivities,
   GradingAgentActivities,
   AlertAgentActivities,
-  CampaignAgentActivities,
-  ContestAgentActivities,
   OperatorAgentActivities,
   PlayerEnrichmentAgentActivities,
   ActivityParams,
@@ -51,13 +49,7 @@ const alertActivities = proxyActivities<AlertAgentActivities>({
   startToCloseTimeout: '30 seconds', // Alerts must be is_instant
 });
 
-const campaignActivities = proxyActivities<CampaignAgentActivities>({
-  startToCloseTimeout: '5 minutes',
-});
-
-const contestActivities = proxyActivities<ContestAgentActivities>({
-  startToCloseTimeout: '5 minutes',
-});
+// SPRINT-035A B-12: campaignActivities and contestActivities removed (archived)
 
 const operatorActivities = proxyActivities<OperatorAgentActivities>({
   startToCloseTimeout: '30 seconds', // System monitoring must be fast
@@ -93,8 +85,6 @@ export {
   auditActivities,
   gradingActivities,
   alertActivities,
-  campaignActivities,
-  contestActivities,
   operatorActivities,
   playerEnrichmentActivities,
   // E2E Testing Activities
@@ -119,16 +109,8 @@ const grading = proxyActivities<typeof gradingActivities>({
   startToCloseTimeout: FAST_TIMEOUT, // Faster for syndicate operations
 });
 
-const contest = proxyActivities<typeof contestActivities>({
-  startToCloseTimeout: STANDARD_TIMEOUT,
-});
-
 const alert = proxyActivities<typeof alertActivities>({
   startToCloseTimeout: CRITICAL_TIMEOUT, // Critical for syndicate alerts
-});
-
-const campaign = proxyActivities<typeof campaignActivities>({
-  startToCloseTimeout: STANDARD_TIMEOUT,
 });
 
 const notification = proxyActivities<typeof notificationActivities>({
@@ -160,16 +142,10 @@ export async function gradingWorkflow(params: ActivityParams): Promise<void> {
   await grading.gradeSubmission(params);
 }
 
-export async function contestWorkflow(params: ActivityParams): Promise<void> {
-  await contest.createContest(params);
-}
+// SPRINT-035A B-12: contestWorkflow and campaignWorkflow removed (archived)
 
 export async function alertWorkflow(params: ActivityParams): Promise<void> {
   await alert.processAlert(params);
-}
-
-export async function campaignWorkflow(params: ActivityParams): Promise<void> {
-  await campaign.createCampaign(params);
 }
 
 export async function notificationWorkflow(params: ActivityParams): Promise<void> {

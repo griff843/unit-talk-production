@@ -440,15 +440,7 @@ export interface AuditAgentActivities {
   runAudit(params: ActivityParams): Promise<void>;
 }
 
-// Campaign Agent Activities
-export interface CampaignAgentActivities {
-  createCampaign(params: ActivityParams): Promise<void>;
-}
-
-// Contest Agent Activities
-export interface ContestAgentActivities {
-  createContest(params: ActivityParams): Promise<void>;
-}
+// SPRINT-035A B-12: CampaignAgentActivities and ContestAgentActivities removed (archived per SPRINT-REPO-TRUTH-LOCK-002)
 
 // Player Enrichment Agent Activities
 export interface PlayerEnrichmentAgentActivities {
