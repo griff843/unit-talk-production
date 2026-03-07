@@ -1,0 +1,62 @@
+# Unit Talk API — OpenAPI Stub
+#
+# Status: STUB (to be populated with route definitions)
+# Authority: Tier 2
+# Owner: Platform Architecture
+# Last Verified: 2026-03-07
+# Sprint: SPRINT-DOCS-CANONICALIZATION-040
+#
+# This file is a placeholder for a full OpenAPI 3.1 spec.
+# Populate by auditing routes in apps/api/src/routes/.
+
+openapi: '3.1.0'
+info:
+  title: Unit Talk API
+  version: '1.0.0'
+  description: |
+    Sports pick syndication platform API.
+    Ingests odds, grades picks, promotes via Discord, settles against outcomes.
+
+servers:
+  - url: http://localhost:3010
+    description: Local development
+  - url: https://api.unittalk.com
+    description: Production
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      tags: [Operations]
+      responses:
+        '200':
+          description: Service healthy
+
+  /health/provider:
+    get:
+      summary: Provider health status
+      operationId: getProviderHealth
+      tags: [Operations]
+      responses:
+        '200':
+          description: Provider circuit breaker states and data freshness
+
+  # TODO: Add routes from apps/api/src/routes/
+  # - /api/picks
+  # - /api/games
+  # - /api/agents
+  # - /api/settlement
+  # - /api/analytics
+
+tags:
+  - name: Operations
+    description: Health checks and system status
+  - name: Picks
+    description: Pick submission and retrieval
+  - name: Games
+    description: Game schedules and results
+  - name: Agents
+    description: Agent health and management
+  - name: Settlement
+    description: Pick settlement operations
