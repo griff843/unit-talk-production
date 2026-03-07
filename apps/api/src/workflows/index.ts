@@ -134,8 +134,8 @@ const playerEnrichment = proxyActivities<typeof playerEnrichmentActivities>({
 });
 
 // LEGACY WORKFLOWS (maintained for backward compatibility)
-export async function analyticsWorkflow(params: ActivityParams): Promise<void> {
-  await analytics.runAnalysis(params);
+export async function analyticsWorkflow(_params: ActivityParams): Promise<void> {
+  await analytics.runAnalysis();
 }
 
 export async function gradingWorkflow(params: ActivityParams): Promise<void> {
@@ -156,8 +156,8 @@ export async function feedWorkflow(params: ActivityParams): Promise<void> {
   await feed.fetchFeed(params);
 }
 
-export async function operatorWorkflow(params: ActivityParams): Promise<void> {
-  await operator.monitorSystem(params);
+export async function operatorWorkflow(_params: ActivityParams): Promise<void> {
+  await operator.monitorSystem();
 }
 
 export async function auditWorkflow(params: ActivityParams): Promise<void> {

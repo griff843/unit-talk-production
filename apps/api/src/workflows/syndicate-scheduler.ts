@@ -2,11 +2,12 @@ import { proxyActivities, defineSignal, setHandler, condition, sleep } from '@te
 
 import type {
   FeedAgentActivities,
-  AlertAgentActivities,
   GradingAgentActivities,
   NotificationAgentActivities,
   OperatorAgentActivities,
 } from '../types/activities';
+
+// SPRINT-035B TD-6: AlertAgentActivities proxy removed — USP detection quarantined
 
 // Activity proxies with syndicate-optimized configurations
 const feedActivities = proxyActivities<FeedAgentActivities>({
@@ -15,15 +16,6 @@ const feedActivities = proxyActivities<FeedAgentActivities>({
     maximumAttempts: 3,
     initialInterval: '1 second',
     maximumInterval: '10 seconds',
-  },
-});
-
-const alertActivities = proxyActivities<AlertAgentActivities>({
-  startToCloseTimeout: '30 seconds',
-  retry: {
-    maximumAttempts: 2,
-    initialInterval: '1 second',
-    maximumInterval: '5 seconds',
   },
 });
 
@@ -143,11 +135,10 @@ export async function syndicateSchedulerWorkflow(): Promise<void> {
       const maxCycleTime = isLiveMode ? 50000 : 240000; // 50s for 1-min live, 4min for off-peak
 
       if (cycleTime > maxCycleTime) {
-        await operatorActivities.logPerformanceWarning({
-          cycleTime,
-          maxCycleTime,
-          cycleCount,
-          message: `Cycle ${cycleCount} exceeded target time: ${cycleTime}ms`,
+        await operatorActivities.logError({
+          workflow: 'syndicateSchedulerWorkflow',
+          error: `Cycle ${cycleCount} exceeded target time: ${cycleTime}ms (max: ${maxCycleTime}ms)`,
+          timestamp: new Date(),
         });
       }
 
@@ -157,11 +148,10 @@ export async function syndicateSchedulerWorkflow(): Promise<void> {
         await sleep(remainingTime);
       }
     } catch (error) {
-      await operatorActivities.handleCriticalError({
+      await operatorActivities.logError({
+        workflow: 'syndicateSchedulerWorkflow',
         error: String(error),
-        cycleCount,
         timestamp: new Date(),
-        context: 'syndicateSchedulerWorkflow',
       });
 
       // Brief pause before retry
@@ -172,7 +162,9 @@ export async function syndicateSchedulerWorkflow(): Promise<void> {
 
 /**
  * LEAGUE-SPECIFIC INGESTION WORKFLOW
- * Handles ingestion for a single league with fallback support
+ * Handles ingestion for a single league via unified data source router.
+ * SPRINT-035B TD-4: Fallback is handled internally by dataSourceRouter (primary → secondary).
+ * Workflow-level fallback to SGO removed (aspirational, never implemented).
  */
 export async function leagueIngestionWorkflow(params: {
   league: string;
@@ -182,49 +174,21 @@ export async function leagueIngestionWorkflow(params: {
   const { league, isLiveMode, cycleCount } = params;
 
   try {
-    // 1. UNIFIED INGESTION (Dual-API Strategy)
-    // Uses intelligent routing: Optimal for player props, Odds API for NCAAF/WNBA/Settlement
-    let ingestionResult = await feedActivities.ingestUnifiedData({
+    // UNIFIED INGESTION (Dual-API Strategy)
+    // dataSourceRouter handles: Optimal for player props, OddsAPI for NCAAF/WNBA/settlement
+    // Failover from primary → secondary is handled inside the router, not here.
+    const ingestionResult = await feedActivities.ingestUnifiedData({
       league,
       batchSize: isLiveMode ? 500 : 200,
-      timeout: 30000, // Reduced for 1-minute cycles
+      timeout: 30000,
     });
 
-    // 2. FALLBACK IF PRIMARY FAILS
     if (!ingestionResult.success) {
-      await operatorActivities.logFallbackActivation({
+      await operatorActivities.logError({
+        workflow: 'leagueIngestionWorkflow',
         league,
-        primaryError: ingestionResult.error || 'Unknown error',
-        cycleCount,
-      });
-
-      ingestionResult = await feedActivities.ingestFallbackProps({
-        league,
-        provider: 'SGO',
-        timeout: 45000,
-      });
-    }
-
-    // 3. DATA PROCESSING
-    if (ingestionResult.success && ingestionResult.propCount > 0) {
-      await feedActivities.deduplicateAndNormalize({
-        league,
-        batchId: ingestionResult.batchId,
-      });
-
-      await feedActivities.triggerGrading({
-        batchId: ingestionResult.batchId,
-        league,
-        propCount: ingestionResult.propCount,
-      });
-
-      // 4. METRICS LOGGING
-      await operatorActivities.updateProcessingMetrics({
-        league,
-        batchId: ingestionResult.batchId,
-        propCount: ingestionResult.propCount,
-        cycleCount,
-        processingTime: Date.now(),
+        error: ingestionResult.error || 'Ingestion failed',
+        timestamp: new Date(),
       });
     }
   } catch (error) {
@@ -239,91 +203,18 @@ export async function leagueIngestionWorkflow(params: {
 
 /**
  * USP PROCESSING WORKFLOW
- * Detects all Unique Selling Propositions in parallel
+ * SPRINT-035B TD-6: USP detection activities are QUARANTINED.
+ * Detector source files exist in AlertAgent but are not wired into activity barrels.
+ * This workflow is a no-op until USP detection is properly implemented and registered.
  */
-export async function uspProcessingWorkflow(params: {
+export async function uspProcessingWorkflow(_params: {
   leagues: string[];
   isLiveMode: boolean;
   cycleCount: number;
 }): Promise<void> {
-  const { leagues, isLiveMode, cycleCount } = params;
-
-  try {
-    // Enhanced USP detection during live mode
-    const uspPromises = [
-      // Steam movement detection
-      alertActivities.detectSteamMovement({
-        leagues,
-        threshold: isLiveMode ? 0.5 : 1.0,
-        timeWindow: isLiveMode ? 120 : 300,
-      }),
-
-      // Line movement detection
-      alertActivities.detectLineMovement({
-        leagues,
-        significantThreshold: isLiveMode ? 1.0 : 2.0,
-        timeWindow: isLiveMode ? 120 : 300,
-      }),
-
-      // Hedge opportunities
-      alertActivities.detectHedgeOpportunities({
-        leagues,
-        minProfitMargin: 0.05,
-      }),
-
-      // Middle opportunities
-      alertActivities.detectMiddleOpportunities({
-        leagues,
-        minGap: 2.0,
-      }),
-
-      // Stale line detection
-      alertActivities.detectStaleLines({
-        leagues,
-        maxAge: isLiveMode ? 300 : 600, // 5min live, 10min off-peak
-      }),
-
-      // Injury impact detection
-      alertActivities.detectInjuryImpacts({
-        leagues,
-        sources: ['ESPN', 'RotoBaller', 'FantasyPros'],
-      }),
-
-      // Suspicious activity detection
-      alertActivities.detectSuspiciousActivity({
-        leagues,
-        patterns: ['unusual_volume', 'coordinated_betting', 'line_manipulation'],
-      }),
-    ];
-
-    const uspResults = await Promise.allSettled(uspPromises);
-
-    // Log any USP detection errors
-    uspResults.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        const uspTypes = [
-          'steam',
-          'line_movement',
-          'hedge',
-          'middle',
-          'stale',
-          'injury',
-          'suspicious',
-        ];
-        operatorActivities.logUSPError({
-          uspType: uspTypes[index] || 'unknown',
-          error: String(result.reason),
-          cycleCount,
-        });
-      }
-    });
-  } catch (error) {
-    await operatorActivities.logUSPError({
-      uspType: 'general',
-      error: String(error),
-      cycleCount,
-    });
-  }
+  // No-op: USP detection not yet implemented.
+  // When implemented, detector activities must be exported from AlertAgent/activities/index.ts
+  // and registered in worker.ts before this workflow can call them.
 }
 
 /**
@@ -386,34 +277,34 @@ export async function gradingAndScoringWorkflow(params: {
       .map(result => result.reason);
 
     if (failedGrading.length > 0) {
-      await operatorActivities.logGradingError({
-        error: failedGrading.join('; '),
-        leagues,
-        cycleCount,
+      await operatorActivities.logError({
+        workflow: 'gradingAndScoringWorkflow',
+        error: `Grading failures: ${failedGrading.join('; ')}`,
+        timestamp: new Date(),
       });
     }
   } catch (error) {
-    await operatorActivities.logGradingError({
+    await operatorActivities.logError({
+      workflow: 'gradingAndScoringWorkflow',
       error: String(error),
-      leagues,
-      cycleCount,
+      timestamp: new Date(),
     });
   }
 }
 
 /**
  * DISCORD ALERT WORKFLOW
- * <30 second Discord delivery for syndicate performance
+ * SPRINT-035B TD-5: Simplified to use existing NotificationAgent exports.
+ * Canonical pick posting is handled by DiscordPromotionAgent (webhook-based).
+ * This workflow sends notifications for new picks via the registered sendNotification activity.
  */
 export async function discordAlertWorkflow(params: {
   cycleCount: number;
   isLiveMode: boolean;
 }): Promise<void> {
-  const { cycleCount, isLiveMode } = params;
+  const { cycleCount } = params;
 
   try {
-    const alertStartTime = Date.now();
-
     // 1. GET NEW FINAL PICKS
     const newPicks = await gradingActivities.getNewUnifiedPicks({ cycleCount });
 
@@ -421,61 +312,22 @@ export async function discordAlertWorkflow(params: {
       return; // No new picks to alert
     }
 
-    // 2. BUILD DISCORD EMBEDS
-    const embeds = await notificationActivities.buildPickEmbeds({
-      picks: newPicks,
-      isLiveMode,
+    // 2. SEND NOTIFICATION FOR NEW PICKS
+    // Uses the registered sendNotification activity from NotificationAgent
+    await notificationActivities.sendNotification({
+      type: 'new_picks',
+      channel: 'discord',
+      data: {
+        picks: newPicks,
+        cycleCount,
+        timestamp: new Date().toISOString(),
+      },
     });
-
-    // 3. SEND CRITICAL ALERTS FIRST
-    const criticalAlerts = embeds.filter(e => e.priority === 'critical');
-    if (criticalAlerts.length > 0) {
-      await notificationActivities.sendCriticalDiscordAlerts({
-        alerts: criticalAlerts.map(e => ({
-          type: 'critical_pick',
-          priority: 'critical',
-          data: e.embed,
-          timestamp: new Date(),
-        })),
-        cycleCount,
-      });
-    }
-
-    // 4. BATCH REMAINING ALERTS
-    const remainingAlerts = embeds.filter(e => e.priority !== 'critical');
-    if (remainingAlerts.length > 0) {
-      await notificationActivities.batchDiscordAlerts({
-        alerts: remainingAlerts.map(e => ({
-          type: 'pick_alert',
-          priority: e.priority,
-          data: e.embed,
-          timestamp: new Date(),
-        })),
-        cycleCount,
-      });
-    }
-
-    // 5. LOG DISCORD METRICS
-    const deliveryTime = Date.now() - alertStartTime;
-    await operatorActivities.logDiscordMetrics({
-      picksCount: newPicks.length,
-      embedsCount: embeds.length,
-      cycleCount,
-      deliveryTime,
-    });
-
-    // 6. ALERT IF DELIVERY TOO SLOW
-    if (deliveryTime > 30000) {
-      // 30 seconds
-      await operatorActivities.logDiscordError({
-        error: `Discord delivery took ${deliveryTime}ms (>30s target)`,
-        cycleCount,
-      });
-    }
   } catch (error) {
-    await operatorActivities.logDiscordError({
+    await operatorActivities.logError({
+      workflow: 'discordAlertWorkflow',
       error: String(error),
-      cycleCount,
+      timestamp: new Date(),
     });
   }
 }
