@@ -192,27 +192,48 @@ export async function leagueIngestionWorkflow(params: {
       });
     }
 
-    // SPRINT-044B: V3 provider_offers ingestion (parallel path)
+    // SPRINT-044F: Dedicated provider_offers ingestion workflow (parallel path)
     // Dual-write: raw_props (above) + provider_offers (below)
     // provider_offers is additive — failure does not block raw_props path
-    try {
-      await feedActivities.ingestV3ProviderOffers({
-        league,
-        markets: ['h2h', 'spreads', 'totals'],
-      });
-    } catch (v3Error) {
-      await operatorActivities.logError({
-        workflow: 'leagueIngestionWorkflow',
-        league,
-        error: `V3 provider_offers ingestion failed: ${String(v3Error)}`,
-        timestamp: new Date(),
-      });
-    }
+    await providerOffersIngestionWorkflow({ league, isLiveMode });
   } catch (error) {
     await operatorActivities.logError({
       workflow: 'leagueIngestionWorkflow',
       league,
       error: String(error),
+      timestamp: new Date(),
+    });
+  }
+}
+
+/**
+ * SPRINT-044F: PROVIDER OFFERS INGESTION WORKFLOW
+ * Dedicated workflow for V3 provider_offers ingestion.
+ * Called from leagueIngestionWorkflow — failure does not block raw_props path.
+ */
+export async function providerOffersIngestionWorkflow(params: {
+  league: string;
+  isLiveMode: boolean;
+  markets?: string[];
+}): Promise<void> {
+  try {
+    const result = await feedActivities.ingestV3ProviderOffers({
+      league: params.league,
+      markets: params.markets || ['h2h', 'spreads', 'totals'],
+    });
+    if (!result.success) {
+      await operatorActivities.logError({
+        workflow: 'providerOffersIngestionWorkflow',
+        league: params.league,
+        error: result.error || 'Provider offers ingestion failed',
+        timestamp: new Date(),
+      });
+    }
+  } catch (error) {
+    await operatorActivities.logError({
+      workflow: 'providerOffersIngestionWorkflow',
+      league: params.league,
+      error: `V3 provider_offers ingestion failed: ${String(error)}`,
       timestamp: new Date(),
     });
   }
