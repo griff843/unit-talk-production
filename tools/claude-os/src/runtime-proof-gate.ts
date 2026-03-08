@@ -17,7 +17,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 /** Recipe IDs that constitute runtime evidence */
-const RUNTIME_EVIDENCE_RECIPE_IDS = ['runtime_smoke', 'discord_canary'];
+const RUNTIME_EVIDENCE_RECIPE_IDS = ['runtime_smoke', 'discord_canary', 'browser_smoke'];
 
 /** Output file prefix that indicates runtime proof */
 const RUNTIME_PROOF_OUTPUT_PREFIX = 'proofs/proof_runtime_';

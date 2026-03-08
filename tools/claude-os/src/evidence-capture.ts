@@ -14,6 +14,7 @@ import type {
   VerificationStepResult,
   CommandRunResult,
   EvidenceIndex,
+  EvidenceIndexEntry,
   VerificationExecutionResult,
 } from './types.js';
 
@@ -101,12 +102,24 @@ export function writeEvidenceIndex(
     sprintId: result.sprintId,
     generatedAt: result.generatedAt,
     evidenceRoot: artifactPlan.canonicalRoot,
-    entries: result.steps.map(step => ({
-      recipeId: step.recipeId,
-      status: step.status,
-      outputFile: step.outputFile,
-      capturedAt: result.generatedAt,
-    })),
+    entries: result.steps.map(step => {
+      const entry: EvidenceIndexEntry = {
+        recipeId: step.recipeId,
+        status: step.status,
+        outputFile: step.outputFile,
+        capturedAt: result.generatedAt,
+      };
+
+      // Add browser evidence detail if present
+      if (step.browserArtifacts && step.browserArtifacts.length > 0) {
+        entry.browserEvidence = {
+          browserArtifacts: step.browserArtifacts,
+          playwrightAvailable: true,
+        };
+      }
+
+      return entry;
+    }),
     runtimeProofGate: result.runtimeProofGate,
     overallStatus: result.overallStatus,
   };
@@ -147,6 +160,17 @@ function formatEvidenceFile(
     commandResult.stderr || '(empty)',
     '',
   ];
+
+  // Browser artifact summary (Phase C.2)
+  if (step.browserArtifacts && step.browserArtifacts.length > 0) {
+    lines.push('--- BROWSER ARTIFACTS ---');
+    lines.push(`Count: ${step.browserArtifacts.length}`);
+    for (const artifact of step.browserArtifacts) {
+      lines.push(`  [${artifact.type}] ${artifact.path} (${artifact.sizeBytes} bytes)`);
+    }
+    lines.push('');
+  }
+
   return lines.join('\n');
 }
 

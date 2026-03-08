@@ -117,6 +117,14 @@ export function planArtifacts(
     );
   }
 
+  if (sprintType === 'ui') {
+    requiredDirectories.push(path.posix.join(canonicalRoot, 'proofs', 'screenshots'));
+    notes.push(
+      'Browser screenshot directory created for UI sprint. ' +
+        'Screenshots may be captured automatically by Playwright or manually.'
+    );
+  }
+
   return {
     sprintId,
     date: resolvedDate,

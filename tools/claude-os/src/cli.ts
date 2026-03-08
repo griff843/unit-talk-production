@@ -375,6 +375,9 @@ function printVerificationResult(result: VerificationExecutionResult): void {
     if (step.status !== 'PASS') {
       console.log(`    ${c.dim}${step.reason}${c.reset}`);
     }
+    if (step.browserArtifacts && step.browserArtifacts.length > 0) {
+      console.log(`    ${c.cyan}Browser artifacts: ${step.browserArtifacts.length}${c.reset}`);
+    }
   }
 
   // Summary

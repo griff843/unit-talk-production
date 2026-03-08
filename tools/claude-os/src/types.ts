@@ -490,6 +490,8 @@ export interface VerificationStepResult {
   commandResult: CommandRunResult | null;
   outputFile: string | null;
   durationMs: number;
+  /** Browser artifacts collected after execution (Phase C.2) */
+  browserArtifacts?: BrowserArtifactEntry[];
 }
 
 /** Result of the runtime proof gate evaluation */
@@ -529,6 +531,8 @@ export interface EvidenceIndexEntry {
   status: VerificationStepStatus;
   outputFile: string | null;
   capturedAt: string;
+  /** Browser-specific evidence detail (Phase C.2) */
+  browserEvidence?: BrowserEvidenceDetail;
 }
 
 /** Machine-readable evidence index written to the artifact root */
@@ -539,4 +543,38 @@ export interface EvidenceIndex {
   entries: EvidenceIndexEntry[];
   runtimeProofGate: RuntimeProofGateResult;
   overallStatus: VerificationOverallStatus;
+}
+
+// ---------------------------------------------------------------------------
+// Browser Verification Types (Phase C.2)
+// ---------------------------------------------------------------------------
+
+/** Browser verification artifact type */
+export type BrowserArtifactType =
+  | 'screenshot'
+  | 'console_log'
+  | 'accessibility_snapshot'
+  | 'network_log';
+
+/** Expected browser artifact from a verification recipe */
+export interface BrowserArtifactExpectation {
+  type: BrowserArtifactType;
+  /** Glob pattern relative to evidence root, e.g. "proofs/screenshots/*.png" */
+  pattern: string;
+  required: boolean;
+}
+
+/** Captured browser artifact found on disk */
+export interface BrowserArtifactEntry {
+  type: BrowserArtifactType;
+  /** Path relative to evidence root */
+  path: string;
+  sizeBytes: number;
+  capturedAt: string;
+}
+
+/** Browser-specific evidence detail, attached to evidence index entries */
+export interface BrowserEvidenceDetail {
+  browserArtifacts: BrowserArtifactEntry[];
+  playwrightAvailable: boolean;
 }

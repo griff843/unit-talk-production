@@ -137,8 +137,8 @@
     },
     "tierRecommendedRecipes": {
       "T1": ["lint"],
-      "T2": ["drift_audit"],
-      "T3": ["schema_guard", "discord_canary"],
+      "T2": ["drift_audit", "browser_smoke"],
+      "T3": ["schema_guard", "discord_canary", "browser_smoke"],
       "T4": ["schema_guard", "ui_visual_check"]
     }
   },

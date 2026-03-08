@@ -8,12 +8,19 @@
  * Never mutates code. Never commits. Never pushes.
  */
 
+import {
+  isBrowserRecipe,
+  checkPlaywrightAvailability,
+  resolveBrowserArtifactExpectations,
+  collectBrowserArtifacts,
+} from './browser-recipe-resolver.js';
 import { runCommand } from './command-runner.js';
 import {
   createEvidenceDirectories,
   captureStepEvidence,
   writeEvidenceIndex,
 } from './evidence-capture.js';
+import { resolveRepoPath } from './fs-utils.js';
 import { evaluateRuntimeProofGate } from './runtime-proof-gate.js';
 import { classifyStep, deriveOverallStatus } from './verification-classifier.js';
 
@@ -91,6 +98,25 @@ export function executeVerification(
     }
 
     if (req.commandResolved) {
+      // For browser recipes, check Playwright availability first (fail closed)
+      if (isBrowserRecipe(req)) {
+        const pwCheck = checkPlaywrightAvailability();
+        if (!pwCheck.available) {
+          const step: VerificationStepResult = {
+            recipeId: req.recipeId,
+            status: req.required ? 'BLOCKED' : 'SKIPPED',
+            reason: `Playwright unavailable: ${pwCheck.reason}`,
+            commandResult: null,
+            outputFile: req.outputFile || null,
+            durationMs: Date.now() - stepStart,
+            browserArtifacts: [],
+          };
+          steps.push(step);
+          captureStepEvidence(step, null, plan.artifactPlan);
+          continue;
+        }
+      }
+
       // Execute the command
       commandResult = runner(req.commandPlaceholder, {
         timeoutMs: defaultTimeoutMs,
@@ -108,6 +134,15 @@ export function executeVerification(
       outputFile: req.outputFile || null,
       durationMs: Date.now() - stepStart,
     };
+
+    // Collect browser artifacts after execution
+    if (isBrowserRecipe(req) && commandResult) {
+      const expectations = resolveBrowserArtifactExpectations(req);
+      if (expectations.length > 0) {
+        const absRoot = resolveRepoPath(plan.artifactPlan.canonicalRoot);
+        step.browserArtifacts = collectBrowserArtifacts(absRoot, expectations);
+      }
+    }
 
     steps.push(step);
 
