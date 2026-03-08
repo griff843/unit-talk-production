@@ -455,3 +455,88 @@ export interface EnvelopeLoadResult {
   source: string;
   errors: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Verification Execution Types (Phase C)
+// ---------------------------------------------------------------------------
+
+/** Result of running a single shell command */
+export interface CommandRunResult {
+  command: string;
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  timedOut: boolean;
+}
+
+/** Options for command execution */
+export interface CommandRunOptions {
+  timeoutMs?: number;
+  cwd?: string;
+}
+
+/** Function signature for command execution (enables DI in tests) */
+export type CommandRunner = (command: string, options?: CommandRunOptions) => CommandRunResult;
+
+/** Possible outcomes of a verification step */
+export type VerificationStepStatus = 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED';
+
+/** Result of executing a single verification recipe */
+export interface VerificationStepResult {
+  recipeId: string;
+  status: VerificationStepStatus;
+  reason: string;
+  commandResult: CommandRunResult | null;
+  outputFile: string | null;
+  durationMs: number;
+}
+
+/** Result of the runtime proof gate evaluation */
+export interface RuntimeProofGateResult {
+  required: boolean;
+  satisfied: boolean;
+  reason: string;
+  missingEvidence: string[];
+}
+
+/** Possible overall verification outcomes */
+export type VerificationOverallStatus = 'PASS' | 'FAIL' | 'BLOCKED';
+
+/** Numeric summary of step outcomes */
+export interface VerificationSummary {
+  total: number;
+  passed: number;
+  failed: number;
+  blocked: number;
+  skipped: number;
+}
+
+/** Full result of executing all verification steps */
+export interface VerificationExecutionResult {
+  sprintId: string;
+  steps: VerificationStepResult[];
+  overallStatus: VerificationOverallStatus;
+  evidenceRoot: string;
+  runtimeProofGate: RuntimeProofGateResult;
+  summary: VerificationSummary;
+  generatedAt: string;
+}
+
+/** A single entry in the evidence index file */
+export interface EvidenceIndexEntry {
+  recipeId: string;
+  status: VerificationStepStatus;
+  outputFile: string | null;
+  capturedAt: string;
+}
+
+/** Machine-readable evidence index written to the artifact root */
+export interface EvidenceIndex {
+  sprintId: string;
+  generatedAt: string;
+  evidenceRoot: string;
+  entries: EvidenceIndexEntry[];
+  runtimeProofGate: RuntimeProofGateResult;
+  overallStatus: VerificationOverallStatus;
+}

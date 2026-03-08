@@ -6,6 +6,7 @@
   "description": "Claude OS runtime execution foundation — governed sprint planning and verification",
   "scripts": {
     "plan": "tsx src/cli.ts plan",
+    "verify": "tsx src/cli.ts verify",
     "validate": "tsx src/cli.ts validate",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
