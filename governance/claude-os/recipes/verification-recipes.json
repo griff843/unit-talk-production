@@ -1,0 +1,116 @@
+{
+  "version": "1.0.0",
+  "description": "Machine-readable verification recipes for Claude OS sprint execution. Command placeholders are marked with TODO and must be confirmed against actual repo commands before use.",
+  "recipes": [
+    {
+      "id": "typecheck",
+      "purpose": "Verify TypeScript compilation across the workspace",
+      "when_required": "Always — every sprint must pass type check",
+      "evidence_expected": "Full tsc output captured to proof_typecheck.txt showing 0 errors, or errors documented with justification",
+      "command_placeholder": "npm run type-check",
+      "output_file": "proofs/proof_typecheck.txt",
+      "failure_severity": "blocking",
+      "notes": "This is the minimum verification gate. No sprint proceeds with type errors unless explicitly justified in the sprint contract."
+    },
+    {
+      "id": "lint",
+      "purpose": "Verify code style and lint rules",
+      "when_required": "All sprints that modify TypeScript/JavaScript files",
+      "evidence_expected": "Lint output captured to proof_lint.txt showing no new errors",
+      "command_placeholder": "TODO: confirm lint command (likely npm run lint or eslint-specific)",
+      "output_file": "proofs/proof_lint.txt",
+      "failure_severity": "blocking",
+      "notes": "Pre-existing lint warnings (e.g., 7 known security/detect-non-literal-fs-filename warnings) are acceptable. New lint errors are not."
+    },
+    {
+      "id": "unit_tests",
+      "purpose": "Run unit tests for changed code paths",
+      "when_required": "Sprints that modify code with existing unit test coverage",
+      "evidence_expected": "Full test runner output captured to proof_tests.txt showing test results",
+      "command_placeholder": "npm run test:unit",
+      "output_file": "proofs/proof_tests.txt",
+      "failure_severity": "blocking",
+      "notes": "For targeted runs, document which test files were executed and why full suite was not required."
+    },
+    {
+      "id": "integration_tests",
+      "purpose": "Run integration tests for cross-component changes",
+      "when_required": "Sprints that modify cross-component boundaries or shared packages",
+      "evidence_expected": "Full integration test output captured to proof_tests_integration.txt",
+      "command_placeholder": "npm run test:integration",
+      "output_file": "proofs/proof_tests_integration.txt",
+      "failure_severity": "blocking",
+      "notes": "Integration tests may require running services. If services are unavailable, document as a fail-closed condition."
+    },
+    {
+      "id": "build",
+      "purpose": "Verify that affected applications build successfully",
+      "when_required": "Sprints that modify application or package code",
+      "evidence_expected": "Build output captured to proof_build.txt showing successful compilation/bundling",
+      "command_placeholder": "npm run build",
+      "output_file": "proofs/proof_build.txt",
+      "failure_severity": "blocking",
+      "notes": "For targeted builds, use workspace-specific commands (e.g., npm run build --workspace=apps/api). Document which builds were run."
+    },
+    {
+      "id": "lifecycle_gate",
+      "purpose": "Verify single-writer discipline for unified_picks",
+      "when_required": "Sprints that touch unified_picks, lifecycle adapters, or any file in apps/api/src/ that could write to unified_picks",
+      "evidence_expected": "Gate output captured to proof_gate.txt showing GATE PASSED with 0 violations",
+      "command_placeholder": "cd apps/api && npm run lifecycle:single-writer -- --strict",
+      "output_file": "proofs/proof_gate.txt",
+      "failure_severity": "blocking",
+      "notes": "This is a non-negotiable invariant from CLAUDE_EXECUTION_CONTRACT.md. Gate failure = sprint cannot proceed."
+    },
+    {
+      "id": "runtime_smoke",
+      "purpose": "Verify basic runtime behavior of the API",
+      "when_required": "T3+ verification tier sprints that change API runtime behavior",
+      "evidence_expected": "API response captures or runtime log output saved to proof_runtime_smoke.txt",
+      "command_placeholder": "TODO: define runtime smoke test command (depends on running environment)",
+      "output_file": "proofs/proof_runtime_smoke.txt",
+      "failure_severity": "blocking",
+      "notes": "Requires running API instance. If unavailable, document as fail-closed condition per Rule 6."
+    },
+    {
+      "id": "discord_canary",
+      "purpose": "Verify Discord embed delivery format and routing",
+      "when_required": "Sprints that modify Discord embed building, delivery, or channel routing",
+      "evidence_expected": "Discord embed screenshot or API response saved to proofs/ directory",
+      "command_placeholder": "TODO: define Discord canary verification (manual capture or test channel delivery)",
+      "output_file": "proofs/proof_runtime_discord.txt",
+      "failure_severity": "blocking",
+      "notes": "May require manual capture. If Discord bot is offline, document as fail-closed condition."
+    },
+    {
+      "id": "ui_visual_check",
+      "purpose": "Verify UI renders correctly after changes",
+      "when_required": "Sprints that modify command-center, dashboard, or smart-form UI components",
+      "evidence_expected": "Screenshot of affected UI in proofs/screenshots/ directory",
+      "command_placeholder": "TODO: define UI verification method (dev server + screenshot capture)",
+      "output_file": "proofs/screenshots/",
+      "failure_severity": "degraded",
+      "notes": "Visual verification is inherently manual for v1. Automated visual regression is a v2 consideration."
+    },
+    {
+      "id": "schema_guard",
+      "purpose": "Verify database schema matches TypeScript type expectations",
+      "when_required": "Sprints that modify database schema or Supabase type definitions",
+      "evidence_expected": "Schema comparison output or Supabase type generation output saved to proof file",
+      "command_placeholder": "TODO: define schema guard command (likely supabase gen types or schema comparison script)",
+      "output_file": "proofs/proof_schema_guard.txt",
+      "failure_severity": "blocking",
+      "notes": "Schema drift between types and actual database is a critical failure class. See System Law 8."
+    },
+    {
+      "id": "drift_audit",
+      "purpose": "Detect governance drift — discrepancies between documented state and actual state",
+      "when_required": "All T3+ sprints, and any sprint that modifies docs/system/current/ or docs/contracts/",
+      "evidence_expected": "Audit report noting any detected drift or confirming no drift found",
+      "command_placeholder": "TODO: define drift audit procedure (manual review against audit-agent.md checklist)",
+      "output_file": "proofs/proof_drift_audit.txt",
+      "failure_severity": "blocking",
+      "notes": "Drift detection is currently manual. Automated drift detection is deferred to Phase D."
+    }
+  ]
+}

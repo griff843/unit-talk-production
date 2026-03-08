@@ -1,0 +1,188 @@
+{
+  "version": "1.0.0",
+  "description": "Claude OS context loading manifest. Defines what truth sources must be loaded before sprint execution.",
+  "default_context_pack": "core",
+  "always_load": [
+    {
+      "id": "execution_contract",
+      "path": "CLAUDE_EXECUTION_CONTRACT.md",
+      "purpose": "Hard law — non-negotiable invariants",
+      "priority": 1,
+      "required": true,
+      "fail_on_missing": true
+    },
+    {
+      "id": "system_invariants",
+      "path": "docs/SYSTEM_INVARIANTS.md",
+      "purpose": "System-level fail-open/fail-closed rules",
+      "priority": 2,
+      "required": true,
+      "fail_on_missing": true
+    },
+    {
+      "id": "claude_os_laws",
+      "path": "governance/claude-os/SYSTEM_LAWS.md",
+      "purpose": "Claude OS execution laws",
+      "priority": 3,
+      "required": true,
+      "fail_on_missing": true
+    },
+    {
+      "id": "claude_md",
+      "path": "CLAUDE.md",
+      "purpose": "Session-level operating rules and quick reference",
+      "priority": 6,
+      "required": true,
+      "fail_on_missing": true
+    },
+    {
+      "id": "session_rules",
+      "path": ".claude/rules/",
+      "purpose": "Modular rule files for Claude session behavior",
+      "priority": 6,
+      "required": true,
+      "fail_on_missing": true,
+      "load_type": "directory_glob",
+      "glob": "*.md"
+    }
+  ],
+  "sprint_specific": [
+    {
+      "id": "sprint_contract",
+      "path_template": "out/sprints/{sprint_id}/sprint-contract.md",
+      "purpose": "Per-sprint boundary contract",
+      "required": true,
+      "fail_on_missing": true,
+      "notes": "Sprint contract must exist before implementation begins. Path may vary; verify in repo."
+    },
+    {
+      "id": "lifecycle_contract",
+      "path": "docs/contracts/PICK_LIFECYCLE_CONTRACT.md",
+      "purpose": "Pick lifecycle state machine and adapter rules",
+      "when_relevant": "Sprint touches unified_picks, lifecycle adapters, or settlement",
+      "required_when_relevant": true,
+      "fail_on_missing": true
+    },
+    {
+      "id": "discord_embed_contract",
+      "path": "docs/contracts/DISCORD_EMBED_CONTRACT.md",
+      "purpose": "Discord embed format and delivery contract",
+      "when_relevant": "Sprint touches Discord posting, embeds, or distribution",
+      "required_when_relevant": true,
+      "fail_on_missing": true
+    },
+    {
+      "id": "table_contracts",
+      "path": "docs/system/current/table-contracts.md",
+      "purpose": "Canonical table ownership and schema contracts",
+      "when_relevant": "Sprint touches database tables or schema",
+      "required_when_relevant": true,
+      "fail_on_missing": true
+    },
+    {
+      "id": "ingestion_truth",
+      "path": "docs/system/current/ingestion-source-of-truth.md",
+      "purpose": "Canonical ingestion path and provider mapping",
+      "when_relevant": "Sprint touches ingestion, provider_offers, or raw_props compatibility",
+      "required_when_relevant": true,
+      "fail_on_missing": true
+    },
+    {
+      "id": "runtime_dataflow",
+      "path": "docs/system/current/runtime-dataflow.md",
+      "purpose": "Canonical runtime data movement documentation",
+      "when_relevant": "Sprint touches agent behavior, data pipelines, or runtime flow",
+      "required_when_relevant": true,
+      "fail_on_missing": true
+    },
+    {
+      "id": "lifecycle_state_machine",
+      "path": "docs/system/current/lifecycle-state-machine.md",
+      "purpose": "Pick lifecycle state transitions",
+      "when_relevant": "Sprint touches pick states, promotions, or settlement",
+      "required_when_relevant": true,
+      "fail_on_missing": true
+    },
+    {
+      "id": "promotion_policy",
+      "path": "docs/system/current/promotion-policy.md",
+      "purpose": "Promotion rules and tier assignment",
+      "when_relevant": "Sprint touches GradingAgent, promotion logic, or tier assignment",
+      "required_when_relevant": true,
+      "fail_on_missing": true
+    }
+  ],
+  "optional_context": [
+    {
+      "id": "sprint_order",
+      "path": "docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md",
+      "purpose": "Sprint sequencing — verify current sprint is next in order",
+      "notes": "Load when starting a new sprint to verify ordering"
+    },
+    {
+      "id": "agent_responsibility_matrix",
+      "path": "docs/system/current/agent-responsibility-matrix.md",
+      "purpose": "Which agent owns which runtime concern",
+      "notes": "Load when sprint involves agent behavior changes"
+    },
+    {
+      "id": "migration_statuses",
+      "path": "docs/system/current/",
+      "load_type": "directory_glob",
+      "glob": "*-migration-status.md",
+      "purpose": "Current migration state for deprecated path work",
+      "notes": "Load when sprint involves migration or deprecated path handling"
+    },
+    {
+      "id": "governance_contract",
+      "path": "docs/CLAUDE_OS_GOVERNANCE_CONTRACT.md",
+      "purpose": "Sprint governance rules",
+      "notes": "Load for sprint protocol reference"
+    },
+    {
+      "id": "smartform_contract",
+      "path": "docs/contracts/SMARTFORM_DATA_CONTRACT_V2.md",
+      "purpose": "Smart Form data submission contract",
+      "notes": "Load when sprint touches smart-form or bridge_outbox"
+    }
+  ],
+  "forbidden_context_sources": [
+    {
+      "source": "Linear issue descriptions as architectural truth",
+      "reason": "Linear is workflow, not truth. Verify all architectural claims against repo docs.",
+      "exception": "Sprint planning context and intent are acceptable reads, but architectural claims must be verified."
+    },
+    {
+      "source": "Cached or memorized architectural assumptions",
+      "reason": "System state may have drifted since last session. Always re-read truth sources.",
+      "exception": "None."
+    },
+    {
+      "source": "Slack or Discord messages",
+      "reason": "Ephemeral communication is not ratified truth.",
+      "exception": "None."
+    },
+    {
+      "source": "External documentation not in repo",
+      "reason": "May not reflect current system state.",
+      "exception": "Third-party API documentation for external services (ESPN, etc.) is acceptable for integration work."
+    }
+  ],
+  "truth_priority_order": [
+    "CLAUDE_EXECUTION_CONTRACT.md",
+    "docs/SYSTEM_INVARIANTS.md",
+    "governance/claude-os/SYSTEM_LAWS.md",
+    "docs/contracts/*.md",
+    "docs/system/current/*.md",
+    "CLAUDE.md + .claude/rules/*.md",
+    "Sprint contract (per-sprint)",
+    "Linear issues (workflow only, never truth)"
+  ],
+  "notes": [
+    "Context loading is fail-closed: if a required source is missing, execution halts.",
+    "Sprint-specific context is loaded based on sprint contract declarations.",
+    "Optional context is loaded when the sprint scope intersects with that domain.",
+    "Forbidden sources may be read for planning context but never treated as architectural truth.",
+    "This manifest is the design specification. Runtime tooling to automate loading is deferred to Phase B."
+  ]
+}
