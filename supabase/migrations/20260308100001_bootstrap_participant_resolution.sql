@@ -118,7 +118,7 @@ BEGIN
           v_provider_participant_id,
           jsonb_build_object('auto_created', true, 'source', p_provider_key)
         )
-        ON CONFLICT (external_id) DO UPDATE SET name = EXCLUDED.name
+        ON CONFLICT ON CONSTRAINT participants_external_id_sport_unique DO UPDATE SET name = EXCLUDED.name
         RETURNING id INTO v_participant_id;
       END IF;
     END IF;

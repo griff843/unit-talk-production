@@ -15,10 +15,12 @@
  *   cd apps/api && npx tsx src/scripts/validate-provider-offers-pipeline.ts
  */
 
+import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 
-dotenv.config();
+// Load from repo root .env (script runs from apps/api)
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
