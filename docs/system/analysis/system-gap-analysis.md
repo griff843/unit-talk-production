@@ -1,6 +1,7 @@
 # System Gap Analysis — Current vs Target
 
-> Generated: 2026-03-07 | Sprint: SPRINT-SYSTEM-DOCUMENTATION-FOUNDATION
+> Updated: 2026-03-08 | Sprint: SPRINT-044H (originally
+> SPRINT-SYSTEM-DOCUMENTATION-FOUNDATION)
 
 ---
 
@@ -15,29 +16,24 @@
 
 ---
 
-## GAP-01: Ingestion writes to raw_props instead of provider_offers [CRITICAL]
+## GAP-01: Ingestion writes to raw_props instead of provider_offers [CRITICAL → PARTIALLY RESOLVED]
 
-**Current**: FeedAgent ingests all provider data into `raw_props` (flat,
-denormalized, COMPATIBILITY tier). The 043A sprint wired SGO into this path.
+**Status update (SPRINT-044G, 2026-03-08)**: SGO canonical path now writes to
+`provider_offers` with 0 raw_props writes. 2,108 SGO rows inserted, 10
+canonical_events auto-created, 94 participant FKs resolved.
 
-**Target**: All ingestion flows through `upsert_provider_offers_bootstrap` RPC
-into `provider_offers` (normalized, CANONICAL V3 tier) with auto-event creation
-and FK resolution.
+**Current**: SGO ingestion via `ingestSGOProviderOffers()` writes to
+`provider_offers` (proven). OddsAPI also writes to `provider_offers` via
+`ingestProviderOffers()` (1.38M+ rows). FeedAgent still writes to `raw_props` as
+the default scheduler path.
 
-**Impact**:
+**Remaining**:
 
-- `raw_props` is officially deprecated (TD-1, SPRINT-035B)
-- No FK resolution occurs — event, market, and participant identity is stored as
-  loose strings
-- CLV tracking impossible without provider_offers snapshots
-- Closing line capture has no data source
+- Optimal API adapter for provider_offers path not yet wired
+- Scheduler default still calls FeedAgent → raw_props
+- GradingAgent default still reads raw_props (`GRADING_DATA_SOURCE=raw_props`)
 
-**Existing partial implementation**: `providerOffersIngestion.ts` already
-handles Odds API -> provider_offers flow but is not wired to the scheduler. SGO
-and Optimal API have no provider_offers adapter.
-
-**Fix scope**: Wire SGO and Optimal adapters to produce `ProviderOfferPayload`,
-integrate into scheduler, deprecate raw_props ingestion path.
+**Fix scope**: Wire Optimal adapter, switch scheduler default to V3 path.
 
 ---
 
@@ -103,23 +99,19 @@ refactor.
 
 ---
 
-## GAP-05: No systematic event/participant resolution during ingestion [HIGH]
+## GAP-05: No systematic event/participant resolution during ingestion [HIGH → RESOLVED for V3 path]
 
-**Current**: Ingestion stores player names and team names as strings in
-`raw_props`. No resolution to canonical `participants` or `events` tables
-occurs.
+**Status update (SPRINT-044F/044G, 2026-03-08)**:
+`upsert_provider_offers_bootstrap` RPC auto-creates events in
+`canonical_events`, resolves participants via external_id → name → auto-create
+cascade, and resolves markets. Runtime-proven: 10 events created, 94 participant
+FKs resolved, 0 resolution failures.
 
-**Target**: The `upsert_provider_offers_bootstrap` RPC automatically creates
-events and resolves participant/market FKs during insertion.
+**Current**: V3 path (provider_offers) has full FK resolution. Legacy path
+(raw_props) still stores strings with no FK resolution.
 
-**Impact**:
-
-- Settlement must do string matching instead of FK joins
-- Player identity is ambiguous (e.g., "Mike Williams" could be multiple players)
-- No canonical event timeline for scheduling settlement windows
-
-**Fix scope**: Route ingestion through the provider_offers RPC path which
-handles resolution automatically.
+**Remaining**: Legacy raw_props path still has no resolution. This resolves
+naturally when raw_props is retired.
 
 ---
 
@@ -162,35 +154,25 @@ handles promotion evaluation only).
 
 ---
 
-## GAP-08: provider_offers ingestion not wired to scheduler [MEDIUM]
+## GAP-08: provider_offers ingestion not wired to scheduler [MEDIUM → PARTIALLY RESOLVED]
 
-**Current**: `providerOffersIngestion.ts` exists and works for Odds API, but is
-not called by the syndicateSchedulerWorkflow. The scheduler only calls
-`ingestUnifiedData()` which writes to `raw_props`.
+**Status update (SPRINT-044F/044G)**: SGO ingestion path
+(`ingestSGOProviderOffers()`) is proven working and callable. The scheduler has
+a `providerOffersIngestionWorkflow` that calls `ingestV3ProviderOffers`. However
+the primary scheduler loop still defaults to `ingestUnifiedData()` → raw_props.
 
-**Target**: Scheduler calls provider_offers ingestion as the primary path.
-
-**Impact**: provider_offers table exists but is not continuously populated by
-the scheduler.
-
-**Fix scope**: Add `ingestProviderOffers()` call to the scheduler workflow,
-either replacing or alongside `ingestUnifiedData()`.
+**Remaining**: Make the V3 path the scheduler default instead of a parallel
+call.
 
 ---
 
-## GAP-09: Missing SGO and Optimal adapters for provider_offers path [MEDIUM]
+## GAP-09: Missing SGO and Optimal adapters for provider_offers path [MEDIUM → PARTIALLY RESOLVED]
 
-**Current**: Only Odds API has a `ProviderOfferPayload` adapter in
-`providerOffersIngestion.ts`. SGO and Optimal API have no equivalent.
+**Status update (SPRINT-044F)**: SGO adapter (`ingestSGOProviderOffers()`)
+created and runtime-proven in 044G. Transforms SGO API data into
+`ProviderOfferPayload` format and calls `upsert_provider_offers_bootstrap` RPC.
 
-**Target**: All three providers have adapters that produce
-`ProviderOfferPayload`.
-
-**Impact**: Even if the scheduler called provider_offers ingestion, only Odds
-API data would be stored. SGO and Optimal data would be lost.
-
-**Fix scope**: Create `transformSGOToV3Payloads()` and
-`transformOptimalToV3Payloads()` functions.
+**Remaining**: Optimal API adapter for provider_offers path not yet created.
 
 ---
 
@@ -271,22 +253,22 @@ pipeline.
 
 ## Summary
 
-| #   | Gap                                              | Severity | Category         |
-| --- | ------------------------------------------------ | -------- | ---------------- |
-| 01  | Ingestion targets raw_props not provider_offers  | CRITICAL | Data contract    |
-| 02  | Settlement uses Odds API not SGO                 | CRITICAL | Settlement       |
-| 03  | Lifecycle adapter blocks promotion (id field)    | CRITICAL | Pipeline blocker |
-| 04  | GradingAgent reads raw_props not provider_offers | HIGH     | Architecture     |
-| 05  | No event/participant FK resolution               | HIGH     | Data integrity   |
-| 06  | Promotion policy disabled by default             | HIGH     | Configuration    |
-| 07  | Dual scoring agents overlap                      | MEDIUM   | Architecture     |
-| 08  | provider_offers ingestion not in scheduler       | MEDIUM   | Integration      |
-| 09  | Missing SGO/Optimal provider_offers adapters     | MEDIUM   | Integration      |
-| 10  | No closing line capture workflow                 | MEDIUM   | Feature gap      |
-| 11  | Settlement bet_side uses odds heuristic          | MEDIUM   | Settlement       |
-| 12  | Missing index on raw_props.source                | LOW      | Performance      |
-| 13  | Supabase query timeouts                          | LOW      | Performance      |
-| 14  | PlayerEnrichmentAgent uses deprecated table      | LOW      | Migration        |
+| #   | Gap                                              | Severity             | Category         | Status (044H)                |
+| --- | ------------------------------------------------ | -------------------- | ---------------- | ---------------------------- |
+| 01  | Ingestion targets raw_props not provider_offers  | CRITICAL → PARTIAL   | Data contract    | SGO V3 path proven           |
+| 02  | Settlement uses Odds API not SGO                 | CRITICAL             | Settlement       | Open                         |
+| 03  | Lifecycle adapter blocks promotion (id field)    | CRITICAL             | Pipeline blocker | Open                         |
+| 04  | GradingAgent reads raw_props not provider_offers | HIGH                 | Architecture     | Feature-flagged              |
+| 05  | No event/participant FK resolution               | HIGH → RESOLVED (V3) | Data integrity   | Proven in 044G               |
+| 06  | Promotion policy disabled by default             | HIGH                 | Configuration    | Open                         |
+| 07  | Dual scoring agents overlap                      | MEDIUM               | Architecture     | ScoringAgent archived (044E) |
+| 08  | provider_offers ingestion not in scheduler       | MEDIUM → PARTIAL     | Integration      | SGO path proven              |
+| 09  | Missing SGO/Optimal provider_offers adapters     | MEDIUM → PARTIAL     | Integration      | SGO proven, Optimal pending  |
+| 10  | No closing line capture workflow                 | MEDIUM               | Feature gap      | Open (unblocked by 044G)     |
+| 11  | Settlement bet_side uses odds heuristic          | MEDIUM               | Settlement       | Open                         |
+| 12  | Missing index on raw_props.source                | LOW                  | Performance      | Open                         |
+| 13  | Supabase query timeouts                          | LOW                  | Performance      | Open                         |
+| 14  | PlayerEnrichmentAgent uses deprecated table      | LOW                  | Migration        | Open                         |
 
 ---
 

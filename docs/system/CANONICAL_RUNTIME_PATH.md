@@ -1,7 +1,7 @@
 # Canonical Runtime Path
 
 Status: CANONICAL Authority: Tier 1 Owner: Platform Architecture Last Verified:
-2026-03-07 Sprint: SPRINT-DOCS-CANONICALIZATION-040
+2026-03-08 Sprint: SPRINT-044H
 
 ---
 
@@ -15,19 +15,41 @@ delivery, as implemented in the syndicate-scheduler workflow.
 ## Pipeline Stages
 
 ```
-Provider APIs → FeedAgent → raw_props/games → GradingAgent → unified_picks → DiscordPromotionAgent → Discord
-     │                                              │                                    │
-     │                                              ▼                                    │
-     │                                    Lifecycle Adapters                              │
-     │                                    (single-writer)                                 │
-     ▼                                                                                   ▼
-  Optimal API (NFL/NBA/MLB/NHL)                                              pick_publish outbox
-  OddsAPI (NCAAF/NCAAB/WNBA/settlement)                                     Discord webhooks
+                    ┌─── CANONICAL V3 PATH (live since SPRINT-044G) ───┐
+Provider APIs ──→ IngestionAgent ──→ provider_offers ──→ GradingAgent* ──→ unified_picks ──→ Discord
+                    │                  (canonical_events,                       │
+                    │                   participants FK)                        ▼
+                    │                                                  Lifecycle Adapters
+                    └─── LEGACY PATH (compatibility) ──┐               (single-writer)
+Provider APIs ──→ FeedAgent ──→ raw_props/games ──→ GradingAgent ──→ unified_picks ──→ Discord
+
+* GradingAgent path controlled by GRADING_DATA_SOURCE env var (default: raw_props)
 ```
 
 ---
 
 ## Stage 1: Data Ingestion
+
+### Canonical V3 Path (provider_offers) — LIVE since SPRINT-044G
+
+**Agent**: IngestionAgent via `ingestSGOProviderOffers()` /
+`ingestProviderOffers()` **RPC**: `upsert_provider_offers_bootstrap` —
+auto-creates events in `canonical_events`, resolves market/participant FKs,
+inserts into `provider_offers`.
+
+**Runtime proof (SPRINT-044G, 2026-03-08)**:
+
+- SGO → provider_offers: 2,108 rows inserted, 10 canonical_events created
+- Participant FK resolution: 94/94 resolved successfully
+- raw_props writes: 0 (SGO canonical path bypasses raw_props)
+
+| Provider    | Status          | Adapter                     |
+| ----------- | --------------- | --------------------------- |
+| SGO         | LIVE (proven)   | `ingestSGOProviderOffers()` |
+| OddsAPI     | LIVE (existing) | `ingestProviderOffers()`    |
+| Optimal API | NOT YET WIRED   | Adapter pending             |
+
+### Legacy Path (raw_props) — COMPATIBILITY
 
 **Orchestrator**: `syndicateSchedulerWorkflow` → `leagueIngestionWorkflow`
 **Activity**: `feedActivities.ingestUnifiedData({ league, batchSize, timeout })`
@@ -40,10 +62,14 @@ Provider APIs → FeedAgent → raw_props/games → GradingAgent → unified_pic
 | NFL, NBA, MLB, NHL | Optimal API      | OddsAPI  |
 | NCAAF, NCAAB, WNBA | OddsAPI          | None     |
 
-**Output Tables**: `raw_props`, `games` (compatibility — scheduled for migration
-to `provider_offers`, `events`)
+**Output Tables**: `raw_props`, `games` (COMPATIBILITY — deprecated per TD-1,
+SPRINT-035B)
 
 **Circuit Breaker**: 10 failures → 10-minute cooldown per provider
+
+> **Note**: The legacy path remains the default scheduler path. The canonical V3
+> path is proven but not yet the scheduler default. GradingAgent reads from
+> raw_props by default (`GRADING_DATA_SOURCE=raw_props`).
 
 ---
 
@@ -137,11 +163,13 @@ implementations log errors.
 
 ## Quarantined Paths
 
-| Path                    | Status                    | Reason                                                 |
-| ----------------------- | ------------------------- | ------------------------------------------------------ |
-| USP Detection           | No-op stub                | Detector files exist but not wired (TD-6, SPRINT-035B) |
-| SGO Provider            | Mappers exist, not routed | Provider adapters exist but no data flow               |
-| Workflow-level fallback | Removed                   | DataSourceRouter handles failover internally (TD-4)    |
+| Path                    | Status     | Reason                                                 |
+| ----------------------- | ---------- | ------------------------------------------------------ |
+| USP Detection           | No-op stub | Detector files exist but not wired (TD-6, SPRINT-035B) |
+| Workflow-level fallback | Removed    | DataSourceRouter handles failover internally (TD-4)    |
+
+> **De-quarantined (SPRINT-044F/044G)**: SGO provider_offers path is now LIVE.
+> `ingestSGOProviderOffers()` proven with 2,108 rows in runtime validation.
 
 ---
 

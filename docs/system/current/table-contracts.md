@@ -1,6 +1,7 @@
 # Table Contracts — Current System
 
-> Generated: 2026-03-07 | Sprint: SPRINT-SYSTEM-DOCUMENTATION-FOUNDATION
+> Updated: 2026-03-08 | Sprint: SPRINT-044H (originally
+> SPRINT-SYSTEM-DOCUMENTATION-FOUNDATION)
 
 ---
 
@@ -162,32 +163,63 @@ manual_settle_pick RPC) **Readers**: RecapAgent, AnalyticsAgent, Command Center
 
 ---
 
-## 6. provider_offers (CANONICAL V3)
+## 6. provider_offers (CANONICAL V3) — LIVE
 
-**Purpose**: Multi-book offer snapshots for CLV tracking. Normalized V3
-ingestion target.
+**Purpose**: Multi-book offer snapshots. Canonical V3 ingestion landing table.
+Receives live SGO data since SPRINT-044G (2,108 rows proven, 1.38M+ total).
 
 | Column                 | Type        | Notes                                  |
 | ---------------------- | ----------- | -------------------------------------- |
 | id                     | UUID PK     |                                        |
-| event_id               | UUID FK     | References events                      |
+| event_id               | UUID FK     | References canonical_events            |
 | market_id              | UUID FK     | References markets                     |
-| participant_id         | UUID FK     | For player props                       |
+| participant_id         | UUID FK     | For player props (FK to participants)  |
 | provider               | TEXT        | fanduel/draftkings/sgo/pinnacle        |
+| provider_id            | INTEGER FK  | References provider_registry           |
+| provider_event_id      | TEXT        | Raw provider event identifier          |
+| provider_market_key    | TEXT        | Raw provider market identifier         |
 | line                   | NUMERIC     |                                        |
 | over_odds / under_odds | INTEGER     | American odds                          |
 | home_odds / away_odds  | INTEGER     | For moneylines                         |
 | is_opening             | BOOLEAN     | Opening line flag                      |
 | is_closing             | BOOLEAN     | Closing line flag (IMMUTABLE once set) |
 | snapshot_at            | TIMESTAMPTZ | When captured                          |
+| graded_at              | TIMESTAMPTZ | When graded by GradingAgent            |
 | meta                   | JSONB       | Provider-specific                      |
 
 **Writer**: IngestionAgent (via `upsert_provider_offers_bootstrap` RPC)
-**Readers**: ClosingSnapshotService, CLVComputeService, ScoringAgent **Primary
-key**: `id` (UUID) **External identifiers**: Composite unique (event_id,
-market_id, participant_id, segment_id, provider, snapshot_at) **Lifecycle
-stage**: Market microstructure **Immutability**: Closing lines protected by
-database trigger
+**Readers**: ClosingSnapshotService, CLVComputeService, GradingAgent (when
+`GRADING_DATA_SOURCE=provider_offers`) **Primary key**: `id` (UUID) **External
+identifiers**: Composite unique (event_id, market_id, participant_id,
+segment_id, provider, snapshot_at) **Lifecycle stage**: Market microstructure
+**Immutability**: Closing lines protected by database trigger **Runtime
+status**: LIVE — SGO proven 044G, OddsAPI proven existing, GradingAgent
+dual-path feature-flagged (044D)
+
+---
+
+## 7. canonical_events (CANONICAL V3) — LIVE
+
+**Purpose**: V3 sports event catalog. Auto-created by
+`auto_create_event_for_ingestion` during provider_offers ingestion. Separate
+from the legacy `events` table (event-sourcing).
+
+| Column              | Type        | Notes                                  |
+| ------------------- | ----------- | -------------------------------------- |
+| id                  | UUID PK     |                                        |
+| external_id         | TEXT UNIQUE | Provider event ID (e.g., OddsAPI game) |
+| sport               | TEXT        | basketball, football, etc.             |
+| league              | TEXT        | NBA, NFL, etc.                         |
+| event_type          | TEXT        | game, match, fight                     |
+| home_participant_id | UUID FK     | References participants                |
+| away_participant_id | UUID FK     | References participants                |
+| scheduled_at        | TIMESTAMPTZ |                                        |
+| status              | TEXT        | scheduled, live, completed             |
+| meta                | JSONB       | Provider metadata (teams, sport_key)   |
+
+**Writer**: IngestionAgent (via `auto_create_event_for_ingestion` function)
+**Readers**: provider_event_map lookups, ClosingSnapshotService, SettlementAgent
+**Runtime status**: LIVE — 10 events auto-created in 044G validation
 
 ---
 

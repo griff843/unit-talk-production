@@ -1,7 +1,7 @@
 # Runtime Component Map
 
 Status: CANONICAL Authority: Tier 1 Owner: Platform Architecture Last Verified:
-2026-03-07 Sprint: SPRINT-RUNTIME-COMPONENT-MAP-041A
+2026-03-08 Sprint: SPRINT-044H
 
 ---
 
@@ -115,13 +115,13 @@ Status: CANONICAL Authority: Tier 1 Owner: Platform Architecture Last Verified:
 
 ### Active Agents (Not on Worker Spread)
 
-| Agent                 | Location                        | Primary Responsibility                  | Tables Written                                                             |
-| --------------------- | ------------------------------- | --------------------------------------- | -------------------------------------------------------------------------- |
-| DiscordPromotionAgent | `agents/DiscordPromotionAgent/` | Discord posting via pick_publish outbox | `unified_picks` (via atomicClaimForPost), `pick_publish`                   |
-| SettlementAgent       | `agents/SettlementAgent/`       | Settlement against real outcomes        | `unified_picks` (via lifecycleSettle), `prop_settlements`, `prop_outcomes` |
-| IngestionAgent        | `agents/IngestionAgent/`        | Raw prop ingestion                      | `raw_props`                                                                |
-| ScoringAgent          | `agents/ScoringAgent/`          | Real-time edge scoring                  | None (computation only)                                                    |
-| DataAgent             | `agents/DataAgent/`             | ETL, enrichment, quality checks         | `player_game_stats`                                                        |
+| Agent                 | Location                        | Primary Responsibility                    | Tables Written                                                             |
+| --------------------- | ------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------- |
+| DiscordPromotionAgent | `agents/DiscordPromotionAgent/` | Discord posting via pick_publish outbox   | `unified_picks` (via atomicClaimForPost), `pick_publish`                   |
+| SettlementAgent       | `agents/SettlementAgent/`       | Settlement against real outcomes          | `unified_picks` (via lifecycleSettle), `prop_settlements`, `prop_outcomes` |
+| IngestionAgent        | `agents/IngestionAgent/`        | V3 canonical ingestion to provider_offers | `provider_offers` (via `upsert_provider_offers_bootstrap` RPC)             |
+| ScoringAgent          | `agents/ScoringAgent/`          | Real-time edge scoring                    | None (computation only)                                                    |
+| DataAgent             | `agents/DataAgent/`             | ETL, enrichment, quality checks           | `player_game_stats`                                                        |
 
 ### Infrastructure Activities (Not Agent Classes)
 
@@ -266,18 +266,29 @@ ones on name collision.
 ```
 STAGE 1: INGESTION
 ═══════════════════
-Optimal API ──┐
-              ├──→ DataSourceRouter ──→ FeedAgent.ingestUnifiedData()
-Odds API ─────┘                              │
-                                             ▼
-                                    ┌─────────────────┐
-                                    │   raw_props      │ (compatibility)
-                                    │   games           │ (compatibility)
-                                    └────────┬────────┘
-                                             │
-STAGE 2: SCORING & PROMOTION                 │
-════════════════════════════                  ▼
+                    ┌─── CANONICAL V3 (live since 044G) ───┐
+SGO API ────────────┤                                       │
+Odds API ───────────┤──→ IngestionAgent ──→ provider_offers │
+                    │    (upsert_provider_offers_bootstrap)  │
+                    │    + canonical_events auto-creation    │
+                    │    + participant FK resolution         │
+                    └───────────────────────────────────────┘
+
+                    ┌─── LEGACY (compatibility) ────────────┐
+Optimal API ──┐     │                                       │
+              ├──→  │ DataSourceRouter ──→ FeedAgent         │
+Odds API ─────┘     │                    .ingestUnifiedData()│
+                    │         ▼                              │
+                    │  ┌─────────────────┐                   │
+                    │  │   raw_props      │ (compatibility)  │
+                    │  │   games           │ (compatibility)  │
+                    │  └────────┬────────┘                   │
+                    └───────────┼────────────────────────────┘
+                                │
+STAGE 2: SCORING & PROMOTION    │
+════════════════════════════     ▼
                               GradingAgent.gradeNewProps()
+                              (data source: GRADING_DATA_SOURCE env var, default=raw_props)
                                              │
                                              ▼
                               ┌──────────────────────────┐
@@ -402,13 +413,21 @@ Reference:
 | `settler`           | Settlement fields              | SettlementAgent                   |
 | `operator_override` | ALL fields including immutable | Manual operator action            |
 
+### V3 Canonical Tables (Active)
+
+| Table              | Writer         | Status                                                    |
+| ------------------ | -------------- | --------------------------------------------------------- |
+| `provider_offers`  | IngestionAgent | LIVE — 1.38M+ rows, SGO proven (044G)                     |
+| `canonical_events` | IngestionAgent | LIVE — auto-created via `auto_create_event_for_ingestion` |
+| `participants`     | SGO Sync / RPC | LIVE — FK resolution proven (044G)                        |
+
 ### Compatibility Tables (Scheduled for Retirement)
 
-| Table          | Current Writer  | Replacement                     |
-| -------------- | --------------- | ------------------------------- |
-| `raw_props`    | FeedAgent       | `provider_offers` (TD-1)        |
-| `games`        | FeedAgent       | `events` (TD-2)                 |
-| `game_results` | SettlementAgent | Settlement via lifecycle (TD-3) |
+| Table          | Current Writer  | Replacement                     | Status                                                         |
+| -------------- | --------------- | ------------------------------- | -------------------------------------------------------------- |
+| `raw_props`    | FeedAgent       | `provider_offers` (TD-1)        | SGO bypasses raw_props; GradingAgent still reads it by default |
+| `games`        | FeedAgent       | `canonical_events` (TD-2)       | Canonical events auto-created via RPC                          |
+| `game_results` | SettlementAgent | Settlement via lifecycle (TD-3) | Not yet migrated                                               |
 
 ---
 

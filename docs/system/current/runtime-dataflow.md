@@ -1,6 +1,7 @@
 # Runtime Dataflow — Current System
 
-> Generated: 2026-03-07 | Sprint: SPRINT-SYSTEM-DOCUMENTATION-FOUNDATION
+> Updated: 2026-03-08 | Sprint: SPRINT-044H (originally
+> SPRINT-SYSTEM-DOCUMENTATION-FOUNDATION)
 
 ---
 
@@ -11,7 +12,10 @@ The Unit Talk platform processes betting intelligence through a
 on a 2-minute cycle (1 min live, 5 min idle).
 
 ```
-Provider APIs → Router → raw_props → GradingAgent → unified_picks → Discord → SettlementAgent
+CANONICAL V3: Provider APIs → IngestionAgent → provider_offers → GradingAgent* → unified_picks → Discord → Settlement
+LEGACY:       Provider APIs → FeedAgent     → raw_props       → GradingAgent  → unified_picks → Discord → Settlement
+
+* V3 path requires GRADING_DATA_SOURCE=provider_offers (default: raw_props)
 ```
 
 ---
@@ -19,6 +23,21 @@ Provider APIs → Router → raw_props → GradingAgent → unified_picks → Di
 ## Pipeline Stages
 
 ### Stage 1: Data Ingestion
+
+#### Canonical V3 Path (provider_offers) — LIVE since SPRINT-044G
+
+**Agent**: IngestionAgent via `ingestSGOProviderOffers()` /
+`ingestProviderOffers()` **RPC**: `upsert_provider_offers_bootstrap`
+(auto-creates `canonical_events`, resolves FKs)
+
+| Attribute            | Value                                                                     |
+| -------------------- | ------------------------------------------------------------------------- |
+| **Tables written**   | `provider_offers`, `canonical_events` (auto), `provider_event_map` (auto) |
+| **Writer of record** | IngestionAgent (via RPC)                                                  |
+| **Providers proven** | SGO (2,108 rows, 044G), OddsAPI (1.38M+ existing rows)                    |
+| **FK resolution**    | Participant: 94/94 proven; Event: 10 auto-created; Market: auto-resolved  |
+
+#### Legacy Path (raw_props) — COMPATIBILITY, still scheduler default
 
 **Orchestrator**: `syndicateSchedulerWorkflow` (syndicate-scheduler.ts)
 **Worker**: FeedAgent via `ingestUnifiedData()` activity
@@ -35,7 +54,7 @@ syndicateSchedulerWorkflow (every 2 min)
 
 | Attribute            | Value                                                             |
 | -------------------- | ----------------------------------------------------------------- |
-| **Tables written**   | `raw_props`, `games`                                              |
+| **Tables written**   | `raw_props`, `games` (COMPATIBILITY — deprecated per TD-1)        |
 | **Writer of record** | FeedAgent (direct insert)                                         |
 | **Trigger**          | Temporal schedule (syndicateSchedulerWorkflow)                    |
 | **Leagues**          | MLB, NBA, NFL, NHL, NCAAB, NCAAF                                  |
@@ -205,11 +224,12 @@ RecapAgent, AnalyticsAgent
 
 ## Writer Authority Summary
 
-| Stage      | Writer                     | Role     | Adapter                              |
-| ---------- | -------------------------- | -------- | ------------------------------------ |
-| Ingestion  | FeedAgent                  | --       | Direct insert to raw_props           |
-| Grading    | GradingAgent               | --       | Direct update to raw_props           |
-| Promotion  | GradingAgent               | promoter | lifecycleInsert to unified_picks     |
-| Posting    | DiscordPromotionAgent      | poster   | lifecycleUpdate / atomicClaimForPost |
-| Settlement | SettlementAgent            | settler  | lifecycleSettle                      |
-| Analytics  | RecapAgent, AnalyticsAgent | --       | Direct to analytics tables           |
+| Stage              | Writer                     | Role     | Adapter                                           |
+| ------------------ | -------------------------- | -------- | ------------------------------------------------- |
+| Ingestion (V3)     | IngestionAgent             | --       | `upsert_provider_offers_bootstrap` RPC            |
+| Ingestion (legacy) | FeedAgent                  | --       | Direct insert to raw_props (compatibility)        |
+| Grading            | GradingAgent               | --       | Reads raw_props (default) or provider_offers (V3) |
+| Promotion          | GradingAgent               | promoter | lifecycleInsert to unified_picks                  |
+| Posting            | DiscordPromotionAgent      | poster   | lifecycleUpdate / atomicClaimForPost              |
+| Settlement         | SettlementAgent            | settler  | lifecycleSettle                                   |
+| Analytics          | RecapAgent, AnalyticsAgent | --       | Direct to analytics tables                        |
