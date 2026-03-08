@@ -28,89 +28,122 @@ import type { WriterRole, FieldAuthority } from './types';
 const FIELD_AUTHORITIES: FieldAuthority[] = [
   // Submission fields (immutable after creation)
   // SPRINT-DISCORD-POSTING-WRITER-AUTHORITY-FIX-048: Add operator_override for admin tools (gauntlet)
-  { field: 'id', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  // SPRINT-044A: Add promoter authority for pipeline insert (GAP-03)
+  {
+    field: 'id',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
   {
     field: 'bet_slip_id',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   {
     field: 'leg_index',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
-  { field: 'user_id', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  {
+    field: 'user_id',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
   {
     field: 'selection',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
-  { field: 'line', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  {
+    field: 'line',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
   {
     field: 'odds',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
-  { field: 'stake', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
-  { field: 'sport', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  {
+    field: 'stake',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
+  {
+    field: 'sport',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
   {
     field: 'bet_type',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   {
     field: 'stat_type',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   {
     field: 'player_name',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
-  { field: 'team', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  {
+    field: 'team',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
   {
     field: 'direction',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
-  { field: 'side', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
-  { field: 'source', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  {
+    field: 'side',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
+  {
+    field: 'source',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
   {
     field: 'ticket_type',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   {
     field: 'parlay_id',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   // SPRINT-035A B-2: Register remaining unified_picks business columns
   // These were missing from the authority map, causing unknown-field rejection
   {
     field: 'pick_type',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   {
     field: 'potential_payout',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: false,
   },
   {
     field: 'over_odds',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   {
     field: 'under_odds',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   {
     field: 'game_date',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   {
@@ -168,14 +201,15 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
   },
 
   // Timestamp fields (set by appropriate writers)
+  // SPRINT-044A: Add promoter for pipeline insert (GAP-03)
   {
     field: 'created_at',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   {
     field: 'placed_at',
-    allowedWriters: ['submitter', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
   {
@@ -226,7 +260,7 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
   // Discord posting fields
   {
     field: 'posted_to_discord',
-    allowedWriters: ['submitter', 'poster', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'poster', 'operator_override'],
     immutableAfterSet: true,
   },
   {
@@ -272,7 +306,7 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
   // Pick status (outcome) - set by submitter at creation, updated by settler
   {
     field: 'status',
-    allowedWriters: ['submitter', 'settler', 'operator_override'],
+    allowedWriters: ['submitter', 'promoter', 'settler', 'operator_override'],
     immutableAfterSet: false,
   },
 

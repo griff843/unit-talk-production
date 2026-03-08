@@ -457,7 +457,8 @@ describe('Writer Authority', () => {
 
     it('returns false for unauthorized writer', () => {
       expect(canWriteField('submitter', 'settlement_status')).toBe(false);
-      expect(canWriteField('promoter', 'posted_to_discord')).toBe(false);
+      // SPRINT-044A: promoter now authorized for posted_to_discord (GAP-03)
+      expect(canWriteField('promoter', 'discord_message_id')).toBe(false);
       expect(canWriteField('poster', 'selection')).toBe(false);
       expect(canWriteField('settler', 'bet_slip_id')).toBe(false);
     });
@@ -485,6 +486,32 @@ describe('Writer Authority', () => {
       );
 
       expect(() => assertWriterAuthority('poster', ['selection'])).toThrow(InvalidWriterError);
+    });
+
+    // SPRINT-044A: Regression test for promoter pipeline insert authority (GAP-03)
+    it('succeeds for promoter writing GradingAgent promotion payload', () => {
+      const gradingAgentFields = [
+        'id',
+        'user_id',
+        'pick_type',
+        'selection',
+        'odds',
+        'stake',
+        'potential_payout',
+        'player_name',
+        'stat_type',
+        'line',
+        'over_odds',
+        'under_odds',
+        'sport',
+        'game_date',
+        'confidence',
+        'tier_when_placed',
+        'kelly_bet_size',
+        'promotion_band',
+        'created_at',
+      ];
+      expect(() => assertWriterAuthority('promoter', gradingAgentFields)).not.toThrow();
     });
   });
 
