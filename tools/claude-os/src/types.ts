@@ -262,6 +262,7 @@ export type DriftSignalType =
   | 'cross_boundary_risk'
   | 'runtime_build_boundary'
   | 'high_risk_area'
+  | 'canonical_write_target'
   | 'truth_conflict_risk'
   | 'missing_truth_source';
 

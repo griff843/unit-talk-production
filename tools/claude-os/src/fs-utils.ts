@@ -7,6 +7,10 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** ESM-safe __dirname equivalent for this module */
+const __fsUtilsDir = path.dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,7 +43,7 @@ let _cachedRoot: string | null = null;
 export function getWorkspaceRoot(): string {
   if (_cachedRoot) return _cachedRoot;
 
-  let current = path.resolve(__dirname, '..');
+  let current = path.resolve(__fsUtilsDir, '..');
   // Walk up at most 10 levels
   for (let i = 0; i < 10; i++) {
     if (fs.existsSync(path.join(current, 'CLAUDE.md'))) {

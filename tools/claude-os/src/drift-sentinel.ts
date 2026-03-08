@@ -19,12 +19,36 @@ import type {
 // ---------------------------------------------------------------------------
 
 /** Known deprecated tables/paths per canonical governance */
-const DEPRECATED_PATHS = [
-  { path: 'raw_props', canonical: 'provider_offers', context: 'ingestion landing table' },
-  { path: 'daily_picks', canonical: 'unified_picks', context: 'pick lifecycle table' },
-  { path: 'players', canonical: 'participants', context: 'entity table' },
-  { path: 'teams', canonical: 'participants', context: 'entity table' },
-] as const;
+interface DeprecatedPathEntry {
+  path: string;
+  canonical: string;
+  context: string;
+  alternateCanonical: { trigger: string; target: string; context: string }[];
+}
+
+const DEPRECATED_PATHS: DeprecatedPathEntry[] = [
+  {
+    path: 'raw_props',
+    canonical: 'provider_offers',
+    context: 'ingestion landing table',
+    alternateCanonical: [
+      { trigger: 'unified_picks', target: 'unified_picks', context: 'settlement/lifecycle target' },
+      {
+        trigger: 'settlement',
+        target: 'unified_picks',
+        context: 'settlement reads from canonical tables',
+      },
+    ],
+  },
+  {
+    path: 'daily_picks',
+    canonical: 'unified_picks',
+    context: 'pick lifecycle table',
+    alternateCanonical: [],
+  },
+  { path: 'players', canonical: 'participants', context: 'entity table', alternateCanonical: [] },
+  { path: 'teams', canonical: 'participants', context: 'entity table', alternateCanonical: [] },
+];
 
 /** Runtime-sensitive areas that require extra verification */
 const RUNTIME_SENSITIVE_AREAS = [
@@ -63,12 +87,23 @@ export function evaluateDrift(
   // --- Check 1: Deprecated path references in summary/objective ---
   for (const dep of DEPRECATED_PATHS) {
     if (combinedText.includes(dep.path)) {
+      // Context-aware canonical target: check if an alternate canonical applies
+      let canonicalTarget = dep.canonical;
+      let canonicalContext = dep.context;
+      for (const alt of dep.alternateCanonical) {
+        if (combinedText.includes(alt.trigger)) {
+          canonicalTarget = alt.target;
+          canonicalContext = alt.context;
+          break;
+        }
+      }
+
       signals.push({
         type: 'deprecated_path_risk',
         severity: 'high',
         area: dep.path,
-        description: `Sprint references deprecated path '${dep.path}'. Canonical target is '${dep.canonical}' (${dep.context}).`,
-        recommendation: `Verify that implementation targets '${dep.canonical}', not '${dep.path}'. If compatibility work on '${dep.path}' is required, it must be explicitly authorized in the sprint contract.`,
+        description: `Sprint references deprecated path '${dep.path}'. Canonical target is '${canonicalTarget}' (${canonicalContext}).`,
+        recommendation: `Verify that implementation targets '${canonicalTarget}', not '${dep.path}'. If compatibility work on '${dep.path}' is required, it must be explicitly authorized in the sprint contract.`,
         lawReference: 'Law 5: Canonical-Path Law',
       });
     }
@@ -150,20 +185,14 @@ export function evaluateDrift(
   }
 
   // --- Check 4: Lifecycle/settlement keywords trigger elevated scrutiny ---
-  const lifecycleKeywords = [
-    'lifecycle',
-    'settlement',
-    'settle',
-    'unified_picks',
-    'lifecycle_adapter',
-  ];
+  const lifecycleKeywords = ['lifecycle', 'settlement', 'settle', 'lifecycle_adapter'];
   for (const kw of lifecycleKeywords) {
     if (combinedText.includes(kw)) {
       signals.push({
         type: 'high_risk_area',
         severity: 'high',
         area: 'lifecycle/settlement',
-        description: `Sprint references '${kw}' — lifecycle and settlement changes require T4 verification tier.`,
+        description: `Sprint references '${kw}' — lifecycle and settlement changes require elevated verification.`,
         recommendation:
           'Verify lifecycle gate will be run. All writes must use lifecycle adapters. Settlement fields are immutable once set.',
         lawReference: 'Law 5: Canonical-Path Law',
@@ -172,12 +201,62 @@ export function evaluateDrift(
     }
   }
 
+  // --- Check 4b: Canonical write target detection ---
+  const canonicalWriteTargets = [
+    {
+      table: 'unified_picks',
+      discipline: 'single-writer via lifecycle adapters',
+      risk: 'Immutable settlement fields, atomic claim pattern required',
+    },
+    {
+      table: 'participants',
+      discipline: 'SGO Sync exclusive writer',
+      risk: 'Player/team entity integrity',
+    },
+    {
+      table: 'participant_memberships',
+      discipline: 'SGO Sync exclusive writer',
+      risk: 'Player-team link integrity',
+    },
+  ];
+  for (const target of canonicalWriteTargets) {
+    if (combinedText.includes(target.table)) {
+      signals.push({
+        type: 'canonical_write_target',
+        severity: 'high',
+        area: target.table,
+        description: `Sprint targets canonical table '${target.table}'. Write discipline: ${target.discipline}. Risk: ${target.risk}.`,
+        recommendation: `All writes to '${target.table}' must go through designated writer path. Lifecycle gate (single-writer --strict) is mandatory.`,
+        lawReference: 'Law 5: Canonical-Path Law',
+      });
+    }
+  }
+
   // --- Check 5: Schema change detection ---
-  if (
-    combinedText.includes('migration') ||
-    combinedText.includes('schema') ||
-    combinedText.includes('alter table')
-  ) {
+  // Require concrete schema evidence — "migration" alone is too broad (code/data migrations
+  // are common and don't involve DDL). Schema signals require either:
+  // - Explicit schema keywords (schema, alter table, ddl, add column, drop column)
+  // - "migration" co-occurring with schema-related terms
+  // - Touched areas including supabase/migrations/
+  const schemaKeywords = [
+    'schema',
+    'alter table',
+    'ddl',
+    'add column',
+    'drop column',
+    'create table',
+  ];
+  const hasSchemaTerm = schemaKeywords.some(kw => combinedText.includes(kw));
+  const hasMigrationWithSchemaContext =
+    combinedText.includes('migration') &&
+    (combinedText.includes('schema') ||
+      combinedText.includes('column') ||
+      combinedText.includes('table') ||
+      combinedText.includes('supabase') ||
+      combinedText.includes('sql'));
+  const touchesSchemaDir = touchedAreas.some(a => a.includes('supabase/migrations'));
+
+  if (hasSchemaTerm || hasMigrationWithSchemaContext || touchesSchemaDir) {
     signals.push({
       type: 'high_risk_area',
       severity: 'critical',

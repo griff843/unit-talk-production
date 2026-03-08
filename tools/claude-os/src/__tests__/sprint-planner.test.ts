@@ -166,6 +166,59 @@ describe('sprint-planner', () => {
       expect(plan.nextStepRecommendations.length).toBeGreaterThan(0);
     });
 
+    it('should NOT false-positive schema blocker for code/data migrations', () => {
+      const request: SprintExecutionRequest = {
+        sprintId: 'SPRINT-DATA-MIGRATION-050',
+        sprintType: 'runtime',
+        summary: 'Settlement migration off raw_props to unified_picks',
+        touchedAreas: ['apps/api/src/agents/SettlementAgent/'],
+      };
+
+      const plan = assembleSprintPlan(request);
+
+      // Should NOT have a schema migration blocker — this is a code/data migration,
+      // not a DDL schema migration. The word "migration" alone is insufficient.
+      const schemaBlockers = plan.failClosedBlockers.filter(b =>
+        b.description.includes('schema changes')
+      );
+      expect(schemaBlockers.length).toBe(0);
+    });
+
+    it('should detect canonical write target when unified_picks mentioned', () => {
+      const request: SprintExecutionRequest = {
+        sprintId: 'SPRINT-CANONICAL-051',
+        sprintType: 'runtime',
+        summary: 'Refactor settlement to write through unified_picks lifecycle adapters',
+      };
+
+      const plan = assembleSprintPlan(request);
+
+      const canonicalSignals = plan.driftSignals.filter(s => s.type === 'canonical_write_target');
+      expect(canonicalSignals.length).toBeGreaterThan(0);
+      expect(canonicalSignals[0].area).toBe('unified_picks');
+      expect(canonicalSignals[0].description).toContain('single-writer');
+    });
+
+    it('should context-resolve deprecated path canonical target', () => {
+      // When raw_props is mentioned alongside unified_picks, the canonical target
+      // should resolve to unified_picks (settlement context), not provider_offers (ingestion)
+      const request: SprintExecutionRequest = {
+        sprintId: 'SPRINT-CONTEXT-052',
+        sprintType: 'runtime',
+        summary: 'Move settlement reads from raw_props to unified_picks',
+      };
+
+      const plan = assembleSprintPlan(request);
+
+      const deprecatedSignals = plan.driftSignals.filter(
+        s => s.type === 'deprecated_path_risk' && s.area === 'raw_props'
+      );
+      expect(deprecatedSignals.length).toBeGreaterThan(0);
+      // Should resolve to unified_picks, NOT provider_offers
+      expect(deprecatedSignals[0].description).toContain('unified_picks');
+      expect(deprecatedSignals[0].description).not.toContain('provider_offers');
+    });
+
     it('should handle touched areas for cross-boundary detection', () => {
       const request: SprintExecutionRequest = {
         sprintId: 'SPRINT-CROSS-049',
