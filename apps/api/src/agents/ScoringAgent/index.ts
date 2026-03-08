@@ -10,6 +10,11 @@ import {
   HealthCheckResult,
 } from '../BaseAgent/types';
 
+/**
+ * @deprecated SPRINT-044D: ScoringAgent is superseded by GradingAgent professional scorer.
+ * Reads/writes raw_props.edge_score — functionality absorbed by GradingAgent.
+ * Scheduled for removal in SPRINT-044E cleanup.
+ */
 export default class ScoringAgent extends BaseAgent {
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);

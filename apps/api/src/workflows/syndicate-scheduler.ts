@@ -300,6 +300,23 @@ export async function gradingAndScoringWorkflow(params: {
         timestamp: new Date(),
       });
     }
+
+    // SPRINT-044D: Capture closing snapshots every 5th cycle for CLV analysis
+    if (cycleCount % 5 === 0) {
+      try {
+        await gradingActivities.captureClosingSnapshots({
+          lookbackHours: 6,
+          closeWindowMinutes: 30,
+          maxEvents: 50,
+        });
+      } catch (err) {
+        await operatorActivities.logError({
+          workflow: 'gradingAndScoringWorkflow',
+          error: `Closing snapshot capture failed: ${String(err)}`,
+          timestamp: new Date(),
+        });
+      }
+    }
   } catch (error) {
     await operatorActivities.logError({
       workflow: 'gradingAndScoringWorkflow',

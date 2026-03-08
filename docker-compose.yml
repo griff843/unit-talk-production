@@ -319,6 +319,8 @@ services:
       - PROMOTION_CANARY_PERCENT=10
       - PROMOTION_CANARY_SPORTS=NBA,MLB
       - PROMOTION_HARD_ONLY=true
+      # SPRINT-044D: Grading data source (raw_props → provider_offers migration)
+      - GRADING_DATA_SOURCE=raw_props
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/logs:/app/apps/api/logs

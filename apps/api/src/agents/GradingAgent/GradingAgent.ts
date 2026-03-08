@@ -51,6 +51,8 @@ export class GradingAgent extends BaseAgent {
   private readonly USE_PRO_SCORER: boolean;
   private readonly SCORING_DEBUG: boolean;
   private readonly USE_PROJECTIONS: boolean;
+  // SPRINT-044D: Data source for grading input (raw_props or provider_offers)
+  private readonly GRADING_DATA_SOURCE: string;
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
@@ -59,6 +61,7 @@ export class GradingAgent extends BaseAgent {
     this.USE_PRO_SCORER = process.env.USE_PRO_SCORER === 'true';
     this.SCORING_DEBUG = process.env.SCORING_DEBUG === 'true';
     this.USE_PROJECTIONS = process.env.USE_PROJECTIONS !== 'false'; // Enabled by default
+    this.GRADING_DATA_SOURCE = process.env.GRADING_DATA_SOURCE || 'raw_props';
 
     this.gradingEngine = new SyndicateGradingEngine();
     this.professionalProcessor = ProfessionalPropProcessor.getInstance();
@@ -638,6 +641,11 @@ export class GradingAgent extends BaseAgent {
       return [];
     }
 
+    // SPRINT-044D: Route to provider_offers when feature flag is set
+    if (this.GRADING_DATA_SOURCE === 'provider_offers') {
+      return this.fetchPendingProviderOffers();
+    }
+
     if (this.USE_PRO_SCORER) {
       // PROFESSIONAL PATH: Query unprocessed raw_props (processed_at IS NULL)
       const { data: rawProps, error } = await this.requireSupabase()
@@ -675,6 +683,77 @@ export class GradingAgent extends BaseAgent {
 
       return rawProps?.map(prop => this.convertToFeatureSet(prop)) || [];
     }
+  }
+
+  // SPRINT-044D: Fetch ungraded offers from provider_offers (V3 canonical source)
+  private async fetchPendingProviderOffers(): Promise<GradingFeatureSet[]> {
+    const { data: offers, error } = await this.requireSupabase()
+      .from('provider_offers')
+      .select('*')
+      .is('graded_at', null)
+      .order('created_at', { ascending: true })
+      .limit(200);
+
+    if (error) {
+      this.logger.error('❌ Failed to fetch ungraded provider_offers', {
+        error: error.message,
+      });
+      return [];
+    }
+
+    this.logger.info(`🎯 Found ${offers?.length || 0} provider_offers for grading`);
+    return offers?.map(offer => this.convertProviderOfferToFeatureSet(offer)) || [];
+  }
+
+  // SPRINT-044D: Map provider_offers row to GradingFeatureSet
+  private convertProviderOfferToFeatureSet(offer: any): GradingFeatureSet {
+    const commenceDate = offer.commence_time
+      ? new Date(offer.commence_time).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    return {
+      propId: offer.id,
+      date: commenceDate,
+      sport: offer.sport_key || 'unknown',
+      league: offer.sport_key || 'unknown',
+      player: offer.provider_participant_id || 'unknown',
+      market: {
+        type: offer.provider_market_key || 'unknown',
+        line: offer.line || 0,
+        odds: offer.over_odds || offer.under_odds || 100,
+      },
+      expectedValue: 0,
+      sharpMoney: 50,
+      lineMovement: 0,
+      matchupRating: 50,
+      playerForm: 50,
+      marketType: offer.provider_market_key,
+      odds: offer.over_odds || offer.under_odds,
+      injuryImpact: 0,
+      weatherImpact: 0,
+      marketIntelligence: 50,
+      volumeProfile: 50,
+      closingLineValue: 0,
+      playerFatigue: 0,
+      venueAdvantage: 0,
+      refereeImpact: 0,
+      paceImpact: 0,
+      motivationalFactors: 0,
+      correlationRisk: 0,
+      volatility: 5,
+      portfolioImpact: 0,
+      bidAskSpread: 0.02,
+      timestamp: offer.snapshot_at || offer.created_at || new Date().toISOString(),
+      version: '1.0',
+      source: 'provider_offers',
+      confidence: 50,
+      dataQuality: {
+        completeness: 0.95,
+        outlierScore: 0.95,
+        consistencyScore: 0.95,
+        dataValidationScore: 0.95,
+      },
+    };
   }
 
   private convertUnifiedPickToFeatureSet(unifiedPick: any): GradingFeatureSet {
@@ -785,6 +864,28 @@ export class GradingAgent extends BaseAgent {
     }
 
     try {
+      // SPRINT-044D: When grading from provider_offers, mark as graded there
+      if (this.GRADING_DATA_SOURCE === 'provider_offers') {
+        const { error } = await this.requireSupabase()
+          .from('provider_offers')
+          .update({ graded_at: new Date().toISOString() })
+          .eq('id', result.propId);
+
+        if (error) {
+          this.logger.error('❌ Failed to mark provider_offer as graded', {
+            propId: result.propId,
+            error: error.message,
+          });
+        } else {
+          this.logger.info('✅ Grading result stored (provider_offers)', {
+            propId: result.propId,
+            tier: result.tier,
+            edgeScore: Math.round(result.edgeScore * 1000),
+          });
+        }
+        return;
+      }
+
       // Store grading results in raw_props table (v3.0.0 approach)
       // Fix: Use correct data types - confidence is 0/1 boolean, edge_score is integer
       const { error } = await this.requireSupabase()

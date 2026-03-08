@@ -118,3 +118,19 @@ export async function healthCheck(params: {
 export async function validateDependencies(): Promise<any> {
   return getImpl().validateDependencies();
 }
+
+// SPRINT-044D: Closing snapshot capture activity
+export async function captureClosingSnapshots(params: {
+  lookbackHours?: number;
+  closeWindowMinutes?: number;
+  maxEvents?: number;
+}): Promise<{ total_events: number; captured: number; failed: number }> {
+  const { ClosingSnapshotService } = await import('../../../services/ClosingSnapshotService');
+  const svc = new ClosingSnapshotService(supabaseClient);
+  const result = await svc.captureClosingSnapshots(params);
+  return {
+    total_events: result.total_events,
+    captured: result.captured,
+    failed: result.failed,
+  };
+}

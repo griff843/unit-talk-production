@@ -91,6 +91,13 @@ export interface GradingAgentActivities {
   healthCheck(params: any): Promise<any>;
 
   validateDependencies(params: any): Promise<any>;
+
+  // SPRINT-044D: Closing snapshot capture for CLV analysis
+  captureClosingSnapshots(params: {
+    lookbackHours?: number;
+    closeWindowMinutes?: number;
+    maxEvents?: number;
+  }): Promise<{ total_events: number; captured: number; failed: number }>;
 }
 
 // Notification Agent Activities
