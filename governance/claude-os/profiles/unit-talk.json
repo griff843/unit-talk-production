@@ -1,0 +1,163 @@
+{
+  "profileVersion": "1.0.0",
+  "projectId": "unit-talk",
+  "projectName": "Unit Talk Platform",
+  "projectType": "monorepo",
+  "architectureMode": "agent-lifecycle",
+
+  "truthPriorityOrder": [
+    "CLAUDE_EXECUTION_CONTRACT.md",
+    "docs/SYSTEM_INVARIANTS.md",
+    "governance/claude-os/SYSTEM_LAWS.md",
+    "docs/contracts/*.md",
+    "docs/system/current/*.md",
+    "CLAUDE.md + .claude/rules/*.md",
+    "Sprint contract (per-sprint)",
+    "Linear issues (workflow only, never truth)"
+  ],
+
+  "criticalInvariants": [
+    "All writes to unified_picks must go through lifecycle adapters",
+    "Single-writer discipline enforced by lifecycle gate (--strict)",
+    "Settlement fields are immutable once set",
+    "Smart Form writes to bridge_outbox only, never unified_picks",
+    "Command Center and Dashboard are read-only surfaces"
+  ],
+
+  "deliverySurfaces": [
+    "Discord (embeds via discord-bot)",
+    "Command Center (ops dashboard, read-only)",
+    "Dashboard (analytics, read-only)",
+    "Smart Form (pick submission UI)"
+  ],
+
+  "deprecatedPaths": [
+    {
+      "path": "raw_props",
+      "canonical": "provider_offers",
+      "context": "ingestion landing table",
+      "alternateCanonical": [
+        {
+          "trigger": "unified_picks",
+          "target": "unified_picks",
+          "context": "settlement/lifecycle target"
+        },
+        {
+          "trigger": "settlement",
+          "target": "unified_picks",
+          "context": "settlement reads from canonical tables"
+        }
+      ]
+    },
+    {
+      "path": "daily_picks",
+      "canonical": "unified_picks",
+      "context": "pick lifecycle table",
+      "alternateCanonical": []
+    },
+    {
+      "path": "players",
+      "canonical": "participants",
+      "context": "entity table",
+      "alternateCanonical": []
+    },
+    {
+      "path": "teams",
+      "canonical": "participants",
+      "context": "entity table",
+      "alternateCanonical": []
+    }
+  ],
+
+  "canonicalWriteTargets": [
+    {
+      "table": "unified_picks",
+      "discipline": "single-writer via lifecycle adapters",
+      "risk": "Immutable settlement fields, atomic claim pattern required"
+    },
+    {
+      "table": "participants",
+      "discipline": "SGO Sync exclusive writer",
+      "risk": "Player/team entity integrity"
+    },
+    {
+      "table": "participant_memberships",
+      "discipline": "SGO Sync exclusive writer",
+      "risk": "Player-team link integrity"
+    }
+  ],
+
+  "runtimeSensitiveAreas": [
+    "apps/api/src/lib/lifecycle/",
+    "apps/api/src/agents/",
+    "apps/api/src/activities/",
+    "packages/distribution/",
+    "packages/intelligence/",
+    "supabase/migrations/",
+    "runtime_config/"
+  ],
+
+  "domainKeywords": {
+    "unified_picks": ["unified_picks", "pick", "lifecycle", "settlement", "promotion"],
+    "discord": ["discord", "embed", "posting", "distribution", "channel"],
+    "ingestion": ["ingestion", "provider_offers", "raw_props", "provider", "feed"],
+    "schema": ["migration", "schema", "alter", "table", "column"],
+    "smart-form": ["smart-form", "smartform", "bridge_outbox", "submission"],
+    "agents": ["agent", "feedagent", "gradingagent", "settlementagent"]
+  },
+
+  "lifecycleKeywords": ["lifecycle", "settlement", "settle", "lifecycle_adapter"],
+
+  "schemaKeywords": ["schema", "alter table", "ddl", "add column", "drop column", "create table"],
+
+  "verificationDefaults": {
+    "sprintTypeTiers": {
+      "docs": "T1",
+      "build_fix": "T2",
+      "ui": "T2",
+      "runtime": "T3",
+      "schema": "T3",
+      "e2e_lifecycle": "T4"
+    },
+    "tierRequiredRecipes": {
+      "T1": ["typecheck"],
+      "T2": ["typecheck", "lint", "unit_tests", "build"],
+      "T3": ["typecheck", "lint", "unit_tests", "integration_tests", "build", "lifecycle_gate", "runtime_smoke"],
+      "T4": [
+        "typecheck",
+        "lint",
+        "unit_tests",
+        "integration_tests",
+        "build",
+        "lifecycle_gate",
+        "runtime_smoke",
+        "discord_canary",
+        "drift_audit"
+      ]
+    },
+    "tierRecommendedRecipes": {
+      "T1": ["lint"],
+      "T2": ["drift_audit"],
+      "T3": ["schema_guard", "discord_canary"],
+      "T4": ["schema_guard", "ui_visual_check"]
+    }
+  },
+
+  "artifactConventions": {
+    "artifactBase": "out/sprints",
+    "standardDirectories": ["proofs", "diffs", "notes"]
+  },
+
+  "riskAreas": [
+    {
+      "area": "lifecycle/settlement",
+      "description": "Lifecycle and settlement changes require elevated verification",
+      "lawReference": "Law 5: Canonical-Path Law"
+    },
+    {
+      "area": "supabase/migrations/",
+      "description": "Schema changes are effectively irreversible in production",
+      "lawReference": "Law 8: Drift Detection Law"
+    }
+  ]
+}

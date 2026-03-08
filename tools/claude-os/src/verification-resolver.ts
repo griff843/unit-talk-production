@@ -15,14 +15,15 @@ import type {
   VerificationRequirement,
   ProofRequirement,
   DeferredRequirement,
+  ProfileVerificationDefaults,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Tier Resolution
 // ---------------------------------------------------------------------------
 
-/** Map sprint types to their minimum verification tier */
-const SPRINT_TYPE_TIERS: Record<SprintType, VerificationTier> = {
+/** Map sprint types to their minimum verification tier (defaults) */
+const DEFAULT_SPRINT_TYPE_TIERS: Record<SprintType, VerificationTier> = {
   docs: 'T1',
   build_fix: 'T2',
   ui: 'T2',
@@ -31,8 +32,8 @@ const SPRINT_TYPE_TIERS: Record<SprintType, VerificationTier> = {
   e2e_lifecycle: 'T4',
 };
 
-/** Which recipe IDs are required at each verification tier */
-const TIER_REQUIRED_RECIPES: Record<VerificationTier, string[]> = {
+/** Which recipe IDs are required at each verification tier (defaults) */
+const DEFAULT_TIER_REQUIRED_RECIPES: Record<VerificationTier, string[]> = {
   T1: ['typecheck'],
   T2: ['typecheck', 'lint', 'unit_tests', 'build'],
   T3: [
@@ -57,8 +58,8 @@ const TIER_REQUIRED_RECIPES: Record<VerificationTier, string[]> = {
   ],
 };
 
-/** Which recipe IDs are recommended (not required) at each tier */
-const TIER_RECOMMENDED_RECIPES: Record<VerificationTier, string[]> = {
+/** Which recipe IDs are recommended (not required) at each tier (defaults) */
+const DEFAULT_TIER_RECOMMENDED_RECIPES: Record<VerificationTier, string[]> = {
   T1: ['lint'],
   T2: ['drift_audit'],
   T3: ['schema_guard', 'discord_canary'],
@@ -88,18 +89,33 @@ export interface VerificationResolution {
  * @param verificationRecipes - Loaded verification recipe set
  * @param proofRecipes - Loaded proof recipe set
  * @param overrideTier - Optional tier override (must be >= minimum for type)
+ * @param profileDefaults - Optional profile verification defaults (merged over engine defaults)
  */
 export function resolveVerification(
   sprintType: SprintType,
   verificationRecipes: VerificationRecipeSet,
   proofRecipes: ProofRecipeSet,
-  overrideTier?: VerificationTier
+  overrideTier?: VerificationTier,
+  profileDefaults?: ProfileVerificationDefaults
 ): VerificationResolution {
-  const minimumTier = SPRINT_TYPE_TIERS[sprintType];
+  const sprintTypeTiers: Record<SprintType, VerificationTier> = {
+    ...DEFAULT_SPRINT_TYPE_TIERS,
+    ...(profileDefaults?.sprintTypeTiers ?? {}),
+  };
+  const tierRequiredRecipes: Record<VerificationTier, string[]> = {
+    ...DEFAULT_TIER_REQUIRED_RECIPES,
+    ...(profileDefaults?.tierRequiredRecipes ?? {}),
+  };
+  const tierRecommendedRecipes: Record<VerificationTier, string[]> = {
+    ...DEFAULT_TIER_RECOMMENDED_RECIPES,
+    ...(profileDefaults?.tierRecommendedRecipes ?? {}),
+  };
+
+  const minimumTier = sprintTypeTiers[sprintType];
   const effectiveTier = overrideTier ? maxTier(overrideTier, minimumTier) : minimumTier;
 
-  const requiredRecipeIds = TIER_REQUIRED_RECIPES[effectiveTier];
-  const recommendedRecipeIds = TIER_RECOMMENDED_RECIPES[effectiveTier];
+  const requiredRecipeIds = tierRequiredRecipes[effectiveTier];
+  const recommendedRecipeIds = tierRecommendedRecipes[effectiveTier];
   const unresolvedItems: DeferredRequirement[] = [];
 
   // --- Resolve verification requirements ---
@@ -230,13 +246,20 @@ function createUnresolvedRequirement(recipeId: string, required = true): Verific
 /**
  * Get the minimum verification tier for a sprint type.
  */
-export function getMinimumTier(sprintType: SprintType): VerificationTier {
-  return SPRINT_TYPE_TIERS[sprintType];
+export function getMinimumTier(
+  sprintType: SprintType,
+  profileDefaults?: ProfileVerificationDefaults
+): VerificationTier {
+  const tiers: Record<SprintType, VerificationTier> = {
+    ...DEFAULT_SPRINT_TYPE_TIERS,
+    ...(profileDefaults?.sprintTypeTiers ?? {}),
+  };
+  return tiers[sprintType];
 }
 
 /**
  * Check if a sprint type is recognized.
  */
 export function isValidSprintType(type: string): type is SprintType {
-  return type in SPRINT_TYPE_TIERS;
+  return type in DEFAULT_SPRINT_TYPE_TIERS;
 }

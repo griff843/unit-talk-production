@@ -16,11 +16,18 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+import { loadEnvelope, envelopeToRequest } from './envelope-loader.js';
 import { loadGovernance } from './governance-loader.js';
-import { assembleSprintPlan } from './sprint-planner.js';
+import { loadProfileById, loadProfileFromPath } from './profile-loader.js';
+import { assembleSprintPlan, assembleSprintPlanWithProfile } from './sprint-planner.js';
 import { isValidSprintType } from './verification-resolver.js';
 
-import type { SprintExecutionRequest, SprintExecutionPlan, SprintType } from './types.js';
+import type {
+  SprintExecutionRequest,
+  SprintExecutionPlan,
+  SprintType,
+  ProjectProfile,
+} from './types.js';
 
 // ---------------------------------------------------------------------------
 // Colors
@@ -91,32 +98,87 @@ function commandPlan(args: Record<string, string | boolean | string[]>): void {
   const date = args.date as string | undefined;
   const jsonOutput = args.json === true;
   const outFile = args.out as string | undefined;
+  const projectId = args.project as string | undefined;
+  const profilePath = args.profile as string | undefined;
+  const envelopePath = args.envelope as string | undefined;
 
-  if (!sprint || !type || !summary) {
+  // --- Load profile if specified ---
+  let profile: ProjectProfile | null = null;
+  if (projectId || profilePath) {
+    const profileResult = profilePath
+      ? loadProfileFromPath(profilePath)
+      : loadProfileById(projectId!);
+
+    if (!profileResult.success || !profileResult.profile) {
+      console.error(`${c.red}ERROR: Failed to load project profile.${c.reset}`);
+      for (const err of profileResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+    profile = profileResult.profile;
+    console.log(`${c.dim}Profile loaded: ${profile.projectName} (${profile.projectId})${c.reset}`);
+  }
+
+  // --- Load envelope if specified ---
+  let envelope = undefined;
+  if (envelopePath) {
+    const envelopeResult = loadEnvelope(envelopePath);
+    if (!envelopeResult.success || !envelopeResult.envelope) {
+      console.error(`${c.red}ERROR: Failed to load task envelope.${c.reset}`);
+      for (const err of envelopeResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+    envelope = envelopeResult.envelope;
+    console.log(`${c.dim}Envelope loaded: ${envelope.taskId} (${envelope.taskType})${c.reset}`);
+  }
+
+  // --- Build request: CLI args take precedence, envelope fills gaps ---
+  const effectiveSprint = sprint ?? envelope?.taskId;
+  const effectiveType = type ?? envelope?.taskType;
+  const effectiveSummary = summary ?? envelope?.summary;
+
+  if (!effectiveSprint || !effectiveType || !effectiveSummary) {
     console.error(`${c.red}ERROR: Missing required arguments.${c.reset}`);
     console.error('Required: --sprint <id> --type <type> --summary "<text>"');
+    console.error('  (or provide --envelope <path> to derive these from a task envelope)');
     console.error(`Valid types: docs, runtime, build_fix, e2e_lifecycle, ui, schema`);
     process.exit(1);
   }
 
-  if (!isValidSprintType(type)) {
-    console.error(`${c.red}ERROR: Invalid sprint type '${type}'.${c.reset}`);
+  if (!isValidSprintType(effectiveType)) {
+    console.error(`${c.red}ERROR: Invalid sprint type '${effectiveType}'.${c.reset}`);
     console.error('Valid types: docs, runtime, build_fix, e2e_lifecycle, ui, schema');
     process.exit(1);
   }
 
   const request: SprintExecutionRequest = {
-    sprintId: sprint,
-    sprintType: type as SprintType,
-    summary: summary,
-    touchedAreas: touched,
+    sprintId: effectiveSprint,
+    sprintType: effectiveType as SprintType,
+    summary: effectiveSummary,
+    objective: envelope?.objective,
+    touchedAreas: touched ?? (envelope ? undefined : undefined),
     requestedArtifactDate: date,
+    runtimeProofRequired: envelope?.runtimeProofRequired,
   };
 
   console.log(`\n${c.bold}${c.cyan}CLAUDE OS — Sprint Execution Plan${c.reset}\n`);
-  console.log(`${c.dim}Assembling plan for ${sprint}...${c.reset}\n`);
+  console.log(`${c.dim}Assembling plan for ${effectiveSprint}...${c.reset}\n`);
 
-  const plan = assembleSprintPlan(request);
+  // --- Route to profile-aware or default planner ---
+  let plan: SprintExecutionPlan;
+  if (profile) {
+    plan = assembleSprintPlanWithProfile(request, profile, envelope);
+  } else {
+    if (!projectId && !profilePath) {
+      console.log(
+        `${c.yellow}Note: Running without project profile. Pass --project <id> for profile-aware planning.${c.reset}\n`
+      );
+    }
+    plan = assembleSprintPlan(request);
+  }
 
   if (jsonOutput) {
     const jsonStr = JSON.stringify(plan, null, 2);
@@ -131,7 +193,7 @@ function commandPlan(args: Record<string, string | boolean | string[]>): void {
     process.exit(plan.status === 'blocked' ? 1 : 0);
   }
 
-  printPlan(plan);
+  printPlan(plan, profile);
   process.exit(plan.status === 'blocked' ? 1 : 0);
 }
 
@@ -193,11 +255,16 @@ function commandValidate(): void {
 // Plan Printer
 // ---------------------------------------------------------------------------
 
-function printPlan(plan: SprintExecutionPlan): void {
+function printPlan(plan: SprintExecutionPlan, profile?: ProjectProfile | null): void {
   // Status banner
   const statusColor =
     plan.status === 'ready' ? c.green : plan.status === 'blocked' ? c.red : c.yellow;
   console.log(`${c.bold}Status: ${statusColor}${plan.status.toUpperCase()}${c.reset}\n`);
+
+  // Profile
+  if (profile) {
+    console.log(`${c.bold}Profile:${c.reset} ${profile.projectName} (${profile.projectId})`);
+  }
 
   // Request
   console.log(`${c.bold}Sprint:${c.reset}  ${plan.request.sprintId}`);
@@ -320,16 +387,39 @@ ${c.bold}Plan usage:${c.reset}
     --summary "Sprint objective description" \\
     [--touched area1,area2] \\
     [--date YYYY-MM-DD] \\
+    [--project <id>] \\
+    [--profile <path>] \\
+    [--envelope <path>] \\
     [--json] \\
     [--out path/to/plan.json]
 
+${c.bold}Profile & Envelope flags:${c.reset}
+
+  --project <id>       Load project profile by ID (from governance/claude-os/profiles/<id>.json)
+  --profile <path>     Load project profile from explicit file path
+  --envelope <path>    Load task envelope (fills in sprint/type/summary if not given via CLI)
+
 ${c.bold}Examples:${c.reset}
 
+  ${c.dim}# Basic (no profile):${c.reset}
   npx tsx src/cli.ts plan \\
     --sprint SPRINT-SETTLEMENT-045 \\
     --type runtime \\
     --summary "Migrate settlement off raw_props to provider_offers" \\
     --touched apps/api/src/agents/SettlementAgent/
+
+  ${c.dim}# Profile-aware:${c.reset}
+  npx tsx src/cli.ts plan \\
+    --project unit-talk \\
+    --sprint SPRINT-044R \\
+    --type runtime \\
+    --summary "Settlement migration off raw_props to unified_picks" \\
+    --touched apps/api/src/agents/SettlementAgent/
+
+  ${c.dim}# Envelope-driven:${c.reset}
+  npx tsx src/cli.ts plan \\
+    --project unit-talk \\
+    --envelope governance/claude-os/envelopes/example-runtime-sprint.json
 
   npx tsx src/cli.ts validate
 

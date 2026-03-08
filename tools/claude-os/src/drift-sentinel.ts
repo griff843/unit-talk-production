@@ -12,21 +12,29 @@ import type {
   PackageOwnershipEntry,
   LawReference,
   SprintExecutionRequest,
+  ProjectProfile,
+  ProfileDeprecatedPath,
+  ProfileCanonicalWriteTarget,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
-// Deprecated Path Detection
+// Drift Sentinel Configuration
 // ---------------------------------------------------------------------------
 
-/** Known deprecated tables/paths per canonical governance */
-interface DeprecatedPathEntry {
-  path: string;
-  canonical: string;
-  context: string;
-  alternateCanonical: { trigger: string; target: string; context: string }[];
+/** Configurable data for drift evaluation — extracted from project profile or defaults */
+export interface DriftSentinelConfig {
+  deprecatedPaths: ProfileDeprecatedPath[];
+  runtimeSensitiveAreas: string[];
+  canonicalWriteTargets: ProfileCanonicalWriteTarget[];
+  lifecycleKeywords: string[];
+  schemaKeywords: string[];
 }
 
-const DEPRECATED_PATHS: DeprecatedPathEntry[] = [
+// ---------------------------------------------------------------------------
+// Defaults (backward-compatible — used when no profile is provided)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_DEPRECATED_PATHS: ProfileDeprecatedPath[] = [
   {
     path: 'raw_props',
     canonical: 'provider_offers',
@@ -50,8 +58,7 @@ const DEPRECATED_PATHS: DeprecatedPathEntry[] = [
   { path: 'teams', canonical: 'participants', context: 'entity table', alternateCanonical: [] },
 ];
 
-/** Runtime-sensitive areas that require extra verification */
-const RUNTIME_SENSITIVE_AREAS = [
+const DEFAULT_RUNTIME_SENSITIVE_AREAS: string[] = [
   'apps/api/src/lib/lifecycle/',
   'apps/api/src/agents/',
   'apps/api/src/activities/',
@@ -59,11 +66,71 @@ const RUNTIME_SENSITIVE_AREAS = [
   'packages/intelligence/',
   'supabase/migrations/',
   'runtime_config/',
-] as const;
+];
+
+const DEFAULT_CANONICAL_WRITE_TARGETS: ProfileCanonicalWriteTarget[] = [
+  {
+    table: 'unified_picks',
+    discipline: 'single-writer via lifecycle adapters',
+    risk: 'Immutable settlement fields, atomic claim pattern required',
+  },
+  {
+    table: 'participants',
+    discipline: 'SGO Sync exclusive writer',
+    risk: 'Player/team entity integrity',
+  },
+  {
+    table: 'participant_memberships',
+    discipline: 'SGO Sync exclusive writer',
+    risk: 'Player-team link integrity',
+  },
+];
+
+const DEFAULT_LIFECYCLE_KEYWORDS: string[] = [
+  'lifecycle',
+  'settlement',
+  'settle',
+  'lifecycle_adapter',
+];
+
+const DEFAULT_SCHEMA_KEYWORDS: string[] = [
+  'schema',
+  'alter table',
+  'ddl',
+  'add column',
+  'drop column',
+  'create table',
+];
 
 // ---------------------------------------------------------------------------
 // Drift Evaluation
 // ---------------------------------------------------------------------------
+
+/**
+ * Build a DriftSentinelConfig from a ProjectProfile.
+ */
+export function configFromProfile(profile: ProjectProfile): DriftSentinelConfig {
+  return {
+    deprecatedPaths: profile.deprecatedPaths,
+    runtimeSensitiveAreas: profile.runtimeSensitiveAreas,
+    canonicalWriteTargets: profile.canonicalWriteTargets,
+    lifecycleKeywords: profile.lifecycleKeywords,
+    schemaKeywords: profile.schemaKeywords,
+  };
+}
+
+/**
+ * Get the default drift config (used when no profile is loaded).
+ */
+export function getDefaultDriftConfig(): DriftSentinelConfig {
+  return {
+    deprecatedPaths: DEFAULT_DEPRECATED_PATHS,
+    runtimeSensitiveAreas: DEFAULT_RUNTIME_SENSITIVE_AREAS,
+    canonicalWriteTargets: DEFAULT_CANONICAL_WRITE_TARGETS,
+    lifecycleKeywords: DEFAULT_LIFECYCLE_KEYWORDS,
+    schemaKeywords: DEFAULT_SCHEMA_KEYWORDS,
+  };
+}
 
 /**
  * Evaluate drift signals for a sprint execution request.
@@ -72,12 +139,15 @@ const RUNTIME_SENSITIVE_AREAS = [
  * @param request - Sprint execution request
  * @param ownership - Package ownership map
  * @param laws - Parsed law references
+ * @param config - Optional drift config (defaults to hardcoded values if omitted)
  */
 export function evaluateDrift(
   request: SprintExecutionRequest,
   ownership: PackageOwnershipMap | null,
-  _laws: LawReference[]
+  _laws: LawReference[],
+  config?: DriftSentinelConfig
 ): DriftSignal[] {
+  const cfg = config ?? getDefaultDriftConfig();
   const signals: DriftSignal[] = [];
   const touchedAreas = request.touchedAreas ?? [];
   const summary = request.summary.toLowerCase();
@@ -85,12 +155,12 @@ export function evaluateDrift(
   const combinedText = `${summary} ${objective}`;
 
   // --- Check 1: Deprecated path references in summary/objective ---
-  for (const dep of DEPRECATED_PATHS) {
+  for (const dep of cfg.deprecatedPaths) {
     if (combinedText.includes(dep.path)) {
       // Context-aware canonical target: check if an alternate canonical applies
       let canonicalTarget = dep.canonical;
       let canonicalContext = dep.context;
-      for (const alt of dep.alternateCanonical) {
+      for (const alt of dep.alternateCanonical ?? []) {
         if (combinedText.includes(alt.trigger)) {
           canonicalTarget = alt.target;
           canonicalContext = alt.context;
@@ -111,7 +181,7 @@ export function evaluateDrift(
 
   // --- Check 2: Runtime-sensitive area risk ---
   for (const area of touchedAreas) {
-    const isRuntimeSensitive = RUNTIME_SENSITIVE_AREAS.some(
+    const isRuntimeSensitive = cfg.runtimeSensitiveAreas.some(
       sensitive => area.includes(sensitive) || sensitive.includes(area)
     );
     if (isRuntimeSensitive) {
@@ -185,7 +255,7 @@ export function evaluateDrift(
   }
 
   // --- Check 4: Lifecycle/settlement keywords trigger elevated scrutiny ---
-  const lifecycleKeywords = ['lifecycle', 'settlement', 'settle', 'lifecycle_adapter'];
+  const lifecycleKeywords = cfg.lifecycleKeywords;
   for (const kw of lifecycleKeywords) {
     if (combinedText.includes(kw)) {
       signals.push({
@@ -202,24 +272,7 @@ export function evaluateDrift(
   }
 
   // --- Check 4b: Canonical write target detection ---
-  const canonicalWriteTargets = [
-    {
-      table: 'unified_picks',
-      discipline: 'single-writer via lifecycle adapters',
-      risk: 'Immutable settlement fields, atomic claim pattern required',
-    },
-    {
-      table: 'participants',
-      discipline: 'SGO Sync exclusive writer',
-      risk: 'Player/team entity integrity',
-    },
-    {
-      table: 'participant_memberships',
-      discipline: 'SGO Sync exclusive writer',
-      risk: 'Player-team link integrity',
-    },
-  ];
-  for (const target of canonicalWriteTargets) {
+  for (const target of cfg.canonicalWriteTargets) {
     if (combinedText.includes(target.table)) {
       signals.push({
         type: 'canonical_write_target',
@@ -238,15 +291,7 @@ export function evaluateDrift(
   // - Explicit schema keywords (schema, alter table, ddl, add column, drop column)
   // - "migration" co-occurring with schema-related terms
   // - Touched areas including supabase/migrations/
-  const schemaKeywords = [
-    'schema',
-    'alter table',
-    'ddl',
-    'add column',
-    'drop column',
-    'create table',
-  ];
-  const hasSchemaTerm = schemaKeywords.some(kw => combinedText.includes(kw));
+  const hasSchemaTerm = cfg.schemaKeywords.some(kw => combinedText.includes(kw));
   const hasMigrationWithSchemaContext =
     combinedText.includes('migration') &&
     (combinedText.includes('schema') ||

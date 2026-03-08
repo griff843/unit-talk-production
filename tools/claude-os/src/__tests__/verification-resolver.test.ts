@@ -123,6 +123,28 @@ describe('verification-resolver', () => {
     });
   });
 
+  describe('profile defaults override', () => {
+    it('should apply profile verification defaults when provided', () => {
+      // Override docs tier from T1 to T2
+      const profileDefaults = {
+        sprintTypeTiers: { docs: 'T2' as const },
+      };
+
+      const result = resolveVerification(
+        'docs',
+        verRecipes,
+        proofRecipes,
+        undefined,
+        profileDefaults
+      );
+
+      // Should be T2 now, not T1
+      expect(result.verificationTier).toBe('T2');
+      // T2 requires more recipes than T1
+      expect(result.required.length).toBeGreaterThan(1);
+    });
+  });
+
   describe('ratification threshold', () => {
     it('should provide a ratification threshold for each sprint type', () => {
       const types = ['docs', 'runtime', 'build_fix', 'ui', 'schema', 'e2e_lifecycle'] as const;

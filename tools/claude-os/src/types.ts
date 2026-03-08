@@ -348,3 +348,110 @@ export interface DeferredRequirement {
   reason: string;
   suggestedPhase: string;
 }
+
+// ---------------------------------------------------------------------------
+// Project Profile Types
+// ---------------------------------------------------------------------------
+
+/** A deprecated path entry in the project profile */
+export interface ProfileDeprecatedPath {
+  path: string;
+  canonical: string;
+  context: string;
+  alternateCanonical?: { trigger: string; target: string; context: string }[];
+}
+
+/** A canonical write target entry */
+export interface ProfileCanonicalWriteTarget {
+  table: string;
+  discipline: string;
+  risk: string;
+}
+
+/** Domain keyword mapping for context resolution */
+export type ProfileDomainKeywordMap = Record<string, string[]>;
+
+/** Verification tier configuration overrides */
+export interface ProfileVerificationDefaults {
+  sprintTypeTiers?: Partial<Record<SprintType, VerificationTier>>;
+  tierRequiredRecipes?: Partial<Record<VerificationTier, string[]>>;
+  tierRecommendedRecipes?: Partial<Record<VerificationTier, string[]>>;
+}
+
+/** Machine-readable project profile */
+export interface ProjectProfile {
+  profileVersion: string;
+  projectId: string;
+  projectName: string;
+  projectType: 'monorepo' | 'single-app' | 'library';
+  architectureMode: string;
+
+  truthPriorityOrder: string[];
+  criticalInvariants: string[];
+  deliverySurfaces: string[];
+
+  deprecatedPaths: ProfileDeprecatedPath[];
+  canonicalWriteTargets: ProfileCanonicalWriteTarget[];
+  runtimeSensitiveAreas: string[];
+
+  domainKeywords: ProfileDomainKeywordMap;
+  lifecycleKeywords: string[];
+  schemaKeywords: string[];
+
+  verificationDefaults: ProfileVerificationDefaults;
+
+  artifactConventions: {
+    artifactBase: string;
+    standardDirectories: string[];
+  };
+
+  riskAreas: {
+    area: string;
+    description: string;
+    lawReference?: string;
+  }[];
+}
+
+/** Result of loading a project profile */
+export interface ProfileLoadResult {
+  success: boolean;
+  profile: ProjectProfile | null;
+  source: string;
+  errors: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Task Envelope Types
+// ---------------------------------------------------------------------------
+
+/** Machine-readable task execution envelope */
+export interface TaskEnvelope {
+  envelopeVersion: string;
+  taskId: string;
+  taskType: SprintType;
+  projectId: string;
+
+  objective: string;
+  summary: string;
+
+  touchedAreas: string[];
+  truthSourcesRequired: string[];
+
+  verificationTierOverride?: VerificationTier;
+  runtimeProofRequired?: boolean;
+
+  artifactRoot?: string;
+  artifactDate?: string;
+
+  killConditions: string[];
+  notes: string[];
+  deferredRequirements: string[];
+}
+
+/** Result of loading a task envelope */
+export interface EnvelopeLoadResult {
+  success: boolean;
+  envelope: TaskEnvelope | null;
+  source: string;
+  errors: string[];
+}
