@@ -455,5 +455,77 @@ export async function getLiveGames(
   }
 }
 
+// SPRINT-044B: V3 provider_offers ingestion activity
+// Calls both OddsAPI and SGO paths to populate provider_offers table
+export async function ingestV3ProviderOffers(params: {
+  league: string;
+  markets?: string[];
+}): Promise<{ success: boolean; inserted: number; updated: number; error?: string }> {
+  const provider = `${params.league.toLowerCase()}-v3-ingestion`;
+
+  if (!checkCircuitBreaker(provider)) {
+    return {
+      success: false,
+      inserted: 0,
+      updated: 0,
+      error: 'Circuit breaker is open',
+    };
+  }
+
+  let totalInserted = 0;
+  let totalUpdated = 0;
+  const errors: string[] = [];
+
+  try {
+    const { ingestProviderOffers: ingestOddsAPI, ingestSGOProviderOffers } =
+      await import('../../IngestionAgent/providerOffersIngestion');
+
+    // OddsAPI path (has credit cost — may skip if cached)
+    try {
+      const oddsResult = await ingestOddsAPI(
+        params.league as any,
+        params.markets || ['h2h', 'spreads', 'totals']
+      );
+      totalInserted += oddsResult.inserted;
+      totalUpdated += oddsResult.updated;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[FeedAgent] OddsAPI V3 ingestion failed for ${params.league}:`, msg);
+      errors.push(`oddsapi: ${msg}`);
+    }
+
+    // SGO path (no credit cost)
+    try {
+      const sgoResult = await ingestSGOProviderOffers(params.league);
+      totalInserted += sgoResult.inserted;
+      totalUpdated += sgoResult.updated;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[FeedAgent] SGO V3 ingestion failed for ${params.league}:`, msg);
+      errors.push(`sgo: ${msg}`);
+    }
+
+    recordSuccess(provider);
+
+    return {
+      success: true,
+      inserted: totalInserted,
+      updated: totalUpdated,
+      error: errors.length > 0 ? errors.join('; ') : undefined,
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[FeedAgent] V3 ingestion failed for ${params.league}:`, msg);
+    recordFailure(provider);
+
+    return {
+      success: false,
+      inserted: totalInserted,
+      updated: totalUpdated,
+      error: msg,
+    };
+  }
+}
+
 // All required activities are already individually exported above
 // No additional exports needed

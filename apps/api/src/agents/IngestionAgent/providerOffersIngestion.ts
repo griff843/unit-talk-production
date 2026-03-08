@@ -236,26 +236,32 @@ function transformToV3Payloads(games: OddsApiGame[]): Map<string, ProviderOfferP
 /**
  * Call upsert_provider_offers_bootstrap RPC for a single provider
  * Uses bootstrap function that auto-creates canonical events
+ *
+ * SPRINT-044B: games parameter is optional. When payloads are pre-enriched
+ * (e.g. from SGO adapter), enrichment lookup is skipped.
  */
 async function upsertProviderOffers(
   supabase: SupabaseClient,
   providerKey: string,
   offers: ProviderOfferPayload[],
-  games: OddsApiGame[]
+  games?: OddsApiGame[]
 ): Promise<{ inserted: number; updated: number; quarantined: number }> {
   const capturedAt = new Date().toISOString();
 
   // Enrich offers with game metadata for auto-event creation
-  const enrichedOffers = offers.map(offer => {
-    const game = games.find(g => g.id === offer.provider_event_id);
-    return {
-      ...offer,
-      sport_key: game?.sport_key,
-      home_team: game?.home_team,
-      away_team: game?.away_team,
-      commence_time: game?.commence_time,
-    };
-  });
+  // Skip enrichment if no games provided (payloads already have metadata)
+  const enrichedOffers = games
+    ? offers.map(offer => {
+        const game = games.find(g => g.id === offer.provider_event_id);
+        return {
+          ...offer,
+          sport_key: game?.sport_key,
+          home_team: game?.home_team,
+          away_team: game?.away_team,
+          commence_time: game?.commence_time,
+        };
+      })
+    : offers;
 
   const { data, error } = await supabase.rpc('upsert_provider_offers_bootstrap', {
     p_provider_key: providerKey,
@@ -390,6 +396,109 @@ export async function ingestAllSports(
   }
 
   return results;
+}
+
+// SPRINT-044B: SGO league mapping (SGO uses uppercase league IDs)
+const SPORT_TO_SGO_LEAGUE: Record<string, string> = {
+  basketball_nba: 'NBA',
+  americanfootball_nfl: 'NFL',
+  baseball_mlb: 'MLB',
+  icehockey_nhl: 'NHL',
+};
+
+/**
+ * Ingest SGO provider offers for a single sport
+ * SPRINT-044B: Parallel path alongside OddsAPI ingestion
+ *
+ * SGO has no API credit cost and provides fair odds + multi-book data.
+ * Uses fetchAndPairSGOProps → transformSGOToProviderOffers → upsertProviderOffers.
+ */
+export async function ingestSGOProviderOffers(
+  sportKey: string,
+  options: { forceRefresh?: boolean } = {}
+): Promise<IngestionResult> {
+  const startTime = Date.now();
+  const result: IngestionResult = {
+    sportKey: `sgo_${sportKey}`,
+    inserted: 0,
+    updated: 0,
+    quarantined: 0,
+    cached: false,
+    creditUsed: 0, // SGO has no credit cost
+    durationMs: 0,
+  };
+
+  const sgoLeague = SPORT_TO_SGO_LEAGUE[sportKey];
+  if (!sgoLeague) {
+    logger.debug('Sport not supported by SGO', { sportKey });
+    result.durationMs = Date.now() - startTime;
+    return result;
+  }
+
+  const apiKey = process.env['SGO_API_KEY'];
+  if (!apiKey) {
+    logger.warn('SGO_API_KEY not set, skipping SGO ingestion');
+    result.durationMs = Date.now() - startTime;
+    return result;
+  }
+
+  try {
+    // Dynamic import to avoid circular dependency
+    const { fetchAndPairSGOProps } = await import('../../logic/providers/sgoFetcher');
+    const { transformSGOToProviderOffers } = await import('./sgoProviderOffersAdapter');
+
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const paired = await fetchAndPairSGOProps({
+      apiKey,
+      leagueID: sgoLeague,
+      startsAfter: now.toISOString(),
+      startsBefore: tomorrow.toISOString(),
+      includeOpposingOdds: true,
+      oddsAvailable: true,
+      limit: 50,
+    });
+
+    if (paired.length === 0) {
+      logger.info('No SGO props returned', { sportKey, sgoLeague });
+      result.durationMs = Date.now() - startTime;
+      return result;
+    }
+
+    // Transform to V3 payloads (pre-enriched with event metadata)
+    const sgoOffers = transformSGOToProviderOffers(paired);
+
+    if (sgoOffers.length === 0) {
+      logger.info('No valid SGO offers after transform', { sportKey, pairedCount: paired.length });
+      result.durationMs = Date.now() - startTime;
+      return result;
+    }
+
+    // Upsert — no games array needed, payloads are pre-enriched
+    const supabase = getSupabase();
+    const upsertResult = await upsertProviderOffers(supabase, 'sgo', sgoOffers);
+    result.inserted = upsertResult.inserted;
+    result.updated = upsertResult.updated;
+    result.quarantined = upsertResult.quarantined;
+
+    logger.info('SGO ingestion completed', {
+      sportKey,
+      sgoLeague,
+      pairedCount: paired.length,
+      offersCount: sgoOffers.length,
+      inserted: result.inserted,
+      updated: result.updated,
+    });
+
+    result.durationMs = Date.now() - startTime;
+    return result;
+  } catch (error) {
+    result.error = (error as Error).message;
+    result.durationMs = Date.now() - startTime;
+    logger.error('SGO ingestion failed', { sportKey, error: result.error });
+    return result;
+  }
 }
 
 /**

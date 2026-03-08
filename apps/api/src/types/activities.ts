@@ -32,6 +32,12 @@ export interface FeedAgentActivities {
     usage?: any;
     error?: string;
   }>;
+
+  // SPRINT-044B: V3 provider_offers ingestion (OddsAPI + SGO)
+  ingestV3ProviderOffers(params: {
+    league: string;
+    markets?: string[];
+  }): Promise<{ success: boolean; inserted: number; updated: number; error?: string }>;
 }
 
 // Alert Agent Activities

@@ -191,6 +191,23 @@ export async function leagueIngestionWorkflow(params: {
         timestamp: new Date(),
       });
     }
+
+    // SPRINT-044B: V3 provider_offers ingestion (parallel path)
+    // Dual-write: raw_props (above) + provider_offers (below)
+    // provider_offers is additive — failure does not block raw_props path
+    try {
+      await feedActivities.ingestV3ProviderOffers({
+        league,
+        markets: ['h2h', 'spreads', 'totals'],
+      });
+    } catch (v3Error) {
+      await operatorActivities.logError({
+        workflow: 'leagueIngestionWorkflow',
+        league,
+        error: `V3 provider_offers ingestion failed: ${String(v3Error)}`,
+        timestamp: new Date(),
+      });
+    }
   } catch (error) {
     await operatorActivities.logError({
       workflow: 'leagueIngestionWorkflow',
