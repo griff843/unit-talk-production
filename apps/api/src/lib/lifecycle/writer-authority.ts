@@ -131,6 +131,12 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
     allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: false,
   },
+  // SPRINT-044I: payout_amount is the actual DB column (potential_payout is legacy alias)
+  {
+    field: 'payout_amount',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
   {
     field: 'over_odds',
     allowedWriters: ['submitter', 'promoter', 'operator_override'],
@@ -153,6 +159,12 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
   },
   {
     field: 'kelly_bet_size',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
+  // SPRINT-044I: kelly_fraction is the actual DB column (kelly_bet_size is legacy alias)
+  {
+    field: 'kelly_fraction',
     allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: false,
   },

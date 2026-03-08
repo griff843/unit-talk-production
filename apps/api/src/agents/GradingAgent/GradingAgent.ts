@@ -961,6 +961,12 @@ export class GradingAgent extends BaseAgent {
     }
 
     try {
+      // SPRINT-044I: Route promotion based on data source
+      if (this.GRADING_DATA_SOURCE === 'provider_offers') {
+        await this.promoteFromProviderOffer(result);
+        return;
+      }
+
       // Get the original prop data from raw_props
       const { data: prop } = await this.requireSupabase()
         .from('raw_props')
@@ -996,21 +1002,18 @@ export class GradingAgent extends BaseAgent {
       const pickData = {
         id: pickId,
         user_id: systemUser.id,
-        pick_type: 'parlay',
         selection: selection,
         odds: prop.odds || prop.over_odds || -110,
         stake: result.positionSize * 100,
-        potential_payout: result.positionSize * 100 * (1 + Math.abs(result.kellyFraction)),
+        payout_amount: result.positionSize * 100 * (1 + Math.abs(result.kellyFraction)),
         player_name: prop.player_name,
         stat_type: prop.stat_type,
         line: prop.line,
-        over_odds: prop.over_odds,
-        under_odds: prop.under_odds,
         sport: prop.sport || 'Unknown',
         game_date: prop.game_date,
         confidence: result.confidence,
-        tier_when_placed: result.tier,
-        kelly_bet_size: result.kellyFraction,
+        tier: result.tier,
+        kelly_fraction: result.kellyFraction,
         promotion_band: result.promotionBand || null,
         created_at: new Date().toISOString(),
       };
@@ -1048,6 +1051,115 @@ export class GradingAgent extends BaseAgent {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
+  }
+
+  /**
+   * SPRINT-044I: Promote a graded provider_offer to unified_picks.
+   * Fetches enrichment data from provider_offers + participants + canonical_events + markets.
+   * No raw_props dependency — all context sourced from canonical V3 tables.
+   */
+  private async promoteFromProviderOffer(result: GradingResult): Promise<void> {
+    const supabase = this.requireSupabase();
+
+    // Fetch provider_offer with canonical JOINs (verified live in 044I planning)
+    const { data: offer, error: offerError } = await supabase
+      .from('provider_offers')
+      .select(
+        `id, line, over_odds, under_odds, provider_market_key, snapshot_at,
+        participants(id, name, meta),
+        canonical_events(id, sport, league, scheduled_at),
+        markets(stat_type, canonical_key)`
+      )
+      .eq('id', result.propId)
+      .single();
+
+    if (offerError || !offer) {
+      this.logger.warn('⚠️ Provider offer not found for promotion', {
+        propId: result.propId,
+        error: offerError?.message,
+      });
+      return;
+    }
+
+    // Get system user for attribution (same as raw_props path)
+    const { data: systemUser } = await supabase.from('users').select('id').limit(1).single();
+
+    if (!systemUser) {
+      this.logger.error('❌ No users found in database for promotion');
+      return;
+    }
+
+    // Extract fields from canonical JOINs
+    const participant = offer.participants as any;
+    const event = offer.canonical_events as any;
+    const market = offer.markets as any;
+
+    const playerName = participant?.meta?.names?.display || participant?.name || 'Unknown Player';
+    const statType =
+      market?.stat_type ||
+      this.extractStatTypeFromMarketKey(offer.provider_market_key) ||
+      'unknown';
+    const sport = event?.league || event?.sport || 'Unknown';
+    const gameDate = event?.scheduled_at
+      ? new Date(event.scheduled_at).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    // Build pick payload (identical structure to raw_props path)
+    const pickSide = (offer.line || 0) > 0 ? 'over' : 'under';
+    const selection = `${playerName} ${statType} ${pickSide} ${Math.abs(offer.line || 0)}`;
+
+    const pickId = randomUUID();
+    const pickData = {
+      id: pickId,
+      user_id: systemUser.id,
+      selection: selection,
+      odds: offer.over_odds || offer.under_odds || -110,
+      stake: result.positionSize * 100,
+      payout_amount: result.positionSize * 100 * (1 + Math.abs(result.kellyFraction)),
+      player_name: playerName,
+      stat_type: statType,
+      line: offer.line,
+      sport: sport,
+      game_date: gameDate,
+      confidence: result.confidence,
+      tier: result.tier,
+      kelly_fraction: result.kellyFraction,
+      promotion_band: result.promotionBand || null,
+      created_at: new Date().toISOString(),
+    };
+
+    const { success, error: lifecycleError } = await lifecycleInsert(supabase, pickData as any, {
+      writerRole: 'promoter',
+    });
+
+    if (!success) {
+      this.logger.error('❌ Failed to promote provider_offer to unified_picks', {
+        propId: result.propId,
+        error: lifecycleError,
+      });
+    } else {
+      this.logger.info('✅ Provider offer promoted to unified_picks', {
+        propId: result.propId,
+        pickId: pickId,
+        playerName,
+        statType,
+        sport,
+        tier: result.tier,
+        score: result.finalScore,
+        source: 'provider_offers',
+      });
+    }
+  }
+
+  /**
+   * SPRINT-044I: Extract stat_type from provider_market_key.
+   * SGO format: "assists-DONOVAN_MITCHELL_1_NBA-game-ou" → "assists"
+   * Canonical format: "game_rebounds-PLAYER-1q-ou" → "game_rebounds"
+   */
+  private extractStatTypeFromMarketKey(marketKey: string | null): string | null {
+    if (!marketKey) return null;
+    const firstSegment = marketKey.split('-')[0];
+    return firstSegment || null;
   }
 
   private updateProcessingMetrics(results: GradingResult[], processingTimeMs: number): void {
