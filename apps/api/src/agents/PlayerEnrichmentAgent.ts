@@ -64,7 +64,8 @@ export interface EnrichmentSummary {
 }
 
 /**
- * Player data structure from database
+ * Player data structure (internal enrichment shape).
+ * SPRINT-044E: Now derived from `participants` table rows via participantToPlayerData().
  */
 interface PlayerData {
   id: string;
@@ -74,6 +75,23 @@ interface PlayerData {
   height_cm: number | null;
   weight_kg: number | null;
   birthday: string | null;
+}
+
+/**
+ * SPRINT-044E: Convert a participants row to the internal PlayerData shape.
+ * Keeps enrichment modules untouched — they consume PlayerData.
+ */
+function participantToPlayerData(row: any): PlayerData {
+  const meta = row.meta || {};
+  return {
+    id: row.id,
+    player_name: row.name,
+    sport: row.sport,
+    photo_url: meta.headshot_url || null,
+    height_cm: meta.height_cm ?? null,
+    weight_kg: meta.weight_kg ?? null,
+    birthday: meta.birthday || null,
+  };
 }
 
 /**
@@ -301,30 +319,40 @@ async function enrichSinglePlayer(
     }
 
     // Update database if we have new data
+    // SPRINT-044E: Write enrichment data into participants.meta JSONB
     if (hasNewData) {
-      const updateData: any = {};
+      const metaUpdates: Record<string, any> = {};
       if (enrichmentData.headshot_url && enrichmentData.headshot_url !== player.photo_url) {
-        updateData.photo_url = enrichmentData.headshot_url;
+        metaUpdates.headshot_url = enrichmentData.headshot_url;
       }
       if (enrichmentData.height_cm !== null && enrichmentData.height_cm !== player.height_cm) {
-        updateData.height_cm = enrichmentData.height_cm;
+        metaUpdates.height_cm = enrichmentData.height_cm;
       }
       if (enrichmentData.weight_kg !== null && enrichmentData.weight_kg !== player.weight_kg) {
-        updateData.weight_kg = enrichmentData.weight_kg;
+        metaUpdates.weight_kg = enrichmentData.weight_kg;
       }
       if (enrichmentData.birthday && enrichmentData.birthday !== player.birthday) {
-        updateData.birthday = enrichmentData.birthday;
+        metaUpdates.birthday = enrichmentData.birthday;
       }
 
-      if (Object.keys(updateData).length > 0) {
+      if (Object.keys(metaUpdates).length > 0) {
+        // Fetch current meta to merge (participants.meta is JSONB)
+        const { data: current } = await supabase
+          .from('participants')
+          .select('meta')
+          .eq('id', player.id)
+          .single();
+
+        const mergedMeta = { ...(current?.meta || {}), ...metaUpdates };
+
         const { error: updateError } = await supabase
-          .from('players')
-          .update(updateData)
+          .from('participants')
+          .update({ meta: mergedMeta })
           .eq('id', player.id);
 
         if (updateError) {
           updateLeagueBreakdown(summary, league, 'error');
-          const errorMsg = `Error updating player ${player.player_name}: ${updateError.message}`;
+          const errorMsg = `Error updating participant ${player.player_name}: ${updateError.message}`;
           logger.error(errorMsg);
           summary.errorDetails.push(errorMsg);
           return false;
@@ -360,10 +388,8 @@ export async function enrichAllPlayers(league?: SupportedLeague): Promise<Enrich
       `Starting player enrichment${league ? ` for ${league}` : ' for all leagues'}${forceUpdate ? ' (FORCE_UPDATE=true)' : ''}`
     );
 
-    // Build query
-    let query = supabase
-      .from('players')
-      .select('id, player_name, sport, photo_url, height_cm, weight_kg, birthday');
+    // SPRINT-044E: Query from canonical participants table instead of deprecated players
+    let query = supabase.from('participants').select('id, name, sport, meta').eq('type', 'player');
 
     if (league) {
       query = query.eq('sport', league);
@@ -371,21 +397,24 @@ export async function enrichAllPlayers(league?: SupportedLeague): Promise<Enrich
       query = query.in('sport', ['MLB', 'NBA', 'NFL', 'NHL']);
     }
 
-    const { data: players, error } = await query;
+    const { data: participants, error } = await query;
 
     if (error) {
-      logger.error('Error fetching players:', error.message);
+      logger.error('Error fetching participants:', error.message);
       summary.errors = 1;
       summary.errorDetails.push(`Database error: ${error.message}`);
       return summary;
     }
 
-    if (!players || players.length === 0) {
-      logger.info(`No players found${league ? ` for ${league}` : ''}`);
+    if (!participants || participants.length === 0) {
+      logger.info(`No participants found${league ? ` for ${league}` : ''}`);
       return summary;
     }
 
-    logger.info(`Found ${players.length} players to process`);
+    logger.info(`Found ${participants.length} participants to process`);
+
+    // Convert to internal PlayerData shape for enrichment modules
+    const players = participants.map(participantToPlayerData);
 
     // Process each player
     for (const player of players) {
@@ -428,11 +457,14 @@ export async function enrichPlayerById(playerId: string): Promise<boolean> {
   try {
     logger.info(`Enriching player by ID: ${playerId}${forceUpdate ? ' (FORCE_UPDATE=true)' : ''}`);
 
-    const { data: playerData, error } = await supabase
-      .from('players')
-      .select('id, player_name, sport, photo_url, height_cm, weight_kg, birthday')
+    // SPRINT-044E: Query from canonical participants table
+    const { data: participantRow, error } = await supabase
+      .from('participants')
+      .select('id, name, sport, meta')
       .eq('id', playerId)
+      .eq('type', 'player')
       .single();
+    const playerData = participantRow ? participantToPlayerData(participantRow) : null;
 
     if (error) {
       logger.error(`Error fetching player ${playerId}:`, error.message);
