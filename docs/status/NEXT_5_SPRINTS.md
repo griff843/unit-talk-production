@@ -3,9 +3,11 @@
 **Last Updated**: 2026-03-09 **Source**: Drift report + failure modes + phase
 status + Linear backlog
 
+> **Status as of 2026-03-09**: Sprints 1, 2, 3, 5 COMPLETE. Sprint 4 is next.
+
 ---
 
-## Sprint 1: SPRINT-TEST-INFRA-RECOVERY
+## Sprint 1: SPRINT-TEST-INFRA-RECOVERY ✅ DONE
 
 **Priority**: P0 — CRITICAL **Phase**: Phase 1 (Structural Dominance)
 **Estimated Effort**: 1-2 days
@@ -31,7 +33,7 @@ tests and type checks, no sprint can be properly closed per governance rules.
 
 ---
 
-## Sprint 2: SPRINT-SINGLE-WRITER-COMPLETION
+## Sprint 2: SPRINT-SINGLE-WRITER-COMPLETION ✅ DONE
 
 **Priority**: P0 — CRITICAL **Phase**: Phase 1 (Structural Dominance)
 **Estimated Effort**: 2-3 days
@@ -58,7 +60,7 @@ Completing this eliminates the largest category of architectural debt.
 
 ---
 
-## Sprint 3: SPRINT-PROMOTION-ACTIVATION
+## Sprint 3: SPRINT-PROMOTION-ACTIVATION ✅ DONE
 
 **Priority**: P1 — HIGH **Phase**: Phase 1/Phase 2 bridge **Estimated Effort**:
 2 days
@@ -112,7 +114,7 @@ foundation for edge calculation accuracy.
 
 ---
 
-## Sprint 5: SPRINT-OPERATIONAL-OBSERVABILITY
+## Sprint 5: SPRINT-OPERATIONAL-OBSERVABILITY ✅ DONE
 
 **Priority**: P1 — HIGH **Phase**: Phase 1/Phase 2 bridge **Estimated Effort**:
 2 days
@@ -146,12 +148,12 @@ visible harm.
 ## Summary
 
 | #   | Sprint                    | Priority | Phase     | Focus                                 |
-| --- | ------------------------- | -------- | --------- | ------------------------------------- |
-| 1   | TEST-INFRA-RECOVERY       | P0       | Phase 1   | Fix broken tests + type errors        |
-| 2   | SINGLE-WRITER-COMPLETION  | P0       | Phase 1   | Eliminate 13 lifecycle violations     |
-| 3   | PROMOTION-ACTIVATION      | P1       | Phase 1→2 | Enable Discord publishing pipeline    |
-| 4   | MULTI-BOOK-CONSENSUS      | P1       | Phase 2   | V3 consensus scoring + multi-provider |
-| 5   | OPERATIONAL-OBSERVABILITY | P1       | Phase 1→2 | Close latent failure modes            |
+| --- | ------------------------- | -------- | --------- | ------------------------------------- | -------- |
+| 1   | TEST-INFRA-RECOVERY       | P0       | Phase 1   | Fix broken tests + type errors        | ✅ DONE  |
+| 2   | SINGLE-WRITER-COMPLETION  | P0       | Phase 1   | Eliminate 13 lifecycle violations     | ✅ DONE  |
+| 3   | PROMOTION-ACTIVATION      | P1       | Phase 1→2 | Enable Discord publishing pipeline    | ✅ DONE  |
+| 4   | MULTI-BOOK-CONSENSUS      | P1       | Phase 2   | V3 consensus scoring + multi-provider | **NEXT** |
+| 5   | OPERATIONAL-OBSERVABILITY | P1       | Phase 1→2 | Close latent failure modes            | ✅ DONE  |
 
 **Total estimated effort**: 10-13 days **Dependency chain**: Sprint 1 → Sprint 2
 → Sprints 3, 4, 5 (parallel)
