@@ -309,7 +309,9 @@ class PromotionGatekeeper {
     await this.storePromotionDecision(pick, decision);
 
     // PROMOTION_SHADOW_MODE: skip publish guard entirely (decisions still stored above)
-    const promotionShadow = process.env['PROMOTION_SHADOW_MODE'] !== 'false';
+    // SPRINT-PROMOTION-PIPELINE-ACTIVATION: Changed to opt-in (=== 'true') to match
+    // all other shadow mode patterns. Set PROMOTION_SHADOW_MODE=true to block live publishing.
+    const promotionShadow = process.env['PROMOTION_SHADOW_MODE'] === 'true';
     if (promotionShadow) {
       this.logger.info('Promotion shadow mode — skipping PublishGuard (decision stored)', {
         pickId: pick.id,

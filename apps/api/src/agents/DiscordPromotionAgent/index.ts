@@ -54,8 +54,11 @@ function requireDiscordWebhookUrl(): string {
   }
   return url;
 }
+// SPRINT-PROMOTION-PIPELINE-ACTIVATION: Changed to opt-in (=== 'true') to match all other
+// shadow mode patterns in the codebase. Previously inverted default blocked all posting.
+// Set PROMOTION_SHADOW_MODE=true to re-enable shadow mode. Default is now ACTIVE posting.
 function isPromotionShadowMode(): boolean {
-  return process.env['PROMOTION_SHADOW_MODE'] !== 'false';
+  return process.env['PROMOTION_SHADOW_MODE'] === 'true';
 }
 
 function formatOdds(odds: number) {
@@ -1501,13 +1504,36 @@ async function processLegacyPicks(): Promise<number> {
 
 // ---- MAIN AGENT ----
 export async function promoteToDiscord() {
-  if (parsePromotionPolicyConfig().killSwitch) {
+  // SPRINT-PROMOTION-PIPELINE-ACTIVATION: Gate status diagnostics at startup.
+  // If any gate is blocking, log actionable message so operators know what to set.
+  const shadowMode = isPromotionShadowMode();
+  const webhookConfigured = !!getDiscordWebhookUrl();
+  const autopilotMode = process.env.AUTOPILOT_MODE || '(not set — defaults to off)';
+  const promotionPolicyCfg = parsePromotionPolicyConfig();
+
+  logger.info('POSTING-AUTHORITY: Promotion cycle started', {
+    shadowModeEnabled: shadowMode,
+    webhookConfigured,
+    autopilotMode,
+    killSwitch: promotionPolicyCfg.killSwitch,
+    promotionPolicyEnabled: promotionPolicyCfg.policyEnabled,
+    actionRequired: shadowMode
+      ? 'Set PROMOTION_SHADOW_MODE=true to suppress (or unset to allow posting)'
+      : !webhookConfigured
+        ? 'Set DISCORD_WEBHOOK_URL to enable posting'
+        : !['prod', 'canary'].includes(process.env.AUTOPILOT_MODE?.toLowerCase() || '')
+          ? 'Set AUTOPILOT_MODE=prod to allow Discord posts'
+          : null,
+  });
+
+  if (promotionPolicyCfg.killSwitch) {
     logger.info('POSTING-AUTHORITY: Kill switch active — ALL Discord posting blocked');
     return;
   }
   const total =
     (await processCapperPicks()) + (await processSystemPicks()) + (await processLegacyPicks());
   if (total === 0) logger.info('POSTING-AUTHORITY: No eligible picks found.');
+  else logger.info('POSTING-AUTHORITY: Promotion cycle complete', { totalProcessed: total });
 }
 
 // ---- AUTO-DISCORD-POSTING-001: OBSERVABILITY HOOK ----

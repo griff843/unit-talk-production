@@ -211,6 +211,21 @@ export interface AuditAgentActivities {
 
 // SPRINT-035A B-12: CampaignAgentActivities and ContestAgentActivities removed (archived)
 
+// Discord Promotion Agent Activities
+// Barrel: agents/DiscordPromotionAgent/activities.ts
+// SPRINT-PROMOTION-PIPELINE-ACTIVATION
+export interface DiscordPromotionActivities {
+  runDiscordPromotion(): Promise<{ processed: number }>;
+  getDiscordPromotionHealth(): Promise<{
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    pendingCount: number;
+    recentlyPostedCount: number;
+    shadowModeEnabled: boolean;
+    webhookConfigured: boolean;
+    killSwitchActive: boolean;
+  }>;
+}
+
 // Player Enrichment Agent Activities
 // Barrel: agents/PlayerEnrichmentAgent/activities/index.ts
 export interface PlayerEnrichmentAgentActivities {

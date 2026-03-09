@@ -5,6 +5,8 @@ import * as alertActivities from '../agents/AlertAgent/activities';
 import * as analyticsActivities from '../agents/AnalyticsAgent/activities';
 import * as auditActivities from '../agents/AuditAgent/activities';
 import * as baseActivities from '../agents/BaseAgent/activities';
+// SPRINT-PROMOTION-PIPELINE-ACTIVATION: Register Discord promotion activities
+import * as discordPromotionActivities from '../agents/DiscordPromotionAgent/activities';
 import * as feedActivities from '../agents/FeedAgent/activities';
 import * as gradingActivities from '../agents/GradingAgent/activities';
 import * as notificationActivities from '../agents/NotificationAgent/activities';
@@ -54,6 +56,7 @@ export default async function startAllAgents() {
         ...alertActivities,
         ...analyticsActivities,
         ...auditActivities,
+        ...discordPromotionActivities,
         ...feedActivities,
         ...gradingActivities,
         ...notificationActivities,
