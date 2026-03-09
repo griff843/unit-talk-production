@@ -3,6 +3,7 @@
  * Automated 5-15 minute pre-post game validation with real-time monitoring
  */
 
+import { lifecycleUpdate } from '../lib/lifecycle';
 import { publishGuard } from '../promotion/PublishGuard';
 import { Logger, createLogger } from '../utils/logger';
 
@@ -601,39 +602,45 @@ class AutoRecheckService {
     try {
       switch (action.type) {
         case 'cancel':
-          await supabaseClient
-            .from('unified_picks')
-            .update({
+          await lifecycleUpdate(
+            supabaseClient,
+            pick.id,
+            {
               status: 'cancelled',
               cancellation_reason: action.reason,
               cancelled_at: new Date().toISOString(),
               cancelled_by: 'AutoRecheckService',
-            })
-            .eq('id', pick.id);
+            },
+            { writerRole: 'operator_override', skipTransitionValidation: true }
+          );
           break;
 
         case 'tier_change':
-          await supabaseClient
-            .from('unified_picks')
-            .update({
+          await lifecycleUpdate(
+            supabaseClient,
+            pick.id,
+            {
               tier: action.changes.newTier,
               tier_adjustment_reason: action.reason,
               tier_adjusted_at: new Date().toISOString(),
               adjusted_by: 'AutoRecheckService',
-            })
-            .eq('id', pick.id);
+            },
+            { writerRole: 'operator_override', skipTransitionValidation: true }
+          );
           break;
 
         case 'adjust_size':
-          await supabaseClient
-            .from('unified_picks')
-            .update({
+          await lifecycleUpdate(
+            supabaseClient,
+            pick.id,
+            {
               position_size: action.changes.newSize,
               size_adjustment_reason: action.reason,
               size_adjusted_at: new Date().toISOString(),
               adjusted_by: 'AutoRecheckService',
-            })
-            .eq('id', pick.id);
+            },
+            { writerRole: 'operator_override', skipTransitionValidation: true }
+          );
           break;
 
         case 'republish':

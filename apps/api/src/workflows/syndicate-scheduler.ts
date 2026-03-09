@@ -1,6 +1,7 @@
 import { proxyActivities, defineSignal, setHandler, condition, sleep } from '@temporalio/workflow';
 
 import type {
+  DiscordPromotionActivities,
   FeedAgentActivities,
   GradingAgentActivities,
   NotificationAgentActivities,
@@ -8,6 +9,16 @@ import type {
 } from '../types/activities';
 
 // SPRINT-035B TD-6: AlertAgentActivities proxy removed — USP detection quarantined
+
+// SPRINT-PROMOTION-PIPELINE-ACTIVATION: Discord promotion activity proxy
+const discordPromotionActivities = proxyActivities<DiscordPromotionActivities>({
+  startToCloseTimeout: '120 seconds',
+  retry: {
+    maximumAttempts: 2,
+    initialInterval: '5 seconds',
+    maximumInterval: '30 seconds',
+  },
+});
 
 // Activity proxies with syndicate-optimized configurations
 const feedActivities = proxyActivities<FeedAgentActivities>({
@@ -360,6 +371,11 @@ export async function discordAlertWorkflow(params: {
   const { cycleCount } = params;
 
   try {
+    // SPRINT-PROMOTION-PIPELINE-ACTIVATION: Run canonical Discord promotion first.
+    // This calls promoteToDiscord() which processes capper, system, and legacy picks
+    // and posts them to Discord via webhook (outbox-first pattern).
+    await discordPromotionActivities.runDiscordPromotion();
+
     // 1. GET NEW FINAL PICKS
     const newPicks = await gradingActivities.getNewUnifiedPicks({ cycleCount });
 

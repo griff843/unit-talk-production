@@ -16,7 +16,7 @@ import { isAutopilotFrozenAsync, getFreezeDetails } from '@unit-talk/shared';
 
 import { logger } from '../../services/logging';
 
-import { AutopilotFrozenError } from './errors';
+import { AutopilotFrozenError, ConcurrentModificationError } from './errors';
 import { deriveLifecycleStage, assertTransition, validateInvariants } from './transition-validator';
 import { validateWrite, assertWriterAuthority } from './writer-authority';
 
@@ -129,7 +129,7 @@ export async function lifecycleInsert(
 export async function lifecycleUpdate(
   supabase: SupabaseClient,
   pickId: string,
-  updates: Partial<LifecyclePick>,
+  updates: Record<string, unknown>,
   context: WriteContext
 ): Promise<WriteResult> {
   const traceId = context.traceId || `update-${pickId}-${Date.now()}`;
@@ -185,7 +185,10 @@ export async function lifecycleUpdate(
     // 4. Perform the update with optimistic locking
     // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-001 - TOCTOU race
     // Add WHERE guards to detect concurrent modifications
-    const updateQuery = supabase
+    // Build query with optimistic locks on critical state fields
+    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-001 - TOCTOU race
+    // Assign each .eq() result to maintain proper chain (not mutation-dependent)
+    let query = supabase
       .from('unified_picks')
       .update({
         ...updates,
@@ -193,16 +196,14 @@ export async function lifecycleUpdate(
       })
       .eq('id', pickId);
 
-    // Add optimistic locks on critical state fields that could cause corruption
-    // These guards ensure the row hasn't changed since we read it
     if (currentPick.settlement_status !== undefined) {
-      updateQuery.eq('settlement_status', currentPick.settlement_status);
+      query = query.eq('settlement_status', currentPick.settlement_status);
     }
     if (currentPick.posted_to_discord !== undefined) {
-      updateQuery.eq('posted_to_discord', currentPick.posted_to_discord);
+      query = query.eq('posted_to_discord', currentPick.posted_to_discord);
     }
 
-    const { data: updatedRows, error: updateError } = await updateQuery.select('id');
+    const { data: updatedRows, error: updateError } = await query.select('id');
 
     if (updateError) {
       logger.error({ traceId, pickId, error: updateError.message }, 'LIFECYCLE: Update failed');
@@ -226,8 +227,6 @@ export async function lifecycleUpdate(
         },
         'LIFECYCLE: Concurrent modification detected - pick state changed during update'
       );
-      // Import error dynamically to avoid circular dependency
-      const { ConcurrentModificationError } = await import('./errors');
       throw new ConcurrentModificationError(pickId, {
         currentState: {
           settlement_status: currentPick.settlement_status,
@@ -253,6 +252,10 @@ export async function lifecycleUpdate(
       validationPassed: true,
     };
   } catch (err) {
+    // Re-throw hard errors — these must propagate to callers
+    if (err instanceof ConcurrentModificationError || err instanceof AutopilotFrozenError) {
+      throw err;
+    }
     const message = err instanceof Error ? err.message : String(err);
     logger.error({ traceId, pickId, error: message }, 'LIFECYCLE: Update validation failed');
     return {
@@ -396,10 +399,17 @@ export async function lifecycleSettle(
                 : 'pending',
     };
 
-    const { error: updateError } = await supabase
-      .from('unified_picks')
-      .update(updates)
-      .eq('id', pickId);
+    // SPRINT-SETTLEMENT-IDEMPOTENCY-HARDENING: Optimistic lock on settlement_status (GAP-04)
+    const settlementQuery = supabase.from('unified_picks').update(updates).eq('id', pickId);
+
+    // Guard: only update if settlement_status hasn't changed since we fetched
+    if (currentPick.settlement_status !== null && currentPick.settlement_status !== undefined) {
+      settlementQuery.eq('settlement_status', currentPick.settlement_status);
+    } else {
+      settlementQuery.is('settlement_status', null);
+    }
+
+    const { data: settledRows, error: updateError } = await settlementQuery.select('id');
 
     if (updateError) {
       logger.error({ traceId, pickId, error: updateError.message }, 'LIFECYCLE: Settlement failed');
@@ -408,6 +418,18 @@ export async function lifecycleSettle(
         error: updateError.message,
         validationPassed: true,
       };
+    }
+
+    if (!settledRows || settledRows.length === 0) {
+      logger.warn(
+        { traceId, pickId, currentSettlementStatus: currentPick.settlement_status },
+        'LIFECYCLE: Concurrent settlement detected - pick state changed during settlement'
+      );
+      const { ConcurrentModificationError } = await import('./errors');
+      throw new ConcurrentModificationError(pickId, {
+        currentState: { settlement_status: currentPick.settlement_status },
+        attemptedUpdates: updates,
+      });
     }
 
     logger.info(

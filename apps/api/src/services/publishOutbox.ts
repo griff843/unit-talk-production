@@ -280,6 +280,57 @@ export async function fetchPendingOutboxEntries(
   return (data ?? []) as OutboxRow[];
 }
 
+// ---------------------------------------------------------------------------
+// FM-2: Outbox depth monitoring
+// ---------------------------------------------------------------------------
+
+export interface OutboxDepthMetrics {
+  pendingCount: number;
+  failedCount: number;
+  /** Age in minutes of the oldest pending row. Null if no pending rows. */
+  oldestPendingAgeMinutes: number | null;
+  /** True if queue appears stalled: >20 pending OR oldest pending >30 min. */
+  staleAlert: boolean;
+}
+
+/**
+ * SPRINT-OPERATIONAL-OBSERVABILITY (FM-2): Query outbox depth for health checks.
+ * Reports pending/failed counts and oldest pending age to detect delivery stalls.
+ */
+export async function getOutboxDepthMetrics(supabase: SupabaseClient): Promise<OutboxDepthMetrics> {
+  const [pendingResult, failedResult, oldestResult] = await Promise.all([
+    supabase
+      .from('pick_publish')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending'),
+    supabase
+      .from('pick_publish')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'failed'),
+    supabase
+      .from('pick_publish')
+      .select('created_at')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const pendingCount = pendingResult.count ?? 0;
+  const failedCount = failedResult.count ?? 0;
+
+  let oldestPendingAgeMinutes: number | null = null;
+  if (oldestResult.data?.created_at) {
+    const ageMs = Date.now() - new Date(oldestResult.data.created_at).getTime();
+    oldestPendingAgeMinutes = Math.floor(ageMs / 60000);
+  }
+
+  const staleAlert =
+    pendingCount > 20 || (oldestPendingAgeMinutes !== null && oldestPendingAgeMinutes > 30);
+
+  return { pendingCount, failedCount, oldestPendingAgeMinutes, staleAlert };
+}
+
 /**
  * Get outbox receipt for a pick (for verification).
  */

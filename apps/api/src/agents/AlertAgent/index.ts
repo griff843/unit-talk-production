@@ -1,5 +1,6 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity, no-return-await */
 import 'dotenv/config';
+import { lifecycleUpdate } from '../../lib/lifecycle';
 import { withCircuitBreaker, circuitBreaker } from '../../services/enhanced-circuit-breaker';
 import { startMetricsServer } from '../../services/metricsServer';
 import { BaseAgent } from '../BaseAgent/index';
@@ -618,25 +619,6 @@ export class AlertAgent extends BaseAgent {
       'POSTING-AUTHORITY-LOCKDOWN-033: BLOCKED — AlertAgent attempted to claim pick for Discord. Only DiscordPromotionAgent may do this.'
     );
     return false;
-
-    // === DEAD CODE BELOW (preserved for rollback reference) ===
-    if (!this.hasSupabase()) return false;
-
-    const { data: claimed, error: claimErr } = await this.requireSupabase()
-      .from('unified_picks')
-      .update({ posted_to_discord: true, updated_at: new Date().toISOString() })
-      .eq('id', pickId)
-      .eq('posted_to_discord', false)
-      .select('id');
-
-    if (claimErr || !claimed || claimed.length === 0) {
-      this.logger.info(
-        { id: pickId },
-        'Pick already claimed by another agent — skipping (idempotent)'
-      );
-      return false;
-    }
-    return true;
   }
 
   /**
@@ -786,20 +768,19 @@ export class AlertAgent extends BaseAgent {
 
     const updateData: any = {
       posted_to_discord: status === 'posted',
-      updated_at: new Date().toISOString(),
     };
 
     if (messageId) updateData.discord_post_id = messageId;
 
-    const { error } = await this.requireSupabase()
-      .from('unified_picks')
-      .update(updateData)
-      .eq('id', pickId);
+    const result = await lifecycleUpdate(this.requireSupabase(), pickId, updateData, {
+      writerRole: 'poster',
+      skipTransitionValidation: true,
+    });
 
-    if (error) {
+    if (!result.success) {
       this.logger.error('Failed to update pick Discord info', {
         pickId,
-        error: error.message,
+        error: result.error,
       });
     }
   }
@@ -811,13 +792,15 @@ export class AlertAgent extends BaseAgent {
   private async updatePickDiscordPostId(pickId: string, messageId: string): Promise<void> {
     if (!this.hasSupabase()) return;
 
-    const { error } = await this.requireSupabase()
-      .from('unified_picks')
-      .update({ discord_post_id: messageId, updated_at: new Date().toISOString() })
-      .eq('id', pickId);
+    const result = await lifecycleUpdate(
+      this.requireSupabase(),
+      pickId,
+      { discord_post_id: messageId },
+      { writerRole: 'poster', skipTransitionValidation: true }
+    );
 
-    if (error) {
-      this.logger.error('Failed to update discord_post_id', { pickId, error: error.message });
+    if (!result.success) {
+      this.logger.error('Failed to update discord_post_id', { pickId, error: result.error });
     }
   }
 

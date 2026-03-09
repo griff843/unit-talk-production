@@ -1,0 +1,121 @@
+# Current System Status
+
+**Last Updated**: 2026-03-09 **Audit Source**:
+SPRINT-MULTI-BOOK-CONSENSUS-SCORING (post-sprint verification — 567/567 tests
+pass, type-check clean)
+
+---
+
+## Subsystem Readiness Matrix
+
+| Subsystem              | Status     | Evidence                                                                                                                                                | Blocking Issues                                              |
+| ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Ingestion**          | PARTIAL    | SGO + OddsAPI on V3 path; Optimal API still legacy                                                                                                      | Optimal adapter not wired to `provider_offers`               |
+| **Scoring**            | VERIFIED   | GradingAgent + ProfessionalPropProcessor complete; computeConsensus() + probabilityLayer + ShadowScoringService all implemented; 76 new consensus tests | None                                                         |
+| **Promotion**          | PARTIAL    | Agent wired + shadow mode fixed (opt-in); outbox pattern implemented; requires env config                                                               | `AUTOPILOT_MODE=prod` + `PROMOTION_CANARY_PERCENT>0` not set |
+| **Settlement**         | VERIFIED   | lifecycleSettle + TOCTOU lock + idempotency preflight; no raw_props dependency                                                                          | None                                                         |
+| **Recaps**             | PARTIAL    | RecapAgent infra complete; daily/weekly triggers exist; live posting deprecated (by design)                                                             | Needs runtime verification                                   |
+| **Command Center**     | VERIFIED   | READ-ONLY; health + ops-confidence + monitoring endpoints                                                                                               | None                                                         |
+| **Analytics**          | VERIFIED   | AnalyticsAgent + metrics server + CLV computation + loss attribution                                                                                    | Needs runtime verification                                   |
+| **Discord Bot**        | UNVERIFIED | Standalone bot exists; integration unclear                                                                                                              | No recent sprint work                                        |
+| **Smart Form**         | VERIFIED   | Writes to `bridge_outbox` only; form validation complete                                                                                                | None                                                         |
+| **Lifecycle Adapters** | VERIFIED   | Core adapters complete; 0 violations, 0 allowlist entries (SPRINT-SINGLE-WRITER-COMPLETION)                                                             | None                                                         |
+| **CI/CD Pipeline**     | PARTIAL    | Reusable workflows + lifecycle gate exist; vitest 491/491; Jest quarantined separately                                                                  | Jest tests in `test/` partially broken (separate infra)      |
+| **Observability**      | PARTIAL    | FM-2/FM-5/FM-9 closed; outbox depth + orphaned picks + worker heartbeat in /health                                                                      | `@opentelemetry/api` missing in observability package build  |
+
+---
+
+## Allowed Statuses
+
+| Status         | Meaning                                                          |
+| -------------- | ---------------------------------------------------------------- |
+| **VERIFIED**   | Code exists, architecture sound, governance compliance confirmed |
+| **PARTIAL**    | Code exists but incomplete, disabled, or has known gaps          |
+| **ASSUMED**    | Expected to work based on documentation but not verified         |
+| **BROKEN**     | Code exists but does not function correctly                      |
+| **UNVERIFIED** | Insufficient evidence to determine status                        |
+
+---
+
+## Infrastructure Health
+
+| Component              | Status        | Notes                                                                 |
+| ---------------------- | ------------- | --------------------------------------------------------------------- |
+| TypeScript Compilation | CLEAN         | 0 errors (scripts/ excluded via tsconfig; shebang fixed)              |
+| Test Suite (Vitest)    | CLEAN         | 567/567 passing — scoped to `src/**/__tests__/` (+76 consensus tests) |
+| Test Suite (Jest)      | PARTIAL       | `test/` Jest suite: 14 pass, ~79 quarantined/broken                   |
+| Single-Writer Gate     | PASS          | 0 violations, 0 allowlisted (SPRINT-SINGLE-WRITER-COMPLETION)         |
+| Build (API)            | UNVERIFIED    | Requires `pnpm --filter api run build`                                |
+| Build (Command Center) | UNVERIFIED    | Requires `pnpm --filter command-center run build`                     |
+| Build (Smart Form)     | UNVERIFIED    | Requires `pnpm --filter smart-form run build`                         |
+| Git Status             | CLEAN         | No uncommitted changes on sprint branch                               |
+| Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                   |
+
+---
+
+## Agent Status
+
+| Agent                 | Lifecycle Compliant | Active | Notes                                                                                  |
+| --------------------- | ------------------- | ------ | -------------------------------------------------------------------------------------- |
+| GradingAgent          | YES                 | YES    | Uses `lifecycleInsert()` with `promoter` role; writes `promotion_band`                 |
+| SettlementAgent       | YES                 | YES    | Uses `lifecycleSettle()` with `settler` role                                           |
+| DiscordPromotionAgent | YES                 | YES    | Uses `atomicClaimForPost()`; L988-993 bypass removed (SPRINT-SINGLE-WRITER-COMPLETION) |
+| RecapAgent            | YES                 | YES    | Uses `lifecycleUpdate()`                                                               |
+| IngestionAgent        | N/A                 | YES    | Writes to `provider_offers` (different table)                                          |
+| FeedAgent             | N/A                 | YES    | Writes to `provider_offers`/`raw_props`                                                |
+| AlertAgent            | YES                 | YES    | Migrated to `lifecycleUpdate()` (SPRINT-SINGLE-WRITER-COMPLETION)                      |
+| AnalyticsAgent        | N/A                 | YES    | Read-only analytics                                                                    |
+| NotificationAgent     | N/A                 | YES    | Notifications only                                                                     |
+| PlayerEnrichmentAgent | N/A                 | YES    | Reads participants                                                                     |
+| AuditAgent            | N/A                 | YES    | Audit trail only                                                                       |
+| OperatorAgent         | N/A                 | YES    | Manual operations                                                                      |
+
+---
+
+## Data Pipeline Flow (Current)
+
+```
+                              ┌─────────────────┐
+                              │   SGO / OddsAPI  │
+                              │   (providers)    │
+                              └────────┬────────┘
+                                       │
+                              ┌────────▼────────┐
+                              │ provider_offers  │ ← V3 canonical landing
+                              │ (CANONICAL)      │
+                              └────────┬────────┘
+                                       │
+                              ┌────────▼────────┐
+                              │  GradingAgent    │ ← ML scoring + tier
+                              │  (Professional)  │
+                              └────────┬────────┘
+                                       │ lifecycleInsert(promoter)
+                              ┌────────▼────────┐
+                              │ unified_picks    │ ← CANONICAL
+                              │ (lifecycle FSM)  │
+                              └──┬──────────┬───┘
+                                 │          │
+                    ┌────────────▼──┐  ┌────▼───────────┐
+                    │ Discord       │  │ Settlement     │
+                    │ Promotion     │  │ Agent          │
+                    │ (WIRED/GATED) │  │ (VERIFIED)     │
+                    └───────────────┘  └────────────────┘
+```
+
+---
+
+## Key Environment Flags
+
+| Flag                        | Default           | Effect                                                       |
+| --------------------------- | ----------------- | ------------------------------------------------------------ |
+| `GRADING_DATA_SOURCE`       | `provider_offers` | Scoring data source                                          |
+| `USE_PRO_SCORER`            | `true`            | Professional ML scoring                                      |
+| `USE_PROJECTIONS`           | `true`            | Projection edge integration                                  |
+| `PROMOTION_POLICY_V2`       | `false`           | Auto-promotion policy (must be `true` for V2 promotion)      |
+| `PROMOTION_KILL_SWITCH`     | `false`           | Emergency promotion block                                    |
+| `ENABLE_TEMPORAL_SCHEDULES` | `false`           | Scheduled workflows                                          |
+| `AUTOPILOT_MODE`            | `'off'`           | **Must be `prod`** for Discord posting (AutopilotGuard gate) |
+| `DISCORD_WEBHOOK_URL`       | unset             | **Required** for Discord posting                             |
+| `PROMOTION_CANARY_PERCENT`  | `0`               | **Must be >0** (e.g., `100`) to enable canary routing        |
+| `PROMOTION_SHADOW_MODE`     | unset             | Set `true` to suppress Discord posting (dry run)             |
+| `DEMO_MODE`                 | `false`           | Demo/mock behavior                                           |

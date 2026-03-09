@@ -1,10 +1,13 @@
 import 'dotenv/config';
+import { createClient } from '@supabase/supabase-js';
 import { Worker } from '@temporalio/worker';
 
 import * as alertActivities from '../agents/AlertAgent/activities';
 import * as analyticsActivities from '../agents/AnalyticsAgent/activities';
 import * as auditActivities from '../agents/AuditAgent/activities';
 import * as baseActivities from '../agents/BaseAgent/activities';
+// SPRINT-PROMOTION-PIPELINE-ACTIVATION: Register Discord promotion activities
+import * as discordPromotionActivities from '../agents/DiscordPromotionAgent/activities';
 import * as feedActivities from '../agents/FeedAgent/activities';
 import * as gradingActivities from '../agents/GradingAgent/activities';
 import * as notificationActivities from '../agents/NotificationAgent/activities';
@@ -54,6 +57,7 @@ export default async function startAllAgents() {
         ...alertActivities,
         ...analyticsActivities,
         ...auditActivities,
+        ...discordPromotionActivities,
         ...feedActivities,
         ...gradingActivities,
         ...notificationActivities,
@@ -72,9 +76,37 @@ export default async function startAllAgents() {
 
     logger.info('Master worker created successfully, starting to process tasks...');
 
+    // SPRINT-OPERATIONAL-OBSERVABILITY (FM-9): Temporal worker heartbeat
+    // Writes to ops_worker_heartbeats every 60s so /health can detect stale workers.
+    const workerId = process.env['WORKER_INSTANCE_ID'] || `worker-${process.pid}`;
+    let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+    const supabaseUrl = process.env['SUPABASE_URL'];
+    const supabaseKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
+    if (supabaseUrl && supabaseKey) {
+      const heartbeatClient = createClient(supabaseUrl, supabaseKey);
+      const writeHeartbeat = async () => {
+        try {
+          await heartbeatClient.rpc('upsert_worker_heartbeat', {
+            p_worker_name: 'temporal-worker',
+            p_worker_id: workerId,
+            p_status: 'healthy',
+            p_meta: { taskQueue: 'unit-talk-main', pid: process.pid },
+          });
+        } catch (hbErr) {
+          logger.warn('Worker heartbeat write failed (non-fatal)', { err: String(hbErr) });
+        }
+      };
+      // Write immediately then every 60s
+      void writeHeartbeat();
+      heartbeatInterval = setInterval(writeHeartbeat, 60000);
+    } else {
+      logger.warn('FM-9: Worker heartbeat disabled — SUPABASE_URL/SERVICE_ROLE_KEY not set');
+    }
+
     // Handle graceful shutdown
     const shutdown = async (signal: string) => {
       logger.info(`Received ${signal}, initiating graceful shutdown...`);
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
       try {
         await worker.shutdown();
         logger.info('Worker shutdown completed');

@@ -2,7 +2,7 @@
 import { resolveOutcome } from '../../analysis/outcomes/outcome-resolver';
 import { resolveActualValue, hasStatMapping } from '../../analysis/outcomes/stat-resolver';
 import { settleExecutionTelemetry } from '../../lib/executionTelemetry';
-import { lifecycleSettle } from '../../lib/lifecycle';
+import { lifecycleSettle, checkSettleIdempotency } from '../../lib/lifecycle';
 import { fetchSGOEvents } from '../../logic/providers/sgoFetcher';
 import { BaseAgent } from '../BaseAgent/index';
 import {
@@ -520,6 +520,16 @@ export class SettlementAgent extends BaseAgent {
   private async settleProp(pick: any, game: GameResult, settlementData: any): Promise<void> {
     if (!this.hasSupabase()) return;
 
+    // SPRINT-SETTLEMENT-IDEMPOTENCY-HARDENING: Pre-flight idempotency check (GAP-01)
+    const idempotencyCheck = await checkSettleIdempotency(this.requireSupabase(), pick.id);
+    if (idempotencyCheck.isDuplicate) {
+      this.logger.debug(
+        `[SettlementAgent] Pick ${pick.id} already settled — skipping (idempotent)`,
+        { existingState: idempotencyCheck.existingState }
+      );
+      return;
+    }
+
     try {
       // Determine settlement based on prop type and game result
       const settlement = await this.calculatePropSettlement(pick, game, settlementData);
@@ -575,6 +585,13 @@ export class SettlementAgent extends BaseAgent {
       });
 
       if (!result.success) {
+        // SPRINT-SETTLEMENT-IDEMPOTENCY-HARDENING: Concurrent modification is idempotent (GAP-01)
+        if (result.error?.includes('modified by another process')) {
+          this.logger.warn(
+            `[SettlementAgent] Concurrent settlement on pick ${pick.id} — skipping (other worker won)`
+          );
+          return;
+        }
         this.logger.error(`❌ Failed to settle pick via lifecycle adapter: ${pick.id}`, {
           error: result.error,
           validationPassed: result.validationPassed,

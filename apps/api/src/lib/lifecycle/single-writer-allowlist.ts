@@ -36,96 +36,29 @@ export interface AllowlistEntry {
  * These files were not caught by the original same-line gate pattern.
  * Each requires migration to lifecycle adapters in future sprints.
  */
-export const SINGLE_WRITER_ALLOWLIST: AllowlistEntry[] = [
-  // === AGENTS (P0 - high priority) ===
-  {
-    file: 'agents/AlertAgent/index.ts',
-    reason: 'Multi-line writes for Discord posting (dead code at 626, active at 795, 815)',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
-    targetDate: '2026-02-25',
-  },
-  {
-    file: 'agents/DiscordPromotionAgent/index.ts',
-    reason: 'Multi-line write for resetting posted status',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
-    targetDate: '2026-02-25',
-  },
-  // SPRINT-E2E-PICK-MACHINE-REMEDIATION-041D: GradingAgent.ts RESOLVED — uses lifecycleInsert
-  // SPRINT-E2E-PICK-MACHINE-REMEDIATION-041D: RecapAgent/index.ts RESOLVED — uses lifecycleUpdate
-  // === SERVICES (P1 - medium priority) ===
-  {
-    file: 'services/AutoRecheckService.ts',
-    reason: 'Multi-line updates for recheck operations (3 locations)',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
-    targetDate: '2026-02-28',
-  },
-  {
-    file: 'services/capperService.ts',
-    reason: 'Multi-line CRUD operations (insert, update, delete)',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
-    targetDate: '2026-02-28',
-  },
-  {
-    file: 'services/PickMonitoringService.ts',
-    reason: 'Multi-line update for monitoring',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
-    targetDate: '2026-02-28',
-  },
-  // SPRINT-E2E-PICK-MACHINE-REMEDIATION-041D: ProfessionalPropProcessor.ts RESOLVED — uses lifecycleInsert
-  {
-    file: 'services/STierEnforcer.ts',
-    reason: 'Multi-line update for S-tier enforcement',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
-    targetDate: '2026-02-28',
-  },
-  // === LIB/PROMOTION (P1) ===
-  {
-    file: 'lib/discordReceiptContract.ts',
-    reason: 'Multi-line update for Discord receipt',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
-    targetDate: '2026-02-28',
-  },
-  {
-    file: 'promotion/PublishGuard.ts',
-    reason: 'Multi-line updates for publish guard (2 locations)',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
-    targetDate: '2026-02-28',
-  },
-  // === WORKERS (P1) ===
-  {
-    file: 'workers/BridgeWorker.ts',
-    reason: 'Multi-line update in bridge processing',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
-    targetDate: '2026-02-28',
-  },
-  // === UTILS (P2 - lower priority) ===
-  {
-    file: 'utils/optimizedInsertions.ts',
-    reason: 'Multi-line insert/update for optimized operations',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
-    targetDate: '2026-03-05',
-  },
-  // === ROUTES (P2 - admin operations) ===
-  {
-    file: 'routes/ops.ts',
-    reason: 'Multi-line delete for admin operations',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
-    targetDate: '2026-03-05',
-  },
-  // === SCRIPTS (P3 - utility scripts) ===
-  {
-    file: 'scripts/backfill-feature-contributions.ts',
-    reason: 'Multi-line update for backfill',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
-    targetDate: '2026-03-05',
-  },
-  {
-    file: 'scripts/discord-canary-webhook.ts',
-    reason: 'Multi-line insert for canary testing',
-    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
-    targetDate: '2026-03-05',
-  },
-];
+/**
+ * ALLOWLIST — ALL ENTRIES CLEARED
+ * Sprint: SPRINT-SINGLE-WRITER-MIGRATION-COMPLETION
+ * Date: 2026-03-09
+ *
+ * All 13 previously-allowlisted files have been resolved:
+ * - 10 production files migrated to use lifecycle adapters
+ * - 3 structural files (routes/ops.ts, scripts/backfill-*, scripts/discord-canary-*)
+ *   added as permanent ALLOWED_PATTERNS in single-writer-gate.ts
+ *
+ * Migration history (this sprint):
+ * - AlertAgent/index.ts → lifecycleUpdate (poster)
+ * - DiscordPromotionAgent/index.ts → lifecycleUpdate (poster)
+ * - AutoRecheckService.ts → lifecycleUpdate (operator_override) [previous session]
+ * - capperService.ts → lifecycleInsert (submitter) + lifecycleUpdate (operator_override)
+ * - PickMonitoringService.ts → lifecycleUpdate (operator_override) [previous session]
+ * - STierEnforcer.ts → lifecycleUpdate (operator_override) [previous session]
+ * - lib/discordReceiptContract.ts → lifecycleUpdate (poster)
+ * - promotion/PublishGuard.ts → lifecycleUpdate (promoter)
+ * - workers/BridgeWorker.ts → lifecycleUpdate (promoter)
+ * - utils/optimizedInsertions.ts → lifecycleInsert (submitter) + lifecycleUpdate (promoter)
+ */
+export const SINGLE_WRITER_ALLOWLIST: AllowlistEntry[] = [];
 
 /**
  * Check if a file is in the allowlist

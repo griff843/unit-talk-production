@@ -54,8 +54,11 @@ function requireDiscordWebhookUrl(): string {
   }
   return url;
 }
+// SPRINT-PROMOTION-PIPELINE-ACTIVATION: Changed to opt-in (=== 'true') to match all other
+// shadow mode patterns in the codebase. Previously inverted default blocked all posting.
+// Set PROMOTION_SHADOW_MODE=true to re-enable shadow mode. Default is now ACTIVE posting.
 function isPromotionShadowMode(): boolean {
-  return process.env['PROMOTION_SHADOW_MODE'] !== 'false';
+  return process.env['PROMOTION_SHADOW_MODE'] === 'true';
 }
 
 function formatOdds(odds: number) {
@@ -133,14 +136,23 @@ async function enqueuePickToOutbox(
  * Record successful Discord post in outbox.
  */
 async function recordOutboxReceipt(outboxId: string, messageId: string): Promise<void> {
+  // SPRINT-SETTLEMENT-IDEMPOTENCY-HARDENING: Add retry; posted_to_discord already set atomically (GAP-03)
   try {
-    await markOutboxPublished(supabase, outboxId, {
-      externalMessageId: messageId,
-    });
-  } catch (err) {
-    logger.error(
-      { outboxId, messageId, error: err },
-      'OUTBOX-023: Failed to record outbox receipt (non-fatal)'
+    await markOutboxPublished(supabase, outboxId, { externalMessageId: messageId });
+    return;
+  } catch (firstErr) {
+    logger.warn(
+      { outboxId, messageId, error: firstErr },
+      'OUTBOX-023: Failed to record outbox receipt (attempt 1/2) — retrying'
+    );
+  }
+  await new Promise(resolve => setTimeout(resolve, 200));
+  try {
+    await markOutboxPublished(supabase, outboxId, { externalMessageId: messageId });
+  } catch (secondErr) {
+    logger.warn(
+      { outboxId, messageId, error: secondErr },
+      'OUTBOX-023: Failed to record outbox receipt after retry — pick_publish may be stale'
     );
   }
 }
@@ -975,17 +987,16 @@ async function confirmPostWithReceipt(
  */
 async function resetPostingOnFailure(pickId: string, reason: string): Promise<void> {
   try {
-    const { error } = await supabase
-      .from('unified_picks')
-      .update({
-        posted_to_discord: false,
-        promotion_posted_at: null,
-      })
-      .eq('id', pickId);
+    const updateResult = await lifecycleUpdate(
+      supabase,
+      pickId,
+      { posted_to_discord: false, promotion_posted_at: null },
+      { writerRole: 'poster', skipTransitionValidation: true }
+    );
 
-    if (error) {
+    if (!updateResult.success) {
       logger.error(
-        { pickId, error: error.message },
+        { pickId, error: updateResult.error },
         'REAL-DISCORD-RECEIPT-049: Failed to reset posting claim'
       );
     } else {
@@ -1493,13 +1504,36 @@ async function processLegacyPicks(): Promise<number> {
 
 // ---- MAIN AGENT ----
 export async function promoteToDiscord() {
-  if (parsePromotionPolicyConfig().killSwitch) {
+  // SPRINT-PROMOTION-PIPELINE-ACTIVATION: Gate status diagnostics at startup.
+  // If any gate is blocking, log actionable message so operators know what to set.
+  const shadowMode = isPromotionShadowMode();
+  const webhookConfigured = !!getDiscordWebhookUrl();
+  const autopilotMode = process.env.AUTOPILOT_MODE || '(not set — defaults to off)';
+  const promotionPolicyCfg = parsePromotionPolicyConfig();
+
+  logger.info('POSTING-AUTHORITY: Promotion cycle started', {
+    shadowModeEnabled: shadowMode,
+    webhookConfigured,
+    autopilotMode,
+    killSwitch: promotionPolicyCfg.killSwitch,
+    promotionPolicyEnabled: promotionPolicyCfg.policyEnabled,
+    actionRequired: shadowMode
+      ? 'Set PROMOTION_SHADOW_MODE=true to suppress (or unset to allow posting)'
+      : !webhookConfigured
+        ? 'Set DISCORD_WEBHOOK_URL to enable posting'
+        : !['prod', 'canary'].includes(process.env.AUTOPILOT_MODE?.toLowerCase() || '')
+          ? 'Set AUTOPILOT_MODE=prod to allow Discord posts'
+          : null,
+  });
+
+  if (promotionPolicyCfg.killSwitch) {
     logger.info('POSTING-AUTHORITY: Kill switch active — ALL Discord posting blocked');
     return;
   }
   const total =
     (await processCapperPicks()) + (await processSystemPicks()) + (await processLegacyPicks());
   if (total === 0) logger.info('POSTING-AUTHORITY: No eligible picks found.');
+  else logger.info('POSTING-AUTHORITY: Promotion cycle complete', { totalProcessed: total });
 }
 
 // ---- AUTO-DISCORD-POSTING-001: OBSERVABILITY HOOK ----

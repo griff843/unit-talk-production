@@ -1,5 +1,8 @@
+import { randomUUID } from 'crypto';
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+import { lifecycleInsert, lifecycleUpdate } from '../lib/lifecycle';
 import { logger } from '../shared/logger';
 
 // SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
@@ -213,25 +216,24 @@ export class CapperService {
     try {
       this.performanceMetrics.queryCount++;
 
+      const id = pickData.id || randomUUID();
       const enhancedPickData = {
         ...pickData,
+        id,
         status: pickData.status || 'pending',
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
         confidence: pickData.confidence || 'medium',
         units: pickData.units || 1,
       };
 
-      const { data, error } = await getCapperSupabase()
-        .from('unified_picks')
-        .insert(enhancedPickData)
-        .select()
-        .single();
+      const result = await lifecycleInsert(getCapperSupabase(), enhancedPickData as any, {
+        writerRole: 'submitter',
+      });
 
-      if (error) throw error;
+      if (!result.success) throw new Error(result.error || 'Insert failed');
 
-      logger.info('Pick submitted successfully', { pickId: data.id });
-      return data as PickData;
+      logger.info('Pick submitted successfully', { pickId: result.pickId });
+      return { ...enhancedPickData, id: result.pickId! } as PickData;
     } catch (error) {
       this.performanceMetrics.errorCount++;
       logger.error('Error submitting pick', { error, pickData });
@@ -246,17 +248,21 @@ export class CapperService {
     try {
       this.performanceMetrics.queryCount++;
 
+      const result = await lifecycleUpdate(
+        getCapperSupabase(),
+        pickId,
+        { ...updates, updated_at: new Date().toISOString() },
+        { writerRole: 'operator_override', skipTransitionValidation: true }
+      );
+
+      if (!result.success) throw new Error(result.error || 'Update failed');
+
       const { data, error } = await getCapperSupabase()
         .from('unified_picks')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
+        .select('*')
         .eq('id', pickId)
-        .select()
         .single();
-
-      if (error) throw error;
+      if (error) return null;
 
       return data as PickData;
     } catch (error) {
@@ -270,20 +276,13 @@ export class CapperService {
    * Delete a pick
    */
   async deletePick(pickId: string): Promise<boolean> {
-    try {
-      this.performanceMetrics.queryCount++;
-
-      const { error } = await getCapperSupabase().from('unified_picks').delete().eq('id', pickId);
-
-      if (error) throw error;
-
-      logger.info('Pick deleted successfully', { pickId });
-      return true;
-    } catch (error) {
-      this.performanceMetrics.errorCount++;
-      logger.error('Error deleting pick', { error, pickId });
-      return false;
-    }
+    // Direct deletion of unified_picks is not permitted under the lifecycle model.
+    // Picks must be voided via lifecycle void transition instead.
+    logger.warn(
+      'deletePick: direct deletion of unified_picks is not permitted; use lifecycle void',
+      { pickId }
+    );
+    return false;
   }
 
   /**
@@ -314,15 +313,15 @@ export class CapperService {
     try {
       this.performanceMetrics.queryCount++;
 
-      const { error } = await getCapperSupabase()
-        .from('unified_picks')
-        .update({
-          status: 'published',
-          updated_at: new Date().toISOString(),
-        })
-        .in('id', pickIds);
-
-      if (error) throw error;
+      for (const pickId of pickIds) {
+        const result = await lifecycleUpdate(
+          getCapperSupabase(),
+          pickId,
+          { status: 'published' as any, updated_at: new Date().toISOString() },
+          { writerRole: 'operator_override', skipTransitionValidation: true }
+        );
+        if (!result.success) throw new Error(`Failed to finalize pick ${pickId}: ${result.error}`);
+      }
 
       logger.info('Picks finalized successfully', { count: pickIds.length });
       return true;

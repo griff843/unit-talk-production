@@ -15,7 +15,11 @@ import * as path from 'path';
 import { describe, it, expect } from 'vitest';
 
 import { runSingleWriterGate } from '../single-writer-gate';
-import { isTransitionAllowed, deriveLifecycleStage } from '../transition-validator';
+import {
+  isTransitionAllowed,
+  deriveLifecycleStage,
+  assertTransition,
+} from '../transition-validator';
 import { assertWriterAuthority, canWriteField, getFieldAuthority } from '../writer-authority';
 
 import type { LifecyclePick, WriterRole } from '../types';
@@ -158,20 +162,12 @@ describe('Single-Writer Gate (Multi-Line Detection)', () => {
     expect(settlementViolations).toHaveLength(0);
   });
 
-  it('should have allowlist entries for known pending migrations', async () => {
-    // Import and check allowlist
+  it('should have an empty allowlist after all migrations completed', async () => {
+    // SPRINT-SINGLE-WRITER-MIGRATION-COMPLETION: All 13 allowlisted files have been
+    // migrated to use lifecycle adapters or added as permanent gate exemptions.
     const { SINGLE_WRITER_ALLOWLIST } = await import('../single-writer-allowlist');
 
-    // We expect 16 entries after 071A
-    expect(SINGLE_WRITER_ALLOWLIST.length).toBeGreaterThan(0);
-
-    // Each entry should have required fields
-    for (const entry of SINGLE_WRITER_ALLOWLIST) {
-      expect(entry.file).toBeDefined();
-      expect(entry.reason).toBeDefined();
-      expect(entry.migrationTicket).toBeDefined();
-      expect(entry.targetDate).toBeDefined();
-    }
+    expect(SINGLE_WRITER_ALLOWLIST.length).toBe(0);
   });
 });
 
@@ -186,7 +182,7 @@ describe('SettlementAgent Code Integrity', () => {
     const content = fs.readFileSync(settlementAgentPath, 'utf-8');
 
     // Should have lifecycle import
-    expect(content).toContain('import { lifecycleSettle }');
+    expect(content).toContain('import { lifecycleSettle');
     expect(content).toContain("from '../../lib/lifecycle'");
   });
 
@@ -219,5 +215,46 @@ describe('SettlementAgent Code Integrity', () => {
     // Should use lifecycleSettle
     expect(content).toContain('lifecycleSettle(');
     expect(content).toContain("writerRole: 'settler'");
+  });
+
+  it('should import checkSettleIdempotency for pre-flight check (GAP-01)', () => {
+    const settlementAgentPath = path.join(__dirname, '../../../agents/SettlementAgent/index.ts');
+
+    const content = fs.readFileSync(settlementAgentPath, 'utf-8');
+
+    expect(content).toContain('checkSettleIdempotency');
+  });
+});
+
+// ============================================================
+// SETTLEMENT TRANSITION PROTECTION (GAP-04 defense layers)
+// Sprint: SPRINT-SETTLEMENT-IDEMPOTENCY-HARDENING
+// ============================================================
+
+describe('Settlement Transition Protection (GAP-04 defense layers)', () => {
+  it('CANCELLED -> SETTLED is forbidden', () => {
+    expect(isTransitionAllowed('CANCELLED', 'SETTLED')).toBe(false);
+  });
+
+  it('VOID -> SETTLED is forbidden', () => {
+    expect(isTransitionAllowed('VOID', 'SETTLED')).toBe(false);
+  });
+
+  it('assertTransition throws on CANCELLED pick settlement attempt', () => {
+    expect(() =>
+      assertTransition('CANCELLED', 'SETTLED', {
+        pickId: 'test-001',
+        writerRole: 'settler',
+      })
+    ).toThrow();
+  });
+
+  it('assertTransition throws on VOID pick settlement attempt', () => {
+    expect(() =>
+      assertTransition('VOID', 'SETTLED', {
+        pickId: 'test-002',
+        writerRole: 'settler',
+      })
+    ).toThrow();
   });
 });

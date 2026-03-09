@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import { RiskEngine } from '../../RiskEngine';
+import { RiskEngine } from '../RiskEngine';
 import { DEFAULT_RISK_CONFIG } from '../types';
 
 // ============================================================================

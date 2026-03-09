@@ -3,6 +3,7 @@
  * Real-time monitoring of active picks with odds tracking and alert generation
  */
 
+import { lifecycleUpdate } from '../lib/lifecycle';
 import { publishGuard } from '../promotion/PublishGuard';
 import { Logger, createLogger } from '../utils/logger';
 
@@ -496,15 +497,17 @@ class PickMonitoringService {
     pick.status = 'suspended';
 
     try {
-      await supabaseClient
-        .from('unified_picks')
-        .update({
-          status: 'suspended',
+      await lifecycleUpdate(
+        supabaseClient,
+        pickId,
+        {
+          status: 'suspended' as any,
           suspension_reason: reason,
           suspended_at: new Date().toISOString(),
           suspended_by: 'PickMonitoringService',
-        })
-        .eq('id', pickId);
+        },
+        { writerRole: 'operator_override', skipTransitionValidation: true }
+      );
 
       this.logger.info('Pick suspended', { pickId, reason });
     } catch (error) {

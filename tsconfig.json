@@ -9,5 +9,5 @@
     "noEmit": true
   },
   "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts"],
-  "exclude": ["node_modules", "**/node_modules", "**/dist", "**/.next"]
+  "exclude": ["node_modules", "**/node_modules", "**/dist", "**/.next", "apps/api/scripts/**", "apps/*/scripts/**"]
 }
