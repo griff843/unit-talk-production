@@ -99,6 +99,9 @@ importers:
       '@temporalio/client':
         specifier: ^1.8.0
         version: 1.15.0
+      '@temporalio/common':
+        specifier: ^1.8.0
+        version: 1.15.0
       '@temporalio/worker':
         specifier: ^1.8.0
         version: 1.15.0(tslib@2.8.1)
@@ -111,6 +114,9 @@ importers:
       '@types/express-rate-limit':
         specifier: ^5.1.3
         version: 5.1.3
+      '@unit-talk/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@unit-talk/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -132,6 +138,9 @@ importers:
       date-fns:
         specifier: ^3.6.0
         version: 3.6.0
+      dayjs:
+        specifier: ^1.11.10
+        version: 1.11.19
       discord.js:
         specifier: ^14.14.1
         version: 14.25.1
@@ -141,6 +150,9 @@ importers:
       express-rate-limit:
         specifier: ^7.5.1
         version: 7.5.1(express@4.22.1)
+      form-data:
+        specifier: ^4.0.0
+        version: 4.0.5
       gpt-tokenizer:
         specifier: ^3.0.1
         version: 3.4.0
@@ -202,6 +214,9 @@ importers:
       '@axe-core/playwright':
         specifier: ^4.8.5
         version: 4.11.1(playwright-core@1.58.2)
+      '@jest/globals':
+        specifier: ^29.7.0
+        version: 29.7.0
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.9.1
@@ -241,6 +256,9 @@ importers:
       '@types/winston':
         specifier: ^2.4.4
         version: 2.4.4
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.18.1
       '@typescript-eslint/eslint-plugin':
         specifier: ^6.12.0
         version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint@8.57.1)(typescript@5.9.2)
@@ -690,6 +708,9 @@ importers:
       node-cron:
         specifier: ^3.0.3
         version: 3.0.3
+      openai:
+        specifier: ^4.103.0
+        version: 4.104.0(ws@8.19.0)(zod@3.25.76)
       rate-limiter-flexible:
         specifier: ^2.4.2
         version: 2.4.2
@@ -706,6 +727,9 @@ importers:
         specifier: ^3.22.4
         version: 3.25.76
     devDependencies:
+      '@jest/globals':
+        specifier: ^29.7.0
+        version: 29.7.0
       '@types/bcrypt':
         specifier: ^5.0.2
         version: 5.0.2
@@ -1005,6 +1029,9 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.7.0
         version: 1.9.0
+      '@opentelemetry/core':
+        specifier: ^1.17.0
+        version: 1.30.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/exporter-trace-otlp-http':
         specifier: ^0.45.0
         version: 0.45.1(@opentelemetry/api@1.9.0)
@@ -1070,6 +1097,21 @@ importers:
       typescript:
         specifier: ^5.0.0
         version: 5.9.2
+
+  tools/claude-os:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.19.9
+        version: 20.19.9
+      tsx:
+        specifier: ^4.6.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.2
+      vitest:
+        specifier: ^3.2.1
+        version: 3.2.4(@types/node@20.19.9)(jiti@1.21.7)(jsdom@26.1.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   tools/huly-os:
     dependencies:
@@ -15711,17 +15753,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.12.1(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1):
-    dependencies:
-      debug: 3.2.7(supports-color@8.1.1)
-    optionalDependencies:
-      '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.9.2)
-      eslint: 8.57.1
-      eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@8.57.1)
-    transitivePeerDependencies:
-      - supports-color
-
   eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@8.57.1)(typescript@5.9.2))(eslint@8.57.1):
     dependencies:
       '@rtsao/scc': 1.1.0
@@ -15762,7 +15793,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.1(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1)
+      eslint-module-utils: 2.12.1(@typescript-eslint/parser@5.62.0(eslint@8.57.1)(typescript@5.9.2))(eslint-import-resolver-node@0.3.9)(eslint@8.57.1)
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3
@@ -15791,7 +15822,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.1(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1)
+      eslint-module-utils: 2.12.1(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1)
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3

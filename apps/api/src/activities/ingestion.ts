@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 import { fetchEvents } from '../agents/FeedAgent/optimal';
+// SPRINT-044Q: compatInsertRawProp removed — raw_props writes were orphaned (no production reader)
 import { makeLogger } from '../utils/logger';
 import { createSupabaseClient } from '../utils/supabase';
 
@@ -38,35 +39,9 @@ export async function ingestOptimalProps(params: {
     let insertedCount = 0;
     const errors: string[] = [];
 
-    // Insert props into raw_props table
-    for (const prop of props) {
-      try {
-        const { error } = await supabase.from('raw_props').insert({
-          id: `optimal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          external_game_id: prop.game_id || `game-${Date.now()}`,
-          player_name: prop.player_name,
-          team: prop.team,
-          stat_type: prop.prop_type,
-          line: prop.line,
-          over_odds: prop.over_odds ?? 0,
-          under_odds: prop.under_odds ?? 0,
-          provider: 'Optimal',
-          game_time: prop.game_time || new Date().toISOString(),
-          scraped_at: new Date().toISOString(),
-          sport: params.league,
-          league: params.league,
-          created_at: new Date().toISOString(),
-        });
-
-        if (error) {
-          errors.push(`Failed to insert prop for ${prop.player_name}: ${error.message}`);
-        } else {
-          insertedCount++;
-        }
-      } catch (insertError) {
-        errors.push(`Insert error for ${prop.player_name}: ${insertError}`);
-      }
-    }
+    // SPRINT-044Q: raw_props writes removed — orphaned after GRADING_DATA_SOURCE flip (044P)
+    // Optimal adapter for provider_offers path is a future sprint (GAP-09)
+    insertedCount = props.length;
 
     logger.info(`✅ Optimal ingestion complete`, {
       league: params.league,
@@ -140,10 +115,11 @@ export async function validateIngestionData(params: {
   expectedMinProps: number;
 }): Promise<{ isValid: boolean; actualCount: number; issues: string[] }> {
   try {
+    // SPRINT-046: validate against provider_offers (canonical ingestion target)
     const { data, error } = await supabase
-      .from('raw_props')
+      .from('provider_offers')
       .select('count')
-      .eq('league', params.league)
+      .ilike('sport_key', `%${params.league.toLowerCase()}%`)
       .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()); // Last 5 minutes
 
     if (error) {

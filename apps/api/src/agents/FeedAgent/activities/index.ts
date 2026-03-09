@@ -1,5 +1,6 @@
 import { proxyActivities } from '@temporalio/workflow';
 
+// SPRINT-044Q: compatInsertRawProp removed — raw_props writes were orphaned (no production reader)
 import { supabaseClient } from '../../../services/supabaseClient';
 import { RawProp } from '../../../types/rawProps';
 import { fetchRawProps } from '../../IngestionAgent/fetchRawProps';
@@ -264,31 +265,11 @@ export async function ingestUnifiedData(params: {
           },
         }));
 
-        // Insert in batches to handle large datasets
-        const batchSize = params.batchSize || 100;
-        let insertedCount = 0;
-
-        for (let i = 0; i < propsForDB.length; i += batchSize) {
-          const batch = propsForDB.slice(i, i + batchSize);
-
-          const { error: insertError } = await supabaseClient.from('raw_props').insert(batch);
-
-          if (insertError) {
-            console.error(
-              `[FeedAgent] Database insert failed for batch ${Math.floor(i / batchSize) + 1}:`,
-              insertError
-            );
-            throw new Error(`Database insert failed: ${insertError.message}`);
-          }
-
-          insertedCount += batch.length;
-          console.log(
-            `[FeedAgent] Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(propsForDB.length / batchSize)} (${insertedCount} total)`
-          );
-        }
-
+        // SPRINT-044Q: raw_props batch insert removed — orphaned after GRADING_DATA_SOURCE flip (044P)
+        // FeedAgent ingestion now only writes to provider_offers via V3 path
+        const insertedCount = propsForDB.length;
         console.log(
-          `[FeedAgent] Successfully persisted ${insertedCount} props to database with batch_id: ${batchId}`
+          `[FeedAgent] Skipped raw_props write for ${insertedCount} props (orphaned, batch_id: ${batchId})`
         );
 
         // Update provider health

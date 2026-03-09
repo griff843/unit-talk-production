@@ -20,6 +20,7 @@ import { planArtifacts } from './artifact-planner.js';
 import { buildContextPack } from './context-loader.js';
 import { evaluateDrift, configFromProfile } from './drift-sentinel.js';
 import { loadGovernance } from './governance-loader.js';
+import { MAX_AUTOPILOT_LEVEL, EXECUTION_LEVEL_NAMES } from './types.js';
 import { resolveVerification, isValidSprintType } from './verification-resolver.js';
 
 import type {
@@ -35,7 +36,10 @@ import type {
   ProjectProfile,
   TaskEnvelope,
   ProfileDomainKeywordMap,
+  ExecutionLevel,
+  RiskEscalation,
 } from './types.js';
+
 
 // ---------------------------------------------------------------------------
 // Plan Assembly
@@ -182,7 +186,7 @@ export function assembleSprintPlan(request: SprintExecutionRequest): SprintExecu
   // --- Evaluate drift ---
   const driftSignals = evaluateDrift(request, governance.packageOwnership, governance.systemLaws);
 
-  // Critical drift signals become fail-closed blockers
+  // Critical drift signals become fail-closed blockers (no execution level → always block)
   for (const signal of driftSignals) {
     if (signal.severity === 'critical') {
       failClosedBlockers.push({
@@ -235,6 +239,7 @@ export function assembleSprintPlan(request: SprintExecutionRequest): SprintExecu
     artifactPlan,
     driftSignals,
     failClosedBlockers,
+    riskEscalations: [],
     deferredRequirements,
     nextStepRecommendations,
     generatedAt: new Date().toISOString(),
@@ -245,11 +250,21 @@ export function assembleSprintPlan(request: SprintExecutionRequest): SprintExecu
  * Assemble a profile-aware sprint execution plan.
  * Uses project profile for drift config, verification defaults, and domain keywords.
  * Optionally merges task envelope data into the request.
+ *
+ * When executionLevel is provided, critical drift signals from risk-area detection
+ * are handled proportionally:
+ * - Level 0-1 (AUTOPILOT/GUIDED): critical areas → hard blockers (fail-closed)
+ * - Level 2+ (SUPERVISED/COLLABORATIVE/HUMAN_LED): critical areas → risk escalations
+ *   (flagged, annotated, stronger verification required, but NOT blocking)
+ *
+ * True governance violations (missing truth sources, invalid sprint type, etc.)
+ * always remain hard blockers regardless of execution level.
  */
 export function assembleSprintPlanWithProfile(
   request: SprintExecutionRequest,
   profile: ProjectProfile,
-  envelope?: TaskEnvelope
+  envelope?: TaskEnvelope,
+  executionLevel?: ExecutionLevel
 ): SprintExecutionPlan {
   const failClosedBlockers: FailClosedReason[] = [];
   const deferredRequirements: DeferredRequirement[] = [];
@@ -401,15 +416,34 @@ export function assembleSprintPlanWithProfile(
     driftConfig
   );
 
+  // --- Execution-level-aware drift signal handling (CLAUDE-OS-REDESIGN-001) ---
+  const riskEscalations: RiskEscalation[] = [];
+  const effectiveLevel: ExecutionLevel = executionLevel ?? 0;
+  const supervisedOrAbove = effectiveLevel > MAX_AUTOPILOT_LEVEL;
+
   for (const signal of driftSignals) {
     if (signal.severity === 'critical') {
-      failClosedBlockers.push({
-        rule: signal.lawReference ?? 'Drift Detection',
-        description: signal.description,
-        severity: 'blocking',
-        source: 'drift-sentinel',
-        resolution: signal.recommendation,
-      });
+      if (supervisedOrAbove) {
+        // Level 2+: Critical areas become risk escalations, not blockers.
+        // The human is supervising — flag it, annotate it, elevate verification.
+        riskEscalations.push({
+          area: signal.area,
+          severity: 'critical',
+          description: signal.description,
+          recommendation: signal.recommendation,
+          executionLevelAtEvaluation: effectiveLevel,
+          lawReference: signal.lawReference,
+        });
+      } else {
+        // Level 0-1: Critical areas are hard blockers (fail-closed).
+        failClosedBlockers.push({
+          rule: signal.lawReference ?? 'Drift Detection',
+          description: signal.description,
+          severity: 'blocking',
+          source: 'drift-sentinel',
+          resolution: signal.recommendation,
+        });
+      }
     }
   }
 
@@ -455,6 +489,15 @@ export function assembleSprintPlanWithProfile(
     );
   }
 
+  // Risk escalation annotations for supervised mode
+  if (riskEscalations.length > 0) {
+    const levelName = EXECUTION_LEVEL_NAMES[effectiveLevel];
+    nextStepRecommendations.push(
+      `${riskEscalations.length} critical area(s) acknowledged as risk escalation(s) at Level ${effectiveLevel} (${levelName}). ` +
+        'Stronger verification and proof annotations are required. Human ratification recommended before merge.'
+    );
+  }
+
   return {
     status,
     request: effectiveRequest,
@@ -465,6 +508,7 @@ export function assembleSprintPlanWithProfile(
     artifactPlan,
     driftSignals,
     failClosedBlockers,
+    riskEscalations,
     deferredRequirements,
     nextStepRecommendations,
     generatedAt: new Date().toISOString(),

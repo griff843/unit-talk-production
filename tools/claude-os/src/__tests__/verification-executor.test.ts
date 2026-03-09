@@ -7,9 +7,14 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { executeVerification } from '../verification-executor.js';
+import { executeVerification, executeScopedVerification } from '../verification-executor.js';
 
-import type { SprintExecutionPlan, CommandRunner, VerificationRequirement } from '../types.js';
+import type {
+  SprintExecutionPlan,
+  BlastRadius,
+  CommandRunner,
+  VerificationRequirement,
+} from '../types.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -77,6 +82,7 @@ function makePlan(reqs: VerificationRequirement[]): SprintExecutionPlan {
     },
     driftSignals: [],
     failClosedBlockers: [],
+    riskEscalations: [],
     deferredRequirements: [],
     nextStepRecommendations: [],
     generatedAt: new Date().toISOString(),
@@ -169,5 +175,160 @@ describe('verification-executor', () => {
     expect(result.runtimeProofGate).toBeDefined();
     expect(result.runtimeProofGate.required).toBe(false);
     expect(result.runtimeProofGate.satisfied).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Scope-Aware Verification (CLAUDE-OS-SCOPE-HARDENING)
+// ---------------------------------------------------------------------------
+
+function makeApiBlastRadius(): BlastRadius {
+  return {
+    affectedWorkspaces: [
+      {
+        name: 'api',
+        filterPattern: 'api',
+        touchedPaths: ['apps/api/src/agents/GradingAgent.ts'],
+        changeRisk: 'critical',
+      },
+      {
+        name: 'claude-os',
+        filterPattern: 'claude-os',
+        touchedPaths: ['tools/claude-os/src/scope-resolver.ts'],
+        changeRisk: 'medium',
+      },
+    ],
+    globalGatesRequired: true,
+    unmappedAreas: [],
+    summary: 'Affected: api, claude-os',
+  };
+}
+
+describe('executeScopedVerification', () => {
+  it('classifies global gate failures as global_blocker', () => {
+    const plan = makePlan([
+      makeRequirement({
+        recipeId: 'lifecycle_gate',
+        commandPlaceholder: 'pnpm --filter api run lifecycle:single-writer -- --strict',
+      }),
+    ]);
+    const blast = makeApiBlastRadius();
+    const result = executeScopedVerification(plan, blast, { commandRunner: fakeFailRunner });
+
+    expect(result.scopedSteps).toHaveLength(1);
+    expect(result.scopedSteps[0].scopeClassification).toBe('global_blocker');
+    expect(result.scopeSummary.globalBlockers).toBe(1);
+    expect(result.scopeSummary.sprintBlocked).toBe(true);
+  });
+
+  it('classifies in-scope failures as blocking', () => {
+    const plan = makePlan([
+      makeRequirement({
+        recipeId: 'typecheck',
+        commandPlaceholder: 'pnpm --filter api run type-check',
+      }),
+    ]);
+    const blast = makeApiBlastRadius();
+    const result = executeScopedVerification(plan, blast, { commandRunner: fakeFailRunner });
+
+    expect(result.scopedSteps[0].scopeClassification).toBe('in_scope_failure');
+    expect(result.scopeSummary.inScopeFailures).toBe(1);
+    expect(result.scopeSummary.sprintBlocked).toBe(true);
+  });
+
+  it('classifies out-of-scope failures as non-blocking', () => {
+    const plan = makePlan([
+      makeRequirement({
+        recipeId: 'build',
+        commandPlaceholder: 'pnpm --filter discord-bot run build',
+      }),
+    ]);
+    const blast = makeApiBlastRadius();
+    const result = executeScopedVerification(plan, blast, { commandRunner: fakeFailRunner });
+
+    expect(result.scopedSteps[0].scopeClassification).toBe('out_of_scope_failure');
+    expect(result.scopeSummary.outOfScopeFailures).toBe(1);
+    expect(result.scopeSummary.sprintBlocked).toBe(false);
+  });
+
+  it('passing steps do not block regardless of scope', () => {
+    const plan = makePlan([
+      makeRequirement({
+        recipeId: 'typecheck',
+        commandPlaceholder: 'pnpm run type-check',
+      }),
+      makeRequirement({
+        recipeId: 'build',
+        commandPlaceholder: 'pnpm --filter discord-bot run build',
+      }),
+    ]);
+    const blast = makeApiBlastRadius();
+    const result = executeScopedVerification(plan, blast, { commandRunner: fakePassRunner });
+
+    expect(result.scopeSummary.sprintBlocked).toBe(false);
+    expect(result.scopeSummary.inScopeFailures).toBe(0);
+    expect(result.scopeSummary.outOfScopeFailures).toBe(0);
+  });
+
+  it('mixed in-scope and out-of-scope: only in-scope blocks', () => {
+    // Discord-bot fails (out of scope), API passes (in scope)
+    const mixedRunner: CommandRunner = command => {
+      if (command.includes('discord-bot')) {
+        return {
+          command,
+          exitCode: 1,
+          stdout: '',
+          stderr: 'discord error',
+          durationMs: 100,
+          timedOut: false,
+        };
+      }
+      return { command, exitCode: 0, stdout: 'ok', stderr: '', durationMs: 50, timedOut: false };
+    };
+
+    const plan = makePlan([
+      makeRequirement({
+        recipeId: 'build',
+        commandPlaceholder: 'pnpm --filter api run build',
+      }),
+      makeRequirement({
+        recipeId: 'build',
+        commandPlaceholder: 'pnpm --filter discord-bot run build',
+      }),
+    ]);
+    const blast = makeApiBlastRadius();
+    const result = executeScopedVerification(plan, blast, { commandRunner: mixedRunner });
+
+    expect(result.scopeSummary.outOfScopeFailures).toBe(1);
+    expect(result.scopeSummary.inScopeFailures).toBe(0);
+    expect(result.scopeSummary.sprintBlocked).toBe(false);
+  });
+
+  it('returns blast radius in result', () => {
+    const plan = makePlan([makeRequirement()]);
+    const blast = makeApiBlastRadius();
+    const result = executeScopedVerification(plan, blast, { commandRunner: fakePassRunner });
+
+    expect(result.blastRadius).toBe(blast);
+    expect(result.blastRadius.affectedWorkspaces).toHaveLength(2);
+  });
+
+  it('block reason includes both global blockers and in-scope failures', () => {
+    const plan = makePlan([
+      makeRequirement({
+        recipeId: 'lifecycle_gate',
+        commandPlaceholder: 'pnpm --filter api run lifecycle:single-writer -- --strict',
+      }),
+      makeRequirement({
+        recipeId: 'typecheck',
+        commandPlaceholder: 'pnpm --filter api run type-check',
+      }),
+    ]);
+    const blast = makeApiBlastRadius();
+    const result = executeScopedVerification(plan, blast, { commandRunner: fakeFailRunner });
+
+    expect(result.scopeSummary.sprintBlocked).toBe(true);
+    expect(result.scopeSummary.blockReason).toContain('global blocker');
+    expect(result.scopeSummary.blockReason).toContain('in-scope failure');
   });
 });

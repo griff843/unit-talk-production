@@ -1,0 +1,20 @@
+{
+  "issueVersion": "1.0.0",
+  "issueId": "SPRINT-RAW-PROPS-BURNDOWN-046",
+  "projectId": "unit-talk",
+  "taskType": "runtime",
+  "title": "Remove raw_props compatibility layer",
+  "objective": "Ensure no production code writes to raw_props and remove compatibility helpers",
+  "summary": "Delete remaining compatibility utilities and preserve provider_offers as the canonical ingestion source without violating lifecycle adapter boundaries.",
+  "acceptanceCriteria": [
+    "No production code writes to raw_props",
+    "Compatibility helpers referencing raw_props are removed",
+    "provider_offers remains the canonical ingestion table",
+    "TypeScript build passes",
+    "Tests pass"
+  ],
+  "touchedAreas": ["apps/api/src/agents", "apps/api/src/services", "apps/api/src/compatibility"],
+  "dependencies": [],
+  "status": "open",
+  "priority": "high"
+}

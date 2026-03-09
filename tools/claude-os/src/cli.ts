@@ -16,20 +16,49 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+import { resolveExecutionLevel } from './autonomy-policy.js';
+import { assembleBundle, loadVerificationResultFromIndex } from './bundle-assembler.js';
+import { checkEligibility } from './eligibility-checker.js';
+import { generateEnvelope } from './envelope-generator.js';
 import { loadEnvelope, envelopeToRequest } from './envelope-loader.js';
+import { resolveRepoPath } from './fs-utils.js';
+import { captureGitEvidence } from './git-evidence.js';
 import { loadGovernance } from './governance-loader.js';
+import { startImplementation, checkImplementation } from './implementation-engine.js';
+import { loadIssue } from './issue-loader.js';
+import { runAutopilotCycle, checkAutopilotFrozen } from './orchestrator.js';
 import { loadProfileById, loadProfileFromPath } from './profile-loader.js';
+import { scanIssueQueue, selectNextIssue } from './queue-manager.js';
+import { resolveBlastRadius } from './scope-resolver.js';
 import { assembleSprintPlan, assembleSprintPlanWithProfile } from './sprint-planner.js';
-import { executeVerification } from './verification-executor.js';
+import { EXECUTION_LEVEL_NAMES, MAX_AUTOPILOT_LEVEL } from './types.js';
+import { executeVerification, executeScopedVerification } from './verification-executor.js';
 import { isValidSprintType } from './verification-resolver.js';
+import { loadWorkflowState } from './workflow-state.js';
+
 
 import type {
+  AutopilotCycleResult,
+  BlastRadius,
+  BundleAssemblyResult,
+  EligibilityResult,
+  EnvelopeGenerationResult,
+  ExecutionLevel,
+  ImplementationCheckResult,
+  ImplementationStartResult,
+  PackageOwnershipMap,
+  QueueScanResult,
+  QueueSelection,
+  ScopedVerificationResult,
   SprintExecutionRequest,
   SprintExecutionPlan,
   SprintType,
+  SupervisedRunResult,
   ProjectProfile,
   VerificationExecutionResult,
+  WorkflowStateFile,
 } from './types.js';
+
 
 // ---------------------------------------------------------------------------
 // Colors
@@ -346,6 +375,414 @@ function commandVerify(args: Record<string, string | boolean | string[]>): void 
   process.exit(result.overallStatus === 'PASS' ? 0 : 1);
 }
 
+function commandBundle(args: Record<string, string | boolean | string[]>): void {
+  const sprint = args.sprint as string | undefined;
+  const type = args.type as string | undefined;
+  const summary = args.summary as string | undefined;
+  const touched = args.touched as string[] | undefined;
+  const date = args.date as string | undefined;
+  const jsonOutput = args.json === true;
+  const projectId = args.project as string | undefined;
+  const profilePath = args.profile as string | undefined;
+  const envelopePath = args.envelope as string | undefined;
+
+  // --- Load profile if specified ---
+  let profile: ProjectProfile | null = null;
+  if (projectId || profilePath) {
+    const profileResult = profilePath
+      ? loadProfileFromPath(profilePath)
+      : loadProfileById(projectId!);
+
+    if (!profileResult.success || !profileResult.profile) {
+      console.error(`${c.red}ERROR: Failed to load project profile.${c.reset}`);
+      for (const err of profileResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+    profile = profileResult.profile;
+  }
+
+  // --- Load envelope if specified ---
+  let envelope = undefined;
+  if (envelopePath) {
+    const envelopeResult = loadEnvelope(envelopePath);
+    if (!envelopeResult.success || !envelopeResult.envelope) {
+      console.error(`${c.red}ERROR: Failed to load task envelope.${c.reset}`);
+      for (const err of envelopeResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+    envelope = envelopeResult.envelope;
+  }
+
+  // --- Build request ---
+  const effectiveSprint = sprint ?? envelope?.taskId;
+  const effectiveType = type ?? envelope?.taskType;
+  const effectiveSummary = summary ?? envelope?.summary;
+
+  if (!effectiveSprint || !effectiveType || !effectiveSummary) {
+    console.error(`${c.red}ERROR: Missing required arguments.${c.reset}`);
+    console.error('Required: --sprint <id> --type <type> --summary "<text>"');
+    process.exit(1);
+  }
+
+  if (!isValidSprintType(effectiveType)) {
+    console.error(`${c.red}ERROR: Invalid sprint type '${effectiveType}'.${c.reset}`);
+    process.exit(1);
+  }
+
+  const request: SprintExecutionRequest = {
+    sprintId: effectiveSprint,
+    sprintType: effectiveType as SprintType,
+    summary: effectiveSummary,
+    objective: envelope?.objective,
+    touchedAreas: touched ?? (envelope ? undefined : undefined),
+    requestedArtifactDate: date,
+    runtimeProofRequired: envelope?.runtimeProofRequired,
+  };
+
+  console.log(`\n${c.bold}${c.cyan}CLAUDE OS — Proof Bundle Assembly${c.reset}\n`);
+
+  // --- Build plan ---
+  let plan: SprintExecutionPlan;
+  if (profile) {
+    plan = assembleSprintPlanWithProfile(request, profile, envelope);
+  } else {
+    plan = assembleSprintPlan(request);
+  }
+
+  // --- Load verification result from evidence index ---
+  const artifactRoot = resolveRepoPath(plan.artifactPlan.canonicalRoot);
+  const evidenceIndexPath = `${artifactRoot}/verification-evidence-index.json`;
+
+  const loadResult = loadVerificationResultFromIndex(evidenceIndexPath);
+  if (!loadResult.success || !loadResult.result) {
+    console.error(`${c.red}ERROR: Could not load verification result.${c.reset}`);
+    console.error(`  ${loadResult.error ?? 'Unknown error'}`);
+    console.error(`  Path: ${evidenceIndexPath}`);
+    console.error(`\n  Run 'verify' first to generate evidence.`);
+    process.exit(1);
+  }
+
+  // --- Assemble bundle ---
+  const result = assembleBundle({ plan, verificationResult: loadResult.result });
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(result, null, 2));
+    const exitCode =
+      !result.success || !result.verdict
+        ? 1
+        : result.verdict.status === 'PASS' || result.verdict.status === 'PASS_WITH_LIMITATIONS'
+          ? 0
+          : 1;
+    process.exit(exitCode);
+  }
+
+  printBundleResult(result, plan);
+
+  const exitCode =
+    !result.success || !result.verdict
+      ? 1
+      : result.verdict.status === 'PASS' || result.verdict.status === 'PASS_WITH_LIMITATIONS'
+        ? 0
+        : 1;
+  process.exit(exitCode);
+}
+
+function commandRun(args: Record<string, string | boolean | string[]>): void {
+  const sprint = args.sprint as string | undefined;
+  const type = args.type as string | undefined;
+  const summary = args.summary as string | undefined;
+  const touched = args.touched as string[] | undefined;
+  const date = args.date as string | undefined;
+  const jsonOutput = args.json === true;
+  const projectId = args.project as string | undefined;
+  const profilePath = args.profile as string | undefined;
+  const envelopePath = args.envelope as string | undefined;
+  const timeoutStr = args.timeout as string | undefined;
+  const defaultTimeoutMs = timeoutStr ? parseInt(timeoutStr, 10) : undefined;
+
+  // --- Load profile if specified ---
+  let profile: ProjectProfile | null = null;
+  if (projectId || profilePath) {
+    const profileResult = profilePath
+      ? loadProfileFromPath(profilePath)
+      : loadProfileById(projectId!);
+    if (!profileResult.success || !profileResult.profile) {
+      console.error(`${c.red}ERROR: Failed to load project profile.${c.reset}`);
+      for (const err of profileResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+    profile = profileResult.profile;
+  }
+
+  // --- Load envelope if specified ---
+  let envelope = undefined;
+  if (envelopePath) {
+    const envelopeResult = loadEnvelope(envelopePath);
+    if (!envelopeResult.success || !envelopeResult.envelope) {
+      console.error(`${c.red}ERROR: Failed to load task envelope.${c.reset}`);
+      for (const err of envelopeResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+    envelope = envelopeResult.envelope;
+  }
+
+  // --- Build request ---
+  const effectiveSprint = sprint ?? envelope?.taskId;
+  const effectiveType = type ?? envelope?.taskType;
+  const effectiveSummary = summary ?? envelope?.summary;
+
+  if (!effectiveSprint || !effectiveType || !effectiveSummary) {
+    console.error(`${c.red}ERROR: Missing required arguments.${c.reset}`);
+    console.error('Required: --sprint <id> --type <type> --summary "<text>"');
+    process.exit(1);
+  }
+
+  if (!isValidSprintType(effectiveType)) {
+    console.error(`${c.red}ERROR: Invalid sprint type '${effectiveType}'.${c.reset}`);
+    process.exit(1);
+  }
+
+  const request: SprintExecutionRequest = {
+    sprintId: effectiveSprint,
+    sprintType: effectiveType as SprintType,
+    summary: effectiveSummary,
+    objective: envelope?.objective,
+    touchedAreas: touched,
+    requestedArtifactDate: date,
+    runtimeProofRequired: envelope?.runtimeProofRequired,
+  };
+
+  console.log(`\n${c.bold}${c.cyan}CLAUDE OS — Full Sprint Execution${c.reset}\n`);
+
+  // =========================================================================
+  // GATE 1: Plan
+  // =========================================================================
+  console.log(`${c.bold}[1/4] Planning...${c.reset}`);
+
+  let plan: SprintExecutionPlan;
+  if (profile) {
+    plan = assembleSprintPlanWithProfile(request, profile, envelope);
+  } else {
+    plan = assembleSprintPlan(request);
+  }
+
+  if (plan.status === 'blocked') {
+    console.error(`\n${c.red}${c.bold}HALT: Plan is BLOCKED${c.reset}`);
+    for (const blocker of plan.failClosedBlockers) {
+      console.error(`  ${c.red}*${c.reset} ${blocker.description}`);
+    }
+    if (jsonOutput) {
+      console.log(JSON.stringify({ phase: 'plan', status: 'BLOCKED', plan }, null, 2));
+    }
+    process.exit(1);
+  }
+
+  console.log(`  ${c.green}PLAN: ${plan.status.toUpperCase()}${c.reset}`);
+
+  // =========================================================================
+  // GATE 2: Verify
+  // =========================================================================
+  console.log(`${c.bold}[2/4] Verifying...${c.reset}`);
+
+  const verResult = executeVerification(plan, { defaultTimeoutMs });
+
+  if (verResult.overallStatus !== 'PASS') {
+    console.error(`\n${c.red}${c.bold}HALT: Verification ${verResult.overallStatus}${c.reset}`);
+    printVerificationResult(verResult);
+    if (jsonOutput) {
+      console.log(
+        JSON.stringify({ phase: 'verify', status: verResult.overallStatus, verResult }, null, 2)
+      );
+    }
+    process.exit(1);
+  }
+
+  // Runtime Proof Gate check
+  if (verResult.runtimeProofGate.required && !verResult.runtimeProofGate.satisfied) {
+    console.error(`\n${c.red}${c.bold}HALT: Runtime Proof Gate BLOCKED${c.reset}`);
+    console.error(`  ${verResult.runtimeProofGate.reason}`);
+    if (jsonOutput) {
+      console.log(
+        JSON.stringify(
+          { phase: 'verify', status: 'BLOCKED', reason: 'runtime_proof_gate', verResult },
+          null,
+          2
+        )
+      );
+    }
+    process.exit(1);
+  }
+
+  console.log(`  ${c.green}VERIFY: ${verResult.overallStatus}${c.reset}`);
+
+  // =========================================================================
+  // STEP 3: Git Evidence
+  // =========================================================================
+  console.log(`${c.bold}[3/4] Capturing git evidence...${c.reset}`);
+
+  const artifactRoot = resolveRepoPath(plan.artifactPlan.canonicalRoot);
+  const gitResult = captureGitEvidence(artifactRoot);
+
+  if (gitResult.status === 'PASS_WITH_LIMITATIONS') {
+    console.log(`  ${c.yellow}GIT EVIDENCE: PASS_WITH_LIMITATIONS${c.reset}`);
+    for (const f of gitResult.failures) {
+      console.log(`    ${c.dim}${f}${c.reset}`);
+    }
+  } else {
+    console.log(`  ${c.green}GIT EVIDENCE: PASS (${gitResult.files.length} files)${c.reset}`);
+  }
+
+  // =========================================================================
+  // GATE 4: Bundle
+  // =========================================================================
+  console.log(`${c.bold}[4/4] Assembling bundle...${c.reset}`);
+
+  const bundleResult = assembleBundle({ plan, verificationResult: verResult });
+
+  if (jsonOutput) {
+    console.log(
+      JSON.stringify(
+        {
+          phase: 'complete',
+          plan: { sprintId: plan.request.sprintId, status: plan.status },
+          verify: { overallStatus: verResult.overallStatus },
+          gitEvidence: gitResult,
+          bundle: bundleResult,
+        },
+        null,
+        2
+      )
+    );
+  } else {
+    // Summary output
+    console.log('');
+    printBundleResult(bundleResult, plan);
+  }
+
+  const exitCode =
+    !bundleResult.success || !bundleResult.verdict
+      ? 1
+      : bundleResult.verdict.status === 'PASS' ||
+          bundleResult.verdict.status === 'PASS_WITH_LIMITATIONS'
+        ? 0
+        : 1;
+  process.exit(exitCode);
+}
+
+// ---------------------------------------------------------------------------
+// Bundle Result Printer
+// ---------------------------------------------------------------------------
+
+function printBundleResult(result: BundleAssemblyResult, plan: SprintExecutionPlan): void {
+  console.log(`${c.bold}Sprint:${c.reset} ${plan.request.sprintId}`);
+  console.log(
+    `${c.bold}Type:${c.reset}   ${plan.request.sprintType}  |  ${c.bold}Tier:${c.reset} ${plan.artifactPlan.canonicalRoot ? 'see manifest' : 'N/A'}`
+  );
+  console.log(`${c.bold}Root:${c.reset}   ${plan.artifactPlan.canonicalRoot}`);
+
+  if (!result.success) {
+    console.log(`\n${c.red}${c.bold}--- HALT: Bundle Assembly Failed ---${c.reset}`);
+    for (const reason of result.failClosedReasons) {
+      console.log(`  ${c.red}BLOCKED${c.reset}: ${reason.description}`);
+      console.log(`  ${c.dim}Rule: ${reason.rule}${c.reset}`);
+      console.log(`  ${c.dim}Resolution: ${reason.resolution}${c.reset}`);
+    }
+    console.log(`\n${c.dim}Generated: ${result.generatedAt}${c.reset}\n`);
+    return;
+  }
+
+  // Artifact Status
+  if (result.manifest) {
+    console.log(`\n${c.bold}--- Artifact Status ---${c.reset}`);
+    for (const artifact of result.manifest.artifacts) {
+      const statusColor =
+        artifact.status === 'present' ? c.green : artifact.status === 'empty' ? c.yellow : c.red;
+      const sizeStr = artifact.sizeBytes != null ? `(${formatBytes(artifact.sizeBytes)})` : '';
+      console.log(
+        `  ${c.bold}*${c.reset} ${artifact.relativePath.padEnd(40)} ${statusColor}${artifact.status.toUpperCase().padEnd(8)}${c.reset} ${sizeStr}`
+      );
+    }
+
+    // Completeness
+    const comp = result.manifest.completeness;
+    console.log(`\n${c.bold}--- Completeness ---${c.reset}`);
+    console.log(
+      `Required: ${comp.presentRequired}/${comp.totalRequired}  |  Optional: ${comp.presentOptional}/${comp.totalOptional}`
+    );
+    if (comp.missingRequired.length > 0) {
+      console.log(`${c.red}Missing required:${c.reset} ${comp.missingRequired.join(', ')}`);
+    }
+    if (comp.emptyRequired.length > 0) {
+      console.log(`${c.yellow}Empty required:${c.reset} ${comp.emptyRequired.join(', ')}`);
+    }
+  }
+
+  // Verdict
+  if (result.verdict) {
+    const verdictColor =
+      result.verdict.status === 'PASS'
+        ? c.green
+        : result.verdict.status === 'PASS_WITH_LIMITATIONS'
+          ? c.yellow
+          : c.red;
+    console.log(`\n${c.bold}--- Verdict ---${c.reset}`);
+    console.log(`${c.bold}Status:${c.reset}     ${verdictColor}${result.verdict.status}${c.reset}`);
+    console.log(`${c.bold}Rationale:${c.reset}  ${result.verdict.rationale}`);
+    console.log(`${c.bold}Confidence:${c.reset} ${result.verdict.confidence}`);
+
+    if (result.verdict.blockers.length > 0) {
+      console.log(`\n${c.bold}Blockers:${c.reset}`);
+      for (const b of result.verdict.blockers) {
+        console.log(`  ${c.red}*${c.reset} ${b.description} (${b.resolution})`);
+      }
+    }
+
+    if (result.verdict.limitations.length > 0) {
+      console.log(`\n${c.bold}Limitations:${c.reset}`);
+      for (const l of result.verdict.limitations) {
+        console.log(`  ${c.yellow}*${c.reset} ${l.description} [${l.severity}]`);
+      }
+    }
+
+    if (result.verdict.recommendations.length > 0) {
+      console.log(`\n${c.bold}Recommendations:${c.reset}`);
+      for (const rec of result.verdict.recommendations) {
+        console.log(`  -> ${rec}`);
+      }
+    }
+  }
+
+  // Output files
+  console.log(`\n${c.bold}--- Output ---${c.reset}`);
+  console.log(
+    `  manifest.json    ${result.manifestPath ? `${c.green}written${c.reset}` : `${c.red}not written${c.reset}`}`
+  );
+  console.log(
+    `  verdict.json     ${result.verdictPath ? `${c.green}written${c.reset}` : `${c.red}not written${c.reset}`}`
+  );
+  console.log(
+    `  PROOF_INDEX.md   ${result.proofIndexPath ? `${c.green}written${c.reset}` : `${c.red}not written${c.reset}`}`
+  );
+
+  console.log(`\n${c.dim}Generated: ${result.generatedAt}${c.reset}\n`);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(1)} MB`;
+}
+
 // ---------------------------------------------------------------------------
 // Verification Result Printer
 // ---------------------------------------------------------------------------
@@ -523,8 +960,1028 @@ function printPlan(plan: SprintExecutionPlan, profile?: ProjectProfile | null): 
 }
 
 // ---------------------------------------------------------------------------
+// Command: issue
+// ---------------------------------------------------------------------------
+
+function commandIssue(args: Record<string, string | boolean | string[]>): void {
+  const issueArg = args.issue as string | undefined;
+  const jsonOutput = args.json === true;
+
+  if (!issueArg) {
+    console.error(`${c.red}ERROR: --issue <id-or-path> is required.${c.reset}`);
+    process.exit(1);
+  }
+
+  const result = loadIssue(issueArg);
+  if (!result.success || !result.issue) {
+    console.error(`${c.red}ERROR: Failed to load issue.${c.reset}`);
+    for (const err of result.errors) {
+      console.error(`  ${err}`);
+    }
+    process.exit(1);
+  }
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(result.issue, null, 2));
+    process.exit(0);
+  }
+
+  const issue = result.issue;
+  console.log(`\n${c.bold}Issue: ${issue.issueId}${c.reset}`);
+  console.log(`${c.dim}Source: ${result.source}${c.reset}\n`);
+
+  console.log(`  ${c.cyan}Project${c.reset}:  ${issue.projectId}`);
+  console.log(`  ${c.cyan}Type${c.reset}:     ${issue.taskType}`);
+  console.log(`  ${c.cyan}Title${c.reset}:    ${issue.title}`);
+  console.log(`  ${c.cyan}Status${c.reset}:   ${issue.status ?? 'open'}`);
+  console.log(`  ${c.cyan}Priority${c.reset}: ${issue.priority ?? 'normal'}`);
+
+  console.log(`\n${c.bold}Objective${c.reset}`);
+  console.log(`  ${issue.objective}`);
+
+  console.log(`\n${c.bold}Summary${c.reset}`);
+  console.log(`  ${issue.summary}`);
+
+  console.log(`\n${c.bold}Acceptance Criteria${c.reset}`);
+  for (const ac of issue.acceptanceCriteria) {
+    console.log(`  ${c.green}•${c.reset} ${ac}`);
+  }
+
+  console.log(`\n${c.bold}Touched Areas${c.reset}`);
+  for (const area of issue.touchedAreas) {
+    console.log(`  ${c.dim}→${c.reset} ${area}`);
+  }
+
+  if (issue.dependencies.length > 0) {
+    console.log(`\n${c.bold}Dependencies${c.reset}`);
+    for (const dep of issue.dependencies) {
+      const icon = dep.status === 'resolved' ? c.green + '✓' : c.red + '✗';
+      console.log(`  ${icon}${c.reset} ${dep.issueId} (${dep.status})`);
+    }
+  }
+
+  if (issue.killConditions && issue.killConditions.length > 0) {
+    console.log(`\n${c.bold}Kill Conditions${c.reset}`);
+    for (const kc of issue.killConditions) {
+      console.log(`  ${c.red}⊘${c.reset} ${kc}`);
+    }
+  }
+
+  console.log('');
+  process.exit(0);
+}
+
+// ---------------------------------------------------------------------------
+// Command: eligible
+// ---------------------------------------------------------------------------
+
+function commandEligible(args: Record<string, string | boolean | string[]>): void {
+  const issueArg = args.issue as string | undefined;
+  const jsonOutput = args.json === true;
+
+  if (!issueArg) {
+    console.error(`${c.red}ERROR: --issue <id-or-path> is required.${c.reset}`);
+    process.exit(1);
+  }
+
+  const issueResult = loadIssue(issueArg);
+  if (!issueResult.success || !issueResult.issue) {
+    console.error(`${c.red}ERROR: Failed to load issue.${c.reset}`);
+    for (const err of issueResult.errors) {
+      console.error(`  ${err}`);
+    }
+    process.exit(1);
+  }
+
+  const eligibility = checkEligibility(issueResult.issue);
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(eligibility, null, 2));
+    process.exit(eligibility.status === 'ELIGIBLE' ? 0 : 1);
+  }
+
+  printEligibility(eligibility);
+  process.exit(eligibility.status === 'ELIGIBLE' ? 0 : 1);
+}
+
+function printEligibility(result: EligibilityResult): void {
+  const statusColor =
+    result.status === 'ELIGIBLE'
+      ? c.green
+      : result.status === 'BLOCKED'
+        ? c.red
+        : result.status === 'UNSUPPORTED'
+          ? c.red
+          : c.yellow;
+
+  console.log(`\n${c.bold}Eligibility: ${result.issueId}${c.reset}`);
+  console.log(`  ${c.cyan}Project${c.reset}: ${result.projectId}`);
+  console.log(`  ${c.cyan}Status${c.reset}:  ${statusColor}${result.status}${c.reset}\n`);
+
+  console.log(`${c.bold}Checks${c.reset}`);
+  for (const check of result.checks) {
+    const icon = check.passed ? `${c.green}PASS${c.reset}` : `${c.red}FAIL${c.reset}`;
+    console.log(`  [${icon}] ${check.name}: ${check.reason}`);
+  }
+
+  if (result.blockers.length > 0) {
+    console.log(`\n${c.bold}${c.red}Blockers${c.reset}`);
+    for (const b of result.blockers) {
+      console.log(`  ${c.red}•${c.reset} ${b}`);
+    }
+  }
+
+  if (result.warnings.length > 0) {
+    console.log(`\n${c.bold}${c.yellow}Warnings${c.reset}`);
+    for (const w of result.warnings) {
+      console.log(`  ${c.yellow}•${c.reset} ${w}`);
+    }
+  }
+
+  console.log('');
+}
+
+// ---------------------------------------------------------------------------
+// Command: generate
+// ---------------------------------------------------------------------------
+
+function commandGenerate(args: Record<string, string | boolean | string[]>): void {
+  const issueArg = args.issue as string | undefined;
+  const jsonOutput = args.json === true;
+  const write = args.write === true;
+  const sprintIdOverride = args['sprint-id'] as string | undefined;
+
+  if (!issueArg) {
+    console.error(`${c.red}ERROR: --issue <id-or-path> is required.${c.reset}`);
+    process.exit(1);
+  }
+
+  // Load issue
+  const issueResult = loadIssue(issueArg);
+  if (!issueResult.success || !issueResult.issue) {
+    console.error(`${c.red}ERROR: Failed to load issue.${c.reset}`);
+    for (const err of issueResult.errors) {
+      console.error(`  ${err}`);
+    }
+    process.exit(1);
+  }
+
+  // Load profile
+  const profileResult = loadProfileById(issueResult.issue.projectId);
+  if (!profileResult.success || !profileResult.profile) {
+    console.error(
+      `${c.red}ERROR: Failed to load project profile for '${issueResult.issue.projectId}'.${c.reset}`
+    );
+    for (const err of profileResult.errors) {
+      console.error(`  ${err}`);
+    }
+    process.exit(1);
+  }
+
+  // Generate envelope
+  const result = generateEnvelope(issueResult.issue, profileResult.profile, {
+    write,
+    sprintIdOverride,
+  });
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(result.success ? 0 : 1);
+  }
+
+  if (!result.success) {
+    console.error(`${c.red}ERROR: Envelope generation failed.${c.reset}`);
+    for (const err of result.errors) {
+      console.error(`  ${err}`);
+    }
+    if (result.eligibility.status !== 'ELIGIBLE') {
+      console.log('');
+      printEligibility(result.eligibility);
+    }
+    process.exit(1);
+  }
+
+  printGenerationResult(result);
+  process.exit(0);
+}
+
+function printGenerationResult(result: EnvelopeGenerationResult): void {
+  console.log(`\n${c.bold}${c.green}Envelope Generated${c.reset}`);
+  console.log(`  ${c.cyan}Issue${c.reset}:    ${result.issueId}`);
+  console.log(`  ${c.cyan}Task ID${c.reset}:  ${result.envelope!.taskId}`);
+  console.log(`  ${c.cyan}Type${c.reset}:     ${result.envelope!.taskType}`);
+  console.log(`  ${c.cyan}Project${c.reset}:  ${result.envelope!.projectId}`);
+  console.log(
+    `  ${c.cyan}Tier${c.reset}:     ${result.envelope!.verificationTierOverride ?? 'default'}`
+  );
+  console.log(
+    `  ${c.cyan}Runtime${c.reset}:  ${result.envelope!.runtimeProofRequired ? 'required' : 'not required'}`
+  );
+
+  if (result.writtenTo) {
+    console.log(`\n  ${c.green}Written to:${c.reset} ${result.writtenTo}`);
+  }
+
+  console.log(`\n${c.bold}Envelope Contents${c.reset}`);
+  console.log(JSON.stringify(result.envelope, null, 2));
+  console.log('');
+}
+
+// ---------------------------------------------------------------------------
+// Implement Command (Phase G)
+// ---------------------------------------------------------------------------
+
+function commandImplement(args: Record<string, string | boolean | string[]>): void {
+  const start = args.start === true;
+  const check = args.check === true;
+  const jsonOutput = args.json === true;
+
+  if (!start && !check) {
+    console.error(`${c.red}ERROR: Must specify --start or --check.${c.reset}`);
+    process.exit(1);
+  }
+
+  if (start && check) {
+    console.error(`${c.red}ERROR: Cannot specify both --start and --check.${c.reset}`);
+    process.exit(1);
+  }
+
+  // --- Common: load envelope + profile ---
+  const envelopePath = args.envelope as string | undefined;
+  const projectId = args.project as string | undefined;
+  const profilePath = args.profile as string | undefined;
+  const sprint = args.sprint as string | undefined;
+  const type = args.type as string | undefined;
+  const summary = args.summary as string | undefined;
+
+  if (start) {
+    // --start requires envelope
+    if (!envelopePath) {
+      console.error(`${c.red}ERROR: --envelope <path> is required for --start.${c.reset}`);
+      process.exit(1);
+    }
+
+    const envelopeResult = loadEnvelope(envelopePath);
+    if (!envelopeResult.success || !envelopeResult.envelope) {
+      console.error(`${c.red}ERROR: Failed to load task envelope.${c.reset}`);
+      for (const err of envelopeResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+    const envelope = envelopeResult.envelope;
+
+    // Load profile
+    const effectiveProjectId = projectId ?? envelope.projectId;
+    const profileResult = profilePath
+      ? loadProfileFromPath(profilePath)
+      : loadProfileById(effectiveProjectId);
+
+    if (!profileResult.success || !profileResult.profile) {
+      console.error(`${c.red}ERROR: Failed to load project profile.${c.reset}`);
+      for (const err of profileResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+
+    // Build plan to get artifact root
+    const request: SprintExecutionRequest = {
+      sprintId: sprint ?? envelope.taskId,
+      sprintType: (type ?? envelope.taskType) as SprintType,
+      summary: summary ?? envelope.summary,
+      objective: envelope.objective,
+      touchedAreas: envelope.touchedAreas,
+      runtimeProofRequired: envelope.runtimeProofRequired,
+    };
+    const plan = assembleSprintPlanWithProfile(request, profileResult.profile, envelope);
+    const artifactRoot = resolveRepoPath(plan.artifactPlan.canonicalRoot);
+
+    const result = startImplementation(envelope, profileResult.profile, artifactRoot);
+
+    if (jsonOutput) {
+      console.log(JSON.stringify(result, null, 2));
+      process.exit(result.success ? 0 : 1);
+    }
+
+    if (!result.success) {
+      console.error(`${c.red}ERROR: Implementation start failed.${c.reset}`);
+      for (const err of result.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+
+    printImplementationStart(result);
+    process.exit(0);
+  }
+
+  if (check) {
+    // --check needs plan args to derive artifact root
+    const effectiveSprint = sprint;
+    const effectiveType = type;
+    const effectiveSummary = summary;
+
+    if (!effectiveSprint || !effectiveType || !effectiveSummary) {
+      console.error(`${c.red}ERROR: Missing required arguments for --check.${c.reset}`);
+      console.error('Required: --sprint <id> --type <type> --summary "<text>"');
+      process.exit(1);
+    }
+
+    if (!isValidSprintType(effectiveType)) {
+      console.error(`${c.red}ERROR: Invalid sprint type '${effectiveType}'.${c.reset}`);
+      process.exit(1);
+    }
+
+    // Optionally load profile
+    let profile: ProjectProfile | null = null;
+    if (projectId || profilePath) {
+      const profileResult = profilePath
+        ? loadProfileFromPath(profilePath)
+        : loadProfileById(projectId!);
+      if (profileResult.success && profileResult.profile) {
+        profile = profileResult.profile;
+      }
+    }
+
+    const request: SprintExecutionRequest = {
+      sprintId: effectiveSprint,
+      sprintType: effectiveType as SprintType,
+      summary: effectiveSummary,
+    };
+
+    let plan: SprintExecutionPlan;
+    if (profile) {
+      plan = assembleSprintPlanWithProfile(request, profile);
+    } else {
+      plan = assembleSprintPlan(request);
+    }
+    const artifactRoot = resolveRepoPath(plan.artifactPlan.canonicalRoot);
+
+    const result = checkImplementation(artifactRoot);
+
+    if (jsonOutput) {
+      console.log(JSON.stringify(result, null, 2));
+      process.exit(result.success ? 0 : 1);
+    }
+
+    if (!result.success) {
+      console.error(`\n${c.bold}${c.red}IMPLEMENTATION CHECK: ${result.status}${c.reset}\n`);
+      for (const err of result.errors) {
+        console.error(`  ${err}`);
+      }
+      if (result.boundaryValidation) {
+        printBoundaryValidation(result);
+      }
+      process.exit(1);
+    }
+
+    printImplementationCheck(result);
+    process.exit(0);
+  }
+}
+
+function printImplementationStart(result: ImplementationStartResult): void {
+  console.log(`\n${c.bold}${c.green}IMPLEMENTATION START: Ready${c.reset}\n`);
+  console.log(`  ${c.cyan}Task ID${c.reset}:   ${result.scopeContract!.taskId}`);
+  console.log(`  ${c.cyan}Git HEAD${c.reset}:  ${result.snapshot!.gitHead}`);
+  console.log(`  ${c.cyan}Branch${c.reset}:    ${result.snapshot!.gitBranch}`);
+  console.log(
+    `  ${c.cyan}Clean${c.reset}:     ${result.snapshot!.workingTreeClean ? 'yes' : 'no'}`
+  );
+
+  console.log(`\n${c.bold}Scope Contract${c.reset}`);
+  console.log(`  Allowed paths (${result.scopeContract!.allowedPaths.length}):`);
+  for (const rule of result.scopeContract!.allowedPaths) {
+    console.log(`    ${c.green}+${c.reset} ${rule.pattern} ${c.dim}(${rule.source})${c.reset}`);
+  }
+  console.log(`  Forbidden paths (${result.scopeContract!.forbiddenPaths.length}):`);
+  for (const rule of result.scopeContract!.forbiddenPaths) {
+    console.log(`    ${c.red}-${c.reset} ${rule.pattern} ${c.dim}(${rule.source})${c.reset}`);
+  }
+
+  console.log(`\n  ${c.cyan}Contract${c.reset}: ${result.scopeContractPath}`);
+  console.log(`  ${c.cyan}Snapshot${c.reset}: ${result.snapshotPath}`);
+  console.log('');
+}
+
+function printImplementationCheck(result: ImplementationCheckResult): void {
+  console.log(`\n${c.bold}${c.green}IMPLEMENTATION CHECK: ${result.status}${c.reset}\n`);
+
+  if (result.boundaryValidation) {
+    const bv = result.boundaryValidation;
+    console.log(`  ${c.cyan}Files checked${c.reset}:  ${bv.totalFilesChecked}`);
+    console.log(`  ${c.cyan}Allowed${c.reset}:        ${bv.allowedFiles.length}`);
+    console.log(`  ${c.cyan}Violations${c.reset}:     ${bv.violations.length}`);
+  }
+
+  if (result.changeReceipt) {
+    const cr = result.changeReceipt;
+    console.log(`\n${c.bold}Change Receipt${c.reset}`);
+    console.log(`  ${c.cyan}Files changed${c.reset}: ${cr.totalFilesChanged}`);
+    console.log(`  ${c.cyan}Lines added${c.reset}:   +${cr.totalLinesAdded}`);
+    console.log(`  ${c.cyan}Lines removed${c.reset}: -${cr.totalLinesRemoved}`);
+    for (const f of cr.files) {
+      const icon = f.changeType === 'added' ? '+' : f.changeType === 'deleted' ? '-' : '~';
+      const color =
+        f.changeType === 'added' ? c.green : f.changeType === 'deleted' ? c.red : c.yellow;
+      console.log(
+        `    ${color}${icon}${c.reset} ${f.filePath} ${c.dim}(+${f.linesAdded}/-${f.linesRemoved})${c.reset}`
+      );
+    }
+  }
+
+  if (result.diffArtifactPath) {
+    console.log(`\n  ${c.cyan}Diff${c.reset}:    ${result.diffArtifactPath}`);
+  }
+  if (result.changeReceiptPath) {
+    console.log(`  ${c.cyan}Receipt${c.reset}: ${result.changeReceiptPath}`);
+  }
+  console.log('');
+}
+
+function printBoundaryValidation(result: ImplementationCheckResult): void {
+  if (!result.boundaryValidation) return;
+
+  const bv = result.boundaryValidation;
+  console.log(`\n${c.bold}Boundary Violations (${bv.violations.length})${c.reset}`);
+  for (const v of bv.violations) {
+    const label = v.violationType === 'in_forbidden' ? 'FORBIDDEN' : 'OUT OF SCOPE';
+    console.log(`  ${c.red}[${label}]${c.reset} ${v.filePath}`);
+    if (v.matchedRule) {
+      console.log(`    ${c.dim}Rule: ${v.matchedRule.pattern} (${v.matchedRule.source})${c.reset}`);
+    }
+  }
+  console.log('');
+}
+
+// ---------------------------------------------------------------------------
+// Command: supervised-run (CLAUDE-OS-REDESIGN-001)
+// ---------------------------------------------------------------------------
+
+function commandSupervisedRun(args: Record<string, string | boolean | string[]>): void {
+  const sprint = args.sprint as string | undefined;
+  const type = args.type as string | undefined;
+  const summary = args.summary as string | undefined;
+  const touched = args.touched as string[] | undefined;
+  const date = args.date as string | undefined;
+  const jsonOutput = args.json === true;
+  const projectId = (args.project as string | undefined) ?? 'unit-talk';
+  const profilePath = args.profile as string | undefined;
+  const envelopePath = args.envelope as string | undefined;
+  const timeoutStr = args.timeout as string | undefined;
+  const defaultTimeoutMs = timeoutStr ? parseInt(timeoutStr, 10) : undefined;
+
+  const startedAt = new Date().toISOString();
+
+  // --- Always load profile (supervised mode requires project context) ---
+  const profileResult = profilePath ? loadProfileFromPath(profilePath) : loadProfileById(projectId);
+
+  if (!profileResult.success || !profileResult.profile) {
+    console.error(`${c.red}ERROR: Supervised-run requires a project profile.${c.reset}`);
+    console.error(`  Use --project <id> or --profile <path>.`);
+    for (const err of profileResult.errors) {
+      console.error(`  ${err}`);
+    }
+    process.exit(1);
+  }
+  const profile = profileResult.profile;
+
+  // --- Load envelope if specified ---
+  let envelope = undefined;
+  if (envelopePath) {
+    const envelopeResult = loadEnvelope(envelopePath);
+    if (!envelopeResult.success || !envelopeResult.envelope) {
+      console.error(`${c.red}ERROR: Failed to load task envelope.${c.reset}`);
+      for (const err of envelopeResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+    envelope = envelopeResult.envelope;
+  }
+
+  // --- Build request ---
+  const effectiveSprint = sprint ?? envelope?.taskId;
+  const effectiveType = type ?? envelope?.taskType;
+  const effectiveSummary = summary ?? envelope?.summary;
+
+  if (!effectiveSprint || !effectiveType || !effectiveSummary) {
+    console.error(`${c.red}ERROR: Missing required arguments.${c.reset}`);
+    console.error('Required: --sprint <id> --type <type> --summary "<text>"');
+    console.error('  (or provide --envelope <path> to derive these from a task envelope)');
+    process.exit(1);
+  }
+
+  if (!isValidSprintType(effectiveType)) {
+    console.error(`${c.red}ERROR: Invalid sprint type '${effectiveType}'.${c.reset}`);
+    process.exit(1);
+  }
+
+  const request: SprintExecutionRequest = {
+    sprintId: effectiveSprint,
+    sprintType: effectiveType as SprintType,
+    summary: effectiveSummary,
+    objective: envelope?.objective,
+    touchedAreas: touched ?? envelope?.touchedAreas,
+    requestedArtifactDate: date,
+    runtimeProofRequired: envelope?.runtimeProofRequired,
+  };
+
+  // --- Resolve execution level ---
+  const issueProxy = {
+    taskType: effectiveType as SprintType,
+    touchedAreas: touched ?? envelope?.touchedAreas ?? [],
+    priority: 'normal' as const,
+  };
+  const executionLevel = resolveExecutionLevel(
+    issueProxy as import('./types.js').IssueFile,
+    profile
+  );
+  const levelName = EXECUTION_LEVEL_NAMES[executionLevel];
+
+  console.log(`\n${c.bold}${c.cyan}CLAUDE OS — Supervised Sprint Execution${c.reset}\n`);
+  console.log(`  ${c.bold}Sprint:${c.reset}    ${effectiveSprint}`);
+  console.log(`  ${c.bold}Type:${c.reset}      ${effectiveType}`);
+  console.log(`  ${c.bold}Profile:${c.reset}   ${profile.projectName} (${profile.projectId})`);
+  console.log(`  ${c.bold}Level:${c.reset}     ${executionLevel} (${levelName})`);
+  console.log('');
+
+  if (executionLevel <= MAX_AUTOPILOT_LEVEL) {
+    console.log(
+      `  ${c.yellow}Note: This sprint is Level ${executionLevel} (${levelName}), eligible for autopilot.${c.reset}`
+    );
+    console.log(
+      `  ${c.yellow}Use 'autopilot run-once' for fully autonomous execution.${c.reset}\n`
+    );
+  }
+
+  // =========================================================================
+  // STAGE 1: Plan
+  // =========================================================================
+  console.log(`${c.bold}[1/4] Planning...${c.reset}`);
+
+  const plan = assembleSprintPlanWithProfile(request, profile, envelope, executionLevel);
+
+  if (plan.status === 'blocked') {
+    console.error(`\n${c.red}${c.bold}HALT: Plan is BLOCKED${c.reset}`);
+    for (const blocker of plan.failClosedBlockers) {
+      console.error(`  ${c.red}*${c.reset} ${blocker.description}`);
+    }
+
+    if (jsonOutput) {
+      const result: SupervisedRunResult = {
+        sprintId: effectiveSprint,
+        executionLevel,
+        executionLevelName: levelName,
+        plan,
+        verification: null,
+        bundle: null,
+        failureClassificationSummary: null,
+        status: 'PLAN_BLOCKED',
+        reason: plan.failClosedBlockers.map(b => b.description).join('; '),
+        startedAt,
+        completedAt: new Date().toISOString(),
+      };
+      console.log(JSON.stringify(result, null, 2));
+    }
+    process.exit(1);
+  }
+
+  console.log(`  ${c.green}PLAN: ${plan.status.toUpperCase()}${c.reset}`);
+
+  // Print risk escalations (critical areas acknowledged in supervised mode)
+  if (plan.riskEscalations.length > 0) {
+    console.log(
+      `\n  ${c.yellow}${c.bold}RISK ESCALATIONS (${plan.riskEscalations.length}):${c.reset}`
+    );
+    for (const esc of plan.riskEscalations) {
+      console.log(`  ${c.yellow}!${c.reset} ${esc.description}`);
+      console.log(`    ${c.dim}Recommendation: ${esc.recommendation}${c.reset}`);
+    }
+    console.log(
+      `  ${c.yellow}Note: Stronger verification required. Human ratification recommended before merge.${c.reset}\n`
+    );
+  }
+
+  // Print verification requirements summary
+  const required = plan.verificationRequirements.filter(v => v.required);
+  const unresolved = required.filter(v => !v.commandResolved);
+  console.log(
+    `  ${c.dim}Verification: ${required.length} required, ${unresolved.length} unresolved${c.reset}`
+  );
+
+  // =========================================================================
+  // STAGE 1b: Resolve Blast Radius (CLAUDE-OS-SCOPE-HARDENING)
+  // =========================================================================
+  const touchedAreas = request.touchedAreas ?? [];
+  const governance = loadGovernance();
+  const blastRadius = resolveBlastRadius(touchedAreas, governance.packageOwnership ?? undefined);
+
+  console.log(`  ${c.dim}Blast radius: ${blastRadius.summary}${c.reset}`);
+  if (blastRadius.affectedWorkspaces.length > 0) {
+    for (const ws of blastRadius.affectedWorkspaces) {
+      console.log(
+        `    ${c.dim}${ws.name} (${ws.changeRisk} risk, ${ws.touchedPaths.length} touched)${c.reset}`
+      );
+    }
+  }
+
+  // =========================================================================
+  // STAGE 2: Verify (scope-aware with failure classification)
+  // =========================================================================
+  console.log(`${c.bold}[2/4] Verifying (scope-aware with failure classification)...${c.reset}`);
+
+  const scopedResult = executeScopedVerification(plan, blastRadius, { defaultTimeoutMs });
+  const verResult: VerificationExecutionResult = scopedResult;
+
+  // Print step results with scope classification and failure info
+  for (const step of scopedResult.scopedSteps) {
+    const stepColor =
+      step.status === 'PASS'
+        ? c.green
+        : step.status === 'FAIL'
+          ? c.red
+          : step.status === 'BLOCKED'
+            ? c.yellow
+            : c.dim;
+    const duration = step.commandResult ? `(${step.commandResult.durationMs}ms)` : '';
+
+    // Scope tag
+    const scopeTag =
+      step.status === 'PASS'
+        ? ''
+        : step.scopeClassification === 'out_of_scope_failure'
+          ? ` ${c.dim}[OUT_OF_SCOPE]${c.reset}`
+          : step.scopeClassification === 'global_blocker'
+            ? ` ${c.red}[GLOBAL_BLOCKER]${c.reset}`
+            : step.scopeClassification === 'in_scope_failure'
+              ? ` ${c.yellow}[IN_SCOPE]${c.reset}`
+              : '';
+
+    let line = `  ${stepColor}${step.status.padEnd(7)}${c.reset} ${step.recipeId.padEnd(20)} ${duration}${scopeTag}`;
+
+    // Add failure classification
+    if (step.failureClassification) {
+      const fc = step.failureClassification;
+      const catColor =
+        fc.category === 'application'
+          ? c.red
+          : fc.category === 'governance'
+            ? c.red
+            : fc.category === 'infrastructure'
+              ? c.yellow
+              : fc.category === 'transient'
+                ? c.yellow
+                : c.dim;
+      line += `  ${catColor}[${fc.category}]${c.reset}`;
+      if (fc.retryable) {
+        line += ` ${c.dim}(retryable)${c.reset}`;
+      }
+    }
+    console.log(line);
+  }
+
+  // Print scope summary (CLAUDE-OS-SCOPE-HARDENING)
+  const ss = scopedResult.scopeSummary;
+  console.log(`\n  ${c.bold}Scope Analysis:${c.reset}`);
+  if (ss.inScopeFailures > 0)
+    console.log(`    ${c.red}In-scope failures:${c.reset}     ${ss.inScopeFailures}`);
+  if (ss.globalBlockers > 0)
+    console.log(`    ${c.red}Global blockers:${c.reset}       ${ss.globalBlockers}`);
+  if (ss.outOfScopeFailures > 0)
+    console.log(`    ${c.dim}Out-of-scope (excluded):${c.reset} ${ss.outOfScopeFailures}`);
+  console.log(
+    `    ${c.bold}Sprint blocked:${c.reset}        ${ss.sprintBlocked ? `${c.red}YES${c.reset}` : `${c.green}NO${c.reset}`}`
+  );
+  if (ss.blockReason) console.log(`    ${c.dim}Reason: ${ss.blockReason}${c.reset}`);
+
+  // Print failure classification summary
+  if (verResult.failureClassificationSummary) {
+    const fcs = verResult.failureClassificationSummary;
+    console.log(`\n  ${c.bold}Failure Breakdown:${c.reset}`);
+    if (fcs.application > 0)
+      console.log(`    ${c.red}application:${c.reset}    ${fcs.application}`);
+    if (fcs.governance > 0) console.log(`    ${c.red}governance:${c.reset}      ${fcs.governance}`);
+    if (fcs.infrastructure > 0)
+      console.log(`    ${c.yellow}infrastructure:${c.reset} ${fcs.infrastructure}`);
+    if (fcs.toolchain > 0) console.log(`    ${c.dim}toolchain:${c.reset}       ${fcs.toolchain}`);
+    if (fcs.environment > 0)
+      console.log(`    ${c.dim}environment:${c.reset}     ${fcs.environment}`);
+    if (fcs.transient > 0)
+      console.log(`    ${c.yellow}transient:${c.reset}       ${fcs.transient}`);
+  }
+
+  // Print suggested actions for in-scope failures only
+  const actionableFailures = scopedResult.scopedSteps.filter(
+    s =>
+      s.failureClassification &&
+      (s.status === 'FAIL' || s.status === 'BLOCKED') &&
+      s.scopeClassification !== 'out_of_scope_failure'
+  );
+  if (actionableFailures.length > 0) {
+    console.log(`\n  ${c.bold}Suggested Actions:${c.reset}`);
+    for (const step of actionableFailures) {
+      console.log(
+        `    ${c.cyan}${step.recipeId}${c.reset}: ${step.failureClassification!.suggestedAction}`
+      );
+    }
+  }
+
+  // Use scope-aware blocking decision instead of raw overall status
+  const scopeAwareBlocked = ss.sprintBlocked;
+  const verStatus = scopeAwareBlocked ? 'FAIL' : 'PASS';
+  const verStatusColor = verStatus === 'PASS' ? c.green : c.red;
+  console.log(
+    `\n  ${c.bold}Overall (scope-aware):${c.reset} ${verStatusColor}${verStatus}${c.reset}`
+  );
+  if (!scopeAwareBlocked && verResult.overallStatus !== 'PASS') {
+    console.log(
+      `  ${c.dim}(Raw overall was ${verResult.overallStatus} — out-of-scope failures excluded)${c.reset}`
+    );
+  }
+
+  // =========================================================================
+  // STAGE 3: Git Evidence
+  // =========================================================================
+  console.log(`${c.bold}[3/4] Capturing git evidence...${c.reset}`);
+
+  const artifactRoot = resolveRepoPath(plan.artifactPlan.canonicalRoot);
+  const gitResult = captureGitEvidence(artifactRoot);
+
+  if (gitResult.status === 'PASS_WITH_LIMITATIONS') {
+    console.log(`  ${c.yellow}GIT EVIDENCE: PASS_WITH_LIMITATIONS${c.reset}`);
+    for (const f of gitResult.failures) {
+      console.log(`    ${c.dim}${f}${c.reset}`);
+    }
+  } else {
+    console.log(`  ${c.green}GIT EVIDENCE: PASS (${gitResult.files.length} files)${c.reset}`);
+  }
+
+  // =========================================================================
+  // STAGE 4: Bundle
+  // =========================================================================
+  console.log(`${c.bold}[4/4] Assembling bundle...${c.reset}`);
+
+  const bundleResult = assembleBundle({ plan, verificationResult: verResult });
+
+  // Determine overall status (using scope-aware decision)
+  let status: SupervisedRunResult['status'];
+  if (scopeAwareBlocked) {
+    status = 'VERIFICATION_FAILED';
+  } else if (!bundleResult.success) {
+    status = 'BUNDLE_FAILED';
+  } else {
+    status = 'BUNDLED';
+  }
+
+  const supervisedResult: SupervisedRunResult = {
+    sprintId: effectiveSprint,
+    executionLevel,
+    executionLevelName: levelName,
+    plan,
+    verification: verResult,
+    bundle: bundleResult,
+    failureClassificationSummary: verResult.failureClassificationSummary ?? null,
+    status,
+    reason:
+      status === 'BUNDLED'
+        ? 'Supervised run completed. Proof bundle ready for human review.' +
+          (ss.outOfScopeFailures > 0
+            ? ` (${ss.outOfScopeFailures} out-of-scope failure(s) excluded)`
+            : '')
+        : status === 'VERIFICATION_FAILED'
+          ? `Verification blocked: ${ss.blockReason ?? verResult.overallStatus}. Review scope analysis above.`
+          : 'Bundle assembly failed.',
+    startedAt,
+    completedAt: new Date().toISOString(),
+  };
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(supervisedResult, null, 2));
+  } else {
+    // Final summary
+    console.log('');
+    printBundleResult(bundleResult, plan);
+
+    // Supervised-run specific footer
+    console.log(`${c.bold}--- Supervised Run Summary ---${c.reset}`);
+    console.log(`  Level:    ${executionLevel} (${levelName})`);
+    console.log(
+      `  Scope:    ${blastRadius.affectedWorkspaces.map(w => w.name).join(', ') || '(global only)'}`
+    );
+    console.log(`  Status:   ${status === 'BUNDLED' ? c.green : c.red}${status}${c.reset}`);
+    console.log(`  Reason:   ${supervisedResult.reason}`);
+    console.log('');
+
+    if (status === 'BUNDLED') {
+      console.log(
+        `  ${c.green}${c.bold}Next: Review proof bundle and proceed with commit + tag + merge.${c.reset}`
+      );
+    } else if (status === 'VERIFICATION_FAILED') {
+      console.log(
+        `  ${c.yellow}${c.bold}Next: Address failures by classification, then re-run supervised-run.${c.reset}`
+      );
+    }
+    console.log('');
+  }
+
+  process.exit(status === 'BUNDLED' ? 0 : 1);
+}
+
+// ---------------------------------------------------------------------------
 // Help
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Command: autopilot
+// ---------------------------------------------------------------------------
+
+function commandAutopilot(args: Record<string, string | boolean | string[]>): void {
+  // Find sub-action: skip '--' separators and the 'autopilot' command itself
+  const subAction = process.argv.slice(3).find(a => a !== '--');
+  const jsonOutput = args.json === true;
+
+  switch (subAction) {
+    case 'scan':
+      commandAutopilotScan(jsonOutput);
+      break;
+    case 'next':
+      commandAutopilotNext(jsonOutput);
+      break;
+    case 'run-once':
+      commandAutopilotRunOnce(args, jsonOutput);
+      break;
+    case 'status':
+      commandAutopilotStatus(jsonOutput);
+      break;
+    default:
+      console.error(`${c.red}Unknown autopilot sub-action: ${subAction ?? '(none)'}${c.reset}`);
+      console.error(`Usage: autopilot <scan|next|run-once|status> [--json]`);
+      process.exit(1);
+  }
+}
+
+function commandAutopilotScan(jsonOutput: boolean): void {
+  console.log(`\n${c.bold}${c.cyan}CLAUDE OS — Autopilot Queue Scan${c.reset}\n`);
+
+  const scanResult = scanIssueQueue();
+  const workflowState = loadWorkflowState();
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(scanResult, null, 2));
+    return;
+  }
+
+  console.log(`  Scanned at:   ${scanResult.scannedAt}`);
+  console.log(`  Total files:  ${scanResult.totalFiles}`);
+  console.log(`  Loaded:       ${scanResult.loaded}`);
+  if (scanResult.loadErrors.length > 0) {
+    console.log(`  Load errors:  ${scanResult.loadErrors.length}`);
+    for (const err of scanResult.loadErrors) {
+      console.log(`    ${c.red}*${c.reset} ${err}`);
+    }
+  }
+  console.log('');
+
+  if (scanResult.issues.length === 0) {
+    console.log(`  ${c.dim}No issues found.${c.reset}`);
+    return;
+  }
+
+  // Table header
+  console.log(
+    `  ${'Issue'.padEnd(20)} ${'Type'.padEnd(12)} ${'Priority'.padEnd(10)} ${'Eligible'.padEnd(10)} ${'Autonomy'.padEnd(10)} ${'State'.padEnd(20)}`
+  );
+  console.log(
+    `  ${'─'.repeat(20)} ${'─'.repeat(12)} ${'─'.repeat(10)} ${'─'.repeat(10)} ${'─'.repeat(10)} ${'─'.repeat(20)}`
+  );
+
+  for (const si of scanResult.issues) {
+    const wsEntry = workflowState.issues[si.issueId];
+    const state = wsEntry?.state ?? '—';
+    const eligible =
+      si.eligibility.status === 'ELIGIBLE'
+        ? `${c.green}ELIGIBLE${c.reset}`
+        : `${c.red}${si.eligibility.status}${c.reset}`;
+    const autonomy =
+      si.autonomy.decision === 'ALLOW' ? `${c.green}ALLOW${c.reset}` : `${c.yellow}DENY${c.reset}`;
+
+    console.log(
+      `  ${si.issueId.padEnd(20)} ${si.issue.taskType.padEnd(12)} ${(si.issue.priority ?? 'normal').padEnd(10)} ${eligible.padEnd(19)} ${autonomy.padEnd(19)} ${state}`
+    );
+  }
+  console.log('');
+}
+
+function commandAutopilotNext(jsonOutput: boolean): void {
+  console.log(`\n${c.bold}${c.cyan}CLAUDE OS — Autopilot Next Selection${c.reset}\n`);
+
+  const scanResult = scanIssueQueue();
+  const workflowState = loadWorkflowState();
+  const selection = selectNextIssue(scanResult, workflowState);
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(selection, null, 2));
+    return;
+  }
+
+  if (!selection.selected) {
+    console.log(`  ${c.yellow}No eligible issue found.${c.reset}`);
+    console.log(`  Reason: ${selection.reason}`);
+  } else {
+    console.log(`  ${c.green}Selected:${c.reset}  ${selection.selected.issueId}`);
+    console.log(`  Type:      ${selection.selected.issue.taskType}`);
+    console.log(`  Priority:  ${selection.selected.issue.priority ?? 'normal'}`);
+    console.log(`  Title:     ${selection.selected.issue.title}`);
+    console.log(`  Candidates: ${selection.candidateCount}`);
+  }
+  console.log('');
+}
+
+function commandAutopilotRunOnce(
+  args: Record<string, string | boolean | string[]>,
+  jsonOutput: boolean
+): void {
+  const dryRun = args['dry-run'] === true;
+
+  console.log(
+    `\n${c.bold}${c.cyan}CLAUDE OS — Autopilot Run Once${dryRun ? ' (DRY RUN)' : ''}${c.reset}\n`
+  );
+
+  // Check frozen first
+  if (checkAutopilotFrozen()) {
+    console.error(
+      `  ${c.red}${c.bold}FROZEN:${c.reset} Autopilot is frozen via runtime_config/autopilot_state.json`
+    );
+    process.exit(1);
+  }
+
+  const result = runAutopilotCycle({ dryRun });
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(result.status === 'COMPLETED' ? 0 : 1);
+  }
+
+  console.log(
+    `  Status:    ${result.status === 'COMPLETED' ? c.green : c.red}${result.status}${c.reset}`
+  );
+  console.log(`  Issue:     ${result.issueId ?? '—'}`);
+  console.log(`  Reason:    ${result.reason}`);
+
+  if (result.pipelineResults.length > 0) {
+    console.log('');
+    console.log(`  ${c.bold}Pipeline Stages:${c.reset}`);
+    for (const stage of result.pipelineResults) {
+      const icon = stage.success ? c.green + 'PASS' : c.red + 'FAIL';
+      console.log(
+        `    ${stage.stage.padEnd(18)} ${icon}${c.reset}  (${stage.durationMs}ms)${stage.error ? '  ' + stage.error : ''}`
+      );
+    }
+  }
+
+  if (result.finalState) {
+    console.log(`  Final state: ${result.finalState}`);
+  }
+  console.log('');
+
+  process.exit(result.status === 'COMPLETED' ? 0 : 1);
+}
+
+function commandAutopilotStatus(jsonOutput: boolean): void {
+  console.log(`\n${c.bold}${c.cyan}CLAUDE OS — Autopilot Status${c.reset}\n`);
+
+  const workflowState = loadWorkflowState();
+  const frozen = checkAutopilotFrozen();
+
+  if (jsonOutput) {
+    console.log(JSON.stringify({ frozen, workflowState }, null, 2));
+    return;
+  }
+
+  console.log(`  Frozen:     ${frozen ? c.red + 'YES' : c.green + 'NO'}${c.reset}`);
+  console.log(`  Last scan:  ${workflowState.lastScanAt ?? '—'}`);
+  console.log(
+    `  Active run: ${workflowState.activeRun ? workflowState.activeRun.issueId + ' (' + workflowState.activeRun.pipelineStage + ')' : '—'}`
+  );
+
+  const issueIds = Object.keys(workflowState.issues);
+  if (issueIds.length === 0) {
+    console.log(`\n  ${c.dim}No tracked issues.${c.reset}`);
+  } else {
+    console.log(`\n  ${c.bold}Tracked Issues:${c.reset}`);
+    console.log(`  ${'Issue'.padEnd(20)} ${'State'.padEnd(24)} ${'Updated'.padEnd(26)} Reason`);
+    console.log(`  ${'─'.repeat(20)} ${'─'.repeat(24)} ${'─'.repeat(26)} ${'─'.repeat(30)}`);
+    for (const id of issueIds.sort()) {
+      const entry = workflowState.issues[id];
+      console.log(
+        `  ${id.padEnd(20)} ${entry.state.padEnd(24)} ${entry.updatedAt.padEnd(26)} ${entry.reason}`
+      );
+    }
+  }
+  console.log('');
+}
 
 function printHelp(): void {
   console.log(`
@@ -532,9 +1989,17 @@ ${c.bold}Claude OS — Governed Sprint Execution Foundation${c.reset}
 
 ${c.bold}Commands:${c.reset}
 
-  ${c.cyan}plan${c.reset}      Assemble a dry-run sprint execution plan
-  ${c.cyan}verify${c.reset}    Execute verification steps and capture evidence
-  ${c.cyan}validate${c.reset}  Validate governance artifact loading
+  ${c.cyan}supervised-run${c.reset}  ${c.bold}[PRIMARY]${c.reset} Supervised pipeline with failure classification (Level 2+)
+  ${c.cyan}run${c.reset}             Orchestrate full pipeline: plan → verify → git-evidence → bundle
+  ${c.cyan}plan${c.reset}            Assemble a dry-run sprint execution plan
+  ${c.cyan}verify${c.reset}          Execute verification steps and capture evidence
+  ${c.cyan}bundle${c.reset}          Assemble proof bundle from plan + verification outputs
+  ${c.cyan}validate${c.reset}        Validate governance artifact loading
+  ${c.cyan}issue${c.reset}           Load and display an issue file
+  ${c.cyan}eligible${c.reset}        Evaluate issue eligibility for autonomous execution
+  ${c.cyan}generate${c.reset}        Generate TaskEnvelope from an issue (--write to persist)
+  ${c.cyan}implement${c.reset}       Governance wrapper for implementation (--start before, --check after)
+  ${c.cyan}autopilot${c.reset}       Bounded autopilot orchestrator (Level 0-1 only)
 
 ${c.bold}Plan usage:${c.reset}
 
@@ -564,6 +2029,69 @@ ${c.bold}Verify usage:${c.reset}
     [--dry-run] \\
     [--timeout <ms>]
 
+${c.bold}Bundle usage:${c.reset}
+
+  npx tsx src/cli.ts bundle \\
+    --sprint SPRINT-NAME-### \\
+    --type <docs|runtime|build_fix|e2e_lifecycle|ui|schema> \\
+    --summary "Sprint objective description" \\
+    [--touched area1,area2] \\
+    [--date YYYY-MM-DD] \\
+    [--project <id>] \\
+    [--profile <path>] \\
+    [--envelope <path>] \\
+    [--json]
+
+${c.bold}Run usage:${c.reset}
+
+  npx tsx src/cli.ts run \\
+    --sprint SPRINT-NAME-### \\
+    --type <docs|runtime|build_fix|e2e_lifecycle|ui|schema> \\
+    --summary "Sprint objective description" \\
+    [--touched area1,area2] \\
+    [--date YYYY-MM-DD] \\
+    [--project <id>] \\
+    [--profile <path>] \\
+    [--envelope <path>] \\
+    [--timeout <ms>] \\
+    [--json]
+
+${c.bold}Issue usage:${c.reset}
+
+  npx tsx src/cli.ts issue --issue ISSUE-001 [--json]
+
+${c.bold}Eligible usage:${c.reset}
+
+  npx tsx src/cli.ts eligible --issue ISSUE-001 [--json]
+
+${c.bold}Generate usage:${c.reset}
+
+  npx tsx src/cli.ts generate \\
+    --issue ISSUE-001 \\
+    [--write] \\
+    [--sprint-id SPRINT-NAME-###] \\
+    [--json]
+
+${c.bold}Implement usage:${c.reset}
+
+  ${c.dim}# Before implementation (derive scope + snapshot):${c.reset}
+  npx tsx src/cli.ts implement --start \\
+    --envelope <path> \\
+    [--project <id>] [--sprint <id>] [--type <type>] [--summary "<text>"]
+
+  ${c.dim}# After implementation (validate + receipt + diff):${c.reset}
+  npx tsx src/cli.ts implement --check \\
+    --sprint <id> --type <type> --summary "<text>" \\
+    [--project <id>] [--json]
+
+${c.bold}Autopilot usage:${c.reset}
+
+  npx tsx src/cli.ts autopilot scan [--json]       ${c.dim}# Scan issue queue${c.reset}
+  npx tsx src/cli.ts autopilot next [--json]       ${c.dim}# Show next eligible issue${c.reset}
+  npx tsx src/cli.ts autopilot run-once [--json]   ${c.dim}# Execute one bounded cycle${c.reset}
+  npx tsx src/cli.ts autopilot run-once --dry-run  ${c.dim}# Dry-run (no pipeline)${c.reset}
+  npx tsx src/cli.ts autopilot status [--json]     ${c.dim}# Show workflow state${c.reset}
+
 ${c.bold}Profile & Envelope flags:${c.reset}
 
   --project <id>       Load project profile by ID (from governance/claude-os/profiles/<id>.json)
@@ -587,12 +2115,40 @@ ${c.bold}Examples:${c.reset}
     --summary "Settlement migration off raw_props to unified_picks" \\
     --touched apps/api/src/agents/SettlementAgent/
 
+  ${c.dim}# Bundle (assemble proof bundle after verify):${c.reset}
+  npx tsx src/cli.ts bundle \\
+    --sprint SPRINT-044R \\
+    --type runtime \\
+    --summary "Settlement migration off raw_props to unified_picks"
+
+  ${c.dim}# Bundle with profile + JSON output:${c.reset}
+  npx tsx src/cli.ts bundle \\
+    --project unit-talk \\
+    --sprint SPRINT-044R \\
+    --type runtime \\
+    --summary "Settlement migration" \\
+    --json
+
   ${c.dim}# Dry-run verify (classify without executing):${c.reset}
   npx tsx src/cli.ts verify \\
     --sprint SPRINT-DOCS-001 \\
     --type docs \\
     --summary "Documentation update" \\
     --dry-run
+
+  ${c.dim}# Full pipeline (plan → verify → git-evidence → bundle):${c.reset}
+  npx tsx src/cli.ts run \\
+    --sprint SPRINT-045 \\
+    --type runtime \\
+    --summary "Settlement migration" \\
+    --project unit-talk
+
+  ${c.dim}# Full pipeline with JSON output:${c.reset}
+  npx tsx src/cli.ts run \\
+    --sprint SPRINT-045 \\
+    --type runtime \\
+    --summary "Settlement migration" \\
+    --json
 
   ${c.dim}# Envelope-driven:${c.reset}
   npx tsx src/cli.ts plan \\
@@ -601,10 +2157,62 @@ ${c.bold}Examples:${c.reset}
 
   npx tsx src/cli.ts validate
 
+  ${c.dim}# Load and inspect an issue:${c.reset}
+  npx tsx src/cli.ts issue --issue ISSUE-001
+
+  ${c.dim}# Check issue eligibility:${c.reset}
+  npx tsx src/cli.ts eligible --issue ISSUE-001
+
+  ${c.dim}# Generate envelope from issue:${c.reset}
+  npx tsx src/cli.ts generate --issue ISSUE-001
+
+  ${c.dim}# Generate + write envelope with custom sprint ID:${c.reset}
+  npx tsx src/cli.ts generate --issue ISSUE-001 --write --sprint-id SPRINT-SETTLEMENT-055
+
+  ${c.dim}# Start implementation (scope contract + snapshot):${c.reset}
+  npx tsx src/cli.ts implement --start \\
+    --envelope governance/claude-os/envelopes/SPRINT-045.json \\
+    --project unit-talk
+
+  ${c.dim}# Check implementation (validate boundaries + receipt):${c.reset}
+  npx tsx src/cli.ts implement --check \\
+    --sprint SPRINT-045 --type runtime --summary "Settlement migration"
+
+${c.bold}Supervised-run usage:${c.reset}
+
+  npx tsx src/cli.ts supervised-run \\
+    --sprint SPRINT-NAME-### \\
+    --type <docs|runtime|build_fix|e2e_lifecycle|ui|schema> \\
+    --summary "Sprint objective description" \\
+    [--project <id>]  ${c.dim}# defaults to unit-talk${c.reset} \\
+    [--envelope <path>] \\
+    [--touched area1,area2] \\
+    [--timeout <ms>] \\
+    [--json]
+
+  ${c.dim}# Supervised-run for Unit Talk runtime sprint:${c.reset}
+  npx tsx src/cli.ts supervised-run \\
+    --sprint SPRINT-SETTLEMENT-045 \\
+    --type runtime \\
+    --summary "Migrate settlement off raw_props to provider_offers"
+
+  ${c.dim}# Supervised-run with envelope:${c.reset}
+  npx tsx src/cli.ts supervised-run \\
+    --envelope governance/claude-os/envelopes/SPRINT-044R.json
+
+${c.bold}Execution Levels:${c.reset}
+
+  Level 0: AUTOPILOT      — Docs, config (use 'autopilot run-once')
+  Level 1: GUIDED          — Build fixes, low-risk refactors (use 'autopilot run-once')
+  Level 2: SUPERVISED      — Runtime, agents, pipelines (use 'supervised-run')
+  Level 3: COLLABORATIVE   — Schema, lifecycle, settlement (use 'supervised-run')
+  Level 4: HUMAN_LED       — Production data, incidents (manual with verification)
+
 ${c.bold}Philosophy:${c.reset}
-  Plan is dry-run only — resolves requirements and evaluates drift.
-  Verify executes resolved commands and captures evidence artifacts.
-  Neither modifies source code, commits, or pushes.
+  supervised-run is the PRIMARY command for high-risk projects like Unit Talk.
+  It provides risk-proportional execution with failure classification.
+  Autopilot is demoted to Level 0-1 work only (docs, build fixes).
+  All commands produce proof artifacts. None modify source code, commit, or push.
 `);
 }
 
@@ -622,8 +2230,32 @@ function main(): void {
     case 'verify':
       commandVerify(args);
       break;
+    case 'bundle':
+      commandBundle(args);
+      break;
+    case 'run':
+      commandRun(args);
+      break;
     case 'validate':
       commandValidate();
+      break;
+    case 'issue':
+      commandIssue(args);
+      break;
+    case 'eligible':
+      commandEligible(args);
+      break;
+    case 'generate':
+      commandGenerate(args);
+      break;
+    case 'implement':
+      commandImplement(args);
+      break;
+    case 'autopilot':
+      commandAutopilot(args);
+      break;
+    case 'supervised-run':
+      commandSupervisedRun(args);
       break;
     case 'help':
     case '--help':

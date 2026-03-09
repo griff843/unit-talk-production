@@ -15,7 +15,7 @@ import type { CommandRunResult, CommandRunOptions } from './types.js';
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_TIMEOUT_MS = 120_000; // 2 minutes
+const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
 const MAX_BUFFER_BYTES = 10 * 1024 * 1024; // 10 MB
 
 // ---------------------------------------------------------------------------

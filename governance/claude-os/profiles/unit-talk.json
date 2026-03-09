@@ -1,5 +1,5 @@
 {
-  "profileVersion": "1.0.0",
+  "profileVersion": "2.0.0",
   "projectId": "unit-talk",
   "projectName": "Unit Talk Platform",
   "projectType": "monorepo",
@@ -109,6 +109,33 @@
   "lifecycleKeywords": ["lifecycle", "settlement", "settle", "lifecycle_adapter"],
 
   "schemaKeywords": ["schema", "alter table", "ddl", "add column", "drop column", "create table"],
+
+  "defaultExecutionLevel": 2,
+  "taskTypeExecutionLevels": {
+    "docs": 0,
+    "build_fix": 1,
+    "ui": 2,
+    "runtime": 2,
+    "schema": 3,
+    "e2e_lifecycle": 3
+  },
+  "escalationTriggers": [
+    {
+      "pattern": "supabase/migrations/",
+      "minLevel": 3,
+      "reason": "Schema migrations are effectively irreversible in production"
+    },
+    {
+      "pattern": "apps/api/src/lib/lifecycle/",
+      "minLevel": 3,
+      "reason": "Lifecycle adapter changes affect single-writer discipline"
+    },
+    {
+      "pattern": "settlement",
+      "minLevel": 3,
+      "reason": "Settlement logic changes affect immutable financial data"
+    }
+  ],
 
   "verificationDefaults": {
     "sprintTypeTiers": {

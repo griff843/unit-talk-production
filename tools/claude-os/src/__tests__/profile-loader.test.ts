@@ -125,7 +125,7 @@ describe('profile-loader', () => {
       const result = loadProfileById('unit-talk');
       const profile = result.profile!;
 
-      expect(profile.profileVersion).toBe('1.0.0');
+      expect(profile.profileVersion).toBe('2.0.0');
       expect(profile.projectType).toBe('monorepo');
       expect(profile.deprecatedPaths.length).toBeGreaterThan(0);
       expect(profile.canonicalWriteTargets.length).toBeGreaterThan(0);

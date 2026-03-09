@@ -1,2 +1,2 @@
 export { normalizePublicProps } from './normalizePublicProps';
-export { dedupePublicProps } from './dedupePublicProps';
+// SPRINT-046: dedupePublicProps removed — was deduplicating against deprecated raw_props

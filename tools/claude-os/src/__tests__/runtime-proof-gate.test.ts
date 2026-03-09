@@ -48,6 +48,7 @@ function makePlan(
     },
     driftSignals: [],
     failClosedBlockers: [],
+    riskEscalations: [],
     deferredRequirements: [],
     nextStepRecommendations: [],
     generatedAt: new Date().toISOString(),

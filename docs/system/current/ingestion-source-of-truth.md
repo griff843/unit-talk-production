@@ -54,22 +54,22 @@ remains the scheduler default.
 
 ## Downstream Consumers
 
-| Consumer               | Current data source      | V3 path available?                          |
-| ---------------------- | ------------------------ | ------------------------------------------- |
-| GradingAgent           | raw_props (default)      | Yes — `GRADING_DATA_SOURCE=provider_offers` |
-| ClosingSnapshotService | provider_offers          | Yes — native V3 consumer                    |
-| CLVComputeService      | provider_offers          | Yes — native V3 consumer                    |
-| SettlementAgent        | raw_props + game_results | No — not yet migrated                       |
-| DiscordPromotionAgent  | unified_picks            | N/A — reads from unified_picks              |
+| Consumer               | Current data source                  | V3 path available?             |
+| ---------------------- | ------------------------------------ | ------------------------------ |
+| GradingAgent           | provider_offers (default since 044P) | Yes — active default           |
+| ClosingSnapshotService | provider_offers                      | Yes — native V3 consumer       |
+| CLVComputeService      | provider_offers                      | Yes — native V3 consumer       |
+| SettlementAgent        | raw_props + game_results             | No — not yet migrated          |
+| DiscordPromotionAgent  | unified_picks                        | N/A — reads from unified_picks |
 
 ---
 
 ## What Still Blocks raw_props Retirement
 
-1. **GradingAgent default**: Must switch `GRADING_DATA_SOURCE` from `raw_props`
-   to `provider_offers`
-2. **Promotion context read**: `promoteToUnifiedPicks()` reads `raw_props` for
-   pick context data
+1. ~~**GradingAgent default**~~: DONE (044P) — `GRADING_DATA_SOURCE` defaults to
+   `provider_offers`
+2. ~~**Promotion context read**~~: DONE (044P) — `promoteFromProviderOffer()`
+   reads canonical JOINs
 3. **SettlementAgent**: Still reads `raw_props` and `game_results`
 4. **Optimal API adapter**: Not yet wired to provider_offers path
 5. **Scheduler default**: Still calls `ingestUnifiedData()` → raw_props as

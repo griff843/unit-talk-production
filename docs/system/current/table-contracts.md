@@ -1,7 +1,6 @@
 # Table Contracts — Current System
 
-> Updated: 2026-03-08 | Sprint: SPRINT-044H (originally
-> SPRINT-SYSTEM-DOCUMENTATION-FOUNDATION)
+> Updated: 2026-03-08 | Sprint: SPRINT-044L (previously 044H, 044K)
 
 ---
 
@@ -23,31 +22,35 @@ Source: `docs/governance/TABLE_CLASSIFICATION_SPEC.md`
 **Purpose**: Flat denormalized ingestion landing table for all provider data.
 Legacy table scheduled for retirement in favor of provider_offers.
 
-| Column           | Type        | Notes                                                       |
-| ---------------- | ----------- | ----------------------------------------------------------- |
-| id               | UUID PK     | Auto-generated                                              |
-| external_id      | TEXT UNIQUE | Composite key for SGO: `sgo:{eventID}:{marketKey}:{player}` |
-| external_game_id | TEXT        | Provider game/event ID                                      |
-| player_name      | TEXT        |                                                             |
-| stat_type        | TEXT        | Market stat (points, rebounds, etc.)                        |
-| line             | NUMERIC     | Betting line                                                |
-| over_odds        | INTEGER     | American odds                                               |
-| under_odds       | INTEGER     | American odds                                               |
-| sport            | TEXT        | League enum                                                 |
-| source           | TEXT        | Provider name (sgo, odds-api, optimal-api)                  |
-| provider         | TEXT        | Same as source                                              |
-| tier             | TEXT        | S/A/B/C/D (set by GradingAgent)                             |
-| edge_score       | NUMERIC     | Computed edge (set by ScoringAgent)                         |
-| processed_at     | TIMESTAMPTZ | When graded                                                 |
-| meta             | JSONB       | Provider-specific metadata, batch_id, raw_data              |
-| created_at       | TIMESTAMPTZ |                                                             |
+| Column           | Type        | Notes                                                              |
+| ---------------- | ----------- | ------------------------------------------------------------------ |
+| id               | UUID PK     | Auto-generated                                                     |
+| external_id      | TEXT UNIQUE | Composite key for SGO: `sgo:{eventID}:{marketKey}:{player}`        |
+| external_game_id | TEXT        | Provider game/event ID                                             |
+| player_name      | TEXT        |                                                                    |
+| stat_type        | TEXT        | Market stat (points, rebounds, etc.)                               |
+| line             | NUMERIC     | Betting line                                                       |
+| over_odds        | INTEGER     | American odds                                                      |
+| under_odds       | INTEGER     | American odds                                                      |
+| sport            | TEXT        | League enum                                                        |
+| source           | TEXT        | Provider name (sgo, odds-api, optimal-api)                         |
+| provider         | TEXT        | Same as source                                                     |
+| tier             | TEXT        | S/A/B/C/D (set by GradingAgent)                                    |
+| edge_score       | NUMERIC     | Computed edge (set by ScoringAgent)                                |
+| processed_at     | TIMESTAMPTZ | Compatibility grading marker (while GRADING_DATA_SOURCE=raw_props) |
+| meta             | JSONB       | Provider-specific metadata, batch_id, raw_data                     |
+| created_at       | TIMESTAMPTZ |                                                                    |
 
-**Writer**: FeedAgent (direct insert), GradingAgent (tier/score update),
-ScoringAgent (edge update) **Readers**: GradingAgent, ScoringAgent,
-SettlementAgent **Primary key**: `id` (UUID) **External identifiers**:
-`external_id` (unique), `external_game_id` **Lifecycle stage**: Pre-submission
-(raw data before pick lifecycle) **Replacement target**: `provider_offers` +
-`markets` (V3)
+**Writer**: FeedAgent (direct insert), GradingAgent (tier/score update)
+**Readers**: GradingAgent, SettlementAgent **Primary key**: `id` (UUID)
+**External identifiers**: `external_id` (unique), `external_game_id` **Lifecycle
+stage**: Pre-submission (raw data before pick lifecycle) **Replacement target**:
+`provider_offers` + `markets` (V3)
+
+**Grading field audit (SPRINT-044K)**: Of 28 grading-related fields on
+raw_props, 14 are DROP (dead/redundant), 5 MAP TO EXISTING columns on
+unified_picks, 7 KEEP AS COMPATIBILITY during migration. Zero fields require a
+new table. See `out/sprints/SPRINT-044K/` for full analysis.
 
 ---
 

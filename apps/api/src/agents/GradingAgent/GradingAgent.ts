@@ -1,6 +1,7 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity, no-undef, no-return-await, no-unused-vars, max-depth, @typescript-eslint/no-unused-vars */
 import { randomUUID } from 'crypto';
 
+// SPRINT-044Q: rawPropsWriter imports removed — all compatibility wrappers deleted
 import { lifecycleInsert } from '../../lib/lifecycle';
 import {
   ProfessionalPropProcessor,
@@ -61,7 +62,7 @@ export class GradingAgent extends BaseAgent {
     this.USE_PRO_SCORER = process.env.USE_PRO_SCORER === 'true';
     this.SCORING_DEBUG = process.env.SCORING_DEBUG === 'true';
     this.USE_PROJECTIONS = process.env.USE_PROJECTIONS !== 'false'; // Enabled by default
-    this.GRADING_DATA_SOURCE = process.env.GRADING_DATA_SOURCE || 'raw_props';
+    this.GRADING_DATA_SOURCE = process.env.GRADING_DATA_SOURCE || 'provider_offers';
 
     this.gradingEngine = new SyndicateGradingEngine();
     this.professionalProcessor = ProfessionalPropProcessor.getInstance();
@@ -115,7 +116,8 @@ export class GradingAgent extends BaseAgent {
     }
 
     // Test database connectivity for v3.0.0 unified tables only
-    const requiredTables = ['raw_props', 'unified_picks', 'users'];
+    // SPRINT-044P: provider_offers is now the default grading source
+    const requiredTables = ['provider_offers', 'unified_picks', 'users'];
 
     for (const table of requiredTables) {
       try {
@@ -194,7 +196,7 @@ export class GradingAgent extends BaseAgent {
     // Database connectivity
     if (this.hasSupabase()) {
       try {
-        await this.requireSupabase().from('raw_props').select('count').limit(1);
+        await this.requireSupabase().from('provider_offers').select('count').limit(1);
         checks.push({ service: 'database', status: 'healthy' });
       } catch (error) {
         checks.push({
@@ -393,7 +395,8 @@ export class GradingAgent extends BaseAgent {
   // Called by gradingAndScoringWorkflow via GradingAgentActivitiesImpl
 
   /**
-   * Fetch ungraded raw_props for a league, grade each, return top-tier results.
+   * Fetch ungraded props for a league, grade each, return top-tier results.
+   * Called by gradingAndScoringWorkflow via Temporal activities.
    */
   async gradeNewProps(params: {
     league: string;
@@ -407,60 +410,58 @@ export class GradingAgent extends BaseAgent {
       return { league, topTierProps: [], gradedCount: 0 };
     }
 
-    // Query ungraded raw_props for this league
     const limit = isLiveMode ? 500 : 200;
-    const query = this.requireSupabase()
-      .from('raw_props')
+
+    // SPRINT-046: provider_offers is the only grading source (raw_props branch removed)
+    const { data: offers, error } = await this.requireSupabase()
+      .from('provider_offers')
       .select('*')
-      .eq('league', league)
+      .is('graded_at', null)
+      .ilike('sport_key', `%${league.toLowerCase()}%`)
       .order('created_at', { ascending: true })
       .limit(limit);
 
-    // Filter to unprocessed props based on scoring path
-    if (this.USE_PRO_SCORER) {
-      query.is('processed_at', null);
-    } else {
-      query.is('tier', null);
-    }
-
-    const { data: rawProps, error } = await query;
-
     if (error) {
-      this.logger.error('Failed to fetch props for gradeNewProps', {
+      this.logger.error('Failed to fetch provider_offers for gradeNewProps', {
         error: error.message,
         league,
       });
       return { league, topTierProps: [], gradedCount: 0 };
     }
 
-    if (!rawProps || rawProps.length === 0) {
-      this.logger.debug(`No ungraded props found for ${league}`);
+    if (!offers || offers.length === 0) {
+      this.logger.debug(`No ungraded provider_offers found for ${league}`);
       return { league, topTierProps: [], gradedCount: 0 };
     }
 
-    this.logger.info(`Grading ${rawProps.length} props for ${league}`);
+    this.logger.info(`Grading ${offers.length} provider_offers for ${league}`);
 
     const topTierProps: GradingResult[] = [];
     let gradedCount = 0;
 
-    for (const prop of rawProps) {
+    for (const offer of offers) {
       try {
-        const features = this.convertToFeatureSet(prop);
+        const features = this.convertProviderOfferToFeatureSet(offer);
         const result = await this.gradeProp(features);
         gradedCount++;
+
+        // Mark as graded (sets graded_at on provider_offers)
+        await this.storeGradingResult(result);
 
         if (['S', 'A', 'B'].includes(result.tier)) {
           topTierProps.push(result);
         }
       } catch (err) {
-        this.logger.debug('Failed to grade prop', {
-          propId: prop.id,
+        this.logger.debug('Failed to grade provider_offer', {
+          offerId: offer.id,
           error: err instanceof Error ? err.message : 'Unknown',
         });
       }
     }
 
-    this.logger.info(`Graded ${gradedCount} props for ${league}, ${topTierProps.length} top-tier`);
+    this.logger.info(
+      `Graded ${gradedCount} provider_offers for ${league}, ${topTierProps.length} top-tier`
+    );
     return { league, topTierProps, gradedCount };
   }
 
@@ -635,54 +636,14 @@ export class GradingAgent extends BaseAgent {
     return batches;
   }
 
+  // SPRINT-046: raw_props branches removed — provider_offers is the only grading source
   private async fetchPendingProps(): Promise<GradingFeatureSet[]> {
     if (!this.hasSupabase()) {
       this.logger.warn('⚠️ Supabase not available, returning empty props list');
       return [];
     }
 
-    // SPRINT-044D: Route to provider_offers when feature flag is set
-    if (this.GRADING_DATA_SOURCE === 'provider_offers') {
-      return this.fetchPendingProviderOffers();
-    }
-
-    if (this.USE_PRO_SCORER) {
-      // PROFESSIONAL PATH: Query unprocessed raw_props (processed_at IS NULL)
-      const { data: rawProps, error } = await this.requireSupabase()
-        .from('raw_props')
-        .select('*')
-        .is('processed_at', null) // Props that haven't been professionally processed yet
-        .order('created_at', { ascending: true })
-        .limit(200); // Reasonable limit for processing
-
-      if (error) {
-        this.logger.error('❌ Failed to fetch unprocessed props for professional grading', {
-          error: error.message,
-        });
-        return [];
-      }
-
-      this.logger.info(`🎯 Found ${rawProps?.length || 0} props for professional processing`);
-      return rawProps?.map(prop => this.convertToFeatureSet(prop)) || [];
-    } else {
-      // LEGACY PATH: Grade props from raw_props that haven't been grading_status yet
-      const { data: rawProps, error } = await this.requireSupabase()
-        .from('raw_props')
-        .select('*')
-        .is('tier', null) // Props that haven't been grading_status yet (tier is null)
-        .or('promoted_to_picks.is.null,promoted_to_picks.eq.false') // Props not yet promoted (null or false)
-        .order('created_at', { ascending: true })
-        .limit(200); // Reasonable limit for processing
-
-      if (error) {
-        this.logger.error('❌ Failed to fetch pending props for legacy grading', {
-          error: error.message,
-        });
-        return [];
-      }
-
-      return rawProps?.map(prop => this.convertToFeatureSet(prop)) || [];
-    }
+    return this.fetchPendingProviderOffers();
   }
 
   // SPRINT-044D: Fetch ungraded offers from provider_offers (V3 canonical source)
@@ -864,58 +825,22 @@ export class GradingAgent extends BaseAgent {
     }
 
     try {
-      // SPRINT-044D: When grading from provider_offers, mark as graded there
-      if (this.GRADING_DATA_SOURCE === 'provider_offers') {
-        const { error } = await this.requireSupabase()
-          .from('provider_offers')
-          .update({ graded_at: new Date().toISOString() })
-          .eq('id', result.propId);
-
-        if (error) {
-          this.logger.error('❌ Failed to mark provider_offer as graded', {
-            propId: result.propId,
-            error: error.message,
-          });
-        } else {
-          this.logger.info('✅ Grading result stored (provider_offers)', {
-            propId: result.propId,
-            tier: result.tier,
-            edgeScore: Math.round(result.edgeScore * 1000),
-          });
-        }
-        return;
-      }
-
-      // Store grading results in raw_props table (v3.0.0 approach)
-      // Fix: Use correct data types - confidence is 0/1 boolean, edge_score is integer
+      // SPRINT-044Q: provider_offers is now the sole grading storage path
       const { error } = await this.requireSupabase()
-        .from('raw_props')
-        .update({
-          confidence: result.confidence > 65 ? 1 : 0, // Boolean-like: 1 = high confidence, 0 = low
-          tier: result.tier,
-          edge_score: Math.round(result.edgeScore * 1000), // Convert to integer (per-mille basis points)
-          auto_approved: result.tier !== 'D' && result.confidence > 65,
-          updated_at: new Date().toISOString(),
-          promoted_to_picks: false, // Mark as not yet promoted
-        })
+        .from('provider_offers')
+        .update({ graded_at: new Date().toISOString() })
         .eq('id', result.propId);
 
       if (error) {
-        this.logger.error('❌ Failed to store grading result in raw_props', {
+        this.logger.error('❌ Failed to mark provider_offer as graded', {
           propId: result.propId,
           error: error.message,
-          confidence: result.confidence,
-          edgeScore: result.edgeScore,
         });
       } else {
-        this.logger.info('✅ Grading result stored in raw_props', {
+        this.logger.info('✅ Grading result stored (provider_offers)', {
           propId: result.propId,
           tier: result.tier,
-          confidence: result.confidence > 65 ? 1 : 0, // Boolean format
-          confidencePercent: result.confidence, // Original percentage for reference
-          edgeScore: Math.round(result.edgeScore * 1000), // Per-mille basis points
-          edgeScoreDecimal: result.edgeScore, // Original decimal for reference
-          autoApproved: result.tier !== 'D' && result.confidence > 65,
+          edgeScore: Math.round(result.edgeScore * 1000),
         });
       }
     } catch (error) {
@@ -961,90 +886,9 @@ export class GradingAgent extends BaseAgent {
     }
 
     try {
-      // SPRINT-044I: Route promotion based on data source
-      if (this.GRADING_DATA_SOURCE === 'provider_offers') {
-        await this.promoteFromProviderOffer(result);
-        return;
-      }
-
-      // Get the original prop data from raw_props
-      const { data: prop } = await this.requireSupabase()
-        .from('raw_props')
-        .select('*')
-        .eq('id', result.propId)
-        .single();
-
-      if (!prop) {
-        this.logger.warn('⚠️ Original prop not found for promotion', {
-          propId: result.propId,
-        });
-        return;
-      }
-
-      // Get a default user_id for system-grading_status picks
-      const { data: systemUser } = await this.requireSupabase()
-        .from('users')
-        .select('id')
-        .limit(1)
-        .single();
-
-      if (!systemUser) {
-        this.logger.error('❌ No users found in database for promotion');
-        return;
-      }
-
-      // Create the pick selection text
-      const pickSide = prop.line > 0 ? 'over' : 'under';
-      const selection = `${prop.player_name} ${prop.stat_type} ${pickSide} ${Math.abs(prop.line)}`;
-
-      // SPRINT-035A B-2: Use lifecycle adapter instead of direct insert
-      const pickId = randomUUID();
-      const pickData = {
-        id: pickId,
-        user_id: systemUser.id,
-        selection: selection,
-        odds: prop.odds || prop.over_odds || -110,
-        stake: result.positionSize * 100,
-        payout_amount: result.positionSize * 100 * (1 + Math.abs(result.kellyFraction)),
-        player_name: prop.player_name,
-        stat_type: prop.stat_type,
-        line: prop.line,
-        sport: prop.sport || 'Unknown',
-        game_date: prop.game_date,
-        confidence: result.confidence,
-        tier: result.tier,
-        kelly_fraction: result.kellyFraction,
-        promotion_band: result.promotionBand || null,
-        created_at: new Date().toISOString(),
-      };
-      const { success, error: lifecycleError } = await lifecycleInsert(
-        this.requireSupabase(),
-        pickData as any,
-        { writerRole: 'promoter' }
-      );
-
-      if (!success) {
-        this.logger.error('❌ Failed to promote prop to unified_picks', {
-          propId: result.propId,
-          error: lifecycleError,
-        });
-      } else {
-        this.logger.info('✅ Prop promoted to unified_picks', {
-          propId: result.propId,
-          tier: result.tier,
-          score: result.finalScore,
-        });
-
-        // Mark raw_props as promoted
-        await this.requireSupabase()
-          .from('raw_props')
-          .update({
-            promoted_to_picks: true,
-            promoted_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', result.propId);
-      }
+      // SPRINT-044I: Route promotion via provider_offers canonical path
+      // SPRINT-044Q: raw_props else branch removed (was dead code after 044P default flip)
+      await this.promoteFromProviderOffer(result);
     } catch (error) {
       this.logger.error('❌ Error promoting prop to unified_picks', {
         propId: result.propId,

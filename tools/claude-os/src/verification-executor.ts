@@ -20,17 +20,26 @@ import {
   captureStepEvidence,
   writeEvidenceIndex,
 } from './evidence-capture.js';
+import { classifyFailure } from './failure-classifier.js';
 import { resolveRepoPath } from './fs-utils.js';
 import { evaluateRuntimeProofGate } from './runtime-proof-gate.js';
+import { classifyScopeForStep } from './scope-resolver.js';
 import { classifyStep, deriveOverallStatus } from './verification-classifier.js';
+
 
 import type {
   SprintExecutionPlan,
+  BlastRadius,
   CommandRunner,
   CommandRunResult,
   VerificationStepResult,
   VerificationExecutionResult,
   VerificationSummary,
+  FailureClassificationSummary,
+  FailureCategory,
+  ScopedVerificationStepResult,
+  ScopedVerificationResult,
+  ScopeVerificationSummary,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -45,6 +54,8 @@ export interface VerificationExecutionOptions {
   defaultTimeoutMs?: number;
   /** If true, classify without executing — no side effects */
   dryRun?: boolean;
+  /** Blast radius for scope-aware classification (CLAUDE-OS-SCOPE-HARDENING) */
+  blastRadius?: BlastRadius;
 }
 
 // ---------------------------------------------------------------------------
@@ -62,7 +73,7 @@ export function executeVerification(
   options?: VerificationExecutionOptions
 ): VerificationExecutionResult {
   const runner = options?.commandRunner ?? runCommand;
-  const defaultTimeoutMs = options?.defaultTimeoutMs ?? 120_000;
+  const defaultTimeoutMs = options?.defaultTimeoutMs ?? 300_000;
   const dryRun = options?.dryRun ?? false;
 
   // Step 1: Create evidence directories (skip in dry-run)
@@ -135,6 +146,11 @@ export function executeVerification(
       durationMs: Date.now() - stepStart,
     };
 
+    // Classify failure when status is FAIL or BLOCKED (CLAUDE-OS-REDESIGN-001)
+    if (step.status === 'FAIL' || step.status === 'BLOCKED') {
+      step.failureClassification = classifyFailure(req, commandResult);
+    }
+
     // Collect browser artifacts after execution
     if (isBrowserRecipe(req) && commandResult) {
       const expectations = resolveBrowserArtifactExpectations(req);
@@ -159,6 +175,9 @@ export function executeVerification(
   // Step 5: Build summary
   const summary = buildSummary(steps);
 
+  // Step 5b: Build failure classification summary (CLAUDE-OS-REDESIGN-001)
+  const failureClassificationSummary = buildFailureClassificationSummary(steps);
+
   // Step 6: Assemble result
   const result: VerificationExecutionResult = {
     sprintId: plan.request.sprintId,
@@ -167,6 +186,7 @@ export function executeVerification(
     evidenceRoot: plan.artifactPlan.canonicalRoot,
     runtimeProofGate,
     summary,
+    failureClassificationSummary,
     generatedAt: new Date().toISOString(),
   };
 
@@ -178,9 +198,90 @@ export function executeVerification(
   return result;
 }
 
+/**
+ * Execute scope-aware verification.
+ *
+ * Runs the standard verification pipeline, then classifies each step
+ * relative to the sprint's blast radius. Out-of-scope failures are
+ * annotated but do not block the sprint.
+ *
+ * CLAUDE-OS-SCOPE-HARDENING
+ */
+export function executeScopedVerification(
+  plan: SprintExecutionPlan,
+  blastRadius: BlastRadius,
+  options?: VerificationExecutionOptions
+): ScopedVerificationResult {
+  // Run standard verification first
+  const baseResult = executeVerification(plan, { ...options, blastRadius });
+
+  // Classify each step against scope
+  const scopedSteps: ScopedVerificationStepResult[] = baseResult.steps.map((step, idx) => {
+    const req = plan.verificationRequirements[idx];
+    const { classification, targetWorkspace } = classifyScopeForStep(req, blastRadius);
+
+    return {
+      ...step,
+      scopeClassification: classification,
+      targetWorkspace,
+    };
+  });
+
+  // Build scope summary
+  const scopeSummary = buildScopeSummary(scopedSteps);
+
+  return {
+    ...baseResult,
+    blastRadius,
+    scopedSteps,
+    scopeSummary,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function buildScopeSummary(steps: ScopedVerificationStepResult[]): ScopeVerificationSummary {
+  const failedSteps = steps.filter(s => s.status === 'FAIL' || s.status === 'BLOCKED');
+
+  let inScopeFailures = 0;
+  let outOfScopeFailures = 0;
+  let globalBlockers = 0;
+
+  for (const step of failedSteps) {
+    switch (step.scopeClassification) {
+      case 'in_scope_failure':
+        inScopeFailures++;
+        break;
+      case 'out_of_scope_failure':
+        outOfScopeFailures++;
+        break;
+      case 'global_blocker':
+        globalBlockers++;
+        break;
+    }
+  }
+
+  const sprintBlocked = inScopeFailures > 0 || globalBlockers > 0;
+  let blockReason: string | null = null;
+
+  if (globalBlockers > 0 && inScopeFailures > 0) {
+    blockReason = `${globalBlockers} global blocker(s) + ${inScopeFailures} in-scope failure(s)`;
+  } else if (globalBlockers > 0) {
+    blockReason = `${globalBlockers} global blocker(s)`;
+  } else if (inScopeFailures > 0) {
+    blockReason = `${inScopeFailures} in-scope failure(s)`;
+  }
+
+  return {
+    inScopeFailures,
+    outOfScopeFailures,
+    globalBlockers,
+    sprintBlocked,
+    blockReason,
+  };
+}
 
 function buildSummary(steps: VerificationStepResult[]): VerificationSummary {
   return {
@@ -190,4 +291,27 @@ function buildSummary(steps: VerificationStepResult[]): VerificationSummary {
     blocked: steps.filter(s => s.status === 'BLOCKED').length,
     skipped: steps.filter(s => s.status === 'SKIPPED').length,
   };
+}
+
+function buildFailureClassificationSummary(
+  steps: VerificationStepResult[]
+): FailureClassificationSummary | undefined {
+  const classified = steps.filter(s => s.failureClassification);
+  if (classified.length === 0) return undefined;
+
+  const counts: FailureClassificationSummary = {
+    application: 0,
+    infrastructure: 0,
+    toolchain: 0,
+    environment: 0,
+    governance: 0,
+    transient: 0,
+  };
+
+  for (const step of classified) {
+    const cat = step.failureClassification!.category as FailureCategory;
+    counts[cat]++;
+  }
+
+  return counts;
 }

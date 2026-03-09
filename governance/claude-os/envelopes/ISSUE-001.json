@@ -1,0 +1,26 @@
+{
+  "envelopeVersion": "1.0.0",
+  "taskId": "ISSUE-001",
+  "taskType": "docs",
+  "projectId": "unit-talk",
+  "objective": "Test orchestrator pipeline",
+  "summary": "Test summary",
+  "touchedAreas": ["docs/"],
+  "truthSourcesRequired": [
+    "CLAUDE_EXECUTION_CONTRACT.md",
+    "docs/SYSTEM_INVARIANTS.md",
+    "governance/claude-os/SYSTEM_LAWS.md"
+  ],
+  "verificationTierOverride": "T1",
+  "runtimeProofRequired": false,
+  "artifactDate": "today",
+  "killConditions": [
+    "Violation: All writes to unified_picks must go through lifecycle adapters",
+    "Violation: Single-writer discipline enforced by lifecycle gate (--strict)",
+    "Violation: Settlement fields are immutable once set",
+    "Violation: Smart Form writes to bridge_outbox only, never unified_picks",
+    "Violation: Command Center and Dashboard are read-only surfaces"
+  ],
+  "notes": ["[AC] Criteria 1"],
+  "deferredRequirements": []
+}
