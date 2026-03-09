@@ -6,9 +6,10 @@ import {
   HealthStatus,
   BaseMetrics,
 } from '../BaseAgent/types';
+// SPRINT-044Q: compatInsertRawProp removed — raw_props writes were orphaned (no production reader)
 
 import { FeedAgentConfigSchema, FeedAgentConfig, FeedMetrics, RawProp } from './types';
-import { normalizePublicProps, dedupePublicProps } from './utils';
+import { normalizePublicProps } from './utils';
 
 /**
  * Create a proper FeedAgent configuration that extends BaseAgentConfig
@@ -159,7 +160,7 @@ export class FeedAgent extends BaseAgent {
     if (!this.supabase) {
       throw new Error('Supabase client is required for FeedAgent');
     }
-    const { error } = await this.supabase.from('raw_props').select('id').limit(1);
+    const { error } = await this.supabase.from('provider_offers').select('id').limit(1);
 
     if (error) {
       throw new Error(`Database connectivity check failed: ${error.message}`);
@@ -181,11 +182,10 @@ export class FeedAgent extends BaseAgent {
       // Normalize the data
       const normalizedData = await normalizePublicProps(rawData, provider, true, this.supabase);
 
-      // Deduplicate the data
-      const deduplicatedData = await dedupePublicProps(normalizedData, provider, this.supabase);
+      // SPRINT-046: dedupePublicProps removed — was deduplicating against deprecated raw_props
 
       // Transform to RawProp objects
-      const rawProps = this.transformProps(deduplicatedData, provider);
+      const rawProps = this.transformProps(normalizedData, provider);
 
       // Process the props
       await this.processProps(rawProps);
@@ -281,30 +281,11 @@ export class FeedAgent extends BaseAgent {
       throw new Error('Supabase client is required for FeedAgent');
     }
 
+    // SPRINT-044Q: raw_props writes removed — orphaned after GRADING_DATA_SOURCE flip (044P)
+    // FeedAgent ingestion now only writes to provider_offers via V3 path
     for (const prop of props) {
-      try {
-        // Insert into database
-        const { error } = await this.supabase.from('raw_props').insert(prop);
-
-        if (error) {
-          if (error.code === '23505') {
-            // Duplicate key error
-            this.feedMetrics.duplicates++;
-          } else {
-            throw error;
-          }
-        } else {
-          this.feedMetrics.uniqueProps++;
-        }
-
-        this.feedMetrics.totalProps++;
-      } catch (error) {
-        this.logger.error('Failed to process prop', {
-          err: error instanceof Error ? error.message : String(error),
-          prop: prop,
-        });
-        this.feedMetrics.errors++;
-      }
+      this.feedMetrics.totalProps++;
+      this.feedMetrics.uniqueProps++;
     }
   }
 

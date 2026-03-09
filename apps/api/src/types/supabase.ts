@@ -10,7 +10,7 @@ import type {
   PlayersRow,
   UnifiedPicksRow,
   AgentHealthRow,
-} from '@unit-talk/shared-types';
+} from '@unit-talk/contracts';
 
 // Re-export canonical types with local aliases
 export type RawProp = RawPropsRow;

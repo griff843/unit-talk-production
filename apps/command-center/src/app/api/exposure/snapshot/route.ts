@@ -538,33 +538,19 @@ class ExposureTrackingService {
     reason: string
   ): Promise<{ success: boolean; pick_id: string; new_units?: number }> {
     try {
-      // Get current pick
-      const { data: pick, error: fetchError } = await supabase
-        .from('unified_picks')
-        .select('id, units')
-        .eq('id', pickId)
-        .single();
-
-      if (fetchError || !pick) {
-        return { success: false, pick_id: pickId };
-      }
-
-      const newUnits = Math.max(0.5, (pick.units as number) * reductionFactor); // Minimum 0.5 units
-
-      // Update pick with reduced units
-      const { error: updateError } = await supabase
-        .from('unified_picks')
-        .update({
-          units: newUnits,
-          adjustment_reason: reason,
-          adjusted_at: new Date().toISOString(),
-        })
-        .eq('id', pickId);
+      // SPRINT-023B: Route through API endpoint instead of direct DB write
+      const apiUrl = process.env.API_SERVICE_URL || 'http://localhost:3000';
+      const res = await fetch(`${apiUrl}/ops/picks/${pickId}/reduce-units`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, reduction_factor: reductionFactor }),
+      });
+      const result = await res.json();
 
       return {
-        success: !updateError,
+        success: result.success === true,
         pick_id: pickId,
-        new_units: newUnits,
+        new_units: result.new_units,
       };
     } catch (error) {
       console.error('Error reducing pick units:', error);
@@ -577,20 +563,19 @@ class ExposureTrackingService {
     reason: string
   ): Promise<{ success: boolean; pick_id: string; action: string }> {
     try {
-      const { error } = await supabase
-        .from('unified_picks')
-        .update({
-          workflow_stage: 'draft',
-          demoted_reason: reason,
-          demoted_at: new Date().toISOString(),
-          published: false,
-        })
-        .eq('id', pickId);
+      // SPRINT-023B: Route through API endpoint instead of direct DB write
+      const apiUrl = process.env.API_SERVICE_URL || 'http://localhost:3000';
+      const res = await fetch(`${apiUrl}/ops/picks/${pickId}/demote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      const result = await res.json();
 
       return {
-        success: !error,
+        success: result.success === true,
         pick_id: pickId,
-        action: 'demoted_to_draft',
+        action: result.action || 'demoted_to_draft',
       };
     } catch (error) {
       console.error('Error demoting pick:', error);

@@ -1,0 +1,30 @@
+{
+  "issueVersion": "1.0.0",
+  "issueId": "ISSUE-001",
+  "projectId": "unit-talk",
+  "taskType": "runtime",
+  "title": "Migrate settlement reads from raw_props to provider_offers",
+  "objective": "Migrate SettlementAgent game-result reads from the deprecated raw_props table to the canonical provider_offers table",
+  "summary": "The SettlementAgent currently reads game results from raw_props for grading. This sprint migrates those reads to provider_offers (canonical ingestion table) and ensures settlement writes still go through lifecycle adapters.",
+  "acceptanceCriteria": [
+    "SettlementAgent reads from provider_offers instead of raw_props",
+    "Lifecycle gate passes in strict mode",
+    "Runtime smoke test confirms settlement flow",
+    "No direct writes to raw_props from any agent"
+  ],
+  "touchedAreas": ["apps/api/src/agents/SettlementAgent/", "apps/api/src/activities/"],
+  "dependencies": [],
+  "truthSourcesRequired": [
+    "docs/contracts/PICK_LIFECYCLE_CONTRACT.md",
+    "docs/system/current/table-contracts.md",
+    "docs/system/current/ingestion-source-of-truth.md"
+  ],
+  "killConditions": [
+    "Lifecycle gate fails",
+    "Settlement writes bypass lifecycle adapters",
+    "Any write to raw_props table"
+  ],
+  "notes": ["raw_props compatibility views may still exist for read-only legacy paths"],
+  "status": "open",
+  "priority": "high"
+}

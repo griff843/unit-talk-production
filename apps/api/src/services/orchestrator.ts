@@ -7,7 +7,8 @@ import {
   PredictionResult,
   SystemStatus,
 } from '../types';
-import { RiskMetrics } from '../types/risk';
+
+import { RiskMetrics } from './risk/risk-types';
 
 export class SystemOrchestrator {
   private logger: any;

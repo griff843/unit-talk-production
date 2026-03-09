@@ -314,6 +314,13 @@ services:
       - GIT_COMMIT=${GIT_COMMIT:-unknown}
       - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}
       - GIT_BRANCH=${GIT_BRANCH:-unknown}
+      # SPRINT-044A: V2 Promotion Policy (controlled canary rollout)
+      - PROMOTION_POLICY_V2=true
+      - PROMOTION_CANARY_PERCENT=10
+      - PROMOTION_CANARY_SPORTS=NBA,MLB
+      - PROMOTION_HARD_ONLY=true
+      # SPRINT-044D: Grading data source (raw_props → provider_offers migration)
+      - GRADING_DATA_SOURCE=raw_props
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/logs:/app/apps/api/logs

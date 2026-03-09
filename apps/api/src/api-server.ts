@@ -102,15 +102,15 @@ app.get('/health/provider', async (req, res) => {
     const { getProviderHealth } = await import('./agents/FeedAgent/activities');
     const providerHealth = getProviderHealth();
 
-    // Get data freshness from database
+    // Get data freshness from canonical V3 ingestion target
     const { supabaseClient } = await import('./services/supabaseClient');
-    const { data: latestProp } = await supabaseClient
-      .from('raw_props')
-      .select('created_at')
-      .order('created_at', { ascending: false })
+    const { data: latestOffer } = await supabaseClient
+      .from('provider_offers')
+      .select('snapshot_at')
+      .order('snapshot_at', { ascending: false })
       .limit(1);
 
-    const lastIngestion = latestProp?.[0]?.created_at || null;
+    const lastIngestion = latestOffer?.[0]?.snapshot_at || null;
     const minutesSinceLastIngestion = lastIngestion
       ? Math.floor((Date.now() - new Date(lastIngestion).getTime()) / 60000)
       : null;

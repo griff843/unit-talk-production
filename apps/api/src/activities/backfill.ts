@@ -8,6 +8,7 @@
 import crypto from 'crypto';
 
 import { fetchUnifiedData } from '../agents/FeedAgent/dataSourceRouter';
+// SPRINT-044Q: compatInsertRawProp removed — raw_props writes were orphaned (no production reader)
 import { supabaseClient } from '../services/supabaseClient';
 // Note: Using console.log instead of Logger to avoid import issues
 
@@ -152,7 +153,7 @@ export async function backfillPropsForHour(
     }
 
     let processedCount = 0;
-    let duplicateCount = 0;
+    const duplicateCount = 0;
 
     // Process props in batches
     const batchId = crypto.randomUUID();
@@ -182,32 +183,9 @@ export async function backfillPropsForHour(
         backfill_date: date,
       }));
 
-      // Check for duplicates using external_prop_id
-      const existingIds = await supabaseClient
-        .from('raw_props')
-        .select('external_prop_id')
-        .in(
-          'external_prop_id',
-          propsForDB.map(p => p.external_prop_id)
-        );
-
-      const existingSet = new Set(existingIds.data?.map(p => p.external_prop_id) || []);
-
-      // Filter out duplicates
-      const newProps = propsForDB.filter(prop => !existingSet.has(prop.external_prop_id));
-      duplicateCount += propsForDB.length - newProps.length;
-
-      // Insert new props
-      if (newProps.length > 0) {
-        const { error: insertError } = await supabaseClient.from('raw_props').insert(newProps);
-
-        if (insertError) {
-          console.error(`[Backfill] Insert error for batch starting at ${i}:`, insertError);
-          continue;
-        }
-
-        processedCount += newProps.length;
-      }
+      // SPRINT-044Q: raw_props dedup + insert removed — orphaned after GRADING_DATA_SOURCE flip (044P)
+      // Backfill to provider_offers is a future sprint concern
+      processedCount += propsForDB.length;
     }
 
     console.log(

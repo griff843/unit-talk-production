@@ -1,6 +1,6 @@
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical types from shared-types
 // SPRINT-RUNTIME-TRUTH-008: Removed extends clause to avoid Json type conflicts
-import type { UnifiedPicksRow } from '@unit-talk/shared-types';
+import type { UnifiedPicksRow } from '@unit-talk/contracts';
 
 /**
  * UnifiedPick - Extended for recap/analytics use cases

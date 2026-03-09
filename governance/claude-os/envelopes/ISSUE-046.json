@@ -1,0 +1,32 @@
+{
+  "envelopeVersion": "1.0.0",
+  "taskId": "ISSUE-046",
+  "taskType": "runtime",
+  "projectId": "unit-talk",
+  "objective": "Ensure no production code writes to raw_props and remove compatibility helpers",
+  "summary": "Delete remaining compatibility utilities and ensure provider_offers is the only ingestion source",
+  "touchedAreas": ["apps/api/src", "packages", "agents"],
+  "truthSourcesRequired": [
+    "CLAUDE_EXECUTION_CONTRACT.md",
+    "docs/SYSTEM_INVARIANTS.md",
+    "governance/claude-os/SYSTEM_LAWS.md"
+  ],
+  "verificationTierOverride": "T3",
+  "runtimeProofRequired": true,
+  "artifactDate": "today",
+  "killConditions": [
+    "Violation: All writes to unified_picks must go through lifecycle adapters",
+    "Violation: Single-writer discipline enforced by lifecycle gate (--strict)",
+    "Violation: Settlement fields are immutable once set",
+    "Violation: Smart Form writes to bridge_outbox only, never unified_picks",
+    "Violation: Command Center and Dashboard are read-only surfaces"
+  ],
+  "notes": [
+    "[AC] No production code writes to raw_props",
+    "[AC] Compatibility helpers referencing raw_props are removed",
+    "[AC] provider_offers remains the canonical ingestion table",
+    "[AC] TypeScript build passes",
+    "[AC] Tests pass"
+  ],
+  "deferredRequirements": []
+}

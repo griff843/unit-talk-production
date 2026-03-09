@@ -4,19 +4,13 @@ import { Worker } from '@temporalio/worker';
 import * as alertActivities from '../agents/AlertAgent/activities';
 import * as analyticsActivities from '../agents/AnalyticsAgent/activities';
 import * as auditActivities from '../agents/AuditAgent/activities';
-import * as automatedOnboardingActivities from '../agents/AutomatedOnboardingAgent/activities';
 import * as baseActivities from '../agents/BaseAgent/activities';
-import * as campaignActivities from '../agents/CampaignAgent/activities';
-import * as contestActivities from '../agents/ContestAgent/activities';
 import * as feedActivities from '../agents/FeedAgent/activities';
 import * as gradingActivities from '../agents/GradingAgent/activities';
 import * as notificationActivities from '../agents/NotificationAgent/activities';
 import * as operatorActivities from '../agents/OperatorAgent/activities';
-import * as performanceOptimizationActivities from '../agents/PerformanceOptimizationAgent/activities';
 import * as playerEnrichmentActivities from '../agents/PlayerEnrichmentAgent/activities';
-import * as predictiveAnalyticsActivities from '../agents/PredictiveAnalyticsAgent/activities';
-import * as riskManagementActivities from '../agents/RiskManagementAgent/activities';
-import * as userRetentionActivities from '../agents/UserRetentionAgent/activities';
+// SPRINT-REPO-TRUTH-LOCK-002: Archived experimental agents moved to _archived/
 import { enforceFailClosedBoot } from '../lib/enforcement';
 import { ErrorHandler } from '../utils/errorHandling';
 import { createLogger } from '../utils/logger';
@@ -39,32 +33,14 @@ export default async function startAllAgents() {
   try {
     logger.info('Starting master Temporal worker with all agents...');
 
-    // Log optimized agent system (27→13 agents, 52% reduction)
-    logger.info('Loading optimized agent system:', {
-      totalAgents: 13,
-      reductionPercentage: '52%',
-      businessAgents: [
-        'GradingAgent', // Professional pick scoring with ML ensemble
-        'AnalyticsAgent', // Performance insights and data analysis
-        'AlertAgent', // Real-time notifications and Discord alerts
-        'FeedAgent', // Optimal dual-API data ingestion
-        'RecapAgent', // Daily/weekly performance summaries
-      ],
+    // SPRINT-REPO-TRUTH-LOCK-002: Production agents only (experimental archived)
+    logger.info('Loading production agent system:', {
+      businessAgents: ['GradingAgent', 'AnalyticsAgent', 'AlertAgent', 'FeedAgent', 'RecapAgent'],
       operationalAgents: [
-        'NotificationAgent', // Multi-channel user communications
-        'ContestAgent', // Contest management and leaderboards
-        'PlayerEnrichmentAgent', // Multi-league player data enrichment
-        'AuditAgent', // Compliance and audit trail tracking
-      ],
-      intelligenceAgents: [
-        'AutomatedOnboardingAgent', // ML-powered Discord onboarding (ENHANCED)
-        'PredictiveAnalyticsAgent', // Market forecasting and predictions
-        'RiskManagementAgent', // Portfolio optimization and risk analysis
-        'UserRetentionAgent', // Churn prediction and engagement analysis
-      ],
-      removedAgents: [
-        'FinalizerAgent (obsolete v2.0 tables)',
-        'OnboardingAgent (replaced by AutomatedOnboardingAgent)',
+        'NotificationAgent',
+        'PlayerEnrichmentAgent',
+        'AuditAgent',
+        'OperatorAgent',
       ],
     });
 
@@ -78,20 +54,11 @@ export default async function startAllAgents() {
         ...alertActivities,
         ...analyticsActivities,
         ...auditActivities,
-        ...contestActivities,
         ...feedActivities,
         ...gradingActivities,
         ...notificationActivities,
         ...operatorActivities,
         ...playerEnrichmentActivities,
-        ...campaignActivities,
-
-        // Register intelligent agent activities
-        ...automatedOnboardingActivities,
-        ...userRetentionActivities,
-        ...riskManagementActivities,
-        ...predictiveAnalyticsActivities,
-        ...performanceOptimizationActivities,
       },
       taskQueue: 'unit-talk-main',
 

@@ -17,7 +17,7 @@ import { config } from 'dotenv';
 import { AlertAgent } from '../agents/AlertAgent';
 import { FeedAgent } from '../agents/FeedAgent';
 import { getRateLimitStatus } from '../agents/FeedAgent/optimal';
-import { RiskManagementAgent } from '../agents/RiskManagementAgent';
+import { RiskManagementAgent } from '../agents/_archived/RiskManagementAgent';
 import { supabaseClient } from '../services/supabaseClient';
 import { Logger } from '../shared/logger';
 

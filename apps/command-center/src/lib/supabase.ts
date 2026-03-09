@@ -575,103 +575,110 @@ export const dbOperations = {
   },
 
   async createPick(pick: Omit<Pick, 'id' | 'created_at'>) {
-    const client = getSupabaseClient();
-
-    const { data, error } = await client
-      .from('unified_picks')
-      .insert({
+    // SPRINT-023B: Route through API endpoint instead of direct DB write
+    const apiUrl = process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:3000';
+    const res = await fetch(`${apiUrl}/ops/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         user_id: pick.user_id,
         sport: pick.sport,
         pick_type: pick.pick_type,
         prediction: pick.selection.includes('over') ? 'over' : 'under',
         confidence: pick.confidence,
-        status: 'pending',
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return this.transformUnifiedPicksToPicks([data])[0];
+      }),
+    });
+    const result = await res.json();
+    if (!res.ok || !result.success) throw new Error(result.error || 'Failed to create pick');
+    // Return a minimal pick shape — caller should refetch for full data
+    return {
+      id: result.pick_id || result.id,
+      ...pick,
+      created_at: new Date().toISOString(),
+    } as Pick;
   },
 
   async approvePick(pickId: string, approvedBy: string) {
-    const client = getSupabaseClient();
+    // SPRINT-023B: Route through API endpoint instead of direct DB write
+    const apiUrl = process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:3000';
+    const res = await fetch(`${apiUrl}/ops/picks/${pickId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: `Approved by ${approvedBy} via Command Center` }),
+    });
+    const result = await res.json();
+    if (!res.ok || !result.success) throw new Error(result.error || 'Failed to approve pick');
 
+    console.log(`[CC] Pick ${pickId} approved by ${approvedBy} via API`);
+
+    // Refetch the pick to return updated data
+    const client = getSupabaseClient();
     const { data, error } = await client
       .from('unified_picks')
-      .update({
-        status: 'approved',
-        approved_by: approvedBy,
-        approved_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', pickId)
       .select(
-        `
-        *,
-        users!inner (username, tier),
-        raw_props (player_name, prop_type, line, over_odds, under_odds)
-      `
+        `*, users!inner (username, tier), raw_props (player_name, prop_type, line, over_odds, under_odds)`
       )
+      .eq('id', pickId)
       .single();
-
     if (error) throw error;
-
-    console.log(`[CC] Pick ${pickId} approved by ${approvedBy}`);
     return this.transformUnifiedPicksToPicks([data])[0];
   },
 
   async denyPick(pickId: string, deniedBy: string, reason?: string) {
-    const client = getSupabaseClient();
+    // SPRINT-023B: Route through API endpoint instead of direct DB write
+    const apiUrl = process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:3000';
+    const res = await fetch(`${apiUrl}/ops/picks/${pickId}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reason: reason || `Denied by ${deniedBy} via Command Center`,
+        reason_code: 'OPERATOR_DENY',
+      }),
+    });
+    const result = await res.json();
+    if (!res.ok || !result.success) throw new Error(result.error || 'Failed to deny pick');
 
+    console.log(`[CC] Pick ${pickId} denied by ${deniedBy} via API${reason ? `: ${reason}` : ''}`);
+
+    // Refetch the pick to return updated data
+    const client = getSupabaseClient();
     const { data, error } = await client
       .from('unified_picks')
-      .update({
-        status: 'denied',
-        denied_by: deniedBy,
-        denial_reason: reason,
-        denied_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', pickId)
       .select(
-        `
-        *,
-        users!inner (username, tier),
-        raw_props (player_name, prop_type, line, over_odds, under_odds)
-      `
+        `*, users!inner (username, tier), raw_props (player_name, prop_type, line, over_odds, under_odds)`
       )
+      .eq('id', pickId)
       .single();
-
     if (error) throw error;
-
-    console.log(`[CC] Pick ${pickId} denied by ${deniedBy}${reason ? `: ${reason}` : ''}`);
     return this.transformUnifiedPicksToPicks([data])[0];
   },
 
   async updatePickResult(pickId: string, result: 'win' | 'loss' | 'push', actualValue?: number) {
-    const client = getSupabaseClient();
+    // SPRINT-023B: Route through API endpoint instead of direct DB write
+    const apiUrl = process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:3000';
+    const res = await fetch(`${apiUrl}/ops/picks/${pickId}/settle-result`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        result,
+        reason: `Manual settlement via Command Center${actualValue !== undefined ? ` (actual: ${actualValue})` : ''}`,
+      }),
+    });
+    const apiResult = await res.json();
+    if (!res.ok || !apiResult.success) throw new Error(apiResult.error || 'Failed to settle pick');
 
+    // Refetch the pick to return updated data
+    const client = getSupabaseClient();
     const { data, error } = await client
       .from('unified_picks')
-      .update({
-        result,
-        status: 'settled',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', pickId)
       .select(
-        `
-        *,
-        users!inner (username, tier),
-        raw_props (player_name, prop_type, line, over_odds, under_odds)
-      `
+        `*, users!inner (username, tier), raw_props (player_name, prop_type, line, over_odds, under_odds)`
       )
+      .eq('id', pickId)
       .single();
-
     if (error) throw error;
 
-    console.log(`[CC] Pick ${pickId} result updated to ${result}`);
+    console.log(`[CC] Pick ${pickId} result updated to ${result} via API`);
     return this.transformUnifiedPicksToPicks([data])[0];
   },
 

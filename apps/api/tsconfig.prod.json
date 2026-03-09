@@ -14,6 +14,7 @@
     "**/*.spec.ts",
     "qa/**/*",
     "src/runner/**/*",
-    "src/scripts/**/*"
+    "src/scripts/**/*",
+    "src/**/_archived/**"
   ]
 }

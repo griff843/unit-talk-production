@@ -1,0 +1,28 @@
+{
+  "name": "@unit-talk/contracts",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types and contracts for Unit Talk Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "lint": "echo 'No lint configured for contracts package'",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "typescript",
+    "types",
+    "shared"
+  ],
+  "author": "Unit Talk Team",
+  "license": "PROPRIETARY",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*"
+  ]
+}

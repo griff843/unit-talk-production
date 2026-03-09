@@ -1,0 +1,322 @@
+{
+  "version": "1.0.0",
+  "description": "Standard proof artifact expectations by sprint type. Defines what must be in a proof bundle for each category of sprint work.",
+  "sprint_types": [
+    {
+      "type": "docs",
+      "description": "Documentation-only sprints — governance, architecture docs, contracts, READMEs",
+      "verification_tier": "T1",
+      "required_proof": [
+        {
+          "category": "git_status",
+          "artifact": "proofs/proof_git_status.txt",
+          "description": "Clean working tree confirmation"
+        },
+        {
+          "category": "typecheck",
+          "artifact": "proofs/proof_typecheck.txt",
+          "description": "TypeScript compilation still passes (no doc changes broke imports)"
+        },
+        {
+          "category": "diff",
+          "artifact": "diffs/sprint_changes.diff",
+          "description": "All doc changes captured"
+        },
+        {
+          "category": "closeout",
+          "artifact": "SPRINT_CLOSEOUT_REPORT.md",
+          "description": "Sprint summary and verdict"
+        }
+      ],
+      "optional_proof": [
+        {
+          "category": "lint",
+          "artifact": "proofs/proof_lint.txt",
+          "description": "Lint check for any code formatting in docs"
+        }
+      ],
+      "ratification_threshold": "All required artifacts present. Typecheck passes. Diff shows only doc file changes.",
+      "notes": "Docs sprints have the lowest proof burden. The main risk is inadvertent code changes — diff review confirms scope."
+    },
+    {
+      "type": "runtime",
+      "description": "Sprints that change runtime behavior — agents, data pipelines, API logic, settlement",
+      "verification_tier": "T3",
+      "required_proof": [
+        {
+          "category": "git_status",
+          "artifact": "proofs/proof_git_status.txt",
+          "description": "Clean working tree confirmation"
+        },
+        {
+          "category": "typecheck",
+          "artifact": "proofs/proof_typecheck.txt",
+          "description": "TypeScript compilation passes"
+        },
+        {
+          "category": "tests",
+          "artifact": "proofs/proof_tests.txt",
+          "description": "Unit and/or integration test results"
+        },
+        {
+          "category": "build",
+          "artifact": "proofs/proof_build.txt",
+          "description": "Affected application build succeeds"
+        },
+        {
+          "category": "lifecycle_gate",
+          "artifact": "proofs/proof_gate.txt",
+          "description": "Single-writer gate passes (if unified_picks in scope)"
+        },
+        {
+          "category": "runtime_evidence",
+          "artifact": "proofs/proof_runtime_*.txt",
+          "description": "Database state, API response, or log output showing correct runtime behavior"
+        },
+        {
+          "category": "diff",
+          "artifact": "diffs/sprint_changes.diff",
+          "description": "All code changes captured"
+        },
+        {
+          "category": "closeout",
+          "artifact": "SPRINT_CLOSEOUT_REPORT.md",
+          "description": "Sprint summary with runtime evidence summary"
+        }
+      ],
+      "optional_proof": [
+        {
+          "category": "lint",
+          "artifact": "proofs/proof_lint.txt",
+          "description": "Lint output"
+        },
+        {
+          "category": "drift_audit",
+          "artifact": "proofs/proof_drift_audit.txt",
+          "description": "Governance drift check results"
+        }
+      ],
+      "ratification_threshold": "All required artifacts present. Typecheck and tests pass. Build succeeds. Runtime evidence demonstrates correct behavior. Lifecycle gate passes if applicable.",
+      "notes": "Runtime sprints have the highest proof burden. Build-time evidence alone is insufficient — runtime proof is mandatory."
+    },
+    {
+      "type": "build_fix",
+      "description": "Sprints that fix build errors, type errors, lint issues, or dependency problems",
+      "verification_tier": "T2",
+      "required_proof": [
+        {
+          "category": "git_status",
+          "artifact": "proofs/proof_git_status.txt",
+          "description": "Clean working tree confirmation"
+        },
+        {
+          "category": "typecheck",
+          "artifact": "proofs/proof_typecheck.txt",
+          "description": "TypeScript compilation passes (this IS the fix evidence)"
+        },
+        {
+          "category": "build",
+          "artifact": "proofs/proof_build.txt",
+          "description": "All affected builds succeed"
+        },
+        {
+          "category": "tests",
+          "artifact": "proofs/proof_tests.txt",
+          "description": "Tests still pass after build fix"
+        },
+        {
+          "category": "diff",
+          "artifact": "diffs/sprint_changes.diff",
+          "description": "All changes captured"
+        },
+        {
+          "category": "closeout",
+          "artifact": "SPRINT_CLOSEOUT_REPORT.md",
+          "description": "Sprint summary showing before/after build state"
+        }
+      ],
+      "optional_proof": [
+        {
+          "category": "lint",
+          "artifact": "proofs/proof_lint.txt",
+          "description": "Lint output if lint was part of the fix"
+        }
+      ],
+      "ratification_threshold": "All required artifacts present. Typecheck and build pass. Tests pass. Diff confirms changes are limited to build-fix scope.",
+      "notes": "Build-fix sprints demonstrate the fix via the build/typecheck passing. Before-state should be documented in closeout report."
+    },
+    {
+      "type": "e2e_lifecycle",
+      "description": "End-to-end lifecycle sprints — spanning ingestion through settlement",
+      "verification_tier": "T4",
+      "required_proof": [
+        {
+          "category": "git_status",
+          "artifact": "proofs/proof_git_status.txt",
+          "description": "Clean working tree confirmation"
+        },
+        {
+          "category": "typecheck",
+          "artifact": "proofs/proof_typecheck.txt",
+          "description": "TypeScript compilation passes"
+        },
+        {
+          "category": "tests",
+          "artifact": "proofs/proof_tests.txt",
+          "description": "Full test suite results including lifecycle tests"
+        },
+        {
+          "category": "build",
+          "artifact": "proofs/proof_build.txt",
+          "description": "All application builds succeed"
+        },
+        {
+          "category": "lifecycle_gate",
+          "artifact": "proofs/proof_gate.txt",
+          "description": "Single-writer gate passes"
+        },
+        {
+          "category": "runtime_evidence",
+          "artifact": "proofs/proof_runtime_*.txt",
+          "description": "Database state showing full lifecycle flow (submit -> grade -> promote -> post -> settle)"
+        },
+        {
+          "category": "discord_evidence",
+          "artifact": "proofs/proof_runtime_discord.txt",
+          "description": "Discord delivery verification"
+        },
+        {
+          "category": "diff",
+          "artifact": "diffs/sprint_changes.diff",
+          "description": "All changes captured"
+        },
+        {
+          "category": "closeout",
+          "artifact": "SPRINT_CLOSEOUT_REPORT.md",
+          "description": "Sprint summary with e2e flow verification"
+        }
+      ],
+      "optional_proof": [
+        {
+          "category": "lint",
+          "artifact": "proofs/proof_lint.txt",
+          "description": "Lint output"
+        },
+        {
+          "category": "drift_audit",
+          "artifact": "proofs/proof_drift_audit.txt",
+          "description": "Full governance drift check"
+        }
+      ],
+      "ratification_threshold": "All required artifacts present. Full test suite passes. Lifecycle gate passes. Runtime evidence shows complete e2e flow. Discord delivery verified. No deprecated path usage.",
+      "notes": "E2E lifecycle sprints have maximum proof requirements. Every stage of the lifecycle must be evidenced."
+    },
+    {
+      "type": "ui",
+      "description": "UI sprints — command-center, dashboard, or smart-form changes",
+      "verification_tier": "T2",
+      "required_proof": [
+        {
+          "category": "git_status",
+          "artifact": "proofs/proof_git_status.txt",
+          "description": "Clean working tree confirmation"
+        },
+        {
+          "category": "typecheck",
+          "artifact": "proofs/proof_typecheck.txt",
+          "description": "TypeScript compilation passes"
+        },
+        {
+          "category": "build",
+          "artifact": "proofs/proof_build.txt",
+          "description": "UI application build succeeds"
+        },
+        {
+          "category": "diff",
+          "artifact": "diffs/sprint_changes.diff",
+          "description": "All changes captured"
+        },
+        {
+          "category": "closeout",
+          "artifact": "SPRINT_CLOSEOUT_REPORT.md",
+          "description": "Sprint summary with UI change description"
+        }
+      ],
+      "optional_proof": [
+        {
+          "category": "visual_evidence",
+          "artifact": "proofs/screenshots/*.png",
+          "description": "Screenshots showing UI before/after"
+        },
+        {
+          "category": "tests",
+          "artifact": "proofs/proof_tests.txt",
+          "description": "Component tests if they exist"
+        },
+        {
+          "category": "lint",
+          "artifact": "proofs/proof_lint.txt",
+          "description": "Lint output"
+        }
+      ],
+      "ratification_threshold": "All required artifacts present. Typecheck and build pass. UI changes are visually verified (screenshots recommended). Diff confirms scope.",
+      "notes": "UI sprints that also modify data submission (smart-form -> bridge_outbox) upgrade to T3 and require runtime evidence."
+    },
+    {
+      "type": "schema",
+      "description": "Database schema migrations — new tables, columns, constraints, triggers",
+      "verification_tier": "T3",
+      "required_proof": [
+        {
+          "category": "git_status",
+          "artifact": "proofs/proof_git_status.txt",
+          "description": "Clean working tree confirmation"
+        },
+        {
+          "category": "typecheck",
+          "artifact": "proofs/proof_typecheck.txt",
+          "description": "TypeScript compilation passes with new types"
+        },
+        {
+          "category": "build",
+          "artifact": "proofs/proof_build.txt",
+          "description": "All application builds succeed"
+        },
+        {
+          "category": "schema_evidence",
+          "artifact": "proofs/proof_schema_guard.txt",
+          "description": "Database schema matches type definitions"
+        },
+        {
+          "category": "migration_sql",
+          "artifact": "diffs/sprint_changes.diff",
+          "description": "Migration SQL captured in diff with rollback documented"
+        },
+        {
+          "category": "tests",
+          "artifact": "proofs/proof_tests.txt",
+          "description": "Tests pass with new schema"
+        },
+        {
+          "category": "closeout",
+          "artifact": "SPRINT_CLOSEOUT_REPORT.md",
+          "description": "Sprint summary with migration description and rollback documentation"
+        }
+      ],
+      "optional_proof": [
+        {
+          "category": "runtime_evidence",
+          "artifact": "proofs/proof_runtime_schema.txt",
+          "description": "Database query showing schema change applied correctly"
+        },
+        {
+          "category": "lifecycle_gate",
+          "artifact": "proofs/proof_gate.txt",
+          "description": "Lifecycle gate if schema change affects unified_picks"
+        }
+      ],
+      "ratification_threshold": "All required artifacts present. Typecheck and build pass. Schema matches types. Migration has documented rollback. Tests pass.",
+      "notes": "Schema sprints are high-risk because migrations are effectively irreversible in production. Rollback documentation is mandatory."
+    }
+  ]
+}

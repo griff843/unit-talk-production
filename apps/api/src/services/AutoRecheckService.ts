@@ -6,8 +6,8 @@
 import { publishGuard } from '../promotion/PublishGuard';
 import { Logger, createLogger } from '../utils/logger';
 
-import { portfolioRiskManager } from './PortfolioRiskManager';
 import { promotionGatekeeper } from './PromotionGatekeeper';
+import { portfolioRiskManager } from './risk/PortfolioRiskManager';
 import { sTierEnforcer } from './STierEnforcer';
 import { supabaseClient } from './supabaseClient';
 

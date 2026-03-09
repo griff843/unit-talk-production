@@ -1,6 +1,8 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity, no-undef, no-return-await, no-unused-vars, max-depth, @typescript-eslint/no-unused-vars */
 import { randomUUID } from 'crypto';
 
+// SPRINT-044Q: rawPropsWriter imports removed — all compatibility wrappers deleted
+import { lifecycleInsert } from '../../lib/lifecycle';
 import {
   ProfessionalPropProcessor,
   ProfessionalPropResult,
@@ -50,6 +52,8 @@ export class GradingAgent extends BaseAgent {
   private readonly USE_PRO_SCORER: boolean;
   private readonly SCORING_DEBUG: boolean;
   private readonly USE_PROJECTIONS: boolean;
+  // SPRINT-044D: Data source for grading input (raw_props or provider_offers)
+  private readonly GRADING_DATA_SOURCE: string;
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
@@ -58,6 +62,7 @@ export class GradingAgent extends BaseAgent {
     this.USE_PRO_SCORER = process.env.USE_PRO_SCORER === 'true';
     this.SCORING_DEBUG = process.env.SCORING_DEBUG === 'true';
     this.USE_PROJECTIONS = process.env.USE_PROJECTIONS !== 'false'; // Enabled by default
+    this.GRADING_DATA_SOURCE = process.env.GRADING_DATA_SOURCE || 'provider_offers';
 
     this.gradingEngine = new SyndicateGradingEngine();
     this.professionalProcessor = ProfessionalPropProcessor.getInstance();
@@ -111,7 +116,8 @@ export class GradingAgent extends BaseAgent {
     }
 
     // Test database connectivity for v3.0.0 unified tables only
-    const requiredTables = ['raw_props', 'unified_picks', 'users'];
+    // SPRINT-044P: provider_offers is now the default grading source
+    const requiredTables = ['provider_offers', 'unified_picks', 'users'];
 
     for (const table of requiredTables) {
       try {
@@ -190,7 +196,7 @@ export class GradingAgent extends BaseAgent {
     // Database connectivity
     if (this.hasSupabase()) {
       try {
-        await this.requireSupabase().from('raw_props').select('count').limit(1);
+        await this.requireSupabase().from('provider_offers').select('count').limit(1);
         checks.push({ service: 'database', status: 'healthy' });
       } catch (error) {
         checks.push({
@@ -385,6 +391,157 @@ export class GradingAgent extends BaseAgent {
     return await this.gradingEngine.gradeProps(propsList);
   }
 
+  // SPRINT-042C: Workflow-critical orchestration methods
+  // Called by gradingAndScoringWorkflow via GradingAgentActivitiesImpl
+
+  /**
+   * Fetch ungraded props for a league, grade each, return top-tier results.
+   * Called by gradingAndScoringWorkflow via Temporal activities.
+   */
+  async gradeNewProps(params: {
+    league: string;
+    isLiveMode: boolean;
+    cycleCount: number;
+  }): Promise<{ league: string; topTierProps: any[]; gradedCount: number }> {
+    const { league, isLiveMode } = params;
+
+    if (!this.hasSupabase()) {
+      this.logger.warn('Supabase not available for gradeNewProps');
+      return { league, topTierProps: [], gradedCount: 0 };
+    }
+
+    const limit = isLiveMode ? 500 : 200;
+
+    // SPRINT-046: provider_offers is the only grading source (raw_props branch removed)
+    const { data: offers, error } = await this.requireSupabase()
+      .from('provider_offers')
+      .select('*')
+      .is('graded_at', null)
+      .ilike('sport_key', `%${league.toLowerCase()}%`)
+      .order('created_at', { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      this.logger.error('Failed to fetch provider_offers for gradeNewProps', {
+        error: error.message,
+        league,
+      });
+      return { league, topTierProps: [], gradedCount: 0 };
+    }
+
+    if (!offers || offers.length === 0) {
+      this.logger.debug(`No ungraded provider_offers found for ${league}`);
+      return { league, topTierProps: [], gradedCount: 0 };
+    }
+
+    this.logger.info(`Grading ${offers.length} provider_offers for ${league}`);
+
+    const topTierProps: GradingResult[] = [];
+    let gradedCount = 0;
+
+    for (const offer of offers) {
+      try {
+        const features = this.convertProviderOfferToFeatureSet(offer);
+        const result = await this.gradeProp(features);
+        gradedCount++;
+
+        // Mark as graded (sets graded_at on provider_offers)
+        await this.storeGradingResult(result);
+
+        if (['S', 'A', 'B'].includes(result.tier)) {
+          topTierProps.push(result);
+        }
+      } catch (err) {
+        this.logger.debug('Failed to grade provider_offer', {
+          offerId: offer.id,
+          error: err instanceof Error ? err.message : 'Unknown',
+        });
+      }
+    }
+
+    this.logger.info(
+      `Graded ${gradedCount} provider_offers for ${league}, ${topTierProps.length} top-tier`
+    );
+    return { league, topTierProps, gradedCount };
+  }
+
+  /**
+   * Score top-tier picks with portfolio-level analysis.
+   */
+  async scoreTopTierPicks(params: {
+    gradedProps: any[];
+    league: string;
+    cycleCount: number;
+  }): Promise<{ league: string; scoredPicks: any[]; scoreCount: number }> {
+    const { gradedProps, league, cycleCount } = params;
+
+    const scoredPicks = gradedProps.map(prop => ({
+      ...prop,
+      scoredAt: new Date().toISOString(),
+      cycleCount,
+      portfolioScore: prop.finalScore * (prop.confidence / 100),
+    }));
+
+    // Sort by portfolio score descending
+    scoredPicks.sort((a, b) => (b.portfolioScore || 0) - (a.portfolioScore || 0));
+
+    this.logger.info(`Scored ${scoredPicks.length} top-tier picks for ${league}`);
+    return { league, scoredPicks, scoreCount: scoredPicks.length };
+  }
+
+  /**
+   * Persist scored picks to unified_picks via lifecycle adapter.
+   */
+  async updateUnifiedPicks(params: {
+    scoringResults: any[];
+    cycleCount: number;
+    timestamp: Date;
+  }): Promise<void> {
+    const { scoringResults } = params;
+
+    for (const leagueResult of scoringResults) {
+      const picks = leagueResult.scoredPicks || [];
+
+      for (const pick of picks) {
+        if (this.meetsPromotionCriteria(pick)) {
+          try {
+            await this.promoteToUnifiedPicks(pick);
+          } catch (err) {
+            this.logger.error('Failed to promote pick in updateUnifiedPicks', {
+              propId: pick.propId,
+              error: err instanceof Error ? err.message : 'Unknown',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Get recently created unified_picks for downstream notification.
+   */
+  async getNewUnifiedPicks(params: { cycleCount: number }): Promise<any[]> {
+    if (!this.hasSupabase()) {
+      return [];
+    }
+
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+    const { data, error } = await this.requireSupabase()
+      .from('unified_picks')
+      .select('*')
+      .gte('created_at', tenMinutesAgo)
+      .or('posted_to_discord.is.null,posted_to_discord.eq.false')
+      .limit(50);
+
+    if (error) {
+      this.logger.error('Failed to fetch new unified picks', { error: error.message });
+      return [];
+    }
+
+    return data || [];
+  }
+
   /**
    * Convert ProfessionalPropResult to GradingResult format
    */
@@ -479,49 +636,85 @@ export class GradingAgent extends BaseAgent {
     return batches;
   }
 
+  // SPRINT-046: raw_props branches removed — provider_offers is the only grading source
   private async fetchPendingProps(): Promise<GradingFeatureSet[]> {
     if (!this.hasSupabase()) {
       this.logger.warn('⚠️ Supabase not available, returning empty props list');
       return [];
     }
 
-    if (this.USE_PRO_SCORER) {
-      // PROFESSIONAL PATH: Query unprocessed raw_props (processed_at IS NULL)
-      const { data: rawProps, error } = await this.requireSupabase()
-        .from('raw_props')
-        .select('*')
-        .is('processed_at', null) // Props that haven't been professionally processed yet
-        .order('created_at', { ascending: true })
-        .limit(200); // Reasonable limit for processing
+    return this.fetchPendingProviderOffers();
+  }
 
-      if (error) {
-        this.logger.error('❌ Failed to fetch unprocessed props for professional grading', {
-          error: error.message,
-        });
-        return [];
-      }
+  // SPRINT-044D: Fetch ungraded offers from provider_offers (V3 canonical source)
+  private async fetchPendingProviderOffers(): Promise<GradingFeatureSet[]> {
+    const { data: offers, error } = await this.requireSupabase()
+      .from('provider_offers')
+      .select('*')
+      .is('graded_at', null)
+      .order('created_at', { ascending: true })
+      .limit(200);
 
-      this.logger.info(`🎯 Found ${rawProps?.length || 0} props for professional processing`);
-      return rawProps?.map(prop => this.convertToFeatureSet(prop)) || [];
-    } else {
-      // LEGACY PATH: Grade props from raw_props that haven't been grading_status yet
-      const { data: rawProps, error } = await this.requireSupabase()
-        .from('raw_props')
-        .select('*')
-        .is('tier', null) // Props that haven't been grading_status yet (tier is null)
-        .or('promoted_to_picks.is.null,promoted_to_picks.eq.false') // Props not yet promoted (null or false)
-        .order('created_at', { ascending: true })
-        .limit(200); // Reasonable limit for processing
-
-      if (error) {
-        this.logger.error('❌ Failed to fetch pending props for legacy grading', {
-          error: error.message,
-        });
-        return [];
-      }
-
-      return rawProps?.map(prop => this.convertToFeatureSet(prop)) || [];
+    if (error) {
+      this.logger.error('❌ Failed to fetch ungraded provider_offers', {
+        error: error.message,
+      });
+      return [];
     }
+
+    this.logger.info(`🎯 Found ${offers?.length || 0} provider_offers for grading`);
+    return offers?.map(offer => this.convertProviderOfferToFeatureSet(offer)) || [];
+  }
+
+  // SPRINT-044D: Map provider_offers row to GradingFeatureSet
+  private convertProviderOfferToFeatureSet(offer: any): GradingFeatureSet {
+    const commenceDate = offer.commence_time
+      ? new Date(offer.commence_time).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    return {
+      propId: offer.id,
+      date: commenceDate,
+      sport: offer.sport_key || 'unknown',
+      league: offer.sport_key || 'unknown',
+      player: offer.provider_participant_id || 'unknown',
+      market: {
+        type: offer.provider_market_key || 'unknown',
+        line: offer.line || 0,
+        odds: offer.over_odds || offer.under_odds || 100,
+      },
+      expectedValue: 0,
+      sharpMoney: 50,
+      lineMovement: 0,
+      matchupRating: 50,
+      playerForm: 50,
+      marketType: offer.provider_market_key,
+      odds: offer.over_odds || offer.under_odds,
+      injuryImpact: 0,
+      weatherImpact: 0,
+      marketIntelligence: 50,
+      volumeProfile: 50,
+      closingLineValue: 0,
+      playerFatigue: 0,
+      venueAdvantage: 0,
+      refereeImpact: 0,
+      paceImpact: 0,
+      motivationalFactors: 0,
+      correlationRisk: 0,
+      volatility: 5,
+      portfolioImpact: 0,
+      bidAskSpread: 0.02,
+      timestamp: offer.snapshot_at || offer.created_at || new Date().toISOString(),
+      version: '1.0',
+      source: 'provider_offers',
+      confidence: 50,
+      dataQuality: {
+        completeness: 0.95,
+        outlierScore: 0.95,
+        consistencyScore: 0.95,
+        dataValidationScore: 0.95,
+      },
+    };
   }
 
   private convertUnifiedPickToFeatureSet(unifiedPick: any): GradingFeatureSet {
@@ -632,36 +825,22 @@ export class GradingAgent extends BaseAgent {
     }
 
     try {
-      // Store grading results in raw_props table (v3.0.0 approach)
-      // Fix: Use correct data types - confidence is 0/1 boolean, edge_score is integer
+      // SPRINT-044Q: provider_offers is now the sole grading storage path
       const { error } = await this.requireSupabase()
-        .from('raw_props')
-        .update({
-          confidence: result.confidence > 65 ? 1 : 0, // Boolean-like: 1 = high confidence, 0 = low
-          tier: result.tier,
-          edge_score: Math.round(result.edgeScore * 1000), // Convert to integer (per-mille basis points)
-          auto_approved: result.tier !== 'D' && result.confidence > 65,
-          updated_at: new Date().toISOString(),
-          promoted_to_picks: false, // Mark as not yet promoted
-        })
+        .from('provider_offers')
+        .update({ graded_at: new Date().toISOString() })
         .eq('id', result.propId);
 
       if (error) {
-        this.logger.error('❌ Failed to store grading result in raw_props', {
+        this.logger.error('❌ Failed to mark provider_offer as graded', {
           propId: result.propId,
           error: error.message,
-          confidence: result.confidence,
-          edgeScore: result.edgeScore,
         });
       } else {
-        this.logger.info('✅ Grading result stored in raw_props', {
+        this.logger.info('✅ Grading result stored (provider_offers)', {
           propId: result.propId,
           tier: result.tier,
-          confidence: result.confidence > 65 ? 1 : 0, // Boolean format
-          confidencePercent: result.confidence, // Original percentage for reference
-          edgeScore: Math.round(result.edgeScore * 1000), // Per-mille basis points
-          edgeScoreDecimal: result.edgeScore, // Original decimal for reference
-          autoApproved: result.tier !== 'D' && result.confidence > 65,
+          edgeScore: Math.round(result.edgeScore * 1000),
         });
       }
     } catch (error) {
@@ -707,89 +886,124 @@ export class GradingAgent extends BaseAgent {
     }
 
     try {
-      // Get the original prop data from raw_props
-      const { data: prop } = await this.requireSupabase()
-        .from('raw_props')
-        .select('*')
-        .eq('id', result.propId)
-        .single();
-
-      if (!prop) {
-        this.logger.warn('⚠️ Original prop not found for promotion', {
-          propId: result.propId,
-        });
-        return;
-      }
-
-      // Get a default user_id for system-grading_status picks
-      const { data: systemUser } = await this.requireSupabase()
-        .from('users')
-        .select('id')
-        .limit(1)
-        .single();
-
-      if (!systemUser) {
-        this.logger.error('❌ No users found in database for promotion');
-        return;
-      }
-
-      // Create the pick selection text
-      const pickSide = prop.line > 0 ? 'over' : 'under';
-      const selection = `${prop.player_name} ${prop.stat_type} ${pickSide} ${Math.abs(prop.line)}`;
-
-      // Insert into unified_picks with actual v3.0.0 schema
-      const { error } = await this.requireSupabase()
-        .from('unified_picks')
-        .insert({
-          id: randomUUID(),
-          user_id: systemUser.id,
-          pick_type: 'parlay', // Valid pick_type from schema analysis
-          selection: selection,
-          odds: prop.odds || prop.over_odds || -110,
-          stake: result.positionSize * 100, // Convert position size to dollar stake
-          potential_payout: result.positionSize * 100 * (1 + Math.abs(result.kellyFraction)),
-          player_name: prop.player_name,
-          stat_type: prop.stat_type,
-          line: prop.line,
-          over_odds: prop.over_odds,
-          under_odds: prop.under_odds,
-          sport: prop.sport || 'Unknown',
-          game_date: prop.game_date,
-          confidence: result.confidence,
-          tier_when_placed: result.tier,
-          kelly_bet_size: result.kellyFraction,
-          promotion_band: result.promotionBand || null,
-          created_at: new Date().toISOString(),
-        });
-
-      if (error) {
-        this.logger.error('❌ Failed to promote prop to unified_picks', {
-          propId: result.propId,
-          error: error.message,
-        });
-      } else {
-        this.logger.info('✅ Prop promoted to unified_picks', {
-          propId: result.propId,
-          tier: result.tier,
-          score: result.finalScore,
-        });
-
-        // Mark raw_props as promoted
-        await this.requireSupabase()
-          .from('raw_props')
-          .update({
-            promoted_to_picks: true,
-            promoted_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', result.propId);
-      }
+      // SPRINT-044I: Route promotion via provider_offers canonical path
+      // SPRINT-044Q: raw_props else branch removed (was dead code after 044P default flip)
+      await this.promoteFromProviderOffer(result);
     } catch (error) {
       this.logger.error('❌ Error promoting prop to unified_picks', {
         propId: result.propId,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
+  }
+
+  /**
+   * SPRINT-044I: Promote a graded provider_offer to unified_picks.
+   * Fetches enrichment data from provider_offers + participants + canonical_events + markets.
+   * No raw_props dependency — all context sourced from canonical V3 tables.
+   */
+  private async promoteFromProviderOffer(result: GradingResult): Promise<void> {
+    const supabase = this.requireSupabase();
+
+    // Fetch provider_offer with canonical JOINs (verified live in 044I planning)
+    const { data: offer, error: offerError } = await supabase
+      .from('provider_offers')
+      .select(
+        `id, line, over_odds, under_odds, provider_market_key, snapshot_at,
+        participants(id, name, meta),
+        canonical_events(id, sport, league, scheduled_at),
+        markets(stat_type, canonical_key)`
+      )
+      .eq('id', result.propId)
+      .single();
+
+    if (offerError || !offer) {
+      this.logger.warn('⚠️ Provider offer not found for promotion', {
+        propId: result.propId,
+        error: offerError?.message,
+      });
+      return;
+    }
+
+    // Get system user for attribution (same as raw_props path)
+    const { data: systemUser } = await supabase.from('users').select('id').limit(1).single();
+
+    if (!systemUser) {
+      this.logger.error('❌ No users found in database for promotion');
+      return;
+    }
+
+    // Extract fields from canonical JOINs
+    const participant = offer.participants as any;
+    const event = offer.canonical_events as any;
+    const market = offer.markets as any;
+
+    const playerName = participant?.meta?.names?.display || participant?.name || 'Unknown Player';
+    const statType =
+      market?.stat_type ||
+      this.extractStatTypeFromMarketKey(offer.provider_market_key) ||
+      'unknown';
+    const sport = event?.league || event?.sport || 'Unknown';
+    const gameDate = event?.scheduled_at
+      ? new Date(event.scheduled_at).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    // Build pick payload (identical structure to raw_props path)
+    const pickSide = (offer.line || 0) > 0 ? 'over' : 'under';
+    const selection = `${playerName} ${statType} ${pickSide} ${Math.abs(offer.line || 0)}`;
+
+    const pickId = randomUUID();
+    const pickData = {
+      id: pickId,
+      user_id: systemUser.id,
+      selection: selection,
+      odds: offer.over_odds || offer.under_odds || -110,
+      stake: result.positionSize * 100,
+      payout_amount: result.positionSize * 100 * (1 + Math.abs(result.kellyFraction)),
+      player_name: playerName,
+      stat_type: statType,
+      line: offer.line,
+      sport: sport,
+      game_date: gameDate,
+      confidence: result.confidence,
+      tier: result.tier,
+      kelly_fraction: result.kellyFraction,
+      promotion_band: result.promotionBand || null,
+      created_at: new Date().toISOString(),
+    };
+
+    const { success, error: lifecycleError } = await lifecycleInsert(supabase, pickData as any, {
+      writerRole: 'promoter',
+    });
+
+    if (!success) {
+      this.logger.error('❌ Failed to promote provider_offer to unified_picks', {
+        propId: result.propId,
+        error: lifecycleError,
+      });
+    } else {
+      this.logger.info('✅ Provider offer promoted to unified_picks', {
+        propId: result.propId,
+        pickId: pickId,
+        playerName,
+        statType,
+        sport,
+        tier: result.tier,
+        score: result.finalScore,
+        source: 'provider_offers',
+      });
+    }
+  }
+
+  /**
+   * SPRINT-044I: Extract stat_type from provider_market_key.
+   * SGO format: "assists-DONOVAN_MITCHELL_1_NBA-game-ou" → "assists"
+   * Canonical format: "game_rebounds-PLAYER-1q-ou" → "game_rebounds"
+   */
+  private extractStatTypeFromMarketKey(marketKey: string | null): string | null {
+    if (!marketKey) return null;
+    const firstSegment = marketKey.split('-')[0];
+    return firstSegment || null;
   }
 
   private updateProcessingMetrics(results: GradingResult[], processingTimeMs: number): void {

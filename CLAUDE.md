@@ -287,7 +287,35 @@ pnpm mcp:supabase     # Supabase schema introspection
 
 ---
 
-## 12. References
+## 12. Sprint Order Enforcement
+
+Claude must follow the sprint order defined in:
+
+`docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md`
+
+Before beginning any new sprint, run:
+
+```bash
+pnpm sprint:gate
+```
+
+And if targeting a specific sprint:
+
+```bash
+node tools/governance/sprint-gate.js <SPRINT-ID>
+```
+
+If the gate fails, stop and report the mismatch instead of proceeding.
+
+Do not begin a later sprint until the previous sprint is completed, committed,
+and linked to the corresponding Linear issue.
+
+If a user request conflicts with the locked sprint order, pause and propose the
+required governance update before proceeding.
+
+---
+
+## 13. References
 
 - **Execution Contract:** `CLAUDE_EXECUTION_CONTRACT.md`
 - **System Invariants:** `docs/SYSTEM_INVARIANTS.md` (fail-open/fail-closed

@@ -23,7 +23,7 @@ Phase 6: Closeout   → Write closeout report + merge to main
 **A sprint is NOT complete until:**
 
 1. Changes are committed with sprint reference
-2. Sprint tag is created (`SPRINT-<NAME>-###-COMPLETE`)
+2. Sprint tag is created (`SPRINT-<NAME>-###`)
 3. Merged to main (fast-forward preferred)
 4. Working tree is clean
 
@@ -86,7 +86,7 @@ npm run verify:merge
 - [ ] Lifecycle gate passes
 - [ ] Git status is clean
 - [ ] Proof artifacts generated
-- [ ] Sprint tag created (`SPRINT-<NAME>-###-COMPLETE`)
+- [ ] Sprint tag created (`SPRINT-<NAME>-###`)
 - [ ] Merged to main
 - [ ] Tags pushed to remote
 

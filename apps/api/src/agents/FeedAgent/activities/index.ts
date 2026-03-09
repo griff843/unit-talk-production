@@ -1,5 +1,6 @@
 import { proxyActivities } from '@temporalio/workflow';
 
+// SPRINT-044Q: compatInsertRawProp removed — raw_props writes were orphaned (no production reader)
 import { supabaseClient } from '../../../services/supabaseClient';
 import { RawProp } from '../../../types/rawProps';
 import { fetchRawProps } from '../../IngestionAgent/fetchRawProps';
@@ -217,9 +218,12 @@ export async function ingestUnifiedData(params: {
         }
 
         // Prepare props for insertion with proper structure
+        // SPRINT-043A: Fixed column names to match raw_props schema
+        // (batch_id, raw_data, metadata, external_prop_id do not exist — use meta, external_id)
         const propsForDB = response.data.map(prop => ({
           id: crypto.randomUUID(),
-          external_prop_id: prop.id || crypto.randomUUID(),
+          external_id: prop.external_id || prop.id || crypto.randomUUID(),
+          external_game_id: prop.eventID || prop.game_id || null,
           sport: params.league,
           league: params.league,
           player_name: prop.player_name,
@@ -233,44 +237,39 @@ export async function ingestUnifiedData(params: {
           game_date: prop.game_date || timestamp.toISOString(),
           source: response.source,
           provider: response.source,
-          batch_id: batchId,
           created_at: timestamp.toISOString(),
           updated_at: timestamp.toISOString(),
           processed_at: null,
-          raw_data: JSON.stringify(prop),
-          metadata: {
+          home_team: prop.home_team || null,
+          away_team: prop.away_team || null,
+          home_team_id: prop.home_team_id || null,
+          away_team_id: prop.away_team_id || null,
+          matchup: prop.matchup || null,
+          market: prop.market || null,
+          market_type: prop.market_type || null,
+          sport_key: prop.sport_key || params.league.toLowerCase(),
+          game_time: prop.game_time || null,
+          start_time: prop.start_time || null,
+          scraped_at: prop.scraped_at || timestamp.toISOString(),
+          odds: prop.odds || null,
+          meta: {
             source: response.source,
             batch_id: batchId,
             processing_time_ms: response.metadata.processingTimeMs,
             league: params.league,
+            sgo_market_key: prop.marketKey || prop.market_key || null,
+            sgo_event_id: prop.eventID || null,
+            over_market_key: prop.overMarketKey || null,
+            under_market_key: prop.underMarketKey || null,
+            raw_data: prop,
           },
         }));
 
-        // Insert in batches to handle large datasets
-        const batchSize = params.batchSize || 100;
-        let insertedCount = 0;
-
-        for (let i = 0; i < propsForDB.length; i += batchSize) {
-          const batch = propsForDB.slice(i, i + batchSize);
-
-          const { error: insertError } = await supabaseClient.from('raw_props').insert(batch);
-
-          if (insertError) {
-            console.error(
-              `[FeedAgent] Database insert failed for batch ${Math.floor(i / batchSize) + 1}:`,
-              insertError
-            );
-            throw new Error(`Database insert failed: ${insertError.message}`);
-          }
-
-          insertedCount += batch.length;
-          console.log(
-            `[FeedAgent] Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(propsForDB.length / batchSize)} (${insertedCount} total)`
-          );
-        }
-
+        // SPRINT-044Q: raw_props batch insert removed — orphaned after GRADING_DATA_SOURCE flip (044P)
+        // FeedAgent ingestion now only writes to provider_offers via V3 path
+        const insertedCount = propsForDB.length;
         console.log(
-          `[FeedAgent] Successfully persisted ${insertedCount} props to database with batch_id: ${batchId}`
+          `[FeedAgent] Skipped raw_props write for ${insertedCount} props (orphaned, batch_id: ${batchId})`
         );
 
         // Update provider health
@@ -433,6 +432,78 @@ export async function getLiveGames(
       success: false,
       games: [],
       error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// SPRINT-044B: V3 provider_offers ingestion activity
+// Calls both OddsAPI and SGO paths to populate provider_offers table
+export async function ingestV3ProviderOffers(params: {
+  league: string;
+  markets?: string[];
+}): Promise<{ success: boolean; inserted: number; updated: number; error?: string }> {
+  const provider = `${params.league.toLowerCase()}-v3-ingestion`;
+
+  if (!checkCircuitBreaker(provider)) {
+    return {
+      success: false,
+      inserted: 0,
+      updated: 0,
+      error: 'Circuit breaker is open',
+    };
+  }
+
+  let totalInserted = 0;
+  let totalUpdated = 0;
+  const errors: string[] = [];
+
+  try {
+    const { ingestProviderOffers: ingestOddsAPI, ingestSGOProviderOffers } =
+      await import('../../IngestionAgent/providerOffersIngestion');
+
+    // OddsAPI path (has credit cost — may skip if cached)
+    try {
+      const oddsResult = await ingestOddsAPI(
+        params.league as any,
+        params.markets || ['h2h', 'spreads', 'totals']
+      );
+      totalInserted += oddsResult.inserted;
+      totalUpdated += oddsResult.updated;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[FeedAgent] OddsAPI V3 ingestion failed for ${params.league}:`, msg);
+      errors.push(`oddsapi: ${msg}`);
+    }
+
+    // SGO path (no credit cost)
+    try {
+      const sgoResult = await ingestSGOProviderOffers(params.league);
+      totalInserted += sgoResult.inserted;
+      totalUpdated += sgoResult.updated;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[FeedAgent] SGO V3 ingestion failed for ${params.league}:`, msg);
+      errors.push(`sgo: ${msg}`);
+    }
+
+    recordSuccess(provider);
+
+    return {
+      success: true,
+      inserted: totalInserted,
+      updated: totalUpdated,
+      error: errors.length > 0 ? errors.join('; ') : undefined,
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[FeedAgent] V3 ingestion failed for ${params.league}:`, msg);
+    recordFailure(provider);
+
+    return {
+      success: false,
+      inserted: totalInserted,
+      updated: totalUpdated,
+      error: msg,
     };
   }
 }

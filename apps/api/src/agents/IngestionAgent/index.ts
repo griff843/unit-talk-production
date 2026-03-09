@@ -296,22 +296,8 @@ export class IngestionAgent extends BaseAgent {
       // Normalize the prop
       const normalizationResult = normalizeRawProp(prop);
 
-      console.log('[DEBUG] Normalized prop, inserting to database...');
-
-      // Insert into database
-      if (!this.supabase) {
-        throw new Error('Supabase client is required for IngestionAgent');
-      }
-      const { error } = await this.supabase
-        .from('raw_props')
-        .insert(normalizationResult.normalizedProp);
-
-      if (error) {
-        console.error('[DEBUG] Database insertion error:', error);
-        throw error;
-      }
-
-      console.log('[DEBUG] Successfully inserted prop to database');
+      // SPRINT-046: raw_props write removed — provider_offers is canonical ingestion target
+      // IngestionAgent was the last production writer to raw_props; no production readers remain
 
       this.ingestedCount++;
       this.ingestionMetrics.propsIngested++;
@@ -365,7 +351,8 @@ export class IngestionAgent extends BaseAgent {
       if (!this.supabase) {
         throw new Error('Supabase client is required for IngestionAgent');
       }
-      const { error } = await this.supabase.from('raw_props').select('id').limit(1);
+      // SPRINT-046: health check targets provider_offers (canonical ingestion table)
+      const { error } = await this.supabase.from('provider_offers').select('id').limit(1);
 
       if (error) {
         throw error;

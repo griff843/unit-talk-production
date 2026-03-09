@@ -1,0 +1,31 @@
+{
+  "name": "@unit-talk/distribution",
+  "version": "0.0.1",
+  "description": "Content distribution channels (Discord, notifications) for Unit Talk Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "lint": "echo 'No lint configured for distribution package'",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "distribution",
+    "discord",
+    "notifications"
+  ],
+  "author": "Unit Talk Team",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@unit-talk/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*"
+  ]
+}

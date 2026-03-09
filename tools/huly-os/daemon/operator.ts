@@ -2,7 +2,8 @@
 // Pull-based polling: GitHub scan → sprint correlation → Huly sync → incidents/drift → reports
 // Idempotent. Fail-closed. No webhooks.
 
-import { existsSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { GitHubAdapter } from './adapters/github-adapter.js';
@@ -18,6 +19,7 @@ import { loadConfig, REPO_ROOT } from './config.js';
 import { renderTemplate } from './issue-templates.js';
 import { LiveQueryBridge } from './livequery-bridge.js';
 import { evaluateSprints, applySprintTransitions, branchToSprintId } from './sprint-manager.js';
+import { buildEvidence, deriveStatus, STALE_DAYS } from './truth-engine.js';
 
 import type { GitHubPR, HulyIssue, WorkflowRun } from './adapters/types.js';
 import type { DaemonConfig } from './config.js';
@@ -44,6 +46,7 @@ export interface OperatorCycleResult {
     statusTransitions: number;
     incidentsCreated: number;
     driftIssuesCreated: number;
+    truthTransitions: number;
   };
   errors: string[];
 }
@@ -115,6 +118,7 @@ export async function runOperatorCycle(opts?: {
       statusTransitions: 0,
       incidentsCreated: 0,
       driftIssuesCreated: 0,
+      truthTransitions: 0,
     },
     errors: [],
   };
@@ -227,6 +231,47 @@ export async function runOperatorCycle(opts?: {
     `[operator] GitHub: ${openPRs.length} open PRs, ${mergedPRs.length} merged, ` +
       `${workflowRuns.length} sprint CI runs, ${sprintBranches.size} sprint branches`
   );
+
+  // ── Phase 1.5: Local Git Scan ───────────────────────────────────────
+  // Discover sprint tags and branches not visible via GitHub PR API
+  try {
+    // Sprint tags (completed sprints)
+    const tagOutput = execSync('git tag -l "SPRINT-*"', {
+      cwd: REPO_ROOT,
+      encoding: 'utf-8',
+      timeout: 10_000,
+    });
+    const completeTags = tagOutput
+      .trim()
+      .split('\n')
+      .filter(t => /-(COMPLETE|CLOSURE)$/i.test(t));
+
+    // Remote sprint branches not already found via PRs
+    const branchOutput = execSync('git branch -r --list "origin/sprint/*"', {
+      cwd: REPO_ROOT,
+      encoding: 'utf-8',
+      timeout: 10_000,
+    });
+    const remoteBranches = branchOutput
+      .trim()
+      .split('\n')
+      .map(b => b.trim().replace('origin/', ''))
+      .filter(Boolean);
+
+    for (const branch of remoteBranches) {
+      if (!sprintBranches.has(branch)) {
+        sprintBranches.add(branch);
+      }
+    }
+
+    result.github.sprintBranches = [...sprintBranches];
+    console.log(
+      `[operator] Local git: ${completeTags.length} completed tags, ` +
+        `${remoteBranches.length} remote sprint branches (${sprintBranches.size} total unique)`
+    );
+  } catch (err) {
+    result.errors.push(`Local git scan failed: ${(err as Error).message}`);
+  }
 
   // ── Phase 2: Huly Issue Scan ─────────────────────────────────────────
   let hulyIssues: HulyIssue[] = [];
@@ -496,65 +541,60 @@ export async function runOperatorCycle(opts?: {
     }
   }
 
-  // ── Phase 6: Bidirectional GitHub↔Huly sync ─────────────────────────
-  // [ENH][P0] Auto-transition issues based on PR state:
-  //   - Merged PR → linked issue to Done
-  //   - Open PR → linked issue to In Progress
+  // ── Phase 6: Truth-Engine Status Reconciliation ────────────────────
+  // Evidence-based status derivation replaces naive PR-based sync.
+  // Each issue is evaluated against git tags + PR state + activity recency.
 
-  // Build issue lookup by identifier (e.g. "UT-42")
-  const issueByIdent = new Map<string, HulyIssue>();
+  // Build complete tags set from Phase 1.5 scan
+  let truthCompleteTags = new Set<string>();
+  try {
+    const tagOutput = execSync('git tag -l "SPRINT-*"', {
+      cwd: REPO_ROOT,
+      encoding: 'utf-8',
+      timeout: 10_000,
+    });
+    truthCompleteTags = new Set(
+      tagOutput
+        .trim()
+        .split('\n')
+        .filter(t => /-(COMPLETE|CLOSURE)$/i.test(t))
+    );
+  } catch {
+    // Use empty set if git unavailable
+  }
+
   for (const issue of hulyIssues) {
-    if (issue.identifier) issueByIdent.set(issue.identifier, issue);
-  }
+    // Skip meta-issues — managed by sprint manager, not truth engine
+    if (/^\[(SPRINT|INCIDENT|DRIFT|ENH)\]/.test(issue.title)) continue;
 
-  // Merged PR → linked issues to Done
-  for (const pr of mergedPRs) {
-    for (const ref of pr.linkedIssueRefs) {
-      const issue = issueByIdent.get(ref);
-      if (!issue || issue.status === 'Done' || issue.status === 'Cancelled') continue;
-      // Skip meta-issues (sprints, incidents, drift, enhancements)
-      if (/^\[(SPRINT|INCIDENT|DRIFT|ENH)\]/.test(issue.title)) continue;
+    const evidence = buildEvidence(
+      issue.identifier,
+      issue.status,
+      openPRs,
+      mergedPRs,
+      truthCompleteTags
+    );
 
-      const key = dedupKey('autoresolve', ref, pr.number);
-      if (alreadySeen(key)) continue;
+    const verdict = deriveStatus(evidence);
+    if (!verdict.needsTransition) continue;
 
-      try {
-        await huly.updateIssueStatus(issue.id, HULY_STATUS.Done, issue.project);
-        await huly.addComment(
-          issue.id,
-          `**Auto-resolved:** PR #${pr.number} merged → Done\n\nPR: ${pr.url}`
-        );
-        result.actions.statusTransitions++;
-        console.log(`[operator] Auto-resolved: ${ref} → Done (PR #${pr.number} merged)`);
-      } catch (err) {
-        result.errors.push(`Auto-resolve failed: ${ref} — ${(err as Error).message}`);
-      }
-    }
-  }
+    const key = dedupKey('truth', issue.identifier, verdict.status);
+    if (alreadySeen(key)) continue;
 
-  // Open PR → linked issues to In Progress
-  for (const pr of openPRs) {
-    for (const ref of pr.linkedIssueRefs) {
-      const issue = issueByIdent.get(ref);
-      if (!issue) continue;
-      if (issue.status === 'In Progress' || issue.status === 'Done' || issue.status === 'Cancelled')
-        continue;
-      if (/^\[(SPRINT|INCIDENT|DRIFT|ENH)\]/.test(issue.title)) continue;
-
-      const key = dedupKey('autoprogress', ref, pr.number);
-      if (alreadySeen(key)) continue;
-
-      try {
-        await huly.updateIssueStatus(issue.id, HULY_STATUS.InProgress, issue.project);
-        await huly.addComment(
-          issue.id,
-          `**Auto-transitioned:** PR #${pr.number} opened → In Progress\n\nPR: ${pr.url}`
-        );
-        result.actions.statusTransitions++;
-        console.log(`[operator] Auto-progress: ${ref} → In Progress (PR #${pr.number} open)`);
-      } catch (err) {
-        result.errors.push(`Auto-progress failed: ${ref} — ${(err as Error).message}`);
-      }
+    try {
+      await huly.updateIssueStatus(issue.id, verdict.statusId, issue.space);
+      await huly.addComment(
+        issue.id,
+        `**Auto-status**: ${issue.status} → ${verdict.status}\nReason: ${verdict.reason}`
+      );
+      result.actions.truthTransitions++;
+      console.log(
+        `[operator] Truth: ${issue.identifier} ${issue.status} → ${verdict.status} (${verdict.reason})`
+      );
+    } catch (err) {
+      result.errors.push(
+        `Truth transition failed: ${issue.identifier} — ${(err as Error).message}`
+      );
     }
   }
 
@@ -572,10 +612,34 @@ export async function runOperatorCycle(opts?: {
     `[operator] Cycle complete in ${result.durationMs}ms — ` +
       `${result.actions.sprintIssuesUpserted} sprints, ` +
       `${result.actions.statusTransitions} transitions, ` +
+      `${result.actions.truthTransitions} truth, ` +
       `${result.actions.incidentsCreated} incidents, ` +
       `${result.actions.driftIssuesCreated} drift, ` +
       `${result.errors.length} errors`
   );
+
+  // ── Health Heartbeat ──────────────────────────────────────────────
+  try {
+    const logsDir = resolve(REPO_ROOT, 'tools', 'huly-os', 'logs');
+    mkdirSync(logsDir, { recursive: true });
+    const healthFile = resolve(logsDir, 'operator-health.json');
+    const hasErrors = result.errors.length > 0;
+    writeFileSync(
+      healthFile,
+      JSON.stringify(
+        {
+          lastCycleAt: result.timestamp,
+          lastSuccessAt: hasErrors ? undefined : result.timestamp,
+          durationMs: result.durationMs,
+          errors: hasErrors ? result.errors.slice(0, 5) : [],
+        },
+        null,
+        2
+      )
+    );
+  } catch {
+    // non-fatal — health file write failed
+  }
 
   return result;
 }
@@ -585,9 +649,13 @@ export async function runOperatorCycle(opts?: {
 export interface OperatorLoopState {
   running: boolean;
   cycleCount: number;
+  consecutiveErrors: number;
   lastResult: OperatorCycleResult | null;
-  timer: ReturnType<typeof setInterval> | null;
+  timer: ReturnType<typeof setTimeout> | null;
 }
+
+/** Max backoff: 30 minutes */
+const MAX_BACKOFF_SEC = 30 * 60;
 
 /**
  * Start the operator polling loop.
@@ -599,16 +667,17 @@ export async function startOperatorLoop(opts: {
   once?: boolean;
   config?: DaemonConfig;
 }): Promise<OperatorLoopState> {
-  const intervalSec = opts.intervalSec ?? 60;
+  const baseIntervalSec = opts.intervalSec ?? 60;
   const state: OperatorLoopState = {
     running: true,
     cycleCount: 0,
+    consecutiveErrors: 0,
     lastResult: null,
     timer: null,
   };
 
   console.log(
-    `[operator] Starting ${opts.once ? 'single cycle' : `loop (interval=${intervalSec}s)`}`
+    `[operator] Starting ${opts.once ? 'single cycle' : `loop (interval=${baseIntervalSec}s)`}`
   );
 
   // Run first cycle
@@ -620,13 +689,47 @@ export async function startOperatorLoop(opts: {
     return state;
   }
 
-  // Schedule recurring cycles
-  state.timer = setInterval(async () => {
+  // Schedule recurring cycles with exponential backoff on consecutive errors
+  function scheduleNext() {
     if (!state.running) return;
-    state.cycleCount++;
-    console.log(`\n[operator] === Cycle #${state.cycleCount} ===`);
-    state.lastResult = await runOperatorCycle({ config: opts.config });
-  }, intervalSec * 1000);
+
+    let delaySec = baseIntervalSec;
+    if (state.consecutiveErrors >= 3) {
+      // Exponential backoff: base * 2^(errors-2), capped at MAX_BACKOFF_SEC
+      delaySec = Math.min(
+        baseIntervalSec * Math.pow(2, state.consecutiveErrors - 2),
+        MAX_BACKOFF_SEC
+      );
+      console.log(
+        `[operator] Backoff: ${state.consecutiveErrors} consecutive errors → next cycle in ${delaySec}s`
+      );
+    }
+
+    state.timer = setTimeout(async () => {
+      if (!state.running) return;
+      state.cycleCount++;
+      console.log(`\n[operator] === Cycle #${state.cycleCount} ===`);
+      state.lastResult = await runOperatorCycle({ config: opts.config });
+
+      // Track consecutive errors
+      const hasErrors = (state.lastResult?.errors.length ?? 0) > 0;
+      if (hasErrors) {
+        state.consecutiveErrors++;
+      } else {
+        state.consecutiveErrors = 0;
+      }
+
+      scheduleNext();
+    }, delaySec * 1000);
+  }
+
+  // Track first cycle errors
+  const firstHasErrors = (state.lastResult?.errors.length ?? 0) > 0;
+  if (firstHasErrors) {
+    state.consecutiveErrors++;
+  }
+
+  scheduleNext();
 
   return state;
 }
@@ -634,7 +737,7 @@ export async function startOperatorLoop(opts: {
 export function stopOperatorLoop(state: OperatorLoopState): void {
   state.running = false;
   if (state.timer) {
-    clearInterval(state.timer);
+    clearTimeout(state.timer);
     state.timer = null;
   }
   console.log(`[operator] Stopped after ${state.cycleCount} cycle(s)`);

@@ -11,10 +11,10 @@
  */
 
 // Load environment from repo root FIRST (before any other imports)
-import { loadRootEnv } from '@unit-talk/shared-utils';
+import { loadRootEnv } from '@unit-talk/shared';
 loadRootEnv();
 
-import { validateTestEnvironment } from '../../../packages/shared-utils/src/env-validator';
+import { validateTestEnvironment } from '../../../packages/shared/src/env-validator';
 
 async function globalSetup() {
   console.log('🚀 Starting E2E Test Suite Global Setup');
@@ -38,11 +38,7 @@ async function globalSetup() {
   }
 
   // Verify required environment variables
-  const requiredEnvVars = [
-    'E2E_BASE_URL',
-    'E2E_SUPABASE_URL',
-    'E2E_SUPABASE_KEY',
-  ];
+  const requiredEnvVars = ['E2E_BASE_URL', 'E2E_SUPABASE_URL', 'E2E_SUPABASE_KEY'];
 
   const missing = requiredEnvVars.filter(key => !process.env[key]);
 
@@ -80,8 +76,8 @@ async function globalSetup() {
 
     const response = await fetch(`${supabaseUrl}/rest/v1/users?limit=1`, {
       headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
       },
     });
 

@@ -4,6 +4,7 @@
 
 import type { AuditLogger } from '../audit-log.js';
 import type { BroadcastListener } from '../broadcast-listener.js';
+import type { CollaboratorBridge } from '../collaborator-bridge.js';
 import type { DaemonConfig } from '../config.js';
 import type { HulyIssue, HulyStatusId, IHulyAdapter } from './types.js';
 
@@ -54,6 +55,9 @@ export class HulyAdapter implements IHulyAdapter {
   // UT-154: Broadcast listener for UI-driven changes
   private broadcastListener: BroadcastListener | null = null;
 
+  // Collaborator bridge for Y.js content creation
+  private collabBridge: CollaboratorBridge | null = null;
+
   // UT-142: WebSocket auto-reconnect state
   private wsReconnectAttempts = 0;
   private wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -70,6 +74,11 @@ export class HulyAdapter implements IHulyAdapter {
   /** Attach a broadcast listener for UI-driven change detection (UT-154) */
   setBroadcastListener(listener: BroadcastListener): void {
     this.broadcastListener = listener;
+  }
+
+  /** Attach a Collaborator bridge for Y.js content creation */
+  setCollaboratorBridge(bridge: CollaboratorBridge): void {
+    this.collabBridge = bridge;
   }
 
   /** Get the socialId for this adapter session */
@@ -594,6 +603,7 @@ export class HulyAdapter implements IHulyAdapter {
         proofUrl: proofMatch ? proofMatch[1] : null,
         modifiedOn: typeof raw.modifiedOn === 'number' ? raw.modifiedOn : 0,
         project: projectIdentifier,
+        space: String(raw.space ?? ''),
       };
     });
   }
@@ -624,6 +634,9 @@ export class HulyAdapter implements IHulyAdapter {
         });
 
         await this.sendTx(tx);
+
+        // Upload Y.js binary so the Collaborator UI renders the content
+        await this.uploadCollabContent(existing.id, 'content', markdownContent);
       });
 
       return { id: existing.id, created: false };
@@ -660,6 +673,10 @@ export class HulyAdapter implements IHulyAdapter {
         });
 
         await this.sendTx(tx);
+
+        // Upload Y.js binary so the Collaborator UI renders the content
+        await this.uploadCollabContent(docId, 'content', markdownContent);
+
         return docId;
       }
     );
@@ -762,6 +779,10 @@ export class HulyAdapter implements IHulyAdapter {
         });
 
         await this.sendTx(tx);
+
+        // Upload Y.js binary so the Collaborator UI renders the description
+        await this.uploadCollabContent(id, 'description', body);
+
         return id;
       }
     );
@@ -790,6 +811,9 @@ export class HulyAdapter implements IHulyAdapter {
       });
 
       await this.sendTx(tx);
+
+      // Upload Y.js binary so the Collaborator UI renders the description
+      await this.uploadCollabContent(issueId, 'description', body);
     });
   }
 
@@ -815,6 +839,31 @@ export class HulyAdapter implements IHulyAdapter {
     });
 
     return { id: commentId };
+  }
+
+  /**
+   * Upload Y.js collaborative content to MinIO via the bridge.
+   * Silently skips if no bridge is configured (graceful degradation).
+   */
+  private async uploadCollabContent(
+    objectId: string,
+    fieldName: string,
+    markdown: string
+  ): Promise<void> {
+    if (!this.collabBridge) return;
+    try {
+      await this.collabBridge.createCollaborativeContent(objectId, fieldName, markdown);
+    } catch (e) {
+      // Non-fatal: content will show raw text instead of Collaborator rendering
+      this.audit.log({
+        source: 'huly',
+        op: 'collab_upload_failed',
+        target: `${objectId}/${fieldName}`,
+        ok: false,
+        latencyMs: 0,
+        error: (e as Error).message,
+      });
+    }
   }
 
   // ── HULY-OS v1 Extensions ────────────────────────────────────────────
@@ -860,6 +909,9 @@ export class HulyAdapter implements IHulyAdapter {
           });
 
           await this.sendTx(tx);
+
+          // Upload Y.js binary so the Collaborator UI renders the description
+          await this.uploadCollabContent(existing.id, 'description', body);
         }
       );
 
@@ -914,6 +966,10 @@ export class HulyAdapter implements IHulyAdapter {
         });
 
         await this.sendTx(tx);
+
+        // Upload Y.js binary so the Collaborator UI renders the description
+        await this.uploadCollabContent(id, 'description', body);
+
         return id;
       }
     );

@@ -1,0 +1,27 @@
+{
+  "envelopeVersion": "1.0.0",
+  "taskId": "SPRINT-044R",
+  "taskType": "runtime",
+  "projectId": "unit-talk",
+  "objective": "Migrate settlement off raw_props to unified_picks",
+  "summary": "SettlementAgent migrated from raw_props to unified_picks as settlement data source. processGameProps queries unified_picks, prop_settlements uses final_pick_id FK, raw_props UPDATE removed, lifecycleSettle used directly.",
+  "touchedAreas": [],
+  "truthSourcesRequired": [
+    "docs/contracts/PICK_LIFECYCLE_CONTRACT.md",
+    "docs/system/current/table-contracts.md",
+    "docs/system/current/settlement-migration-status.md"
+  ],
+  "runtimeProofRequired": true,
+  "artifactDate": "2026-03-08",
+  "killConditions": [
+    "Lifecycle gate fails",
+    "Settlement writes bypass lifecycle adapters",
+    "Any active read from raw_props in settlement flow"
+  ],
+  "notes": [
+    "raw_props table NOT dropped — only settlement dependency removed",
+    "prop_settlements.raw_prop_id remains nullable for historical records",
+    "unified_picks already had all settlement-relevant fields"
+  ],
+  "deferredRequirements": ["Full raw_props table retirement (separate sprint)"]
+}

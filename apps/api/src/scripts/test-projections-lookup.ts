@@ -11,7 +11,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-import { getProjectionAgent, resetProjectionAgent } from '../agents/ProjectionAgent';
+import { getProjectionAgent, resetProjectionAgent } from '../agents/_archived/ProjectionAgent';
 import { getProjectionEngine, resetProjectionEngine } from '../services/projections';
 
 // ============================================================================

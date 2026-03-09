@@ -2,7 +2,7 @@
  * Database types index - merges generated types with extensions
  *
  * SPRINT-SUPABASE-TYPE-SAFETY-LOCK-106A
- * SPRINT-DATABASE-TYPE-CENTRALIZATION-003: Canonical Row types from @unit-talk/shared-types
+ * SPRINT-DATABASE-TYPE-CENTRALIZATION-003: Canonical Row types from @unit-talk/contracts
  */
 
 import type { Database as GeneratedDatabase, Json } from './database';
@@ -21,7 +21,7 @@ export type {
   GamesRow,
   RawPropsRow,
   SmartTicketsRow,
-} from '@unit-talk/shared-types';
+} from '@unit-talk/contracts';
 
 // Re-export Json type
 export type { Json };

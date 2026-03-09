@@ -1,8 +1,10 @@
 /**
  * Material Change Detector
  *
- * Stub implementation for TypeScript compilation.
- * Detects material changes in prop lines, odds, and market conditions.
+ * @deprecated SPRINT-REPO-ARCHITECTURE-NORMALIZATION-001
+ * This is a stub. The canonical scorer is computeScoreV2 in
+ * apps/api/src/agents/GradingAgent/scoring/computeScoreV2.ts.
+ * See docs/architecture/SCORING_AUTHORITY.md for the scoring authority map.
  *
  * @module MaterialChangeDetector
  */

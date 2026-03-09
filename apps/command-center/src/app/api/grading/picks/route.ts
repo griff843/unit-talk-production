@@ -168,107 +168,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
-
-    switch (action) {
-      case 'regrade':
-        const { error: regradeError } = await supabase
-          .from('unified_picks')
-          .update({
-            workflow_stage: 'pending_review',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', pickId);
-
-        if (regradeError) {
-          console.error('[CC] Regrade failed:', regradeError.message);
-          return NextResponse.json(
-            { success: false, error: `Failed to regrade pick: ${regradeError.message}` },
-            { status: 500 }
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: 'Pick queued for re-grading',
-          pickId,
-        });
-
-      case 'approve':
-        const { error: approveError } = await supabase
-          .from('unified_picks')
-          .update({
-            workflow_stage: 'approved',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', pickId);
-
-        if (approveError) {
-          console.error('[CC] Approve failed:', approveError.message);
-          return NextResponse.json(
-            { success: false, error: `Failed to approve pick: ${approveError.message}` },
-            { status: 500 }
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: 'Pick approved successfully',
-          pickId,
-        });
-
-      case 'reject':
-        const { error: rejectError } = await supabase
-          .from('unified_picks')
-          .update({
-            workflow_stage: 'rejected',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', pickId);
-
-        if (rejectError) {
-          console.error('[CC] Reject failed:', rejectError.message);
-          return NextResponse.json(
-            { success: false, error: `Failed to reject pick: ${rejectError.message}` },
-            { status: 500 }
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: 'Pick rejected successfully',
-          pickId,
-        });
-
-      case 'publish':
-        const { error: publishError } = await supabase
-          .from('unified_picks')
-          .update({
-            workflow_stage: 'published',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', pickId);
-
-        if (publishError) {
-          console.error('[CC] Publish failed:', publishError.message);
-          return NextResponse.json(
-            { success: false, error: `Failed to publish pick: ${publishError.message}` },
-            { status: 500 }
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: 'Pick published successfully',
-          pickId,
-        });
-
-      default:
-        return NextResponse.json(
-          { success: false, error: `Unknown action: ${action}` },
-          { status: 400 }
-        );
+    // SPRINT-023B: Route all workflow actions through API endpoint
+    const validActions = ['regrade', 'approve', 'reject', 'publish'];
+    if (!validActions.includes(action)) {
+      return NextResponse.json(
+        { success: false, error: `Unknown action: ${action}. Valid: ${validActions.join(', ')}` },
+        { status: 400 }
+      );
     }
+
+    const apiUrl = process.env.API_SERVICE_URL || 'http://localhost:3000';
+    const apiRes = await fetch(`${apiUrl}/ops/picks/${pickId}/workflow`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        reason: `Workflow action via Command Center: ${action}`,
+      }),
+    });
+    const apiResult = await apiRes.json();
+
+    if (!apiRes.ok || !apiResult.success) {
+      console.error(`[CC] ${action} failed:`, apiResult.error);
+      return NextResponse.json(
+        { success: false, error: apiResult.error || `Failed to ${action} pick` },
+        { status: apiRes.status }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: apiResult.message || `Pick ${action} successful`,
+      pickId,
+    });
   } catch (error) {
     console.error('[CC] Grading action error:', error);
     return NextResponse.json(

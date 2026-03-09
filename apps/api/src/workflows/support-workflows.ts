@@ -4,8 +4,6 @@ import type {
   FeedAgentActivities,
   AlertAgentActivities,
   OperatorAgentActivities,
-  NotificationAgentActivities,
-  GradingAgentActivities,
 } from '../types/activities';
 
 // Export types that are imported elsewhere
@@ -27,13 +25,7 @@ export interface LiveGameUpdate {
   timestamp: string;
 }
 
-export interface QuotaStatus {
-  provider: string;
-  used: number;
-  limit: number;
-  resetTime: string;
-  percentage: number;
-}
+// SPRINT-035B TD-4: QuotaStatus removed — quota enforcement handled by ProviderGateway
 
 export interface LiveGameMonitorResult {
   totalGames: number;
@@ -56,80 +48,7 @@ const operatorActivities = proxyActivities<OperatorAgentActivities>({
   startToCloseTimeout: '1 minute',
 });
 
-const notificationActivities = proxyActivities<NotificationAgentActivities>({
-  startToCloseTimeout: '30 seconds',
-});
-
-const gradingActivities = proxyActivities<GradingAgentActivities>({
-  startToCloseTimeout: '2 minutes',
-});
-
-/**
- * SYNDICATE SCHEDULER WORKFLOW
- * Main data ingestion and processing workflow (1 minute intervals)
- */
-export async function syndicateSchedulerWorkflow(): Promise<void> {
-  const shouldContinue = true;
-  const MAX_ITERATIONS = 1000000; // Prevent infinite loops
-  let iteration = 0;
-
-  while (shouldContinue && iteration < MAX_ITERATIONS) {
-    try {
-      const leagues = ['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF', 'NCAAB', 'WNBA'];
-
-      // 1. DATA INGESTION - Successfully fetching props
-      await feedActivities.fetchFeed({
-        timestamp: new Date(),
-        leagues,
-      });
-
-      // 2. PROFESSIONAL GRADING - Process ungraded props through professional system
-      for (const league of leagues) {
-        try {
-          await gradingActivities.gradeNewProps({
-            league,
-            isLiveMode: true,
-            cycleCount: iteration,
-          });
-        } catch (gradingError) {
-          await operatorActivities.logError({
-            error: `Professional grading failed for ${league}: ${gradingError}`,
-            workflow: 'syndicateSchedulerWorkflow',
-            timestamp: new Date(),
-          });
-        }
-      }
-
-      // 3. PROMOTE TOP TIER PICKS - Promote S/A tier picks to unified_picks
-      try {
-        const scoringResults = []; // Will be populated by individual league grading
-        await gradingActivities.updateUnifiedPicks({
-          scoringResults,
-          cycleCount: iteration,
-          timestamp: new Date(),
-        });
-      } catch (promotionError) {
-        await operatorActivities.logError({
-          error: `Pick promotion failed: ${promotionError}`,
-          workflow: 'syndicateSchedulerWorkflow',
-          timestamp: new Date(),
-        });
-      }
-
-      // Wait for next interval
-      await sleep('1 minute');
-      iteration++;
-    } catch (error) {
-      await operatorActivities.logError({
-        error: `Syndicate scheduler error: ${error}`,
-        workflow: 'syndicateSchedulerWorkflow',
-        timestamp: new Date(),
-      });
-      await sleep('5 minutes'); // Back off on error
-      iteration++;
-    }
-  }
-}
+// SPRINT-035A B-16: syndicateSchedulerWorkflow removed — sole implementation is in syndicate-scheduler.ts
 
 /**
  * LIVE GAME DETECTOR WORKFLOW
@@ -147,8 +66,10 @@ export async function liveGameDetectorWorkflow(): Promise<void> {
 
       for (const league of leagues) {
         try {
-          const liveGames = await feedActivities.getLiveGames({ league });
-          allLiveGames.push(...liveGames);
+          const result = await feedActivities.getLiveGames({ league });
+          if (result.success && result.games) {
+            allLiveGames.push(...result.games);
+          }
         } catch (error) {
           await operatorActivities.logError({
             error: `Error getting live games for ${league}: ${error}`,
@@ -183,7 +104,9 @@ export async function liveGameDetectorWorkflow(): Promise<void> {
 
 /**
  * QUOTA MONITORING WORKFLOW
- * Monitors API quotas and activates fallbacks
+ * SPRINT-035B TD-4: Quota tracking is handled internally by ProviderGateway
+ * (token bucket rate limiting, circuit breakers, credit tracking).
+ * This workflow monitors at the workflow level and logs status.
  */
 export async function quotaMonitoringWorkflow(): Promise<void> {
   const shouldContinue = true;
@@ -192,46 +115,10 @@ export async function quotaMonitoringWorkflow(): Promise<void> {
 
   while (shouldContinue && iteration < MAX_ITERATIONS) {
     try {
-      // Check all API provider quotas
-      const providers = ['optimal', 'odds-api', 'backup'];
-      const quotaResults: QuotaStatus[] = [];
-
-      for (const provider of providers) {
-        try {
-          const rawQuotaStatus = await operatorActivities.checkApiQuota({ provider });
-
-          // Convert to expected QuotaStatus format
-          const quotaStatus: QuotaStatus = {
-            provider: rawQuotaStatus.provider,
-            used: rawQuotaStatus.hourlyUsed,
-            limit: rawQuotaStatus.hourlyLimit,
-            resetTime: rawQuotaStatus.resetTime.toISOString(),
-            percentage: (rawQuotaStatus.hourlyUsed / rawQuotaStatus.hourlyLimit) * 100,
-          };
-
-          quotaResults.push(quotaStatus);
-
-          // Alert if quota usage is high
-          const percentage = quotaStatus.percentage;
-          if (percentage > 80) {
-            await alertActivities.processAlert({
-              type: 'quota',
-              provider,
-              usage: percentage,
-              severity: percentage > 95 ? 'critical' : 'warning',
-            });
-          }
-        } catch (error) {
-          await operatorActivities.logError({
-            error: `Quota check failed for ${provider}: ${error}`,
-            timestamp: new Date(),
-          });
-        }
-      }
-
-      // Log quota metrics (replace updateQuotaMetrics with logging)
+      // Quota enforcement is handled by ProviderGateway (circuit breakers, rate limits).
+      // This workflow logs a periodic heartbeat for monitoring visibility.
       await operatorActivities.logError({
-        error: `Quota monitoring update - ${quotaResults.length} providers checked`,
+        error: `Quota monitoring heartbeat — cycle ${iteration}`,
         workflow: 'quotaMonitoringWorkflow',
         timestamp: new Date(),
       });

@@ -79,6 +79,8 @@
     "ops:day": "node ops/day.mjs",
     "session:baseline": "node scripts/claude-session-baseline.mjs",
     "pre-sprint-check": "node scripts/pre-sprint-check.mjs",
+    "sprint:gate": "node tools/governance/sprint-gate.js",
+    "sprint:gate:036": "node tools/governance/sprint-gate.js SPRINT-036",
     "mcp:eslint": "node scripts/mcp-wrappers/eslint-mcp.mjs",
     "mcp:git": "node scripts/mcp-wrappers/git-mcp.mjs",
     "mcp:workspace": "node scripts/mcp-wrappers/pnpm-workspace-mcp.mjs",
@@ -148,5 +150,12 @@
     "path-scurry": {
       "lru-cache": "^10.2.0"
     }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@swc/core",
+      "protobufjs"
+    ]
   }
 }

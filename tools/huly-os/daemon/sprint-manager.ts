@@ -7,7 +7,6 @@ import { resolve } from 'node:path';
 import { SPRINT_PHASE_STATUS, SPRINT_PHASE_LABELS } from './adapters/types.js';
 import { REPO_ROOT } from './config.js';
 
-
 import type { HulyAdapter } from './adapters/huly-adapter.js';
 import type { GitHubPR, HulyIssue, HulyStatusId, WorkflowRun } from './adapters/types.js';
 import type { DaemonConfig } from './config.js';
@@ -248,7 +247,7 @@ export async function applySprintTransitions(
 
     try {
       const statusId = sprintStateToStatusId(transition.to);
-      await huly.updateIssueStatus(sprint.issue.id, statusId, sprint.issue.project);
+      await huly.updateIssueStatus(sprint.issue.id, statusId, sprint.issue.space);
 
       // Add comment documenting the transition with phase labels
       const fromLabel = sprintStateToPhaseLabel(transition.from);

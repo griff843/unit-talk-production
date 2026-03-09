@@ -22,10 +22,14 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@shared/*": ["./packages/shared-types/src/*", "./packages/shared-utils/src/*"],
-      "@unit-talk/shared-types": ["./packages/shared-types/src"],
-      "@unit-talk/shared-utils": ["./packages/shared-utils/src"],
-      "@unit-talk/config": ["./packages/config/src"]
+      "@shared/*": ["./packages/contracts/src/*", "./packages/shared/src/*"],
+      "@unit-talk/contracts": ["./packages/contracts/src"],
+      "@unit-talk/shared": ["./packages/shared/src"],
+      "@unit-talk/config": ["./packages/config/src"],
+      "@unit-talk/intelligence": ["./packages/intelligence/src"],
+      "@unit-talk/data-access": ["./packages/data-access/src"],
+      "@unit-talk/distribution": ["./packages/distribution/src"],
+      "@unit-talk/observability": ["./packages/observability/src"]
     },
 
     // Strict Type Checking Options

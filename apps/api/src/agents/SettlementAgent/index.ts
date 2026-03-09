@@ -1,6 +1,9 @@
 /* eslint-disable max-lines -- pre-existing, refactor in separate sprint */
+import { resolveOutcome } from '../../analysis/outcomes/outcome-resolver';
+import { resolveActualValue, hasStatMapping } from '../../analysis/outcomes/stat-resolver';
 import { settleExecutionTelemetry } from '../../lib/executionTelemetry';
 import { lifecycleSettle } from '../../lib/lifecycle';
+import { fetchSGOEvents } from '../../logic/providers/sgoFetcher';
 import { BaseAgent } from '../BaseAgent/index';
 import {
   BaseAgentConfig,
@@ -9,6 +12,7 @@ import {
   HealthStatus,
 } from '../BaseAgent/types';
 import { fetchSettlementData } from '../FeedAgent/oddsApi';
+// SPRINT-042C: SGO settlement imports
 // SPRINT-SINGLE-WRITER-SETTLEMENT-GUARD-071A: Use lifecycle adapter for settlement
 
 interface SettlementMetrics extends BaseMetrics {
@@ -35,11 +39,11 @@ interface GameResult {
 
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical PropSettlementsRow from shared-types
 // Note: This local interface is for in-memory processing, extends DB row with additional fields
-import type { PropSettlementsRow } from '@unit-talk/shared-types';
+import type { PropSettlementsRow } from '@unit-talk/contracts';
 
+// SPRINT-044R: Settlement now sources from unified_picks, not raw_props
 interface PropSettlement extends Partial<PropSettlementsRow> {
-  raw_prop_id: string;
-  final_pick_id?: string;
+  final_pick_id: string;
   player_name: string;
   stat_type: string;
   line: number;
@@ -49,15 +53,19 @@ interface PropSettlement extends Partial<PropSettlementsRow> {
   confidence: number;
 }
 
-// DATA-MOAT-V3-INTEGRATION-001: Loss attribution types
-type LossClassification =
-  | 'PROJECTION_MISS'
-  | 'VARIANCE'
-  | 'EXECUTION_MISS'
-  | 'NEWS_MISS'
-  | 'CORRELATION_MISS'
-  | 'PRICE_MISS'
-  | 'UNKNOWN';
+// SPRINT-042C: SGO league mapping for settlement queries
+const SGO_LEAGUE_MAP: Record<string, string> = {
+  NFL: 'NFL',
+  NBA: 'NBA',
+  MLB: 'MLB',
+  NHL: 'NHL',
+  NCAAF: 'NCAAF',
+  NCAAB: 'NCAAB',
+  WNBA: 'WNBA',
+};
+
+// SPRINT-034: Import pure loss classification from analysis module
+import { classifyLoss, type LossClassification } from '../../analysis/outcomes/loss-attribution';
 
 export class SettlementAgent extends BaseAgent {
   private settlementMetrics: SettlementMetrics;
@@ -91,8 +99,8 @@ export class SettlementAgent extends BaseAgent {
       throw new Error('Supabase client required for SettlementAgent');
     }
 
-    // Test access to settlement tables
-    const requiredTables = ['game_results', 'prop_settlements', 'raw_props', 'unified_picks'];
+    // SPRINT-044R: raw_props removed — settlement now sources from unified_picks
+    const requiredTables = ['game_results', 'prop_settlements', 'unified_picks'];
 
     for (const table of requiredTables) {
       try {
@@ -281,42 +289,141 @@ export class SettlementAgent extends BaseAgent {
   }
 
   /**
-   * Fetch settlement data for a specific game
+   * SPRINT-042C: Fetch settlement data from SGO (primary source)
+   * Uses finalized + ended + expandResults filters for accurate settlement.
    */
-  private async fetchGameSettlementData(game: GameResult): Promise<any> {
-    try {
-      // Map sport to Odds API format
-      const sportMapping: Record<string, string> = {
-        NFL: 'americanfootball_nfl',
-        NCAAF: 'americanfootball_ncaaf',
-        NBA: 'basketball_nba',
-        NCAAB: 'basketball_ncaab',
-        MLB: 'baseball_mlb',
-        NHL: 'icehockey_nhl',
-      };
+  private async fetchSettlementFromSGO(game: GameResult): Promise<any> {
+    const sgoApiKey = process.env['SGO_API_KEY'];
+    if (!sgoApiKey) {
+      this.logger.debug('[SettlementAgent] SGO_API_KEY not configured, skipping SGO settlement');
+      return null;
+    }
 
-      const oddsApiSport = sportMapping[game.sport];
-      if (!oddsApiSport) {
-        this.logger.warn(`❌ Unsupported sport for settlement: ${game.sport}`);
+    const sgoLeague = SGO_LEAGUE_MAP[game.sport];
+    if (!sgoLeague) {
+      this.logger.debug(`[SettlementAgent] No SGO league mapping for sport: ${game.sport}`);
+      return null;
+    }
+
+    try {
+      // Query SGO for finalized events around the game's completion time
+      const gameDate = new Date(game.completion_time);
+      const startsAfter = new Date(gameDate.getTime() - 48 * 60 * 60 * 1000).toISOString();
+      const startsBefore = new Date(gameDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+      const events = await fetchSGOEvents({
+        apiKey: sgoApiKey,
+        leagueID: sgoLeague,
+        startsAfter,
+        startsBefore,
+        finalized: true,
+        ended: true,
+        expandResults: true,
+        includeOpposingOdds: false,
+        oddsAvailable: false,
+        limit: 50,
+      });
+
+      if (!events || events.length === 0) {
+        this.logger.debug(`[SettlementAgent] No finalized SGO events for ${game.external_game_id}`);
         return null;
       }
 
-      const settlementData = await fetchSettlementData(oddsApiSport as any, 3); // 3 days back
+      // Match by external_game_id (SGO eventID) first, then by team names
+      let matched = events.find((evt: any) => evt.eventID === game.external_game_id);
 
-      // Find the specific game in settlement data
+      if (!matched) {
+        matched = events.find((evt: any) => {
+          const homeTeam = evt.teams?.home?.names?.full ?? evt.teams?.home?.teamID ?? '';
+          const awayTeam = evt.teams?.away?.names?.full ?? evt.teams?.away?.teamID ?? '';
+          return (
+            (homeTeam === game.home_team && awayTeam === game.away_team) ||
+            (homeTeam === game.away_team && awayTeam === game.home_team)
+          );
+        });
+      }
+
+      if (!matched) {
+        this.logger.debug(`[SettlementAgent] No matching SGO event for ${game.external_game_id}`);
+        return null;
+      }
+
+      // Tag with settlement source
+      return { ...matched, _settlement_source: 'sgo' };
+    } catch (error) {
+      this.logger.warn(
+        `[SettlementAgent] SGO settlement fetch failed for ${game.external_game_id}`,
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
+      );
+      return null;
+    }
+  }
+
+  /**
+   * SPRINT-042C: Fetch settlement data from Odds API (fallback)
+   */
+  private async fetchSettlementFromOddsApi(game: GameResult): Promise<any> {
+    const sportMapping: Record<string, string> = {
+      NFL: 'americanfootball_nfl',
+      NCAAF: 'americanfootball_ncaaf',
+      NBA: 'basketball_nba',
+      NCAAB: 'basketball_ncaab',
+      MLB: 'baseball_mlb',
+      NHL: 'icehockey_nhl',
+    };
+
+    const oddsApiSport = sportMapping[game.sport];
+    if (!oddsApiSport) return null;
+
+    try {
+      const settlementData = await fetchSettlementData(oddsApiSport as any, 3);
       const gameData = settlementData.find(
-        data =>
+        (data: any) =>
           data.id === game.external_game_id ||
           (data.home_team === game.home_team && data.away_team === game.away_team)
       );
 
-      return gameData;
+      if (gameData) {
+        return { ...gameData, _settlement_source: 'odds-api' };
+      }
+      return null;
     } catch (error) {
-      this.logger.error(`❌ Failed to fetch settlement data for ${game.external_game_id}`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.warn(
+        `[SettlementAgent] Odds API settlement failed for ${game.external_game_id}`,
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
+      );
       return null;
     }
+  }
+
+  /**
+   * SPRINT-042C: Fetch settlement data — SGO primary, Odds API fallback
+   */
+  private async fetchGameSettlementData(game: GameResult): Promise<any> {
+    // Priority 1: SGO (no credit cost, has player results with expandResults)
+    const sgoData = await this.fetchSettlementFromSGO(game);
+    if (sgoData) {
+      this.logger.info(`[SettlementAgent] Settlement data from SGO for ${game.external_game_id}`);
+      return sgoData;
+    }
+
+    // Priority 2: Odds API (credit cost, game scores only)
+    const oddsData = await this.fetchSettlementFromOddsApi(game);
+    if (oddsData) {
+      this.logger.info(
+        `[SettlementAgent] Settlement data from Odds API for ${game.external_game_id}`
+      );
+      return oddsData;
+    }
+
+    this.logger.warn(
+      `[SettlementAgent] No settlement source available for ${game.external_game_id}`
+    );
+    return null;
   }
 
   /**
@@ -371,32 +478,33 @@ export class SettlementAgent extends BaseAgent {
   }
 
   /**
-   * Process all props for a completed game
+   * SPRINT-044R: Process all picks for a completed game
+   * Sources from unified_picks instead of raw_props.
    */
   private async processGameProps(game: GameResult, settlementData: any): Promise<void> {
     if (!this.hasSupabase()) return;
 
     try {
-      // Get all raw props for this game that need settlement
-      const { data: rawProps, error } = await this.requireSupabase()
-        .from('raw_props')
+      // SPRINT-044R: Query unified_picks for pending settlement (canonical source)
+      const { data: picks, error } = await this.requireSupabase()
+        .from('unified_picks')
         .select('*')
         .eq('external_game_id', game.external_game_id)
-        .eq('settlement_status', 'pending');
+        .or('settlement_status.is.null,settlement_status.eq.pending');
 
       if (error) {
-        throw new Error(`Failed to fetch raw props: ${error.message}`);
+        throw new Error(`Failed to fetch picks for settlement: ${error.message}`);
       }
 
-      if (!rawProps || rawProps.length === 0) {
-        this.logger.debug(`📭 No pending props found for game: ${game.external_game_id}`);
+      if (!picks || picks.length === 0) {
+        this.logger.debug(`📭 No pending picks found for game: ${game.external_game_id}`);
         return;
       }
 
-      this.logger.info(`🎯 Processing ${rawProps.length} props for game: ${game.external_game_id}`);
+      this.logger.info(`🎯 Processing ${picks.length} picks for game: ${game.external_game_id}`);
 
-      for (const prop of rawProps) {
-        await this.settleProp(prop, game, settlementData);
+      for (const pick of picks) {
+        await this.settleProp(pick, game, settlementData);
         this.settlementMetrics.propsSettled++;
       }
     } catch (error) {
@@ -407,35 +515,38 @@ export class SettlementAgent extends BaseAgent {
   }
 
   /**
-   * Settle an individual prop bet
+   * SPRINT-044R: Settle an individual pick (sourced from unified_picks, not raw_props)
    */
-  private async settleProp(prop: any, game: GameResult, settlementData: any): Promise<void> {
+  private async settleProp(pick: any, game: GameResult, settlementData: any): Promise<void> {
     if (!this.hasSupabase()) return;
 
     try {
       // Determine settlement based on prop type and game result
-      const settlement = await this.calculatePropSettlement(prop, game, settlementData);
+      const settlement = await this.calculatePropSettlement(pick, game, settlementData);
 
       if (!settlement) {
         this.settlementMetrics.manualReviewRequired++;
-        this.logger.warn(`⚠️ Manual review required for prop: ${prop.id}`);
+        this.logger.warn(`⚠️ Manual review required for pick: ${pick.id}`);
         return;
       }
 
-      // Create prop settlement record
+      // SPRINT-042C: Thread settlement_source from settlementData
+      const settlementSource = settlementData?._settlement_source || 'unknown';
+
+      // Create prop settlement record — uses final_pick_id (not raw_prop_id)
       const { error: settlementError } = await this.requireSupabase()
         .from('prop_settlements')
         .insert({
-          raw_prop_id: prop.id,
+          final_pick_id: pick.id,
           game_result_id: game.id,
-          player_name: prop.player_name,
-          stat_type: prop.stat_type,
-          line: prop.line,
+          player_name: pick.player_name,
+          stat_type: pick.stat_type,
+          line: pick.line,
           bet_side: settlement.bet_side,
           actual_value: settlement.actual_value,
           settlement_result: settlement.settlement_result,
           settlement_confidence: settlement.confidence,
-          data_source: 'odds-api',
+          data_source: settlementSource,
           settled_at: new Date().toISOString(),
         });
 
@@ -443,171 +554,185 @@ export class SettlementAgent extends BaseAgent {
         throw new Error(`Failed to create settlement record: ${settlementError.message}`);
       }
 
-      // Update raw prop status
-      const { error: propUpdateError } = await this.requireSupabase()
-        .from('raw_props')
-        .update({
-          settlement_status: 'settled',
-          settlement_result: settlement.settlement_result,
-          settled_at: new Date().toISOString(),
-        })
-        .eq('id', prop.id);
+      // SPRINT-044R: Settle unified_pick via lifecycle adapter (replaces raw_props update)
+      const isVoid = settlement.settlement_result === 'void';
+      const settlementPayload = isVoid
+        ? {
+            settlement_status: 'void' as const,
+            actual_outcome: settlement.actual_value,
+            settlement_source: settlementSource,
+          }
+        : {
+            settlement_status: 'settled' as const,
+            settlement_result: settlement.settlement_result as 'win' | 'loss' | 'push' | undefined,
+            actual_outcome: settlement.actual_value,
+            settlement_source: settlementSource,
+          };
 
-      if (propUpdateError) {
-        throw new Error(`Failed to update prop status: ${propUpdateError.message}`);
+      const result = await lifecycleSettle(this.requireSupabase(), pick.id, settlementPayload, {
+        writerRole: 'settler',
+        traceId: `settlement-agent-${pick.id}-${Date.now()}`,
+      });
+
+      if (!result.success) {
+        this.logger.error(`❌ Failed to settle pick via lifecycle adapter: ${pick.id}`, {
+          error: result.error,
+          validationPassed: result.validationPassed,
+        });
+      } else {
+        this.logger.debug(`✅ Pick settled via lifecycle adapter: ${pick.id}`);
+
+        // EXECUTION-TELEMETRY-ACTIVATION-003: Update execution telemetry with CLV
+        await settleExecutionTelemetry(
+          this.requireSupabase(),
+          pick.id,
+          pick.line,
+          pick.closing_line,
+          pick.odds,
+          pick.closing_odds,
+          pick.side || pick.selection
+        );
+
+        // DATA-MOAT-V3-INTEGRATION-001: Attribute losses for learning loop
+        if (settlement.settlement_result === 'loss') {
+          await this.attributeLoss(pick.id, settlement, pick);
+        }
       }
 
-      // Update final pick if it exists
-      await this.updateUnifiedPickSettlement(prop, settlement);
-
       this.logger.debug(
-        `✅ Prop settled: ${prop.player_name} ${prop.stat_type} ${settlement.settlement_result}`
+        `✅ Prop settled: ${pick.player_name} ${pick.stat_type} ${settlement.settlement_result}`
       );
     } catch (error) {
       this.settlementMetrics.disputedSettlements++;
-      this.logger.error(`❌ Failed to settle prop: ${prop.id}`, {
+      this.logger.error(`❌ Failed to settle pick: ${pick.id}`, {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 
   /**
-   * Calculate prop settlement result
-   * @param _settlementData Reserved for future settlement context (currently unused)
+   * SPRINT-042C: Calculate prop settlement result
+   * SPRINT-044R: Now operates on unified_picks rows instead of raw_props
    */
-  // eslint-disable-next-line complexity -- pre-existing, refactor in separate sprint
+  // eslint-disable-next-line complexity -- settlement logic inherently branchy
   private async calculatePropSettlement(
-    prop: any,
+    pick: any,
     game: GameResult,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars -- reserved for future use
-    _settlementData: any
+    settlementData: any
   ): Promise<PropSettlement | null> {
-    // This is a simplified version - in production you'd need more sophisticated logic
-    // to handle different prop types, player stats, etc.
-
     try {
       let actual_value: number | undefined;
-      let bet_side: 'over' | 'under' | 'home' | 'away';
       let result: 'win' | 'loss' | 'push' | 'void';
 
-      // Example logic for team totals (simplified)
-      if (prop.stat_type === 'total' || prop.stat_type === 'totals') {
+      // SPRINT-044R: unified_picks has explicit `side` field; fall back to selection
+      const bet_side: 'over' | 'under' | 'home' | 'away' =
+        pick.side?.toLowerCase() || pick.selection?.toLowerCase() || 'over'; // Safe default — most player props are over bets
+
+      // --- Team totals ---
+      if (pick.stat_type === 'total' || pick.stat_type === 'totals') {
         const totalScore = game.home_score + game.away_score;
         actual_value = totalScore;
 
-        // Assume we can determine if this was an over or under bet
-        bet_side = prop.over_odds > 0 ? 'over' : 'under';
-
         if (bet_side === 'over') {
-          result = totalScore > prop.line ? 'win' : totalScore < prop.line ? 'loss' : 'push';
+          result = totalScore > pick.line ? 'win' : totalScore < pick.line ? 'loss' : 'push';
         } else {
-          result = totalScore < prop.line ? 'win' : totalScore > prop.line ? 'loss' : 'push';
+          result = totalScore < pick.line ? 'win' : totalScore > pick.line ? 'loss' : 'push';
         }
+
+        return {
+          final_pick_id: pick.id,
+          player_name: pick.player_name,
+          stat_type: pick.stat_type,
+          line: pick.line,
+          bet_side,
+          actual_value,
+          settlement_result: result,
+          confidence: 0.95,
+        };
       }
-      // Add more prop types (spreads, moneylines, player props) here
-      else {
-        // Require manual review for complex prop types
+
+      // --- SPRINT-042C: Player props via stat-resolver + outcome-resolver ---
+      const marketKey = pick.market || `player_${pick.stat_type?.toLowerCase()}_ou`;
+
+      if (hasStatMapping(marketKey)) {
+        // Source 1: Try SGO expandResults player data from settlementData
+        let playerStats: Record<string, number> | null = null;
+
+        if (settlementData?._settlement_source === 'sgo' && settlementData?.odds) {
+          // SPRINT-044R: Use external_prop_id or meta.sgo_market_key from unified_picks
+          const propMarketKey = pick.external_prop_id || (pick.meta as any)?.sgo_market_key;
+          if (propMarketKey && settlementData.odds[propMarketKey]?.result != null) {
+            const sgoResult = settlementData.odds[propMarketKey].result;
+            if (typeof sgoResult === 'number') {
+              actual_value = sgoResult;
+            }
+          }
+        }
+
+        // Source 2: Try player_game_stats table if SGO didn't provide value
+        if (actual_value == null && this.hasSupabase() && pick.player_name) {
+          const { data: statsRow } = await this.requireSupabase()
+            .from('player_game_stats')
+            .select('stats')
+            .eq('player_name', pick.player_name)
+            .eq('game_id', game.external_game_id)
+            .maybeSingle();
+
+          if (statsRow?.stats && typeof statsRow.stats === 'object') {
+            playerStats = statsRow.stats as Record<string, number>;
+          }
+        }
+
+        // Resolve actual value from stats if we have them
+        if (actual_value == null && playerStats) {
+          const resolution = resolveActualValue(marketKey, playerStats);
+          if (resolution.resolved && resolution.actual_value != null) {
+            actual_value = resolution.actual_value;
+          }
+        }
+
+        // If we have an actual value, determine outcome
+        if (actual_value != null) {
+          const overOutcome = resolveOutcome(actual_value, pick.line);
+          // Map outcome based on bet side
+          if (bet_side === 'over') {
+            result = overOutcome.toLowerCase() as 'win' | 'loss' | 'push';
+          } else {
+            // Invert for under side
+            result = overOutcome === 'WIN' ? 'loss' : overOutcome === 'LOSS' ? 'win' : 'push';
+          }
+
+          return {
+            final_pick_id: pick.id,
+            player_name: pick.player_name,
+            stat_type: pick.stat_type,
+            line: pick.line,
+            bet_side,
+            actual_value,
+            settlement_result: result,
+            confidence: 0.9,
+          };
+        }
+
+        // No source provided actual value — manual review
+        this.logger.debug(
+          `[SettlementAgent] No actual value for ${pick.player_name} ${pick.stat_type} — manual review`
+        );
         return null;
       }
 
-      return {
-        raw_prop_id: prop.id,
-        player_name: prop.player_name,
-        stat_type: prop.stat_type,
-        line: prop.line,
-        bet_side,
-        actual_value,
-        settlement_result: result,
-        confidence: 0.95, // High confidence for simple calculations
-      };
+      // --- Unsupported market type → manual review ---
+      return null;
     } catch (error) {
-      this.logger.error(`❌ Error calculating prop settlement for ${prop.id}`, {
+      this.logger.error(`❌ Error calculating prop settlement for ${pick.id}`, {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return null;
     }
   }
 
-  /**
-   * Update final pick settlement status
-   * SPRINT-SINGLE-WRITER-SETTLEMENT-GUARD-071A: Uses lifecycleSettle adapter
-   * to enforce single-writer discipline and transition validation.
-   */
-  // eslint-disable-next-line max-lines-per-function, complexity
-  private async updateUnifiedPickSettlement(prop: any, settlement: PropSettlement): Promise<void> {
-    if (!this.hasSupabase()) return;
-
-    try {
-      // Find corresponding final pick (READ is allowed)
-      const { data: finalPicks, error } = await this.requireSupabase()
-        .from('unified_picks')
-        .select('*')
-        .eq('raw_prop_id', prop.id);
-
-      if (error || !finalPicks || finalPicks.length === 0) {
-        return; // No final pick found, skip
-      }
-
-      for (const finalPick of finalPicks) {
-        // SPRINT-071A: Use lifecycle adapter instead of direct write
-        // Handle void case: use settlement_status='void', no settlement_result
-        const isVoid = settlement.settlement_result === 'void';
-        const settlementPayload = isVoid
-          ? {
-              settlement_status: 'void' as const,
-              actual_outcome: settlement.actual_value,
-            }
-          : {
-              settlement_status: 'settled' as const,
-              settlement_result: settlement.settlement_result as
-                | 'win'
-                | 'loss'
-                | 'push'
-                | undefined,
-              actual_outcome: settlement.actual_value,
-            };
-
-        const result = await lifecycleSettle(
-          this.requireSupabase(),
-          finalPick.id,
-          settlementPayload,
-          {
-            writerRole: 'settler',
-            traceId: `settlement-agent-${finalPick.id}-${Date.now()}`,
-          }
-        );
-
-        if (!result.success) {
-          this.logger.error(`❌ Failed to settle pick via lifecycle adapter: ${finalPick.id}`, {
-            error: result.error,
-            validationPassed: result.validationPassed,
-          });
-        } else {
-          this.logger.debug(`✅ Pick settled via lifecycle adapter: ${finalPick.id}`);
-
-          // EXECUTION-TELEMETRY-ACTIVATION-003: Update execution telemetry with CLV
-          await settleExecutionTelemetry(
-            this.requireSupabase(),
-            finalPick.id,
-            finalPick.line, // entry line
-            finalPick.closing_line, // closing line (may be null)
-            finalPick.odds, // entry odds
-            finalPick.closing_odds, // closing odds (may be null)
-            finalPick.side || finalPick.selection // bet side (OVER/UNDER/HOME/AWAY)
-          );
-
-          // DATA-MOAT-V3-INTEGRATION-001: Attribute losses for learning loop
-          if (settlement.settlement_result === 'loss') {
-            await this.attributeLoss(finalPick.id, settlement, prop);
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(`❌ Error updating final pick settlement for prop ${prop.id}`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
+  // SPRINT-044R: updateUnifiedPickSettlement() removed — settlement now operates
+  // directly on unified_picks rows, so lifecycleSettle is called inline in settleProp().
 
   /**
    * Process delayed settlements (30min, 3hr, 24hr checks)
@@ -658,53 +783,34 @@ export class SettlementAgent extends BaseAgent {
         .eq('id', pickId)
         .single();
 
-      // DATA-MOAT-ACTIVATION-002: Comprehensive loss classification
-      // Every loss MUST receive a classification (fail-closed requirement)
+      // SPRINT-034: Use pure classifyLoss from analysis module
+      // Reads feature data, then delegates classification to pure function
+      let ev = 0;
+      let clvAtBet = 0;
+      let clvAtClose = 0;
+      let hasFeatureSnapshot = false;
+
       if (pick?.feature_snapshot_id) {
+        hasFeatureSnapshot = true;
         const { data: featureSnapshot } = await this.requireSupabase()
           .from('feature_snapshots')
           .select('feature_vector, clv_at_bet, clv_at_close')
           .eq('id', pick.feature_snapshot_id)
           .single();
 
-        const ev = pick.ev ?? (pick.edge_breakdown as { ev?: number } | null)?.ev ?? 0;
-        const clvAtBet = featureSnapshot?.clv_at_bet ?? pick.clv_at_bet ?? 0;
-        const clvAtClose = featureSnapshot?.clv_at_close ?? 0;
-
-        // Priority-ordered classification (first match wins)
-        // Category 1: PRICE_MISS - CLV at close is significantly negative
-        if (clvAtClose < -3 || clvAtBet < -3) {
-          classification = 'PRICE_MISS';
-          notes.push(`clv_at_bet=${clvAtBet.toFixed(2)}%,clv_at_close=${clvAtClose.toFixed(2)}%`);
-        }
-        // Category 2: VARIANCE - EV close to zero, normal variance
-        else if (Math.abs(ev) < 3) {
-          classification = 'VARIANCE';
-          notes.push(`ev=${ev.toFixed(2)}% within variance bounds`);
-        }
-        // Category 3: PROJECTION_MISS - positive EV but loss
-        else if (ev > 0) {
-          classification = 'PROJECTION_MISS';
-          notes.push(`ev=${ev.toFixed(2)}% but outcome=loss`);
-        }
-        // Category 4: Negative EV that wasn't caught by PRICE_MISS
-        else if (ev < 0) {
-          classification = 'PROJECTION_MISS';
-          notes.push(`negative_ev=${ev.toFixed(2)}%`);
-        }
-        // Fallback: should never reach but ensures classification
-        else {
-          classification = 'UNKNOWN';
-          notes.push('edge_case_classification');
-        }
-
-        // Note: EXECUTION_MISS, NEWS_MISS, CORRELATION_MISS require additional
-        // data sources not currently available. Future enhancement.
-      } else {
-        // No feature snapshot: classify as UNKNOWN but log for investigation
-        classification = 'UNKNOWN';
-        notes.push('no_feature_snapshot_available');
+        ev = pick.ev ?? (pick.edge_breakdown as { ev?: number } | null)?.ev ?? 0;
+        clvAtBet = featureSnapshot?.clv_at_bet ?? pick.clv_at_bet ?? 0;
+        clvAtClose = featureSnapshot?.clv_at_close ?? 0;
       }
+
+      const attribution = classifyLoss({
+        ev,
+        clv_at_bet: clvAtBet,
+        clv_at_close: clvAtClose,
+        has_feature_snapshot: hasFeatureSnapshot,
+      });
+      classification = attribution.classification;
+      notes.push(...attribution.notes);
 
       // INVARIANT: classification MUST be set at this point
       if (!classification) {
@@ -741,9 +847,10 @@ export class SettlementAgent extends BaseAgent {
 
   /**
    * Manual settlement override (for disputed cases)
+   * SPRINT-044R: Now accepts pickId (unified_picks.id) instead of raw_prop_id
    */
   public async manualSettle(
-    propId: string,
+    pickId: string,
     result: 'win' | 'loss' | 'push' | 'void',
     actualValue?: number,
     notes?: string
@@ -753,9 +860,9 @@ export class SettlementAgent extends BaseAgent {
     }
 
     try {
-      this.logger.info(`🔧 Manual settlement for prop ${propId}: ${result}`);
+      this.logger.info(`🔧 Manual settlement for pick ${pickId}: ${result}`);
 
-      // Update prop settlement
+      // Update prop settlement record
       const { error } = await this.requireSupabase()
         .from('prop_settlements')
         .update({
@@ -767,7 +874,7 @@ export class SettlementAgent extends BaseAgent {
           dispute_resolved_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .eq('raw_prop_id', propId);
+        .eq('final_pick_id', pickId);
 
       if (error) {
         throw new Error(`Manual settlement failed: ${error.message}`);
@@ -777,7 +884,7 @@ export class SettlementAgent extends BaseAgent {
       await this.requireSupabase()
         .from('settlement_log')
         .insert({
-          prop_settlement_id: propId,
+          prop_settlement_id: pickId,
           action_type: 'resolved',
           new_values: { settlement_result: result, actual_value: actualValue },
           data_source: 'manual',
@@ -786,9 +893,9 @@ export class SettlementAgent extends BaseAgent {
           notes: notes || 'Manual settlement override',
         });
 
-      this.logger.info(`✅ Manual settlement completed for prop ${propId}`);
+      this.logger.info(`✅ Manual settlement completed for pick ${pickId}`);
     } catch (error) {
-      this.logger.error(`❌ Manual settlement failed for prop ${propId}`, {
+      this.logger.error(`❌ Manual settlement failed for pick ${pickId}`, {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;

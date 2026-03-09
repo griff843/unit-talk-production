@@ -1,9 +1,8 @@
 // AnalyticsAgent Activities
 
-export async function runAnalyticsAgentActivity(): Promise<void> {
-  // This will be implemented when we integrate with Temporal
-  // For now, this is a placeholder to satisfy the workflow imports
-  console.log('Running analytics agent activity');
+// SPRINT-035B B-8: Renamed from runAnalyticsAgentActivity to match workflow caller
+export async function runAnalyticsAgent(): Promise<void> {
+  console.log('[AnalyticsAgent] Running analytics agent activity');
 }
 
 export async function runAnalysis(): Promise<{ success: boolean; message: string; data?: any }> {
@@ -32,13 +31,14 @@ export async function runAnalysis(): Promise<{ success: boolean; message: string
   }
 }
 
-export async function performHealthCheck(): Promise<{
+// SPRINT-035A B-5: Renamed from performHealthCheck to resolve collision with healthMonitoring
+export async function performAnalyticsHealthCheck(): Promise<{
   success: boolean;
   message: string;
   data?: any;
 }> {
   try {
-    console.log('[AnalyticsAgent] Performing health check');
+    console.log('[AnalyticsAgent] Performing analytics health check');
 
     // Placeholder health check logic
     const healthData = {

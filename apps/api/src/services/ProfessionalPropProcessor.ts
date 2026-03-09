@@ -30,6 +30,7 @@ import { createLogger } from '../utils/logger';
 
 import { CLVTrackingService } from './clv/CLVTrackingService';
 import { DeviggingService } from './devigging/DeviggingService';
+import { MarketOfferAggregator } from './MarketOfferAggregator';
 import { supabaseClient } from './supabaseClient';
 
 import type { ComputeScoreV2Result } from '../agents/GradingAgent/scoring/computeScoreV2';
@@ -74,6 +75,10 @@ interface RawPropRow {
   error_message?: string | null;
   created_at?: string;
   updated_at?: string;
+  // V3 canonical IDs (populated when ingestion pipeline writes them)
+  event_id?: string | null;
+  market_type_id?: number | null;
+  participant_id?: string | null;
   [key: string]: unknown;
 }
 
@@ -104,7 +109,16 @@ interface DevigTwoWayResult {
 // Public types
 // ---------------------------------------------------------------------------
 
-type DevigMode = 'PAIRED' | 'FALLBACK_SINGLE_SIDED';
+type DevigMode = 'PAIRED' | 'FALLBACK_SINGLE_SIDED' | 'MULTI_BOOK';
+
+/** Market resolution result from Stage B — multi-book preferred, single-book fallback */
+interface MarketResolution {
+  bookOffers: BookOffer[];
+  devigMode: DevigMode;
+  bookCount: number;
+  /** Legacy devig result, only populated for single-book fallback */
+  legacyDevig: DevigTwoWayResult | null;
+}
 
 export interface ProfessionalPropResult {
   pickId: string;
@@ -124,6 +138,8 @@ export interface ProfessionalPropResult {
   promotion_band: string;
   model_version: string;
   devig_mode: DevigMode;
+  book_count: number;
+  scoring_source: string;
 }
 
 export interface PropProcessingOptions {
@@ -142,6 +158,7 @@ export class ProfessionalPropProcessor {
   private readonly logger: ReturnType<typeof createLogger>;
   private readonly deviggingService: DeviggingService;
   private readonly clvTrackingService: CLVTrackingService;
+  private readonly aggregator: MarketOfferAggregator;
 
   private readonly defaultOptions: PropProcessingOptions = {
     auto_approve_threshold: 3.0,
@@ -154,6 +171,7 @@ export class ProfessionalPropProcessor {
     this.logger = createLogger('ProfessionalPropProcessor');
     this.deviggingService = DeviggingService.getInstance();
     this.clvTrackingService = CLVTrackingService.getInstance();
+    this.aggregator = MarketOfferAggregator.getInstance();
   }
 
   public static getInstance(): ProfessionalPropProcessor {
@@ -221,31 +239,34 @@ export class ProfessionalPropProcessor {
     const propLogger = this.logger.child({ propId: rawProp.id, sport: rawProp.sport });
 
     try {
-      // ── A) Determine devig mode ──────────────────────────────────────────
-      const devigMode = this.determineDevigMode(rawProp);
-      propLogger.info('Devig mode determined', { devigMode });
+      // ── A) Determine devig mode (informational, overridden by Stage B) ──
+      propLogger.info('Starting pipeline');
 
-      // ── B) Devig odds ────────────────────────────────────────────────────
-      const deviggingResult = this.deviggOdds(rawProp, devigMode);
-      propLogger.info('Devigging completed', {
-        totalVig: deviggingResult.totalVig.toFixed(4),
-        overTrueProb: deviggingResult.outcome1.trueProb.toFixed(4),
-        underTrueProb: deviggingResult.outcome2.trueProb.toFixed(4),
+      // ── B) Resolve market data (multi-book preferred, single-book fallback)
+      const marketResolution = await this.resolveMarketData(rawProp);
+      propLogger.info('Market data resolved', {
+        devigMode: marketResolution.devigMode,
+        bookCount: marketResolution.bookCount,
       });
 
       // ── C) Probability layer ─────────────────────────────────────────────
-      const side = this.determineBetSide(deviggingResult);
-      const probResult = this.runProbabilityLayer(rawProp, side, devigMode);
+      const side = this.determineBetSide(marketResolution);
+      const probResult = await this.runProbabilityLayer(rawProp, side, marketResolution);
       propLogger.info('Probability layer completed', {
         ok: probResult.ok,
         reason: probResult.ok ? undefined : (probResult as { reason: string }).reason,
       });
 
       // ── D) CLV tracking ──────────────────────────────────────────────────
-      const clvTrackingId = await this.startCLVTracking(rawProp, deviggingResult, side);
+      const clvTrackingId = await this.startCLVTracking(
+        rawProp,
+        marketResolution,
+        probResult,
+        side
+      );
 
       // ── E) Grading via computeScoreV2 ────────────────────────────────────
-      const v2Result = this.runScoring(rawProp, deviggingResult);
+      const v2Result = this.runScoring(rawProp, marketResolution, probResult);
       propLogger.info('Scoring completed', {
         score: v2Result.score,
         tier: v2Result.tier,
@@ -257,7 +278,7 @@ export class ProfessionalPropProcessor {
         rawProp,
         v2Result,
         probResult,
-        devigMode
+        marketResolution.devigMode
       );
       propLogger.info('Promotion evaluated', {
         band: dbPromotionBand,
@@ -274,8 +295,7 @@ export class ProfessionalPropProcessor {
         probResult,
         promoDecision,
         dbPromotionBand,
-        devigMode,
-        deviggingResult,
+        marketResolution,
         clvTrackingId,
         autoApproved,
         side
@@ -288,7 +308,7 @@ export class ProfessionalPropProcessor {
         pickId,
         professionalScore: v2Result.score,
         tier: v2Result.tier,
-        confidence: v2Result.score / 100,
+        confidence: Math.round(v2Result.score),
         devigged_edge: v2Result.ev,
         kelly_fraction: 0,
         professional_insights: {},
@@ -302,8 +322,12 @@ export class ProfessionalPropProcessor {
           : null,
         clv_forecast: probResult.ok ? (probResult as ProbabilityOutputOk).clvForecast : null,
         promotion_band: dbPromotionBand,
-        model_version: MODEL_VERSION,
-        devig_mode: devigMode,
+        model_version:
+          marketResolution.devigMode === 'MULTI_BOOK' ? PROBABILITY_MODEL_VERSION : MODEL_VERSION,
+        devig_mode: marketResolution.devigMode,
+        book_count: marketResolution.bookCount,
+        scoring_source:
+          marketResolution.devigMode === 'MULTI_BOOK' ? 'provider_offers' : 'raw_props',
       };
     } catch (error) {
       const processingTime = Date.now() - startTime;
@@ -326,16 +350,54 @@ export class ProfessionalPropProcessor {
   }
 
   // =========================================================================
-  // STEP B: Devig odds
+  // STEP B: Resolve market data (multi-book preferred, single-book fallback)
+  // SPRINT-026: Canonical scoring pipeline activation
   // =========================================================================
+
+  private async resolveMarketData(rawProp: RawPropRow): Promise<MarketResolution> {
+    // Path 1: Multi-book from provider_offers
+    if (rawProp.event_id && rawProp.market_type_id) {
+      try {
+        const bookOffers = await this.aggregator.aggregateFromDB(
+          supabaseClient,
+          String(rawProp.event_id),
+          Number(rawProp.market_type_id),
+          rawProp.participant_id ? String(rawProp.participant_id) : null
+        );
+        if (bookOffers.length >= 2) {
+          this.logger.info(`Multi-book: ${bookOffers.length} offers for prop ${rawProp.id}`, {
+            propId: rawProp.id,
+          });
+          return {
+            bookOffers,
+            devigMode: 'MULTI_BOOK',
+            bookCount: bookOffers.length,
+            legacyDevig: null,
+          };
+        }
+      } catch (err) {
+        this.logger.warn('Multi-book DB fetch failed, using single-book fallback', err);
+      }
+    }
+
+    // Path 2: Single-book fallback (preserves existing behavior exactly)
+    const devigMode = this.determineDevigMode(rawProp);
+    const legacyDevig = this.deviggOdds(rawProp, devigMode);
+    const singleOffer = this.buildSingleBookOffer(rawProp, devigMode);
+
+    return {
+      bookOffers: [singleOffer],
+      devigMode,
+      bookCount: 1,
+      legacyDevig,
+    };
+  }
 
   private deviggOdds(rawProp: RawPropRow, devigMode: DevigMode): DevigTwoWayResult {
     const overOdds = Number(rawProp.over_odds) || -110;
     const underOdds = Number(rawProp.under_odds) || -110;
 
     if (devigMode === 'FALLBACK_SINGLE_SIDED') {
-      // For single-sided: use -110 as synthetic complementary side
-      // This allows devig to run but results carry higher uncertainty
       this.logger.warn(`Single-sided odds for prop ${rawProp.id}, using synthetic complement`);
     }
 
@@ -349,22 +411,56 @@ export class ProfessionalPropProcessor {
   // STEP C: Probability layer
   // =========================================================================
 
-  private determineBetSide(deviggingResult: DevigTwoWayResult): 'over' | 'under' {
-    return deviggingResult.outcome1.trueProb > deviggingResult.outcome2.trueProb ? 'over' : 'under';
+  private determineBetSide(marketResolution: MarketResolution): 'over' | 'under' {
+    // Single-book: use legacy devig probabilities
+    if (marketResolution.legacyDevig) {
+      return marketResolution.legacyDevig.outcome1.trueProb >
+        marketResolution.legacyDevig.outcome2.trueProb
+        ? 'over'
+        : 'under';
+    }
+
+    // Multi-book: infer from first book offer's implied probabilities
+    const firstOffer = marketResolution.bookOffers[0];
+    if (!firstOffer) return 'over';
+    const overImplied =
+      firstOffer.overOdds < 0
+        ? Math.abs(firstOffer.overOdds) / (Math.abs(firstOffer.overOdds) + 100)
+        : 100 / (firstOffer.overOdds + 100);
+    const underImplied =
+      firstOffer.underOdds < 0
+        ? Math.abs(firstOffer.underOdds) / (Math.abs(firstOffer.underOdds) + 100)
+        : 100 / (firstOffer.underOdds + 100);
+    return overImplied > underImplied ? 'over' : 'under';
   }
 
-  private runProbabilityLayer(
+  private async runProbabilityLayer(
     rawProp: RawPropRow,
     side: 'over' | 'under',
-    devigMode: DevigMode
-  ): ProbabilityOutput {
-    // Build BookOffer from raw_props data.
-    // NOTE: Currently raw_props stores single-book odds from SGO.
-    // SGO API supports multi-book via byBookmaker — when sgoFetcher is updated
-    // to store per-book odds, this should build multiple BookOffers to meet
-    // MIN_BOOKS_FOR_CONSENSUS (2). Until then, probability layer will correctly
-    // return INSUFFICIENT_BOOKS (fail-closed).
-    const bookOffer: BookOffer = {
+    marketResolution: MarketResolution
+  ): Promise<ProbabilityOutput> {
+    // SPRINT-026: bookOffers pre-resolved in Stage B (no duplicate DB fetch)
+    const entryOdds =
+      side === 'over' ? Number(rawProp.over_odds) || -110 : Number(rawProp.under_odds) || -110;
+
+    const input: ProbabilityInput = {
+      confidenceScore: 5.0,
+      bookOffers: marketResolution.bookOffers,
+      side,
+      entryOdds,
+      sport: String(rawProp.sport || 'NBA'),
+      marketType: String(rawProp.stat_type || 'unknown'),
+      hoursToStart: null,
+      featureCompleteness:
+        marketResolution.bookCount >= 2 ? 0.8 : marketResolution.devigMode === 'PAIRED' ? 0.7 : 0.4,
+    };
+
+    return computeProbabilityLayer(input);
+  }
+
+  /** Build a single BookOffer from raw_prop data (fail-closed: INSUFFICIENT_BOOKS) */
+  private buildSingleBookOffer(rawProp: RawPropRow, devigMode: DevigMode): BookOffer {
+    return {
       bookId: String(rawProp.provider || 'sgo'),
       bookName: String(rawProp.provider || 'SGO'),
       overOdds: Number(rawProp.over_odds) || -110,
@@ -373,22 +469,6 @@ export class ProfessionalPropProcessor {
       liquidityTier: 'medium' as LiquidityTier,
       dataQuality: (devigMode === 'PAIRED' ? 'good' : 'partial') as DataQuality,
     };
-
-    const entryOdds =
-      side === 'over' ? Number(rawProp.over_odds) || -110 : Number(rawProp.under_odds) || -110;
-
-    const input: ProbabilityInput = {
-      confidenceScore: 5.0, // Neutral (market-anchored delta = 0)
-      bookOffers: [bookOffer],
-      side,
-      entryOdds,
-      sport: String(rawProp.sport || 'NBA'),
-      marketType: String(rawProp.stat_type || 'unknown'),
-      hoursToStart: null,
-      featureCompleteness: devigMode === 'PAIRED' ? 0.7 : 0.4,
-    };
-
-    return computeProbabilityLayer(input);
   }
 
   // =========================================================================
@@ -397,13 +477,21 @@ export class ProfessionalPropProcessor {
 
   private async startCLVTracking(
     rawProp: RawPropRow,
-    deviggingResult: DevigTwoWayResult,
+    marketResolution: MarketResolution,
+    probResult: ProbabilityOutput,
     side: 'over' | 'under'
   ): Promise<string> {
     const betOdds =
       side === 'over' ? Number(rawProp.over_odds) || -110 : Number(rawProp.under_odds) || -110;
-    const modelProb =
-      side === 'over' ? deviggingResult.outcome1.trueProb : deviggingResult.outcome2.trueProb;
+
+    // SPRINT-026: Use consensus pFinal when available, fallback to legacy devig
+    const modelProb = probResult.ok
+      ? (probResult as ProbabilityOutputOk).pFinal
+      : marketResolution.legacyDevig
+        ? side === 'over'
+          ? marketResolution.legacyDevig.outcome1.trueProb
+          : marketResolution.legacyDevig.outcome2.trueProb
+        : 0.5;
 
     try {
       await this.clvTrackingService.trackPick({
@@ -434,16 +522,25 @@ export class ProfessionalPropProcessor {
 
   private runScoring(
     rawProp: RawPropRow,
-    deviggingResult: DevigTwoWayResult
+    marketResolution: MarketResolution,
+    probResult: ProbabilityOutput
   ): ComputeScoreV2Result {
-    const featureSet = this.buildGradingFeatureSet(rawProp, deviggingResult);
+    const featureSet = this.buildGradingFeatureSet(rawProp, marketResolution, probResult);
     return computeScoreV2(featureSet);
   }
 
   private buildGradingFeatureSet(
     rawProp: RawPropRow,
-    deviggingResult: DevigTwoWayResult
+    marketResolution: MarketResolution,
+    probResult: ProbabilityOutput
   ): GradingFeatureSet {
+    // SPRINT-026: Use consensus edge when available, fallback to legacy devig
+    const expectedValue = probResult.ok
+      ? (probResult as ProbabilityOutputOk).edgeFinal * 100
+      : marketResolution.legacyDevig?.deviggedEdge || 0;
+
+    const clvForecast = probResult.ok ? (probResult as ProbabilityOutputOk).clvForecast : 0;
+
     return {
       propId: rawProp.id,
       sport: String(rawProp.sport || 'NBA'),
@@ -456,16 +553,16 @@ export class ProfessionalPropProcessor {
         odds: Number(rawProp.over_odds) || -110,
         line: Number(rawProp.line) || 0,
       },
-      expectedValue: deviggingResult.deviggedEdge || 0,
+      expectedValue,
       lineMovement: 0,
       matchupRating: 0.6,
       playerForm: 0.7,
       injuryImpact: 0,
       weatherImpact: 0,
-      marketIntelligence: 0.5,
+      marketIntelligence: Math.min(10, marketResolution.bookCount * 2),
       sharpMoney: 0.5,
       volumeProfile: 0.5,
-      closingLineValue: 0,
+      closingLineValue: clvForecast * 10,
       playerFatigue: 0.5,
       venueAdvantage: 0,
       refereeImpact: 0,
@@ -478,11 +575,14 @@ export class ProfessionalPropProcessor {
         dataValidationScore: 0.8,
         outlierScore: 0.9,
         consistencyScore: 0.85,
-        completeness: 0.7,
+        completeness: marketResolution.bookCount >= 2 ? 0.8 : 0.7,
       },
       timestamp: new Date().toISOString(),
       version: MODEL_VERSION,
-      source: 'ProfessionalPropProcessor',
+      source:
+        marketResolution.devigMode === 'MULTI_BOOK'
+          ? 'provider_offers'
+          : 'ProfessionalPropProcessor',
       confidence: 5.0,
     };
   }
@@ -554,8 +654,7 @@ export class ProfessionalPropProcessor {
     probResult: ProbabilityOutput,
     promoDecision: PromotionDecision,
     dbPromotionBand: string,
-    devigMode: DevigMode,
-    deviggingResult: DevigTwoWayResult,
+    marketResolution: MarketResolution,
     clvTrackingId: string,
     autoApproved: boolean,
     side: 'over' | 'under'
@@ -564,15 +663,23 @@ export class ProfessionalPropProcessor {
 
     const pickId = crypto.randomUUID();
 
+    // SPRINT-026: Use consensus edge when available, fallback to legacy
+    const deviggedEdge = probResult.ok
+      ? (probResult as ProbabilityOutputOk).edgeFinal
+      : (marketResolution.legacyDevig?.deviggedEdge ?? 0);
+
+    // Map scorer tiers to DB-allowed values (S, A, B, C, F)
+    const ALLOWED_TIERS = new Set(['S', 'A', 'B', 'C', 'F']);
+    const dbTier = ALLOWED_TIERS.has(v2Result.tier) ? v2Result.tier : 'F';
+
     const pickPayload = {
       id: pickId,
-      raw_prop_id: rawProp.id,
-      user_id: 'system',
       sport: rawProp.sport,
-      prediction,
-      confidence: v2Result.score / 100,
+      odds: (side === 'over' ? rawProp.over_odds : rawProp.under_odds) ?? rawProp.over_odds ?? -110,
+      selection: prediction,
+      confidence: Math.round(v2Result.score),
       status: 'pending' as const,
-      tier: v2Result.tier,
+      tier: dbTier,
       professional_score: v2Result.score,
 
       // Probability primitives (null when layer fails — fail-closed)
@@ -586,31 +693,36 @@ export class ProfessionalPropProcessor {
       // Promotion
       promotion_band: dbPromotionBand,
 
-      // Model versioning
-      model_version: MODEL_VERSION,
-      feature_set_version: PROBABILITY_MODEL_VERSION,
-
       // Devig results
-      devigged_edge: deviggingResult.deviggedEdge ?? 0,
+      devigged_edge: deviggedEdge,
 
-      // Metadata
+      // Metadata (includes fields without dedicated columns)
       meta: {
-        devig_mode: devigMode,
-        sprint: 'SPRINT-SCORING-PIPELINE-ACTIVATION-018',
-        total_vig: deviggingResult.totalVig,
-        over_true_prob: deviggingResult.outcome1.trueProb,
-        under_true_prob: deviggingResult.outcome2.trueProb,
+        raw_prop_id: rawProp.id,
+        model_version:
+          marketResolution.devigMode === 'MULTI_BOOK' ? PROBABILITY_MODEL_VERSION : MODEL_VERSION,
+        feature_set_version: PROBABILITY_MODEL_VERSION,
+        devig_mode: marketResolution.devigMode,
+        sprint: 'SPRINT-CANONICAL-SCORING-ACTIVATION-026',
+        scoring_source:
+          marketResolution.devigMode === 'MULTI_BOOK' ? 'provider_offers' : 'raw_props',
+        book_count: marketResolution.bookCount,
+        total_vig: marketResolution.legacyDevig?.totalVig ?? null,
+        over_true_prob: marketResolution.legacyDevig?.outcome1.trueProb ?? null,
+        under_true_prob: marketResolution.legacyDevig?.outcome2.trueProb ?? null,
         promotion_reason_codes: promoDecision.reason_codes,
         promotion_notes: promoDecision.notes,
         probability_layer_ok: probResult.ok,
         probability_layer_reason: probResult.ok ? null : (probResult as { reason: string }).reason,
+        books_used: probResult.ok ? (probResult as ProbabilityOutputOk).booksUsed : 0,
+        explain_v3: probResult.ok ? (probResult as ProbabilityOutputOk).explain : null,
       },
 
       posted_to_discord: false,
     };
 
     const writeResult: WriteResult = await lifecycleInsert(supabaseClient, pickPayload, {
-      writerRole: 'submitter',
+      writerRole: 'promoter',
       traceId: `ppp-${rawProp.id}`,
     });
 

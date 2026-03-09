@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+import { CampaignAgent } from '../agents/_archived/CampaignAgent';
 import { BaseAgentConfig } from '../agents/BaseAgent/types';
-import { CampaignAgent } from '../agents/CampaignAgent';
 import { IngestionAgent } from '../agents/IngestionAgent';
 import { ErrorHandler } from '../utils/errorHandler';
 import { logger } from '../utils/logger';

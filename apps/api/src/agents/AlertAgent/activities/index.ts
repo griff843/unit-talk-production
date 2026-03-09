@@ -82,9 +82,10 @@ export async function evaluateConditions(): Promise<void> {
 }
 
 /**
- * Temporal activity for sending notifications
+ * Temporal activity for sending alert notifications
+ * SPRINT-035A B-4: Renamed from sendNotification to resolve collision with NotificationAgent
  */
-export async function sendNotification(): Promise<void> {
+export async function sendAlertNotification(): Promise<void> {
   const config: BaseAgentConfig = {
     name: 'AlertAgent',
     version: '1.0.0',

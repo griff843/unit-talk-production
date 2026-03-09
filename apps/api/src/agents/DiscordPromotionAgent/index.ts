@@ -3,6 +3,8 @@ import 'dotenv/config';
 import axios from 'axios';
 import FormData from 'form-data';
 
+// SPRINT-REPO-TRUTH-LOCK-002: Distribution domain boundary — type-only import
+
 import { resolveDiscordRoutingConfig } from '../../config/discordRouting';
 import { autopilotGuard } from '../../lib/AutopilotGuard';
 import { getBuildInfo } from '../../lib/buildInfo';
@@ -24,10 +26,17 @@ import { atomicClaimForPost, atomicClaimParlayForPost, lifecycleUpdate } from '.
 import { BlockedError } from '../../lib/lifecycle/errors';
 import { logger } from '../../services/logging';
 import { buildPickPresentation } from '../../services/pickPresentationBuilder';
+import {
+  enqueueForPublish,
+  markPublished as markOutboxPublished,
+  markFailed as markOutboxFailed,
+} from '../../services/publishOutbox';
 import { supabase } from '../../services/supabaseClient';
 import { PickPresentation } from '../../types/pickPresentation';
 import { calculateParlayOdds } from '../AlertAgent/parlayEmbedBuilder';
 import { parsePromotionPolicyConfig } from '../GradingAgent/scoring/promotionPolicy';
+
+import type { DistributionChannel, DistributionResult } from '@unit-talk/distribution';
 
 // ---- CONFIG ----
 // SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
@@ -63,6 +72,95 @@ function _formatEV(ev: any) {
 // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 async function generateEliteCard(_: any): Promise<Buffer> {
   return Buffer.from('');
+}
+
+// ---- OUTBOX INTEGRATION (SPRINT-023-PRODUCTION-SURFACE-LOCK) ----
+// All Discord publishing now goes through pick_publish outbox:
+//   1. enqueueForPublish() — create outbox row (idempotent)
+//   2. Post to Discord
+//   3. markOutboxPublished() — write receipt
+// If Discord post fails: markOutboxFailed() with structured error_code
+
+/**
+ * Enqueue pick into publish outbox before Discord post.
+ * Returns outbox row id for receipt tracking.
+ * Fail-closed: throws if outbox insert fails (prevents untracked posts).
+ */
+async function enqueuePickToOutbox(
+  pick: any,
+  channel: string = 'picks'
+): Promise<{ outboxId: string; alreadyPosted: boolean }> {
+  try {
+    const result = await enqueueForPublish(supabase, {
+      pickId: pick.id,
+      channel,
+      discordChannelId: pick.discord_channel_id ?? undefined,
+      threadId: pick.thread_id ?? undefined,
+      payload: {
+        pick_id: pick.id,
+        tier: pick.tier,
+        player_name: pick.player_name,
+        stat_type: pick.stat_type,
+        line: pick.line,
+        sport: pick.sport,
+      },
+      promotionBand: pick.promotion_band ?? 'HARD',
+      tier: pick.tier ?? 'D',
+      modelVersion: pick.model_version ?? undefined,
+    });
+
+    if (result.alreadyExists) {
+      // Check if already posted (outbox says so)
+      const { data: existing } = await supabase
+        .from('pick_publish')
+        .select('status')
+        .eq('id', result.outboxId)
+        .single();
+
+      if (existing?.status === 'posted') {
+        return { outboxId: result.outboxId, alreadyPosted: true };
+      }
+    }
+
+    return { outboxId: result.outboxId, alreadyPosted: false };
+  } catch (err) {
+    logger.error({ pickId: pick.id, error: err }, 'OUTBOX-023: Failed to enqueue to outbox');
+    throw err;
+  }
+}
+
+/**
+ * Record successful Discord post in outbox.
+ */
+async function recordOutboxReceipt(outboxId: string, messageId: string): Promise<void> {
+  try {
+    await markOutboxPublished(supabase, outboxId, {
+      externalMessageId: messageId,
+    });
+  } catch (err) {
+    logger.error(
+      { outboxId, messageId, error: err },
+      'OUTBOX-023: Failed to record outbox receipt (non-fatal)'
+    );
+  }
+}
+
+/**
+ * Record failed Discord post in outbox.
+ */
+async function recordOutboxFailure(
+  outboxId: string,
+  errorCode: string,
+  errorMessage: string
+): Promise<void> {
+  try {
+    await markOutboxFailed(supabase, outboxId, { errorCode, errorMessage });
+  } catch (err) {
+    logger.error(
+      { outboxId, error: err },
+      'OUTBOX-023: Failed to record outbox failure (non-fatal)'
+    );
+  }
 }
 
 function getMatchupFromPick(pick: any): string | null {
@@ -1146,6 +1244,13 @@ async function processCapperPicks(): Promise<number> {
       if (isPromotionShadowMode()) {
         logger.info({ id: pick.id, capper, origin: 'capper' }, 'Shadow mode — skipped capper post');
       } else {
+        // SPRINT-023-PRODUCTION-SURFACE-LOCK: Outbox-first publishing
+        const outbox = await enqueuePickToOutbox(pick, `capper-thread:${capper}`);
+        if (outbox.alreadyPosted) {
+          logger.info({ pickId: pick.id }, 'OUTBOX-023: Already posted per outbox — skipping');
+          continue;
+        }
+
         const messageId = await postEliteCardToDiscord(pick);
         const singlePublishLatencyMs = Date.now() - singleRequestStartTime;
 
@@ -1156,6 +1261,11 @@ async function processCapperPicks(): Promise<number> {
             'REAL-DISCORD-RECEIPT-049: Single pick post failed - invalid Discord ID'
           );
           await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
+          await recordOutboxFailure(
+            outbox.outboxId,
+            'INVALID_DISCORD_ID',
+            `Post returned invalid ID: ${messageId}`
+          );
           // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
           await updateExecutionTelemetryFailed(supabase, {
             pickId: pick.id,
@@ -1164,6 +1274,9 @@ async function processCapperPicks(): Promise<number> {
           });
           continue;
         }
+
+        // OUTBOX-023: Record receipt in outbox BEFORE confirming on pick
+        await recordOutboxReceipt(outbox.outboxId, messageId!);
 
         await confirmPostWithReceipt(pick.id, messageId);
         await persistDiscordReceipt(pick.id, {
@@ -1233,6 +1346,13 @@ async function processSystemPicks(): Promise<number> {
     if (isPromotionShadowMode()) {
       logger.info({ id: pick.id, origin: 'system' }, 'Shadow mode — skipped system post');
     } else {
+      // SPRINT-023-PRODUCTION-SURFACE-LOCK: Outbox-first publishing
+      const outbox = await enqueuePickToOutbox(pick, 'system-picks');
+      if (outbox.alreadyPosted) {
+        logger.info({ pickId: pick.id }, 'OUTBOX-023: Already posted per outbox — skipping');
+        continue;
+      }
+
       const messageId = await postEliteCardToDiscord(pick);
       const publishLatencyMs = Date.now() - requestStartTime;
 
@@ -1243,6 +1363,11 @@ async function processSystemPicks(): Promise<number> {
           'REAL-DISCORD-RECEIPT-049: System pick post failed - invalid Discord ID'
         );
         await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
+        await recordOutboxFailure(
+          outbox.outboxId,
+          'INVALID_DISCORD_ID',
+          `Post returned invalid ID: ${messageId}`
+        );
         // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
         await updateExecutionTelemetryFailed(supabase, {
           pickId: pick.id,
@@ -1251,6 +1376,9 @@ async function processSystemPicks(): Promise<number> {
         });
         continue;
       }
+
+      // OUTBOX-023: Record receipt in outbox BEFORE confirming on pick
+      await recordOutboxReceipt(outbox.outboxId, messageId!);
 
       await confirmPostWithReceipt(pick.id, messageId);
       await persistDiscordReceipt(pick.id, {
@@ -1311,6 +1439,13 @@ async function processLegacyPicks(): Promise<number> {
     if (isPromotionShadowMode()) {
       logger.info({ id: pick.id, band: pick.promotion_band }, 'Shadow mode — skipped legacy post');
     } else {
+      // SPRINT-023-PRODUCTION-SURFACE-LOCK: Outbox-first publishing
+      const outbox = await enqueuePickToOutbox(pick, 'legacy-picks');
+      if (outbox.alreadyPosted) {
+        logger.info({ pickId: pick.id }, 'OUTBOX-023: Already posted per outbox — skipping');
+        continue;
+      }
+
       const messageId = await postEliteCardToDiscord(pick);
       const publishLatencyMs = Date.now() - requestStartTime;
 
@@ -1321,6 +1456,11 @@ async function processLegacyPicks(): Promise<number> {
           'REAL-DISCORD-RECEIPT-049: Legacy pick post failed - invalid Discord ID'
         );
         await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
+        await recordOutboxFailure(
+          outbox.outboxId,
+          'INVALID_DISCORD_ID',
+          `Post returned invalid ID: ${messageId}`
+        );
         // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
         await updateExecutionTelemetryFailed(supabase, {
           pickId: pick.id,
@@ -1329,6 +1469,9 @@ async function processLegacyPicks(): Promise<number> {
         });
         continue;
       }
+
+      // OUTBOX-023: Record receipt in outbox BEFORE confirming on pick
+      await recordOutboxReceipt(outbox.outboxId, messageId!);
 
       await confirmPostWithReceipt(pick.id, messageId);
       await persistDiscordReceipt(pick.id, {

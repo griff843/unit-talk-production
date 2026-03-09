@@ -11,7 +11,7 @@
 // Core monitoring components
 export { AgentMetricsCollector } from './AgentMetricsCollector';
 export { AgentMonitoringDashboard } from './AgentMonitoringDashboard';
-export { AgentMonitoringIntegration } from './AgentMonitoringIntegration';
+// SPRINT-REPO-TRUTH-LOCK-002: AgentMonitoringIntegration archived (all concrete agents archived)
 export { AgentMonitoringService } from './AgentMonitoringService';
 
 // Types and interfaces

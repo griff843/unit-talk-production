@@ -1,0 +1,29 @@
+{
+  "name": "@unit-talk/claude-os",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Claude OS runtime execution foundation — governed sprint planning and verification",
+  "scripts": {
+    "plan": "tsx src/cli.ts plan",
+    "verify": "tsx src/cli.ts verify",
+    "validate": "tsx src/cli.ts validate",
+    "bundle": "tsx src/cli.ts bundle",
+    "run": "tsx src/cli.ts run",
+    "issue": "tsx src/cli.ts issue",
+    "eligible": "tsx src/cli.ts eligible",
+    "generate": "tsx src/cli.ts generate",
+    "implement": "tsx src/cli.ts implement",
+    "autopilot": "tsx src/cli.ts autopilot",
+    "supervised-run": "tsx src/cli.ts supervised-run",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.9",
+    "tsx": "^4.6.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.1"
+  }
+}

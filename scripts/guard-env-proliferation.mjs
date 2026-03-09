@@ -52,11 +52,8 @@ const ALLOWED_PATTERNS = [
   '.env',
 
   // === ROOT-LEVEL CLI SCRIPTS (not imported by apps) ===
-  'apply-professional-migrations.js',  // One-off migration script
   'test-optimized-queries.js',         // Dev test script
   'test-promotion-criteria.js',        // Dev test script
-  'check-grading-status.js',           // Dev test script
-  'complete-grading-final.js',         // Dev test script
   'quick-stats.js',                    // Dev test script
   'simple-check.js',                   // Dev test script
   'test-business-logic-updates.js',    // Dev test script

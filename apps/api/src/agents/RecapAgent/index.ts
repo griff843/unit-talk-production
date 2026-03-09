@@ -1,3 +1,4 @@
+import { lifecycleUpdate } from '../../lib/lifecycle';
 import { toISOString } from '../../utils/dateUtils';
 import { BaseAgent } from '../BaseAgent/index';
 import { BaseAgentConfig, BaseAgentDependencies } from '../BaseAgent/types';
@@ -690,10 +691,16 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
         updateData.message_id = messageId || `fallback_${Date.now()}`;
       }
 
-      const { error } = await supabase.from('unified_picks').update(updateData).eq('id', pickId);
+      // SPRINT-035A B-3: Use lifecycle adapter instead of direct update
+      const { success, error: lifecycleError } = await lifecycleUpdate(
+        supabase,
+        pickId,
+        updateData,
+        { writerRole: 'poster' }
+      );
 
-      if (error) {
-        throw error;
+      if (!success) {
+        throw new Error(lifecycleError || 'Lifecycle update failed');
       }
 
       this.logger.info('Updated pick with Discord info', {

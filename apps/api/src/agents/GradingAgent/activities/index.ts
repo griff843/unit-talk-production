@@ -1,52 +1,136 @@
-import { BaseAgentConfig, BaseAgentDependencies } from '../../BaseAgent/types';
+// SPRINT-035A B-1: Temporal-compatible barrel export (replaces factory pattern)
+// B-6: Does NOT export `initialize` to avoid collision with BaseAgent
+
+import { supabaseClient } from '../../../services/supabaseClient';
+import { makeLogger } from '../../../utils/logger';
 
 import { GradingAgentActivitiesImpl } from './activities';
 
-function createActivitiesImpl(config: BaseAgentConfig, deps: BaseAgentDependencies) {
-  return new GradingAgentActivitiesImpl(config, deps);
+const logger = makeLogger('GradingActivities');
+
+let implInstance: GradingAgentActivitiesImpl | null = null;
+
+function getImpl(): GradingAgentActivitiesImpl {
+  if (!implInstance) {
+    implInstance = new GradingAgentActivitiesImpl(
+      {
+        name: 'GradingAgent',
+        version: '1.0.0',
+        enabled: true,
+        logLevel: 'info',
+        metrics: { enabled: true, interval: 60, endpoint: '/metrics' },
+        health: {
+          enabled: true,
+          interval: 30,
+          timeout: 5000,
+          checkDb: true,
+          checkExternal: false,
+          endpoint: '/health',
+        },
+        retry: {
+          enabled: true,
+          maxRetries: 3,
+          maxAttempts: 3,
+          backoffMs: 200,
+          backoff: 200,
+          maxBackoffMs: 5000,
+          exponential: true,
+          jitter: true,
+        },
+      },
+      { logger, supabase: supabaseClient }
+    );
+  }
+  return implInstance;
 }
 
-// Export individual activity functions
-export function gradeProp(config: BaseAgentConfig, deps: BaseAgentDependencies) {
-  const impl = createActivitiesImpl(config, deps);
-  return impl.gradeProp.bind(impl);
+// --- Workflow-critical activities (previously missing from barrel) ---
+
+export async function gradeNewProps(params: {
+  league: string;
+  isLiveMode: boolean;
+  cycleCount: number;
+}): Promise<{ league: string; topTierProps: any[]; gradedCount: number }> {
+  return getImpl().gradeNewProps(params);
 }
 
-export function validateGrade(config: BaseAgentConfig, deps: BaseAgentDependencies) {
-  const impl = createActivitiesImpl(config, deps);
-  return impl.validateGrade.bind(impl);
+export async function scoreTopTierPicks(params: {
+  gradedProps: any[];
+  league: string;
+  cycleCount: number;
+}): Promise<{ league: string; scoredPicks: any[]; scoreCount: number }> {
+  return getImpl().scoreTopTierPicks(params);
 }
 
-export function monitorGrading(config: BaseAgentConfig, deps: BaseAgentDependencies) {
-  const impl = createActivitiesImpl(config, deps);
-  return impl.monitorGrading.bind(impl);
+export async function updateUnifiedPicks(params: {
+  scoringResults: any[];
+  cycleCount: number;
+  timestamp: Date;
+}): Promise<void> {
+  return getImpl().updateUnifiedPicks(params);
 }
 
-// Export base agent activities
-export function initialize(config: BaseAgentConfig, deps: BaseAgentDependencies) {
-  const impl = createActivitiesImpl(config, deps);
-  return impl.initialize.bind(impl);
+export async function getNewUnifiedPicks(params: { cycleCount: number }): Promise<any[]> {
+  return getImpl().getNewUnifiedPicks(params);
 }
 
-export function healthCheck(config: BaseAgentConfig, deps: BaseAgentDependencies) {
-  const impl = createActivitiesImpl(config, deps);
-  return impl.healthCheck.bind(impl);
+// --- Existing activities (converted from factory to standalone) ---
+
+export async function gradeSubmission(params: {
+  submissionId: string;
+  capperName: string;
+  pickData: any;
+}): Promise<{ grade: string; confidence: number; feedback: string }> {
+  return getImpl().gradeSubmission(params);
 }
 
-export function validateDependencies(config: BaseAgentConfig, deps: BaseAgentDependencies) {
-  const impl = createActivitiesImpl(config, deps);
-  return impl.validateDependencies.bind(impl);
+export async function gradeProp(params: {
+  propId: string;
+  models: string[];
+  options?: Record<string, unknown>;
+}): Promise<any> {
+  return getImpl().gradeProp(params);
 }
 
-// Export all activities as a single object
-export function createActivities(config: BaseAgentConfig, deps: BaseAgentDependencies) {
-  const impl = createActivitiesImpl(config, deps);
+export async function validateGrade(params: {
+  propId: string;
+  grade: string;
+  confidence: number;
+  options?: Record<string, unknown>;
+}): Promise<any> {
+  return getImpl().validateGrade(params);
+}
+
+export async function monitorGrading(params: {
+  interval?: number;
+  thresholds?: { confidence: number; quality: number };
+}): Promise<any> {
+  return getImpl().monitorGrading(params);
+}
+
+export async function healthCheck(params: {
+  components: string[];
+  timeout?: number;
+}): Promise<any> {
+  return getImpl().healthCheck(params);
+}
+
+export async function validateDependencies(): Promise<any> {
+  return getImpl().validateDependencies();
+}
+
+// SPRINT-044D: Closing snapshot capture activity
+export async function captureClosingSnapshots(params: {
+  lookbackHours?: number;
+  closeWindowMinutes?: number;
+  maxEvents?: number;
+}): Promise<{ total_events: number; captured: number; failed: number }> {
+  const { ClosingSnapshotService } = await import('../../../services/ClosingSnapshotService');
+  const svc = new ClosingSnapshotService(supabaseClient);
+  const result = await svc.captureClosingSnapshots(params);
   return {
-    gradeProp: impl.gradeProp.bind(impl),
-    validateGrade: impl.validateGrade.bind(impl),
-    monitorGrading: impl.monitorGrading.bind(impl),
-    initialize: impl.initialize.bind(impl),
-    healthCheck: impl.healthCheck.bind(impl),
-    validateDependencies: impl.validateDependencies.bind(impl),
+    total_events: result.total_events,
+    captured: result.captured,
+    failed: result.failed,
   };
 }

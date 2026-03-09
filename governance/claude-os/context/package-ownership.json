@@ -1,0 +1,222 @@
+{
+  "version": "1.0.0",
+  "description": "Machine-readable ownership map for Unit Talk monorepo. Defines responsibility boundaries, change risk levels, and verification requirements.",
+  "areas": [
+    {
+      "area": "governance/claude-os/",
+      "category": "governance",
+      "responsibility": "Claude OS execution layer governance framework",
+      "change_risk": "medium",
+      "requires_extra_verification": true,
+      "notes": "Changes here alter Claude's execution rules. Must be reviewed for consistency with CLAUDE_EXECUTION_CONTRACT.md and SYSTEM_INVARIANTS.md."
+    },
+    {
+      "area": "CLAUDE_EXECUTION_CONTRACT.md",
+      "category": "governance",
+      "responsibility": "Hard law — non-negotiable invariants for all Claude operations",
+      "change_risk": "critical",
+      "requires_extra_verification": true,
+      "notes": "Highest authority document. Changes require explicit human decision and careful review of downstream impacts."
+    },
+    {
+      "area": "docs/SYSTEM_INVARIANTS.md",
+      "category": "governance",
+      "responsibility": "System-level fail-open/fail-closed rules",
+      "change_risk": "critical",
+      "requires_extra_verification": true,
+      "notes": "Defines system safety boundaries. Changes may affect runtime behavior."
+    },
+    {
+      "area": "docs/contracts/",
+      "category": "governance",
+      "responsibility": "Domain contracts — data formats, API boundaries, behavior expectations",
+      "change_risk": "high",
+      "requires_extra_verification": true,
+      "notes": "Contract changes may break consumers. Verify all dependent systems."
+    },
+    {
+      "area": "docs/system/current/",
+      "category": "governance",
+      "responsibility": "Living system architecture documentation",
+      "change_risk": "medium",
+      "requires_extra_verification": false,
+      "notes": "Should reflect actual system state. Update when implementation changes."
+    },
+    {
+      "area": "apps/api/",
+      "category": "runtime_app",
+      "responsibility": "Core runtime — agents, grading, settlement, lifecycle enforcement. CANONICAL WRITER to unified_picks.",
+      "change_risk": "critical",
+      "requires_extra_verification": true,
+      "notes": "Changes here affect live data processing. Lifecycle adapter changes affect all pick writes. Runtime proof required for behavior changes."
+    },
+    {
+      "area": "apps/api/src/lib/lifecycle/",
+      "category": "runtime_app",
+      "responsibility": "Single-writer lifecycle adapters for unified_picks",
+      "change_risk": "critical",
+      "requires_extra_verification": true,
+      "notes": "This is the enforcement layer for single-writer discipline. Changes must pass lifecycle gate and include runtime verification."
+    },
+    {
+      "area": "apps/api/src/agents/",
+      "category": "runtime_app",
+      "responsibility": "Runtime agents — FeedAgent, GradingAgent, SettlementAgent",
+      "change_risk": "critical",
+      "requires_extra_verification": true,
+      "notes": "Agent changes affect live data pipelines. Require runtime evidence in proof bundles."
+    },
+    {
+      "area": "apps/api/src/activities/",
+      "category": "runtime_app",
+      "responsibility": "Ingestion and backfill activities",
+      "change_risk": "high",
+      "requires_extra_verification": true,
+      "notes": "Data pipeline entry point. Must target provider_offers (canonical), not raw_props (deprecated)."
+    },
+    {
+      "area": "apps/discord-bot/",
+      "category": "runtime_app",
+      "responsibility": "Discord integration and user-facing delivery",
+      "change_risk": "high",
+      "requires_extra_verification": true,
+      "notes": "User-facing surface. Changes visible to end users immediately. Verify embed format against DISCORD_EMBED_CONTRACT.md."
+    },
+    {
+      "area": "apps/smart-form/",
+      "category": "runtime_app",
+      "responsibility": "Pick submission UI. Writes to bridge_outbox ONLY.",
+      "change_risk": "medium",
+      "requires_extra_verification": false,
+      "notes": "Must never write directly to unified_picks. All submissions go through bridge_outbox."
+    },
+    {
+      "area": "apps/command-center/",
+      "category": "runtime_app",
+      "responsibility": "Operations dashboard. READ-ONLY — no writes to business tables.",
+      "change_risk": "low",
+      "requires_extra_verification": false,
+      "notes": "Read-only surface. Build verification typically sufficient."
+    },
+    {
+      "area": "apps/dashboard/",
+      "category": "runtime_app",
+      "responsibility": "Analytics frontend. READ-ONLY — no writes to business tables.",
+      "change_risk": "low",
+      "requires_extra_verification": false,
+      "notes": "Read-only surface. Build verification typically sufficient."
+    },
+    {
+      "area": "packages/contracts/",
+      "category": "shared_package",
+      "responsibility": "Shared TypeScript type contracts across apps",
+      "change_risk": "high",
+      "requires_extra_verification": true,
+      "notes": "Type changes propagate to all consumers. Must verify all dependent apps still build."
+    },
+    {
+      "area": "packages/data-access/",
+      "category": "shared_package",
+      "responsibility": "Supabase client and database query utilities",
+      "change_risk": "high",
+      "requires_extra_verification": true,
+      "notes": "Database access abstraction. Changes may affect query behavior across all apps."
+    },
+    {
+      "area": "packages/distribution/",
+      "category": "shared_package",
+      "responsibility": "Discord embed building and channel routing",
+      "change_risk": "high",
+      "requires_extra_verification": true,
+      "notes": "Affects user-visible Discord output. Verify against DISCORD_EMBED_CONTRACT.md."
+    },
+    {
+      "area": "packages/intelligence/",
+      "category": "shared_package",
+      "responsibility": "Scoring, grading, and analytical logic",
+      "change_risk": "high",
+      "requires_extra_verification": true,
+      "notes": "Core intelligence. Changes affect pick quality and tier assignment."
+    },
+    {
+      "area": "packages/observability/",
+      "category": "shared_package",
+      "responsibility": "Logging, metrics, agent health reporting",
+      "change_risk": "low",
+      "requires_extra_verification": false,
+      "notes": "Observability infrastructure. Low risk unless removing health reporting."
+    },
+    {
+      "area": "packages/config/",
+      "category": "shared_package",
+      "responsibility": "Shared configuration",
+      "change_risk": "medium",
+      "requires_extra_verification": false,
+      "notes": "[VERIFY] internal structure and scope before modifying."
+    },
+    {
+      "area": "packages/shared/",
+      "category": "shared_package",
+      "responsibility": "Common utilities shared across packages",
+      "change_risk": "medium",
+      "requires_extra_verification": false,
+      "notes": "Utility changes may affect multiple consumers."
+    },
+    {
+      "area": "supabase/migrations/",
+      "category": "runtime_app",
+      "responsibility": "Database schema migrations",
+      "change_risk": "critical",
+      "requires_extra_verification": true,
+      "notes": "Schema changes are effectively irreversible in production. Require rollback documentation and careful review."
+    },
+    {
+      "area": "tools/governance/",
+      "category": "tooling",
+      "responsibility": "Governance enforcement scripts (sprint gate, etc.)",
+      "change_risk": "medium",
+      "requires_extra_verification": false,
+      "notes": "Tooling changes affect governance automation."
+    },
+    {
+      "area": "scripts/",
+      "category": "tooling",
+      "responsibility": "Repo-level utility scripts",
+      "change_risk": "low",
+      "requires_extra_verification": false,
+      "notes": "Development utilities."
+    },
+    {
+      "area": "out/sprints/",
+      "category": "sprint_artifacts",
+      "responsibility": "Sprint proof bundles and closeout reports",
+      "change_risk": "low",
+      "requires_extra_verification": false,
+      "notes": "Gitignored. Local proof artifacts. Never modify after sprint ratification."
+    },
+    {
+      "area": "runtime_config/",
+      "category": "runtime_app",
+      "responsibility": "Runtime configuration state",
+      "change_risk": "high",
+      "requires_extra_verification": true,
+      "notes": "Changes affect live runtime behavior."
+    },
+    {
+      "area": ".claude/",
+      "category": "governance",
+      "responsibility": "Claude session configuration — agents, rules, skills",
+      "change_risk": "medium",
+      "requires_extra_verification": false,
+      "notes": "Changes affect Claude session behavior. Verify consistency with CLAUDE.md."
+    },
+    {
+      "area": "docs/roadmap/",
+      "category": "docs",
+      "responsibility": "Sprint ordering and roadmap planning",
+      "change_risk": "medium",
+      "requires_extra_verification": false,
+      "notes": "Sprint order changes affect governance gate. Verify with sprint:gate."
+    }
+  ]
+}

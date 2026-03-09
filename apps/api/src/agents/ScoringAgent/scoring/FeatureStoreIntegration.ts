@@ -1,8 +1,10 @@
 /**
  * Feature Store Integration
  *
- * Stub implementation for TypeScript compilation.
- * Integrates with FeatureStoreService for time-series feature retrieval.
+ * @deprecated SPRINT-REPO-ARCHITECTURE-NORMALIZATION-001
+ * This is a stub. The canonical scorer is computeScoreV2 in
+ * apps/api/src/agents/GradingAgent/scoring/computeScoreV2.ts.
+ * See docs/architecture/SCORING_AUTHORITY.md for the scoring authority map.
  *
  * @module FeatureStoreIntegration
  */

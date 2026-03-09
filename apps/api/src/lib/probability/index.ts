@@ -1,11 +1,14 @@
 /**
  * Probability Layer
  * Sprint: INTELLIGENCE-PROBABILITY-FOUNDATION-001
- * Updated: INTELLIGENCE-PROBABILITY-INTEGRATION-002 (fail-closed)
+ * Updated: SPRINT-REPO-TRUTH-LOCK-002 (restored local imports)
  *
  * Exports for probability computation, devig consensus, and calibration.
+ * Canonical copies also exist in @unit-talk/intelligence package — keep in sync.
+ * offerFetch stays here (has Supabase I/O dependency).
  */
 
+// Re-export from local modules
 export {
   // Types
   type DevigMethod,
@@ -48,11 +51,16 @@ export {
   type ProbabilityOutputFail,
   type ProbabilityFailReason,
   type UncertaintyFactors,
+  type ExplanationPayload,
+  type SyndicateLayerParams,
+  type PFinalResult,
   // Functions
   computeProbabilityLayer,
   computeUncertainty,
   computePFinal,
   computeCLVForecast,
+  computeConfidenceFactor,
+  computeDynamicCap,
   // Constants
   UNCERTAINTY_THRESHOLDS,
 } from './probabilityLayer';
@@ -73,6 +81,7 @@ export {
   DEFAULT_BUCKET_WIDTH,
 } from './calibrationCompute';
 
+// offerFetch stays in API (has Supabase I/O dependency)
 export {
   // Types
   type FetchOffersParams,

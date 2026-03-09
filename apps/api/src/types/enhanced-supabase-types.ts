@@ -11,7 +11,7 @@
 import { z } from 'zod';
 
 // Import canonical types from shared-types
-import type { GamesRow, TeamsRow, PlayersRow, AgentHealthRow } from '@unit-talk/shared-types';
+import type { GamesRow, TeamsRow, PlayersRow, AgentHealthRow } from '@unit-talk/contracts';
 
 // Re-export canonical types
 export type Game = GamesRow;
