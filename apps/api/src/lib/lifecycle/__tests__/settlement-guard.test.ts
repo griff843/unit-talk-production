@@ -15,7 +15,11 @@ import * as path from 'path';
 import { describe, it, expect } from 'vitest';
 
 import { runSingleWriterGate } from '../single-writer-gate';
-import { isTransitionAllowed, deriveLifecycleStage } from '../transition-validator';
+import {
+  isTransitionAllowed,
+  deriveLifecycleStage,
+  assertTransition,
+} from '../transition-validator';
 import { assertWriterAuthority, canWriteField, getFieldAuthority } from '../writer-authority';
 
 import type { LifecyclePick, WriterRole } from '../types';
@@ -219,5 +223,46 @@ describe('SettlementAgent Code Integrity', () => {
     // Should use lifecycleSettle
     expect(content).toContain('lifecycleSettle(');
     expect(content).toContain("writerRole: 'settler'");
+  });
+
+  it('should import checkSettleIdempotency for pre-flight check (GAP-01)', () => {
+    const settlementAgentPath = path.join(__dirname, '../../../agents/SettlementAgent/index.ts');
+
+    const content = fs.readFileSync(settlementAgentPath, 'utf-8');
+
+    expect(content).toContain('checkSettleIdempotency');
+  });
+});
+
+// ============================================================
+// SETTLEMENT TRANSITION PROTECTION (GAP-04 defense layers)
+// Sprint: SPRINT-SETTLEMENT-IDEMPOTENCY-HARDENING
+// ============================================================
+
+describe('Settlement Transition Protection (GAP-04 defense layers)', () => {
+  it('CANCELLED -> SETTLED is forbidden', () => {
+    expect(isTransitionAllowed('CANCELLED', 'SETTLED')).toBe(false);
+  });
+
+  it('VOID -> SETTLED is forbidden', () => {
+    expect(isTransitionAllowed('VOID', 'SETTLED')).toBe(false);
+  });
+
+  it('assertTransition throws on CANCELLED pick settlement attempt', () => {
+    expect(() =>
+      assertTransition('CANCELLED', 'SETTLED', {
+        pickId: 'test-001',
+        writerRole: 'settler',
+      })
+    ).toThrow();
+  });
+
+  it('assertTransition throws on VOID pick settlement attempt', () => {
+    expect(() =>
+      assertTransition('VOID', 'SETTLED', {
+        pickId: 'test-002',
+        writerRole: 'settler',
+      })
+    ).toThrow();
   });
 });

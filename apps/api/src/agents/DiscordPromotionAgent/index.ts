@@ -133,14 +133,23 @@ async function enqueuePickToOutbox(
  * Record successful Discord post in outbox.
  */
 async function recordOutboxReceipt(outboxId: string, messageId: string): Promise<void> {
+  // SPRINT-SETTLEMENT-IDEMPOTENCY-HARDENING: Add retry; posted_to_discord already set atomically (GAP-03)
   try {
-    await markOutboxPublished(supabase, outboxId, {
-      externalMessageId: messageId,
-    });
-  } catch (err) {
-    logger.error(
-      { outboxId, messageId, error: err },
-      'OUTBOX-023: Failed to record outbox receipt (non-fatal)'
+    await markOutboxPublished(supabase, outboxId, { externalMessageId: messageId });
+    return;
+  } catch (firstErr) {
+    logger.warn(
+      { outboxId, messageId, error: firstErr },
+      'OUTBOX-023: Failed to record outbox receipt (attempt 1/2) — retrying'
+    );
+  }
+  await new Promise(resolve => setTimeout(resolve, 200));
+  try {
+    await markOutboxPublished(supabase, outboxId, { externalMessageId: messageId });
+  } catch (secondErr) {
+    logger.warn(
+      { outboxId, messageId, error: secondErr },
+      'OUTBOX-023: Failed to record outbox receipt after retry — pick_publish may be stale'
     );
   }
 }

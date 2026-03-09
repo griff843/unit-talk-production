@@ -396,10 +396,17 @@ export async function lifecycleSettle(
                 : 'pending',
     };
 
-    const { error: updateError } = await supabase
-      .from('unified_picks')
-      .update(updates)
-      .eq('id', pickId);
+    // SPRINT-SETTLEMENT-IDEMPOTENCY-HARDENING: Optimistic lock on settlement_status (GAP-04)
+    const settlementQuery = supabase.from('unified_picks').update(updates).eq('id', pickId);
+
+    // Guard: only update if settlement_status hasn't changed since we fetched
+    if (currentPick.settlement_status !== null && currentPick.settlement_status !== undefined) {
+      settlementQuery.eq('settlement_status', currentPick.settlement_status);
+    } else {
+      settlementQuery.is('settlement_status', null);
+    }
+
+    const { data: settledRows, error: updateError } = await settlementQuery.select('id');
 
     if (updateError) {
       logger.error({ traceId, pickId, error: updateError.message }, 'LIFECYCLE: Settlement failed');
@@ -408,6 +415,18 @@ export async function lifecycleSettle(
         error: updateError.message,
         validationPassed: true,
       };
+    }
+
+    if (!settledRows || settledRows.length === 0) {
+      logger.warn(
+        { traceId, pickId, currentSettlementStatus: currentPick.settlement_status },
+        'LIFECYCLE: Concurrent settlement detected - pick state changed during settlement'
+      );
+      const { ConcurrentModificationError } = await import('./errors');
+      throw new ConcurrentModificationError(pickId, {
+        currentState: { settlement_status: currentPick.settlement_status },
+        attemptedUpdates: updates,
+      });
     }
 
     logger.info(
