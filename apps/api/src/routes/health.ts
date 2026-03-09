@@ -4,8 +4,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Router, Request, Response } from 'express';
 import Redis from 'ioredis';
 
+import { detectOrphanedPicks } from '../monitoring/OrphanedStateDetector';
+import { getOutboxDepthMetrics } from '../services/publishOutbox';
 import { getEnv } from '../utils/getEnv';
 import { createLogger } from '../utils/logger';
+// SPRINT-OPERATIONAL-OBSERVABILITY
 
 const env = getEnv();
 const logger = createLogger('Health');
@@ -61,6 +64,28 @@ function getHealthRedis(): Redis {
   return _redis;
 }
 
+// SPRINT-OPERATIONAL-OBSERVABILITY: Outbox depth advisory
+interface OutboxHealth {
+  pendingCount: number;
+  failedCount: number;
+  oldestPendingAgeMinutes: number | null;
+  staleAlert: boolean;
+}
+
+// SPRINT-OPERATIONAL-OBSERVABILITY: Orphaned pick advisory (FM-5)
+interface OrphanedPicksAdvisory {
+  stuckInApproved: number;
+  stuckInPosted: number;
+}
+
+// SPRINT-OPERATIONAL-OBSERVABILITY: Worker heartbeat (FM-9)
+interface WorkerHeartbeatStatus {
+  workerName: string;
+  lastHeartbeatAt: string | null;
+  ageMinutes: number | null;
+  status: 'healthy' | 'stale' | 'missing';
+}
+
 interface HealthStatus {
   status: 'healthy' | 'unhealthy' | 'degraded';
   timestamp: string;
@@ -70,6 +95,10 @@ interface HealthStatus {
     agents: ServiceStatus;
     external_apis: ServiceStatus;
   };
+  // SPRINT-OPERATIONAL-OBSERVABILITY advisories (non-blocking)
+  outbox?: OutboxHealth;
+  orphanedPicks?: OrphanedPicksAdvisory;
+  workerHeartbeats?: WorkerHeartbeatStatus[];
   version: string;
   uptime: number;
   memory: {
@@ -212,6 +241,88 @@ router.get('/', async (req: Request, res: Response) => {
         lastCheck: new Date().toISOString(),
         error: error instanceof Error ? error.message : 'Unknown external API error',
       };
+    }
+
+    // SPRINT-OPERATIONAL-OBSERVABILITY: Advisory checks (non-blocking — never flip healthy→unhealthy)
+    if (supabaseClient) {
+      // FM-2: Outbox depth monitor
+      try {
+        const outboxMetrics = await getOutboxDepthMetrics(supabaseClient);
+        healthStatus.outbox = {
+          pendingCount: outboxMetrics.pendingCount,
+          failedCount: outboxMetrics.failedCount,
+          oldestPendingAgeMinutes: outboxMetrics.oldestPendingAgeMinutes,
+          staleAlert: outboxMetrics.staleAlert,
+        };
+        if (outboxMetrics.staleAlert) {
+          logger.warn('FM-2: Outbox stale alert', {
+            pendingCount: outboxMetrics.pendingCount,
+            oldestPendingAgeMinutes: outboxMetrics.oldestPendingAgeMinutes,
+          });
+        }
+      } catch (_outboxErr) {
+        // Advisory only — do not fail health check
+      }
+
+      // FM-5: Orphaned pick advisory
+      try {
+        const orphaned = await detectOrphanedPicks(supabaseClient);
+        healthStatus.orphanedPicks = {
+          stuckInApproved: orphaned.stuckInApproved,
+          stuckInPosted: orphaned.stuckInPosted,
+        };
+      } catch (_orphanErr) {
+        // Advisory only — do not fail health check
+      }
+
+      // FM-9: Worker heartbeat check
+      try {
+        const staleThresholdMinutes = 5;
+        const { data: heartbeats } = await supabaseClient
+          .from('ops_worker_heartbeats')
+          .select('worker_name, last_heartbeat_at, status')
+          .in('worker_name', ['temporal-worker'])
+          .order('last_heartbeat_at', { ascending: false });
+
+        healthStatus.workerHeartbeats = (heartbeats ?? []).map(
+          (h: { worker_name: string; last_heartbeat_at: string; status: string }) => {
+            const ageMs = h.last_heartbeat_at
+              ? Date.now() - new Date(h.last_heartbeat_at).getTime()
+              : null;
+            const ageMinutes = ageMs !== null ? Math.floor(ageMs / 60000) : null;
+            const heartbeatStatus: 'healthy' | 'stale' | 'missing' =
+              ageMinutes === null
+                ? 'missing'
+                : ageMinutes > staleThresholdMinutes
+                  ? 'stale'
+                  : 'healthy';
+            return {
+              workerName: h.worker_name,
+              lastHeartbeatAt: h.last_heartbeat_at ?? null,
+              ageMinutes,
+              status: heartbeatStatus,
+            };
+          }
+        );
+
+        // If temporal-worker has no heartbeat at all, add a missing entry
+        const hasTemporalWorker = (healthStatus.workerHeartbeats ?? []).some(
+          w => w.workerName === 'temporal-worker'
+        );
+        if (!hasTemporalWorker) {
+          healthStatus.workerHeartbeats = [
+            ...(healthStatus.workerHeartbeats ?? []),
+            {
+              workerName: 'temporal-worker',
+              lastHeartbeatAt: null,
+              ageMinutes: null,
+              status: 'missing',
+            },
+          ];
+        }
+      } catch (_workerErr) {
+        // Advisory only — do not fail health check
+      }
     }
 
     // Determine overall status
