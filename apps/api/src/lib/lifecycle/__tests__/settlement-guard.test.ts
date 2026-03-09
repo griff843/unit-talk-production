@@ -162,20 +162,12 @@ describe('Single-Writer Gate (Multi-Line Detection)', () => {
     expect(settlementViolations).toHaveLength(0);
   });
 
-  it('should have allowlist entries for known pending migrations', async () => {
-    // Import and check allowlist
+  it('should have an empty allowlist after all migrations completed', async () => {
+    // SPRINT-SINGLE-WRITER-MIGRATION-COMPLETION: All 13 allowlisted files have been
+    // migrated to use lifecycle adapters or added as permanent gate exemptions.
     const { SINGLE_WRITER_ALLOWLIST } = await import('../single-writer-allowlist');
 
-    // We expect 16 entries after 071A
-    expect(SINGLE_WRITER_ALLOWLIST.length).toBeGreaterThan(0);
-
-    // Each entry should have required fields
-    for (const entry of SINGLE_WRITER_ALLOWLIST) {
-      expect(entry.file).toBeDefined();
-      expect(entry.reason).toBeDefined();
-      expect(entry.migrationTicket).toBeDefined();
-      expect(entry.targetDate).toBeDefined();
-    }
+    expect(SINGLE_WRITER_ALLOWLIST.length).toBe(0);
   });
 });
 
@@ -190,7 +182,7 @@ describe('SettlementAgent Code Integrity', () => {
     const content = fs.readFileSync(settlementAgentPath, 'utf-8');
 
     // Should have lifecycle import
-    expect(content).toContain('import { lifecycleSettle }');
+    expect(content).toContain('import { lifecycleSettle');
     expect(content).toContain("from '../../lib/lifecycle'");
   });
 

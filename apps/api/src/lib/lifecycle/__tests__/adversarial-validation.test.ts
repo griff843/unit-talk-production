@@ -9,6 +9,12 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
+// Mock @unit-talk/shared to prevent autopilot freeze check from blocking tests
+vi.mock('@unit-talk/shared', () => ({
+  isAutopilotFrozenAsync: vi.fn().mockResolvedValue(false),
+  getFreezeDetails: vi.fn().mockReturnValue({ reason: '', scope: '', incidentId: '' }),
+}));
+
 import { ConcurrentModificationError } from '../errors';
 import { atomicClaimParlayForPost } from '../idempotency';
 import { lifecycleUpdate } from '../write-adapter';
@@ -72,6 +78,7 @@ describe('Adversarial Test 1: Concurrent lifecycleUpdate Race', () => {
       {
         writerRole: 'poster',
         traceId: 'agent-a',
+        skipTransitionValidation: true,
       }
     );
 
@@ -84,6 +91,7 @@ describe('Adversarial Test 1: Concurrent lifecycleUpdate Race', () => {
         {
           writerRole: 'poster',
           traceId: 'agent-b',
+          skipTransitionValidation: true,
         }
       )
     ).rejects.toThrow(ConcurrentModificationError);
@@ -133,6 +141,7 @@ describe('Adversarial Test 1: Concurrent lifecycleUpdate Race', () => {
         {
           writerRole: 'poster',
           traceId: 'test',
+          skipTransitionValidation: true,
         }
       );
       expect.fail('Should have thrown ConcurrentModificationError');

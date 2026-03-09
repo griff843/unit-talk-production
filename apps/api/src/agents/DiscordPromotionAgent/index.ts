@@ -984,17 +984,16 @@ async function confirmPostWithReceipt(
  */
 async function resetPostingOnFailure(pickId: string, reason: string): Promise<void> {
   try {
-    const { error } = await supabase
-      .from('unified_picks')
-      .update({
-        posted_to_discord: false,
-        promotion_posted_at: null,
-      })
-      .eq('id', pickId);
+    const updateResult = await lifecycleUpdate(
+      supabase,
+      pickId,
+      { posted_to_discord: false, promotion_posted_at: null },
+      { writerRole: 'poster', skipTransitionValidation: true }
+    );
 
-    if (error) {
+    if (!updateResult.success) {
       logger.error(
-        { pickId, error: error.message },
+        { pickId, error: updateResult.error },
         'REAL-DISCORD-RECEIPT-049: Failed to reset posting claim'
       );
     } else {

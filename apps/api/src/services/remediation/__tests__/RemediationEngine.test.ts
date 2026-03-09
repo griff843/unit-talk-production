@@ -185,7 +185,7 @@ describe('Playbooks', () => {
 
     it('should have correct metadata', () => {
       expect(playbook.id).toBe('MV_REFRESH_LAG');
-      expect(playbook.executionType).toBe('RECOMMENDATION_ONLY');
+      expect(playbook.executionType).toBe('EXECUTABLE');
       expect(playbook.requiredKnobs).toContain('SLO_EVALUATION_ENABLED');
     });
 
@@ -206,8 +206,8 @@ describe('Playbooks', () => {
       const result = await playbook.execute(context, true);
 
       expect(result.success).toBe(true);
-      expect(result.execution_type).toBe('RECOMMENDATION_ONLY');
-      expect(result.status).toBe('skipped');
+      expect(result.execution_type).toBe('EXECUTABLE');
+      expect(result.status).toBe('dry_run');
       expect(result.recommendations).toBeDefined();
       expect(result.recommendations!.length).toBeGreaterThan(0);
     });

@@ -69,6 +69,12 @@ const ALLOWED_PATTERNS = [
   // E2E test scripts
   /scripts[/\\]e2e/,
   /e2e-test-runner/,
+  // Admin ops route (operator-only admin surface — deliberate direct access)
+  /routes[/\\]ops\.ts/,
+  // Maintenance/backfill scripts (one-time data migrations, not production write path)
+  /scripts[/\\]backfill-/,
+  // Canary webhook test scripts
+  /scripts[/\\]discord-canary-/,
 ];
 
 /**

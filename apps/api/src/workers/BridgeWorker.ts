@@ -13,7 +13,7 @@ import {
 } from '../agents/BaseAgent/types';
 import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
 import { AgentInstrumentation, createAgentInstrumentation } from '../lib/AgentInstrumentation';
-import { lifecycleInsert } from '../lib/lifecycle';
+import { lifecycleInsert, lifecycleUpdate } from '../lib/lifecycle';
 import { withCircuitBreaker, circuitBreaker } from '../services/enhanced-circuit-breaker';
 import { Logger } from '../shared/logger/types';
 import { AgentControlPlane, createAgentControlPlane } from '../temporal/AgentControlPlane';
@@ -732,9 +732,10 @@ export class BridgeWorker extends BaseAgent {
           const dbTier = result.tier === 'D' ? 'C' : result.tier;
 
           // Update the existing unified_picks row with grading results
-          const { error: updateErr } = await db
-            .from('unified_picks')
-            .update({
+          const gradingUpdateResult = await lifecycleUpdate(
+            db,
+            pick.id,
+            {
               promotion_band: result.promotionBand || null,
               tier: dbTier,
               professional_score: isNaN(result.finalScore) ? null : result.finalScore,
@@ -743,9 +744,12 @@ export class BridgeWorker extends BaseAgent {
                   ? Math.round(result.confidence)
                   : Math.round(result.confidence * 10),
               workflow_stage: 'approved',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', pick.id);
+            },
+            { writerRole: 'promoter', skipTransitionValidation: true }
+          );
+          const updateErr = gradingUpdateResult.success
+            ? null
+            : { message: gradingUpdateResult.error || 'Update failed' };
 
           if (updateErr) {
             this.logger.error('Failed to update unified_picks with grading result', {

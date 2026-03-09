@@ -5,6 +5,7 @@
  */
 
 import { autopilotGuard } from '../lib/AutopilotGuard';
+import { lifecycleUpdate } from '../lib/lifecycle';
 import { supabase as supabaseClient } from '../services/supabaseClient';
 import {
   shadowMode,
@@ -158,14 +159,16 @@ class PublishGuardService {
     if (decision.approved && (decision.lane === 'instant' || decision.lane === 'scheduled')) {
       // Mark as published in unified_picks
       if (decision.pick.id) {
-        await supabaseClient
-          .from('unified_picks')
-          .update({
+        await lifecycleUpdate(
+          supabaseClient,
+          decision.pick.id,
+          {
             published: true,
             published_at: new Date().toISOString(),
             tier: options.tier || decision.pick.tier,
-          })
-          .eq('id', decision.pick.id);
+          },
+          { writerRole: 'promoter', skipTransitionValidation: true }
+        );
       }
 
       // Publish to configured channels
@@ -242,14 +245,12 @@ class PublishGuardService {
    */
   private async ensureShadowPickNotPublished(pickId: string): Promise<void> {
     try {
-      await supabaseClient
-        .from('unified_picks')
-        .update({
-          published: false,
-          shadow_mode: true,
-          shadow_logged_at: new Date().toISOString(),
-        })
-        .eq('id', pickId);
+      await lifecycleUpdate(
+        supabaseClient,
+        pickId,
+        { published: false, shadow_mode: true, shadow_logged_at: new Date().toISOString() },
+        { writerRole: 'promoter', skipTransitionValidation: true }
+      );
     } catch (error) {
       this.logger.error('Failed to update shadow pick status', { error, pickId });
     }

@@ -5,10 +5,14 @@
 
 import { randomUUID } from 'crypto';
 
+import { lifecycleInsert, lifecycleUpdate } from '../lib/lifecycle';
+
 // Optimized Professional Pick Insertion
 export async function insertProfessionalPick(supabase: any, pick: any) {
   // Split into base and professional data
+  const id = pick.id || randomUUID();
   const baseData = {
+    id,
     player_name: pick.player_name,
     stat_type: pick.stat_type,
     line: pick.line,
@@ -20,15 +24,13 @@ export async function insertProfessionalPick(supabase: any, pick: any) {
   };
 
   // Insert base record first
-  const { data: inserted, error: insertError } = await supabase
-    .from('unified_picks')
-    .insert([baseData])
-    .select('id')
-    .single();
+  const insertResult = await lifecycleInsert(supabase, baseData, { writerRole: 'submitter' });
 
-  if (insertError) {
-    throw new Error(`Failed to insert base pick: ${insertError.message}`);
+  if (!insertResult.success) {
+    throw new Error(`Failed to insert base pick: ${insertResult.error}`);
   }
+
+  const insertedId = insertResult.pickId!;
 
   // Update with professional data if available
   if (pick.professional_score !== undefined) {
@@ -44,17 +46,17 @@ export async function insertProfessionalPick(supabase: any, pick: any) {
     if (pick.feature_contributions !== undefined)
       professionalData.feature_contributions = pick.feature_contributions;
 
-    const { error: updateError } = await supabase
-      .from('unified_picks')
-      .update(professionalData)
-      .eq('id', inserted.id);
+    const updateResult = await lifecycleUpdate(supabase, insertedId, professionalData, {
+      writerRole: 'promoter',
+      skipTransitionValidation: true,
+    });
 
-    if (updateError) {
-      console.warn(`Professional data update warning: ${updateError.message}`);
+    if (!updateResult.success) {
+      console.warn(`Professional data update warning: ${updateResult.error}`);
     }
   }
 
-  return inserted.id;
+  return insertedId;
 }
 
 // Optimized CLV Tracking Insertion

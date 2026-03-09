@@ -64,6 +64,7 @@
     "qa:performance": "tsx qa/tests/performance.test.ts",
     "qa:full": "npm run qa:e2e && npm run qa:accessibility && npm run qa:security && npm run qa:mobile && npm run qa:performance && npm run qa:report",
     "lifecycle:gate": "tsx src/lib/lifecycle/ci-gate.ts",
+    "test:vitest": "vitest run",
     "lifecycle:test": "vitest run src/lib/lifecycle/__tests__/lifecycle.test.ts",
     "lifecycle:single-writer": "tsx src/lib/lifecycle/single-writer-gate.ts src",
     "quarantine:gate": "node scripts/quarantine-gate.mjs",

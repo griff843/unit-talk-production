@@ -16,6 +16,7 @@ import { logger } from '../services/logging';
 import { supabase } from '../services/supabaseClient';
 
 import { getBuildInfo } from './buildInfo';
+import { lifecycleUpdate } from './lifecycle';
 
 /**
  * Discord receipt data structure
@@ -85,17 +86,15 @@ export async function persistDiscordReceipt(receipt: DiscordReceipt): Promise<Re
       if (error.code === '42P01' || error.message.includes('does not exist')) {
         logger.warn('discord_receipts table not found, updating unified_picks directly');
 
-        const { error: updateError } = await supabase
-          .from('unified_picks')
-          .update({
-            posted_to_discord: true,
-            discord_post_id: receipt.discord_message_id,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', receipt.pick_id);
+        const updateResult = await lifecycleUpdate(
+          supabase,
+          receipt.pick_id,
+          { posted_to_discord: true, discord_post_id: receipt.discord_message_id },
+          { writerRole: 'poster', skipTransitionValidation: true }
+        );
 
-        if (updateError) {
-          throw updateError;
+        if (!updateResult.success) {
+          throw new Error(updateResult.error || 'Failed to update unified_picks as fallback');
         }
 
         return {

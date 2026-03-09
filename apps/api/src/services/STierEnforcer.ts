@@ -3,6 +3,7 @@
  * Enforces strict S-tier thresholds with EV/CLV/Steam validation gates
  */
 
+import { lifecycleUpdate } from '../lib/lifecycle';
 import { Logger, createLogger } from '../utils/logger';
 
 import { supabaseClient } from './supabaseClient';
@@ -463,15 +464,17 @@ class STierEnforcer {
    */
   private async applyTierAdjustment(pick: any, newTier: string, reasoning: string): Promise<void> {
     try {
-      await supabaseClient
-        .from('unified_picks')
-        .update({
+      await lifecycleUpdate(
+        supabaseClient,
+        pick.id,
+        {
           tier: newTier,
           tier_adjustment_reason: reasoning,
           tier_adjusted_at: new Date().toISOString(),
           adjusted_by: 'STierEnforcer',
-        })
-        .eq('id', pick.id);
+        },
+        { writerRole: 'operator_override', skipTransitionValidation: true }
+      );
 
       this.logger.info('Tier adjustment applied', {
         pickId: pick.id,
