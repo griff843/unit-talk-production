@@ -173,6 +173,7 @@ jobs:
           pnpm --filter @unit-talk/shared-types build
           pnpm --filter @unit-talk/shared-utils build
           pnpm --filter @unit-talk/config build
+          pnpm --filter @unit-talk/data-access build
 
       # ── 6. Extra setup (Playwright, etc.) ────────────────────────
       - name: Extra setup
