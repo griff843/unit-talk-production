@@ -1,6 +1,7 @@
 # Provider Offers Migration Status
 
-> Created: 2026-03-08 | Sprint: SPRINT-044H
+> Updated: 2026-03-08 | Sprint: SPRINT-044R (previously 044Q, 044P, 044O, 044N,
+> 044M, 044L, 044H)
 
 ---
 
@@ -38,20 +39,54 @@ completion based on runtime-verified evidence.
 
 ### Phase 3: GradingAgent Data Source Switch — IN PROGRESS
 
-| Item                                        | Status                           |
-| ------------------------------------------- | -------------------------------- |
-| `GRADING_DATA_SOURCE` env var               | Implemented (044D)               |
-| `fetchPendingProviderOffers()` method       | Implemented (044D)               |
-| `convertProviderOfferToFeatureSet()` mapper | Implemented (044D)               |
-| Default switched to `provider_offers`       | NOT YET — default is `raw_props` |
-| Promotion context read migrated             | NOT YET — still reads raw_props  |
+| Item                                        | Status                                                          |
+| ------------------------------------------- | --------------------------------------------------------------- |
+| `GRADING_DATA_SOURCE` env var               | Implemented (044D)                                              |
+| `fetchPendingProviderOffers()` method       | Implemented (044D)                                              |
+| `convertProviderOfferToFeatureSet()` mapper | Implemented (044D)                                              |
+| `provider_offers.graded_at` column          | EXISTS (migration 20260307100000, partial index)                |
+| `storeGradingResult()` writes graded_at     | Implemented (044D)                                              |
+| `promoteFromProviderOffer()` V3 promotion   | Implemented (044D)                                              |
+| Default switched to `provider_offers`       | YES (044P) — default is now `provider_offers`                   |
+| Promotion context read migrated             | YES (044P) — `promoteFromProviderOffer()` reads canonical JOINs |
+| `grading_results` table needed?             | **NO** — per SPRINT-044K audit (zero fields require it)         |
+| Health checks migrated to provider_offers   | YES (044M) — api-server, GradingAgent, FeedAgent                |
+| Production raw_props writers isolated       | YES (044N) — 7 call sites behind compatibility wrapper          |
 
-### Phase 4: Remaining Consumer Migration — NOT STARTED
+**Grading marker status**: `provider_offers.graded_at` is the canonical grading
+marker and the active default (SPRINT-044P). `raw_props.processed_at` remains as
+a fallback marker when `GRADING_DATA_SOURCE=raw_props` (legacy override).
 
-| Consumer        | Current Source      | Migration Needed             |
-| --------------- | ------------------- | ---------------------------- |
-| SettlementAgent | raw_props           | Read from provider_offers    |
-| Optimal API     | FeedAgent→raw_props | Wire to provider_offers path |
+**Default flip (044P)**: `GRADING_DATA_SOURCE` now defaults to
+`provider_offers`. Both `process()` and `gradeNewProps()` (Temporal workflow)
+paths route to provider_offers. Compatibility wrappers B1
+(`compatUpdateGradingResult`) and B2 (`compatMarkPromoted`) are now unreachable
+dead code. A1-A4 (`compatInsertRawProp`) still execute (FeedAgent ingestion) but
+writes are no longer consumed by the grading pipeline.
+
+**Reader burndown (044M)**: 3 health check readers migrated from raw_props to
+provider_offers. 3 dev utility files deleted. raw_props reference count reduced
+from ~38 to ~31. See `docs/system/current/raw-props-reader-burndown.md` for
+running tracker.
+
+**Writer isolation (044N)**: 7 production raw_props write call sites (4
+ingestion INSERTs, 2 grading UPDATEs, 1 ESPN grading UPDATE) isolated behind
+`apps/api/src/compatibility/rawPropsWriter.ts`. No writes removed — pass-through
+wrappers documenting shutdown conditions.
+
+**Writer shutdown (044O)**: espnGradingService.ts deleted (zero production
+callers, dead code). `compatUpdatePropResult()` removed from wrapper. 6
+production call sites remain (3 wrapper functions), all blocked on
+GRADING_DATA_SOURCE default flip. Each remaining wrapper annotated with
+justification and canonical replacement. See
+`docs/system/current/raw-props-writer-shutdown-status.md` for per-writer status.
+
+### Phase 4: Remaining Consumer Migration — IN PROGRESS
+
+| Consumer        | Current Source              | Migration Needed              | Status                                                      |
+| --------------- | --------------------------- | ----------------------------- | ----------------------------------------------------------- |
+| SettlementAgent | ~~raw_props~~ unified_picks | ~~Read from provider_offers~~ | **DONE (044R)** — reads unified_picks, uses lifecycleSettle |
+| Optimal API     | FeedAgent→raw_props         | Wire to provider_offers path  | NOT STARTED                                                 |
 
 ### Phase 5: raw_props Retirement — NOT STARTED
 
@@ -90,3 +125,14 @@ read-only and eventually dropped once no writers or readers remain.
 3. **provider_event_map FK references canonical_events**: NOT the legacy events
    table. The `auto_create_event_for_ingestion` function was fixed (044G) to
    INSERT into `canonical_events`.
+
+4. **No grading_results table needed (SPRINT-044K)**: Of the 28 grading fields
+   on raw_props, scoring sub-scores (trend_score, matchup_score, ev_percent,
+   etc.) are ephemeral computations that exist only in memory during grading.
+   The final outputs (professional_score, tier, confidence) already live on
+   unified_picks. See `out/sprints/SPRINT-044K/` for full field-by-field audit.
+
+5. **Dead code removed (SPRINT-044L)**: 7 legacy files deleted
+   (gradeFinalPicks.ts, promoteDailyProps.ts, 3 root scripts, 2 tool scripts).
+   See `out/sprints/SPRINT-044L/` for manifest with pre-deletion reference
+   proof.

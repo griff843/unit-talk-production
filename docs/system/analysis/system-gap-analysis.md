@@ -1,7 +1,6 @@
 # System Gap Analysis — Current vs Target
 
-> Updated: 2026-03-08 | Sprint: SPRINT-044H (originally
-> SPRINT-SYSTEM-DOCUMENTATION-FOUNDATION)
+> Updated: 2026-03-08 | Sprint: SPRINT-044L (previously 044H)
 
 ---
 
@@ -24,40 +23,37 @@ canonical_events auto-created, 94 participant FKs resolved.
 
 **Current**: SGO ingestion via `ingestSGOProviderOffers()` writes to
 `provider_offers` (proven). OddsAPI also writes to `provider_offers` via
-`ingestProviderOffers()` (1.38M+ rows). FeedAgent still writes to `raw_props` as
-the default scheduler path.
+`ingestProviderOffers()` (1.38M+ rows). FeedAgent raw_props writes removed
+(044Q) — compatibility wrappers deleted.
 
 **Remaining**:
 
 - Optimal API adapter for provider_offers path not yet wired
 - Scheduler default still calls FeedAgent → raw_props
-- GradingAgent default still reads raw_props (`GRADING_DATA_SOURCE=raw_props`)
+- ~~GradingAgent default still reads raw_props~~ DONE (044P) — defaults to
+  provider_offers
+- ~~FeedAgent raw_props writes~~ DONE (044Q) — compatInsertRawProp deleted
 
 **Fix scope**: Wire Optimal adapter, switch scheduler default to V3 path.
 
 ---
 
-## GAP-02: Settlement uses Odds API instead of SGO as primary source [CRITICAL]
+## GAP-02: Settlement uses Odds API instead of SGO as primary source — RESOLVED
 
-**Current**: SettlementAgent's `fetchGameSettlementData()` calls Odds API
-`/scores` endpoint for game results. SGO is not queried for settlement.
+**Status**: RESOLVED (SPRINT-042C added SGO primary, SPRINT-044R migrated off
+raw_props)
 
-**Target**: Settlement priority should be:
+**Current**: SettlementAgent's `fetchGameSettlementData()` tries SGO first
+(free, `finalized=true, expandResults=true`), falls back to Odds API `/scores`.
+Settlement now reads from `unified_picks` (not raw_props) and uses
+`lifecycleSettle()` for state updates.
+
+**Priority chain (implemented)**:
 
 1. SGO API (finalized=true, expandResults=true) — no credit cost
 2. Odds API /scores — uses credits
 3. player_game_stats + stat-resolver
 4. Manual review
-
-**Impact**:
-
-- Odds API costs credits for settlement that SGO provides free
-- SGO's `finalized` flag provides stronger settlement confidence than Odds API
-- Player prop settlement (actual_value resolution) not systematically
-  implemented
-
-**Fix scope**: Add `fetchSettlementFromSGO()` to SettlementAgent, implement
-settlement source priority chain.
 
 ---
 
@@ -79,23 +75,32 @@ writer-authority to allow promoter to set `id`.
 
 ---
 
-## GAP-04: GradingAgent reads raw_props but target uses provider_offers [HIGH]
+## GAP-04: GradingAgent reads raw_props but target uses provider_offers [HIGH → DUAL-PATH IMPLEMENTED]
 
-**Current**: GradingAgent fetches ungraded props from `raw_props` WHERE
-`processed_at IS NULL`.
+**Status update (SPRINT-044D/044L, 2026-03-08)**: GradingAgent has a complete
+dual-path implementation controlled by `GRADING_DATA_SOURCE` env var:
 
-**Target**: Scoring should read from `provider_offers` with market consensus
-context (multi-book agreement, line movement, book profiles).
+- `fetchPendingProviderOffers()` reads `provider_offers WHERE graded_at IS NULL`
+- `storeGradingResult()` writes `provider_offers.graded_at` on the V3 path
+- `promoteFromProviderOffer()` handles V3 promotion via lifecycle adapters
+- `provider_offers.graded_at` column exists with partial index
+  (migration 20260307100000)
 
-**Impact**:
+**Current default**: `GRADING_DATA_SOURCE=provider_offers` (flipped in
+SPRINT-044P). The V3 path uses `provider_offers.graded_at` as the grading
+marker. Raw_props branches in `storeGradingResult()` and
+`promoteToUnifiedPicks()` deleted in 044Q. Compatibility wrappers fully removed.
 
-- Scoring lacks multi-book context (only sees one provider's line)
-- Edge calculations cannot use consensus devigging
-- Feature vectors are incomplete without market microstructure data
+**Remaining**:
 
-**Fix scope**: Adapt GradingAgent to read from `provider_offers` joined with
-`events`, `markets`, `participants`. Requires significant scoring pipeline
-refactor.
+- Multi-book consensus context (market microstructure joins) not yet in feature
+  vector
+- Full scoring pipeline refactor for multi-book edge not yet done
+- Dead raw_props branches in `fetchPendingProps()` and `gradeNewProps()` still
+  present (cosmetic)
+
+**Fix scope**: Enhance feature vector with provider_offers joins for multi-book
+context. Clean up remaining dead raw_props read branches.
 
 ---
 
@@ -132,25 +137,23 @@ sports and percent for controlled rollout.
 
 ---
 
-## GAP-07: Dual scoring agents (GradingAgent vs ScoringAgent) [MEDIUM]
+## GAP-07: Dual scoring agents (GradingAgent vs ScoringAgent) [MEDIUM → RESOLVED]
 
-**Current**: Both GradingAgent and ScoringAgent write to `raw_props` (tier,
-edge_score). Their responsibilities overlap:
+**Status update (SPRINT-044E/044L, 2026-03-08)**: ScoringAgent was archived to
+`src/agents/_archived/ScoringAgent/` in SPRINT-044E. GradingAgent is now the
+single canonical scoring/promotion agent. The V3ScoringAdapter (also archived)
+has pre-existing type errors but is not in any active code path.
 
-- GradingAgent: `gradeProp()` assigns tier, evaluates promotion
-- ScoringAgent: computes `edge_score`, assigns tier, sets `is_postable`
+**Current**: GradingAgent is the sole scoring agent. It handles:
 
-**Target**: Single unified scoring pipeline with clear separation of concerns.
+- `gradeProp()` → scoring sub-scores → professional_score → tier
+- `evaluatePromotion()` → promotion band classification
+- `promoteToUnifiedPicks()` / `promoteFromProviderOffer()` → lifecycle insert
 
-**Impact**:
+**Impact**: Race condition eliminated. Single source of truth for tier/score.
 
-- Potential race condition if both agents process same prop
-- Conflicting tier assignments possible
-- Unclear which agent's score is authoritative
-
-**Fix scope**: Consolidate into single scoring pipeline or clearly separate
-responsibilities (e.g., ScoringAgent handles edge computation, GradingAgent
-handles promotion evaluation only).
+**Fix scope**: RESOLVED. No further action needed. Archived agents can be
+deleted in a future cleanup sprint.
 
 ---
 
@@ -193,20 +196,17 @@ first.
 
 ---
 
-## GAP-11: SettlementAgent bet_side determination uses odds heuristic [MEDIUM]
+## GAP-11: SettlementAgent bet_side determination uses odds heuristic — RESOLVED
 
-**Current**: `calculatePropSettlement()` determines bet_side using
-`prop.over_odds > 0` heuristic instead of reading the explicit `selection`
-field.
+**Status**: RESOLVED (SPRINT-044R)
 
-**Target**: Use `prop.selection || prop.prediction || prop.side` for
-deterministic side identification.
+**Current**: `calculatePropSettlement()` now uses `pick.side` (explicit field on
+unified_picks) with fallback to `pick.selection`. The odds heuristic has been
+removed.
 
-**Impact**: Settlement could incorrectly assign WIN/LOSS if odds don't correlate
-with the actual selection.
-
-**Fix scope**: Update `calculatePropSettlement()` to use explicit selection
-field.
+**Fix applied**: Settlement reads
+`pick.side?.toLowerCase() || pick.selection?.toLowerCase()`, using
+unified_picks' explicit side field instead of inferring from odds.
 
 ---
 
@@ -253,22 +253,22 @@ pipeline.
 
 ## Summary
 
-| #   | Gap                                              | Severity             | Category         | Status (044H)                |
-| --- | ------------------------------------------------ | -------------------- | ---------------- | ---------------------------- |
-| 01  | Ingestion targets raw_props not provider_offers  | CRITICAL → PARTIAL   | Data contract    | SGO V3 path proven           |
-| 02  | Settlement uses Odds API not SGO                 | CRITICAL             | Settlement       | Open                         |
-| 03  | Lifecycle adapter blocks promotion (id field)    | CRITICAL             | Pipeline blocker | Open                         |
-| 04  | GradingAgent reads raw_props not provider_offers | HIGH                 | Architecture     | Feature-flagged              |
-| 05  | No event/participant FK resolution               | HIGH → RESOLVED (V3) | Data integrity   | Proven in 044G               |
-| 06  | Promotion policy disabled by default             | HIGH                 | Configuration    | Open                         |
-| 07  | Dual scoring agents overlap                      | MEDIUM               | Architecture     | ScoringAgent archived (044E) |
-| 08  | provider_offers ingestion not in scheduler       | MEDIUM → PARTIAL     | Integration      | SGO path proven              |
-| 09  | Missing SGO/Optimal provider_offers adapters     | MEDIUM → PARTIAL     | Integration      | SGO proven, Optimal pending  |
-| 10  | No closing line capture workflow                 | MEDIUM               | Feature gap      | Open (unblocked by 044G)     |
-| 11  | Settlement bet_side uses odds heuristic          | MEDIUM               | Settlement       | Open                         |
-| 12  | Missing index on raw_props.source                | LOW                  | Performance      | Open                         |
-| 13  | Supabase query timeouts                          | LOW                  | Performance      | Open                         |
-| 14  | PlayerEnrichmentAgent uses deprecated table      | LOW                  | Migration        | Open                         |
+| #   | Gap                                              | Severity             | Category         | Status (044H)                                         |
+| --- | ------------------------------------------------ | -------------------- | ---------------- | ----------------------------------------------------- |
+| 01  | Ingestion targets raw_props not provider_offers  | CRITICAL → PARTIAL   | Data contract    | SGO V3 path proven                                    |
+| 02  | Settlement uses Odds API not SGO                 | CRITICAL             | Settlement       | Open                                                  |
+| 03  | Lifecycle adapter blocks promotion (id field)    | CRITICAL             | Pipeline blocker | Open                                                  |
+| 04  | GradingAgent reads raw_props not provider_offers | HIGH → DUAL-PATH     | Architecture     | Dual-path implemented (044D), default still raw_props |
+| 05  | No event/participant FK resolution               | HIGH → RESOLVED (V3) | Data integrity   | Proven in 044G                                        |
+| 06  | Promotion policy disabled by default             | HIGH                 | Configuration    | Open                                                  |
+| 07  | Dual scoring agents overlap                      | MEDIUM → RESOLVED    | Architecture     | ScoringAgent archived (044E), GradingAgent sole agent |
+| 08  | provider_offers ingestion not in scheduler       | MEDIUM → PARTIAL     | Integration      | SGO path proven                                       |
+| 09  | Missing SGO/Optimal provider_offers adapters     | MEDIUM → PARTIAL     | Integration      | SGO proven, Optimal pending                           |
+| 10  | No closing line capture workflow                 | MEDIUM               | Feature gap      | Open (unblocked by 044G)                              |
+| 11  | Settlement bet_side uses odds heuristic          | MEDIUM               | Settlement       | Open                                                  |
+| 12  | Missing index on raw_props.source                | LOW                  | Performance      | Open                                                  |
+| 13  | Supabase query timeouts                          | LOW                  | Performance      | Open                                                  |
+| 14  | PlayerEnrichmentAgent uses deprecated table      | LOW                  | Migration        | Open                                                  |
 
 ---
 

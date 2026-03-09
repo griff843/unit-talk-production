@@ -41,9 +41,9 @@ interface GameResult {
 // Note: This local interface is for in-memory processing, extends DB row with additional fields
 import type { PropSettlementsRow } from '@unit-talk/contracts';
 
+// SPRINT-044R: Settlement now sources from unified_picks, not raw_props
 interface PropSettlement extends Partial<PropSettlementsRow> {
-  raw_prop_id: string;
-  final_pick_id?: string;
+  final_pick_id: string;
   player_name: string;
   stat_type: string;
   line: number;
@@ -99,8 +99,8 @@ export class SettlementAgent extends BaseAgent {
       throw new Error('Supabase client required for SettlementAgent');
     }
 
-    // Test access to settlement tables
-    const requiredTables = ['game_results', 'prop_settlements', 'raw_props', 'unified_picks'];
+    // SPRINT-044R: raw_props removed — settlement now sources from unified_picks
+    const requiredTables = ['game_results', 'prop_settlements', 'unified_picks'];
 
     for (const table of requiredTables) {
       try {
@@ -478,32 +478,33 @@ export class SettlementAgent extends BaseAgent {
   }
 
   /**
-   * Process all props for a completed game
+   * SPRINT-044R: Process all picks for a completed game
+   * Sources from unified_picks instead of raw_props.
    */
   private async processGameProps(game: GameResult, settlementData: any): Promise<void> {
     if (!this.hasSupabase()) return;
 
     try {
-      // Get all raw props for this game that need settlement
-      const { data: rawProps, error } = await this.requireSupabase()
-        .from('raw_props')
+      // SPRINT-044R: Query unified_picks for pending settlement (canonical source)
+      const { data: picks, error } = await this.requireSupabase()
+        .from('unified_picks')
         .select('*')
         .eq('external_game_id', game.external_game_id)
-        .eq('settlement_status', 'pending');
+        .or('settlement_status.is.null,settlement_status.eq.pending');
 
       if (error) {
-        throw new Error(`Failed to fetch raw props: ${error.message}`);
+        throw new Error(`Failed to fetch picks for settlement: ${error.message}`);
       }
 
-      if (!rawProps || rawProps.length === 0) {
-        this.logger.debug(`📭 No pending props found for game: ${game.external_game_id}`);
+      if (!picks || picks.length === 0) {
+        this.logger.debug(`📭 No pending picks found for game: ${game.external_game_id}`);
         return;
       }
 
-      this.logger.info(`🎯 Processing ${rawProps.length} props for game: ${game.external_game_id}`);
+      this.logger.info(`🎯 Processing ${picks.length} picks for game: ${game.external_game_id}`);
 
-      for (const prop of rawProps) {
-        await this.settleProp(prop, game, settlementData);
+      for (const pick of picks) {
+        await this.settleProp(pick, game, settlementData);
         this.settlementMetrics.propsSettled++;
       }
     } catch (error) {
@@ -514,33 +515,33 @@ export class SettlementAgent extends BaseAgent {
   }
 
   /**
-   * Settle an individual prop bet
+   * SPRINT-044R: Settle an individual pick (sourced from unified_picks, not raw_props)
    */
-  private async settleProp(prop: any, game: GameResult, settlementData: any): Promise<void> {
+  private async settleProp(pick: any, game: GameResult, settlementData: any): Promise<void> {
     if (!this.hasSupabase()) return;
 
     try {
       // Determine settlement based on prop type and game result
-      const settlement = await this.calculatePropSettlement(prop, game, settlementData);
+      const settlement = await this.calculatePropSettlement(pick, game, settlementData);
 
       if (!settlement) {
         this.settlementMetrics.manualReviewRequired++;
-        this.logger.warn(`⚠️ Manual review required for prop: ${prop.id}`);
+        this.logger.warn(`⚠️ Manual review required for pick: ${pick.id}`);
         return;
       }
 
       // SPRINT-042C: Thread settlement_source from settlementData
       const settlementSource = settlementData?._settlement_source || 'unknown';
 
-      // Create prop settlement record
+      // Create prop settlement record — uses final_pick_id (not raw_prop_id)
       const { error: settlementError } = await this.requireSupabase()
         .from('prop_settlements')
         .insert({
-          raw_prop_id: prop.id,
+          final_pick_id: pick.id,
           game_result_id: game.id,
-          player_name: prop.player_name,
-          stat_type: prop.stat_type,
-          line: prop.line,
+          player_name: pick.player_name,
+          stat_type: pick.stat_type,
+          line: pick.line,
           bet_side: settlement.bet_side,
           actual_value: settlement.actual_value,
           settlement_result: settlement.settlement_result,
@@ -553,29 +554,57 @@ export class SettlementAgent extends BaseAgent {
         throw new Error(`Failed to create settlement record: ${settlementError.message}`);
       }
 
-      // Update raw prop status
-      const { error: propUpdateError } = await this.requireSupabase()
-        .from('raw_props')
-        .update({
-          settlement_status: 'settled',
-          settlement_result: settlement.settlement_result,
-          settled_at: new Date().toISOString(),
-        })
-        .eq('id', prop.id);
+      // SPRINT-044R: Settle unified_pick via lifecycle adapter (replaces raw_props update)
+      const isVoid = settlement.settlement_result === 'void';
+      const settlementPayload = isVoid
+        ? {
+            settlement_status: 'void' as const,
+            actual_outcome: settlement.actual_value,
+            settlement_source: settlementSource,
+          }
+        : {
+            settlement_status: 'settled' as const,
+            settlement_result: settlement.settlement_result as 'win' | 'loss' | 'push' | undefined,
+            actual_outcome: settlement.actual_value,
+            settlement_source: settlementSource,
+          };
 
-      if (propUpdateError) {
-        throw new Error(`Failed to update prop status: ${propUpdateError.message}`);
+      const result = await lifecycleSettle(this.requireSupabase(), pick.id, settlementPayload, {
+        writerRole: 'settler',
+        traceId: `settlement-agent-${pick.id}-${Date.now()}`,
+      });
+
+      if (!result.success) {
+        this.logger.error(`❌ Failed to settle pick via lifecycle adapter: ${pick.id}`, {
+          error: result.error,
+          validationPassed: result.validationPassed,
+        });
+      } else {
+        this.logger.debug(`✅ Pick settled via lifecycle adapter: ${pick.id}`);
+
+        // EXECUTION-TELEMETRY-ACTIVATION-003: Update execution telemetry with CLV
+        await settleExecutionTelemetry(
+          this.requireSupabase(),
+          pick.id,
+          pick.line,
+          pick.closing_line,
+          pick.odds,
+          pick.closing_odds,
+          pick.side || pick.selection
+        );
+
+        // DATA-MOAT-V3-INTEGRATION-001: Attribute losses for learning loop
+        if (settlement.settlement_result === 'loss') {
+          await this.attributeLoss(pick.id, settlement, pick);
+        }
       }
 
-      // Update final pick if it exists — thread settlement source
-      await this.updateUnifiedPickSettlement(prop, settlement, settlementSource);
-
       this.logger.debug(
-        `✅ Prop settled: ${prop.player_name} ${prop.stat_type} ${settlement.settlement_result}`
+        `✅ Prop settled: ${pick.player_name} ${pick.stat_type} ${settlement.settlement_result}`
       );
     } catch (error) {
       this.settlementMetrics.disputedSettlements++;
-      this.logger.error(`❌ Failed to settle prop: ${prop.id}`, {
+      this.logger.error(`❌ Failed to settle pick: ${pick.id}`, {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -583,11 +612,11 @@ export class SettlementAgent extends BaseAgent {
 
   /**
    * SPRINT-042C: Calculate prop settlement result
-   * Fixes: bet_side heuristic, unused settlementData, player prop support
+   * SPRINT-044R: Now operates on unified_picks rows instead of raw_props
    */
   // eslint-disable-next-line complexity -- settlement logic inherently branchy
   private async calculatePropSettlement(
-    prop: any,
+    pick: any,
     game: GameResult,
     settlementData: any
   ): Promise<PropSettlement | null> {
@@ -595,30 +624,26 @@ export class SettlementAgent extends BaseAgent {
       let actual_value: number | undefined;
       let result: 'win' | 'loss' | 'push' | 'void';
 
-      // SPRINT-042C FIX: Determine bet_side from explicit fields, not odds sign
+      // SPRINT-044R: unified_picks has explicit `side` field; fall back to selection
       const bet_side: 'over' | 'under' | 'home' | 'away' =
-        prop.selection?.toLowerCase() ||
-        prop.prediction?.toLowerCase() ||
-        prop.side?.toLowerCase() ||
-        prop.direction?.toLowerCase() ||
-        'over'; // Safe default — most player props are over bets
+        pick.side?.toLowerCase() || pick.selection?.toLowerCase() || 'over'; // Safe default — most player props are over bets
 
       // --- Team totals ---
-      if (prop.stat_type === 'total' || prop.stat_type === 'totals') {
+      if (pick.stat_type === 'total' || pick.stat_type === 'totals') {
         const totalScore = game.home_score + game.away_score;
         actual_value = totalScore;
 
         if (bet_side === 'over') {
-          result = totalScore > prop.line ? 'win' : totalScore < prop.line ? 'loss' : 'push';
+          result = totalScore > pick.line ? 'win' : totalScore < pick.line ? 'loss' : 'push';
         } else {
-          result = totalScore < prop.line ? 'win' : totalScore > prop.line ? 'loss' : 'push';
+          result = totalScore < pick.line ? 'win' : totalScore > pick.line ? 'loss' : 'push';
         }
 
         return {
-          raw_prop_id: prop.id,
-          player_name: prop.player_name,
-          stat_type: prop.stat_type,
-          line: prop.line,
+          final_pick_id: pick.id,
+          player_name: pick.player_name,
+          stat_type: pick.stat_type,
+          line: pick.line,
           bet_side,
           actual_value,
           settlement_result: result,
@@ -627,17 +652,15 @@ export class SettlementAgent extends BaseAgent {
       }
 
       // --- SPRINT-042C: Player props via stat-resolver + outcome-resolver ---
-      const marketKey =
-        prop.market || prop.market_type || `player_${prop.stat_type?.toLowerCase()}_ou`;
+      const marketKey = pick.market || `player_${pick.stat_type?.toLowerCase()}_ou`;
 
       if (hasStatMapping(marketKey)) {
         // Source 1: Try SGO expandResults player data from settlementData
         let playerStats: Record<string, number> | null = null;
 
         if (settlementData?._settlement_source === 'sgo' && settlementData?.odds) {
-          // SGO expandResults populates odds entries with result data
-          // Look for the prop's market key in the event's odds
-          const propMarketKey = prop.external_prop_id || prop.metadata?.sgo_market_key;
+          // SPRINT-044R: Use external_prop_id or meta.sgo_market_key from unified_picks
+          const propMarketKey = pick.external_prop_id || (pick.meta as any)?.sgo_market_key;
           if (propMarketKey && settlementData.odds[propMarketKey]?.result != null) {
             const sgoResult = settlementData.odds[propMarketKey].result;
             if (typeof sgoResult === 'number') {
@@ -647,11 +670,11 @@ export class SettlementAgent extends BaseAgent {
         }
 
         // Source 2: Try player_game_stats table if SGO didn't provide value
-        if (actual_value == null && this.hasSupabase() && prop.player_name) {
+        if (actual_value == null && this.hasSupabase() && pick.player_name) {
           const { data: statsRow } = await this.requireSupabase()
             .from('player_game_stats')
             .select('stats')
-            .eq('player_name', prop.player_name)
+            .eq('player_name', pick.player_name)
             .eq('game_id', game.external_game_id)
             .maybeSingle();
 
@@ -670,7 +693,7 @@ export class SettlementAgent extends BaseAgent {
 
         // If we have an actual value, determine outcome
         if (actual_value != null) {
-          const overOutcome = resolveOutcome(actual_value, prop.line);
+          const overOutcome = resolveOutcome(actual_value, pick.line);
           // Map outcome based on bet side
           if (bet_side === 'over') {
             result = overOutcome.toLowerCase() as 'win' | 'loss' | 'push';
@@ -680,10 +703,10 @@ export class SettlementAgent extends BaseAgent {
           }
 
           return {
-            raw_prop_id: prop.id,
-            player_name: prop.player_name,
-            stat_type: prop.stat_type,
-            line: prop.line,
+            final_pick_id: pick.id,
+            player_name: pick.player_name,
+            stat_type: pick.stat_type,
+            line: pick.line,
             bet_side,
             actual_value,
             settlement_result: result,
@@ -693,7 +716,7 @@ export class SettlementAgent extends BaseAgent {
 
         // No source provided actual value — manual review
         this.logger.debug(
-          `[SettlementAgent] No actual value for ${prop.player_name} ${prop.stat_type} — manual review`
+          `[SettlementAgent] No actual value for ${pick.player_name} ${pick.stat_type} — manual review`
         );
         return null;
       }
@@ -701,99 +724,15 @@ export class SettlementAgent extends BaseAgent {
       // --- Unsupported market type → manual review ---
       return null;
     } catch (error) {
-      this.logger.error(`❌ Error calculating prop settlement for ${prop.id}`, {
+      this.logger.error(`❌ Error calculating prop settlement for ${pick.id}`, {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return null;
     }
   }
 
-  /**
-   * Update final pick settlement status
-   * SPRINT-SINGLE-WRITER-SETTLEMENT-GUARD-071A: Uses lifecycleSettle adapter
-   * to enforce single-writer discipline and transition validation.
-   */
-  // eslint-disable-next-line max-lines-per-function, complexity
-  private async updateUnifiedPickSettlement(
-    prop: any,
-    settlement: PropSettlement,
-    settlementSource?: string
-  ): Promise<void> {
-    if (!this.hasSupabase()) return;
-
-    try {
-      // Find corresponding final pick (READ is allowed)
-      const { data: finalPicks, error } = await this.requireSupabase()
-        .from('unified_picks')
-        .select('*')
-        .eq('raw_prop_id', prop.id);
-
-      if (error || !finalPicks || finalPicks.length === 0) {
-        return; // No final pick found, skip
-      }
-
-      for (const finalPick of finalPicks) {
-        // SPRINT-071A: Use lifecycle adapter instead of direct write
-        // Handle void case: use settlement_status='void', no settlement_result
-        const isVoid = settlement.settlement_result === 'void';
-        const settlementPayload = isVoid
-          ? {
-              settlement_status: 'void' as const,
-              actual_outcome: settlement.actual_value,
-              settlement_source: settlementSource,
-            }
-          : {
-              settlement_status: 'settled' as const,
-              settlement_result: settlement.settlement_result as
-                | 'win'
-                | 'loss'
-                | 'push'
-                | undefined,
-              actual_outcome: settlement.actual_value,
-              settlement_source: settlementSource,
-            };
-
-        const result = await lifecycleSettle(
-          this.requireSupabase(),
-          finalPick.id,
-          settlementPayload,
-          {
-            writerRole: 'settler',
-            traceId: `settlement-agent-${finalPick.id}-${Date.now()}`,
-          }
-        );
-
-        if (!result.success) {
-          this.logger.error(`❌ Failed to settle pick via lifecycle adapter: ${finalPick.id}`, {
-            error: result.error,
-            validationPassed: result.validationPassed,
-          });
-        } else {
-          this.logger.debug(`✅ Pick settled via lifecycle adapter: ${finalPick.id}`);
-
-          // EXECUTION-TELEMETRY-ACTIVATION-003: Update execution telemetry with CLV
-          await settleExecutionTelemetry(
-            this.requireSupabase(),
-            finalPick.id,
-            finalPick.line, // entry line
-            finalPick.closing_line, // closing line (may be null)
-            finalPick.odds, // entry odds
-            finalPick.closing_odds, // closing odds (may be null)
-            finalPick.side || finalPick.selection // bet side (OVER/UNDER/HOME/AWAY)
-          );
-
-          // DATA-MOAT-V3-INTEGRATION-001: Attribute losses for learning loop
-          if (settlement.settlement_result === 'loss') {
-            await this.attributeLoss(finalPick.id, settlement, prop);
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(`❌ Error updating final pick settlement for prop ${prop.id}`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
+  // SPRINT-044R: updateUnifiedPickSettlement() removed — settlement now operates
+  // directly on unified_picks rows, so lifecycleSettle is called inline in settleProp().
 
   /**
    * Process delayed settlements (30min, 3hr, 24hr checks)
@@ -908,9 +847,10 @@ export class SettlementAgent extends BaseAgent {
 
   /**
    * Manual settlement override (for disputed cases)
+   * SPRINT-044R: Now accepts pickId (unified_picks.id) instead of raw_prop_id
    */
   public async manualSettle(
-    propId: string,
+    pickId: string,
     result: 'win' | 'loss' | 'push' | 'void',
     actualValue?: number,
     notes?: string
@@ -920,9 +860,9 @@ export class SettlementAgent extends BaseAgent {
     }
 
     try {
-      this.logger.info(`🔧 Manual settlement for prop ${propId}: ${result}`);
+      this.logger.info(`🔧 Manual settlement for pick ${pickId}: ${result}`);
 
-      // Update prop settlement
+      // Update prop settlement record
       const { error } = await this.requireSupabase()
         .from('prop_settlements')
         .update({
@@ -934,7 +874,7 @@ export class SettlementAgent extends BaseAgent {
           dispute_resolved_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .eq('raw_prop_id', propId);
+        .eq('final_pick_id', pickId);
 
       if (error) {
         throw new Error(`Manual settlement failed: ${error.message}`);
@@ -944,7 +884,7 @@ export class SettlementAgent extends BaseAgent {
       await this.requireSupabase()
         .from('settlement_log')
         .insert({
-          prop_settlement_id: propId,
+          prop_settlement_id: pickId,
           action_type: 'resolved',
           new_values: { settlement_result: result, actual_value: actualValue },
           data_source: 'manual',
@@ -953,9 +893,9 @@ export class SettlementAgent extends BaseAgent {
           notes: notes || 'Manual settlement override',
         });
 
-      this.logger.info(`✅ Manual settlement completed for prop ${propId}`);
+      this.logger.info(`✅ Manual settlement completed for pick ${pickId}`);
     } catch (error) {
-      this.logger.error(`❌ Manual settlement failed for prop ${propId}`, {
+      this.logger.error(`❌ Manual settlement failed for pick ${pickId}`, {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
