@@ -8,6 +8,7 @@ import {
   ProfessionalPropResult,
 } from '../../services/ProfessionalPropProcessor';
 import { ProjectionEngine, getProjectionEngine } from '../../services/projections';
+import { RiskEngine } from '../../services/risk';
 import { GradingFeatureSet } from '../../types/GradingFeatureSet';
 import { BaseAgent } from '../BaseAgent';
 import {
@@ -971,6 +972,23 @@ export class GradingAgent extends BaseAgent {
       promotion_band: result.promotionBand || null,
       created_at: new Date().toISOString(),
     };
+
+    // SPRINT-RISK-ENGINE-INTEGRATION: Fail-closed risk pre-flight before any unified_picks write
+    const riskDecision = await RiskEngine.getInstance().evaluateForPromotion(
+      supabase,
+      result.propId,
+      result.kellyFraction,
+      event?.id
+    );
+    if (!riskDecision.allowed) {
+      this.logger.warn('🚫 Promotion blocked by risk engine', {
+        propId: result.propId,
+        decision: riskDecision.decision,
+        reasons: riskDecision.blocked_reasons,
+        traceId: riskDecision.trace_id,
+      });
+      return;
+    }
 
     const { success, error: lifecycleError } = await lifecycleInsert(supabase, pickData as any, {
       writerRole: 'promoter',
