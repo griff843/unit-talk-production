@@ -3,9 +3,9 @@
 **Last Updated**: 2026-03-10 **Source**: Phase status + drift report + system
 gap analysis + risk engine roadmap + Linear backlog
 
-> **Sprint queue refreshed 2026-03-10** after SPRINT-RISK-EXPOSURE-CORRELATION
-> completion. Phase 3 core risk controls complete (70%). Focus shifts to Phase 1
-> completion, promotion activation, and Phase 4 entry.
+> **Sprint queue refreshed 2026-03-10** after SPRINT-OBSERVABILITY-BUILD-FIX
+> completion. Build infrastructure verified. Focus shifts to promotion
+> activation, Phase 4 entry, and risk visibility.
 
 ---
 
@@ -26,38 +26,17 @@ gap analysis + risk engine roadmap + Linear backlog
 
 ---
 
-## Sprint 1: SPRINT-OBSERVABILITY-BUILD-FIX
+## ~~Sprint 1: SPRINT-OBSERVABILITY-BUILD-FIX~~ ✅ COMPLETED (2026-03-10)
 
-**Priority**: P1 — HIGH **Phase**: Phase 1 (Structural Dominance — completion)
-**Estimated Effort**: 1 day **Linear**: UNI-55 **Closes**: DRIFT-M5
-
-**Objective**: Fix `packages/observability` build failure and add lifecycle
-contract database columns.
-
-**Tasks**:
-
-1. Add `@opentelemetry/api` as dependency to `packages/observability`
-2. Verify `pnpm --filter observability run build` succeeds
-3. Add 6 lifecycle contract columns via migration: `promotion_queued_at`,
-   `promotion_posted_at`, `blocked_at`, `blocked_reason`, `failed_at`,
-   `failed_reason`
-4. Update lifecycle adapters to populate new columns
-5. Verify all 3 app builds pass (`api`, `command-center`, `smart-form`)
-
-**Success Criteria**:
-
-- `packages/observability` builds cleanly (closes DRIFT-M5)
-- All 3 app builds verified (currently UNVERIFIED in status)
-- 6 new columns added with migration + rollback documented
-- Lifecycle adapters updated to write new timestamp/reason fields
-- Type-check clean, all tests passing
-
-**Why First**: Closes the last PARTIAL item in Phase 1 infrastructure and the
-most actionable drift item. Build verification unblocks CI confidence.
+> Merged via PR #146. Tag: SPRINT-OBSERVABILITY-BUILD-FIX (CI-minted).
+> Observability build verified PASS (DRIFT-M5 was pnpm Windows extraction issue
+> — `@opentelemetry/api` already declared). API + Command Center builds verified
+> PASS. Smart Form documented as pre-existing BROKEN. Lifecycle visibility
+> columns already fully implemented (no work needed). 701/701 tests passing.
 
 ---
 
-## Sprint 2: SPRINT-PROMOTION-RUNTIME-ACTIVATION
+## Sprint 1: SPRINT-PROMOTION-RUNTIME-ACTIVATION
 
 **Priority**: P1 — HIGH **Phase**: Phase 1→3 bridge **Estimated Effort**: 1-2
 days **Linear**: UNI-56
@@ -89,7 +68,7 @@ changes.
 
 ---
 
-## Sprint 3: SPRINT-DISCORD-RECAP-VERIFICATION
+## Sprint 2: SPRINT-DISCORD-RECAP-VERIFICATION
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 4 (Automation Supremacy — entry)
 **Estimated Effort**: 1-2 days **Linear**: UNI-57
@@ -118,7 +97,7 @@ work. Verification is low-effort and unblocks Phase 4 planning.
 
 ---
 
-## Sprint 4: SPRINT-RISK-DASHBOARD-MONITORING
+## Sprint 3: SPRINT-RISK-DASHBOARD-MONITORING
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 3 (Risk Engine Dominance —
 visibility) **Estimated Effort**: 2-3 days **Linear**: TBD
@@ -150,7 +129,7 @@ Dashboard visibility enables monitoring and tuning of risk parameters.
 
 ---
 
-## Sprint 5: SPRINT-JEST-QUARANTINE-CLEANUP
+## Sprint 4: SPRINT-JEST-QUARANTINE-CLEANUP
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 1 (Structural Dominance — completion)
 **Estimated Effort**: 1-2 days **Linear**: TBD **Closes**: DRIFT-L2
@@ -184,11 +163,11 @@ moving to VERIFIED status.
 | ----- | ----------------------------- | -------- | --------- | --------------------------------------------- | ------ |
 | ~~1~~ | ~~RISK-BANKROLL-KELLY~~       | ~~P1~~   | ~~Ph 3~~  | ~~Bankroll + Kelly sizing~~ ✅ DONE           | UNI-53 |
 | ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~ | ~~P1~~   | ~~Ph 3~~  | ~~Exposure + correlation + drawdown~~ ✅ DONE | UNI-54 |
-| 1     | OBSERVABILITY-BUILD-FIX       | P1       | Phase 1   | Fix otel build + lifecycle columns + builds   | UNI-55 |
-| 2     | PROMOTION-RUNTIME-ACTIVATION  | P1       | Phase 1→3 | Production env config + shadow validation     | UNI-56 |
-| 3     | DISCORD-RECAP-VERIFICATION    | P2       | Phase 4   | Discord bot + RecapAgent runtime verify       | UNI-57 |
-| 4     | RISK-DASHBOARD-MONITORING     | P2       | Phase 3   | Risk state visibility in Command Center       | TBD    |
-| 5     | JEST-QUARANTINE-CLEANUP       | P2       | Phase 1   | Triage quarantined tests, close DRIFT-L2      | TBD    |
+| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~   | ~~P1~~   | ~~Ph 1~~  | ~~Build verification + DRIFT-M5~~ ✅ DONE     | UNI-55 |
+| 1     | PROMOTION-RUNTIME-ACTIVATION  | P1       | Phase 1→3 | Production env config + shadow validation     | UNI-56 |
+| 2     | DISCORD-RECAP-VERIFICATION    | P2       | Phase 4   | Discord bot + RecapAgent runtime verify       | UNI-57 |
+| 3     | RISK-DASHBOARD-MONITORING     | P2       | Phase 3   | Risk state visibility in Command Center       | TBD    |
+| 4     | JEST-QUARANTINE-CLEANUP       | P2       | Phase 1   | Triage quarantined tests, close DRIFT-L2      | TBD    |
 
-**Total estimated effort**: 7-11 days **Dependency chain**: All sprints are
+**Total estimated effort**: 6-10 days **Dependency chain**: All sprints are
 independent and can run in any order.
