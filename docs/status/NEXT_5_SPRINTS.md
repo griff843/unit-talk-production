@@ -3,9 +3,9 @@
 **Last Updated**: 2026-03-10 **Source**: Phase status + drift report + system
 gap analysis + risk engine roadmap + Linear backlog
 
-> **Sprint queue refreshed 2026-03-10** after SPRINT-RISK-BANKROLL-KELLY
-> completion. Phase 3 (Risk Engine Dominance) is the active frontier. Phase 1/2
-> cleanup runs in parallel.
+> **Sprint queue refreshed 2026-03-10** after SPRINT-RISK-EXPOSURE-CORRELATION
+> completion. Phase 3 core risk controls complete (70%). Focus shifts to Phase 1
+> completion, promotion activation, and Phase 4 entry.
 
 ---
 
@@ -17,40 +17,16 @@ gap analysis + risk engine roadmap + Linear backlog
 
 ---
 
-## Sprint 1: SPRINT-RISK-EXPOSURE-CORRELATION
+## ~~Sprint 1: SPRINT-RISK-EXPOSURE-CORRELATION~~ ✅ COMPLETED (2026-03-10)
 
-**Priority**: P1 — HIGH **Phase**: Phase 3 (Risk Engine Dominance) **Estimated
-Effort**: 2-3 days **Linear**: UNI-54
-
-**Objective**: Implement aggregate exposure caps, correlation controls, and
-drawdown freeze rules in RiskEngine.
-
-**Tasks**:
-
-1. Implement aggregate exposure caps in `PortfolioRiskManager` — per-sport,
-   per-event, per-market type limits
-2. Implement correlation detection — identify correlated bets (same game,
-   same-side, parlay overlap)
-3. Implement drawdown freeze — halt promotion when drawdown exceeds threshold
-4. Wire all controls into `RiskEngine.evaluateForPromotion()` decision pipeline
-5. Add 20+ tests for exposure limits, correlation blocking, drawdown freeze
-   trigger/release
-
-**Success Criteria**:
-
-- Correlated bets detected and blocked (e.g., 3+ bets on same game)
-- Aggregate exposure caps enforced (e.g., max 5 units per sport per day)
-- Drawdown freeze triggers at configurable threshold (e.g., -10 units)
-- Freeze releases automatically when conditions clear
-- All existing tests passing + 20+ new tests
-
-**Why First**: Completes the core risk controls. Without exposure limits and
-correlation detection, the system could concentrate bets dangerously. Bankroll
-state from SPRINT-RISK-BANKROLL-KELLY is now available for drawdown calculation.
+> Merged via PR #142. Tag: SPRINT-RISK-EXPOSURE-CORRELATION (CI-minted). Sport
+> exposure caps, CorrelationDetector, DrawdownTracker wired into RiskEngine.
+> Also completes the scope of Sprint 5 (RISK-DRAWDOWN-PROTECTION). 701/701 tests
+> passing.
 
 ---
 
-## Sprint 2: SPRINT-OBSERVABILITY-BUILD-FIX
+## Sprint 1: SPRINT-OBSERVABILITY-BUILD-FIX
 
 **Priority**: P1 — HIGH **Phase**: Phase 1 (Structural Dominance — completion)
 **Estimated Effort**: 1 day **Linear**: UNI-55 **Closes**: DRIFT-M5
@@ -76,13 +52,12 @@ contract database columns.
 - Lifecycle adapters updated to write new timestamp/reason fields
 - Type-check clean, all tests passing
 
-**Why Second**: Closes the last PARTIAL item in Phase 1 infrastructure and the
-most actionable drift item. Build verification unblocks CI confidence. Can run
-in parallel with Sprint 1.
+**Why First**: Closes the last PARTIAL item in Phase 1 infrastructure and the
+most actionable drift item. Build verification unblocks CI confidence.
 
 ---
 
-## Sprint 3: SPRINT-PROMOTION-RUNTIME-ACTIVATION
+## Sprint 2: SPRINT-PROMOTION-RUNTIME-ACTIVATION
 
 **Priority**: P1 — HIGH **Phase**: Phase 1→3 bridge **Estimated Effort**: 1-2
 days **Linear**: UNI-56
@@ -108,13 +83,13 @@ needed to activate the full promotion pipeline end-to-end.
 - Kill switch verified functional
 - Promotion subsystem status can move PARTIAL → VERIFIED
 
-**Why Third**: The promotion pipeline is fully wired but disabled by
+**Why Second**: The promotion pipeline is fully wired but disabled by
 configuration. This sprint validates it can be safely activated without code
 changes.
 
 ---
 
-## Sprint 4: SPRINT-DISCORD-RECAP-VERIFICATION
+## Sprint 3: SPRINT-DISCORD-RECAP-VERIFICATION
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 4 (Automation Supremacy — entry)
 **Estimated Effort**: 1-2 days **Linear**: UNI-57
@@ -138,55 +113,82 @@ Move Discord Bot from UNVERIFIED and Recaps from PARTIAL.
 - RecapAgent triggers verified in Temporal workflow
 - All existing tests passing
 
-**Why Fourth**: Two subsystems are at UNVERIFIED/PARTIAL with no recent sprint
+**Why Third**: Two subsystems are at UNVERIFIED/PARTIAL with no recent sprint
 work. Verification is low-effort and unblocks Phase 4 planning.
 
 ---
 
-## Sprint 5: SPRINT-RISK-DRAWDOWN-PROTECTION
+## Sprint 4: SPRINT-RISK-DASHBOARD-MONITORING
 
-**Priority**: P1 — HIGH **Phase**: Phase 3 (Risk Engine Dominance) **Estimated
-Effort**: 2-3 days **Linear**: TBD
+**Priority**: P2 — MEDIUM **Phase**: Phase 3 (Risk Engine Dominance —
+visibility) **Estimated Effort**: 2-3 days **Linear**: TBD
 
-**Objective**: Implement drawdown protection and session-level loss tracking in
-the RiskEngine to freeze promotion during losing streaks.
+**Objective**: Add risk state visibility to the Command Center — exposure
+heatmap, correlation clusters, drawdown status, and risk decision audit trail.
 
 **Tasks**:
 
-1. Implement daily/session loss tracking — compute realized P&L from settled
-   picks
-2. Implement drawdown freeze trigger — halt promotion when cumulative loss
-   exceeds configurable threshold
-3. Implement automatic freeze release — resume when conditions clear (new day,
-   partial recovery)
-4. Wire drawdown state into `RiskEngine.evaluateForPromotion()` blocked_reasons
-5. Add 20+ tests for drawdown tracking, freeze trigger/release, edge cases
+1. Add `/api/risk/status` endpoint returning current ExposureState,
+   CorrelationState, DrawdownState
+2. Add `/api/risk/decisions` endpoint for historical risk decision audit trail
+3. Build Command Center risk dashboard page with exposure/correlation/drawdown
+   panels
+4. Add risk event query helpers for filtering by event_type, severity, date
+   range
+5. Add tests for new endpoints and query helpers
 
 **Success Criteria**:
 
-- Drawdown freeze triggers at configurable threshold (e.g., -10% of bankroll)
-- Freeze blocks all promotions until release conditions met
-- Daily loss tracking computed from settled `unified_picks` records
-- RiskDecision includes drawdown state in warnings/blocked_reasons
-- All existing tests passing + 20+ new tests
+- Risk state visible in Command Center (not just logs)
+- Historical risk decisions queryable by date, sport, decision type
+- Exposure heatmap shows per-sport and per-event concentration
+- Drawdown freeze status clearly visible with trigger/release history
+- All existing tests passing + new endpoint tests
 
-**Why Fifth**: Completes the defensive layer of Phase 3. Without drawdown
-protection, a losing streak could deplete bankroll before the system reacts.
+**Why Fourth**: Core risk controls exist but are invisible to operators.
+Dashboard visibility enables monitoring and tuning of risk parameters.
 
-**Depends On**: SPRINT-RISK-EXPOSURE-CORRELATION (exposure caps framework)
+---
+
+## Sprint 5: SPRINT-JEST-QUARANTINE-CLEANUP
+
+**Priority**: P2 — MEDIUM **Phase**: Phase 1 (Structural Dominance — completion)
+**Estimated Effort**: 1-2 days **Linear**: TBD **Closes**: DRIFT-L2
+
+**Objective**: Triage and resolve quarantined Jest tests. Either fix, migrate to
+vitest, or permanently archive with documented rationale.
+
+**Tasks**:
+
+1. Read `test/__quarantine__/MANIFEST.md` and categorize each test
+2. Fix tests that are still relevant and can be repaired
+3. Migrate valuable tests to vitest runner (`src/__tests__/`)
+4. Archive permanently broken tests with documented "won't fix" rationale
+5. Update CI to remove Jest runner if all tests migrated
+
+**Success Criteria**:
+
+- Quarantine count reduced from ~79 to <10
+- Remaining quarantined tests documented with clear rationale
+- No regression in vitest suite
+- CI/CD Pipeline subsystem status: PARTIAL → VERIFIED
+
+**Why Fifth**: Long-standing debt. Closes DRIFT-L2 and unblocks CI/CD Pipeline
+moving to VERIFIED status.
 
 ---
 
 ## Summary
 
-| #     | Sprint                       | Priority | Phase       | Focus                                         | Linear |
-| ----- | ---------------------------- | -------- | ----------- | --------------------------------------------- | ------ |
-| ~~1~~ | ~~RISK-BANKROLL-KELLY~~      | ~~P1~~   | ~~Phase 3~~ | ~~Bankroll + Kelly sizing~~ ✅ DONE           | UNI-53 |
-| 1     | RISK-EXPOSURE-CORRELATION    | P1       | Phase 3     | Exposure caps + correlation + drawdown freeze | UNI-54 |
-| 2     | OBSERVABILITY-BUILD-FIX      | P1       | Phase 1     | Fix otel build + lifecycle columns + builds   | UNI-55 |
-| 3     | PROMOTION-RUNTIME-ACTIVATION | P1       | Phase 1→3   | Production env config + shadow validation     | UNI-56 |
-| 4     | DISCORD-RECAP-VERIFICATION   | P2       | Phase 4     | Discord bot + RecapAgent runtime verify       | UNI-57 |
-| 5     | RISK-DRAWDOWN-PROTECTION     | P1       | Phase 3     | Drawdown freeze + session loss tracking       | TBD    |
+| #     | Sprint                        | Priority | Phase     | Focus                                         | Linear |
+| ----- | ----------------------------- | -------- | --------- | --------------------------------------------- | ------ |
+| ~~1~~ | ~~RISK-BANKROLL-KELLY~~       | ~~P1~~   | ~~Ph 3~~  | ~~Bankroll + Kelly sizing~~ ✅ DONE           | UNI-53 |
+| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~ | ~~P1~~   | ~~Ph 3~~  | ~~Exposure + correlation + drawdown~~ ✅ DONE | UNI-54 |
+| 1     | OBSERVABILITY-BUILD-FIX       | P1       | Phase 1   | Fix otel build + lifecycle columns + builds   | UNI-55 |
+| 2     | PROMOTION-RUNTIME-ACTIVATION  | P1       | Phase 1→3 | Production env config + shadow validation     | UNI-56 |
+| 3     | DISCORD-RECAP-VERIFICATION    | P2       | Phase 4   | Discord bot + RecapAgent runtime verify       | UNI-57 |
+| 4     | RISK-DASHBOARD-MONITORING     | P2       | Phase 3   | Risk state visibility in Command Center       | TBD    |
+| 5     | JEST-QUARANTINE-CLEANUP       | P2       | Phase 1   | Triage quarantined tests, close DRIFT-L2      | TBD    |
 
-**Total estimated effort**: 8-12 days **Dependency chain**: Sprint 1 → Sprint 5
-(sequential); Sprints 2, 3, 4 (parallel, independent)
+**Total estimated effort**: 7-11 days **Dependency chain**: All sprints are
+independent and can run in any order.
