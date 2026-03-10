@@ -1,50 +1,26 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-09 **Source**: Phase status + drift report + system
+**Last Updated**: 2026-03-10 **Source**: Phase status + drift report + system
 gap analysis + risk engine roadmap + Linear backlog
 
-> **Sprint queue populated 2026-03-09** after SPRINT-RISK-ENGINE-INTEGRATION
+> **Sprint queue refreshed 2026-03-10** after SPRINT-RISK-BANKROLL-KELLY
 > completion. Phase 3 (Risk Engine Dominance) is the active frontier. Phase 1/2
 > cleanup runs in parallel.
 
 ---
 
-## Sprint 1: SPRINT-RISK-BANKROLL-KELLY
+## ~~Sprint 1: SPRINT-RISK-BANKROLL-KELLY~~ ✅ COMPLETED (2026-03-10)
 
-**Priority**: P1 — HIGH **Phase**: Phase 3 (Risk Engine Dominance) **Estimated
-Effort**: 2-3 days **Linear**: TBD
-
-**Objective**: Implement bankroll management and Kelly criterion dynamic sizing
-in RiskEngine, replacing the current threshold-only gate with proper bet sizing.
-
-**Tasks**:
-
-1. Implement `BankrollManager` — track bankroll state, unit sizing, max exposure
-2. Implement Kelly criterion dynamic sizing in `ExposureCalculator` (currently
-   threshold-only)
-3. Wire bankroll-aware sizing into `RiskEngine.evaluateForPromotion()` output
-4. Add bankroll state persistence (DB table or config)
-5. Add 20+ unit tests for sizing logic, edge cases, bankroll depletion
-
-**Success Criteria**:
-
-- `RiskEngine.evaluateForPromotion()` returns recommended unit size (not just
-  allow/block)
-- Kelly sizing produces correct fractional Kelly values for given edge/odds
-- Bankroll limits enforced: max single-bet exposure, daily loss cap
-- 630+ existing tests still passing + 20+ new tests
-- Type-check clean, lifecycle gate passing
-
-**Why First**: RiskEngine gate is wired but only does threshold checks. Without
-proper sizing, promotion decisions lack portfolio-level awareness. This is the
-highest-value Phase 3 deliverable.
+> Merged via PR #141. Tag: SPRINT-RISK-BANKROLL-KELLY (CI-minted). KellySizer
+> module, bankroll-aware sizing in RiskEngine, kelly_fraction: 0 replaced in
+> ProfessionalPropProcessor. 666/666 tests passing.
 
 ---
 
-## Sprint 2: SPRINT-RISK-EXPOSURE-CORRELATION
+## Sprint 1: SPRINT-RISK-EXPOSURE-CORRELATION
 
 **Priority**: P1 — HIGH **Phase**: Phase 3 (Risk Engine Dominance) **Estimated
-Effort**: 2-3 days **Linear**: TBD
+Effort**: 2-3 days **Linear**: UNI-54
 
 **Objective**: Implement aggregate exposure caps, correlation controls, and
 drawdown freeze rules in RiskEngine.
@@ -68,18 +44,16 @@ drawdown freeze rules in RiskEngine.
 - Freeze releases automatically when conditions clear
 - All existing tests passing + 20+ new tests
 
-**Why Second**: Completes the core risk controls. Without exposure limits and
-correlation detection, the system could concentrate bets dangerously.
-
-**Depends On**: SPRINT-RISK-BANKROLL-KELLY (bankroll state required for drawdown
-calculation)
+**Why First**: Completes the core risk controls. Without exposure limits and
+correlation detection, the system could concentrate bets dangerously. Bankroll
+state from SPRINT-RISK-BANKROLL-KELLY is now available for drawdown calculation.
 
 ---
 
-## Sprint 3: SPRINT-OBSERVABILITY-BUILD-FIX
+## Sprint 2: SPRINT-OBSERVABILITY-BUILD-FIX
 
 **Priority**: P1 — HIGH **Phase**: Phase 1 (Structural Dominance — completion)
-**Estimated Effort**: 1 day **Linear**: TBD **Closes**: DRIFT-M5
+**Estimated Effort**: 1 day **Linear**: UNI-55 **Closes**: DRIFT-M5
 
 **Objective**: Fix `packages/observability` build failure and add lifecycle
 contract database columns.
@@ -102,15 +76,16 @@ contract database columns.
 - Lifecycle adapters updated to write new timestamp/reason fields
 - Type-check clean, all tests passing
 
-**Why Third**: Closes the last PARTIAL item in Phase 1 infrastructure and the
-most actionable drift item. Build verification unblocks CI confidence.
+**Why Second**: Closes the last PARTIAL item in Phase 1 infrastructure and the
+most actionable drift item. Build verification unblocks CI confidence. Can run
+in parallel with Sprint 1.
 
 ---
 
-## Sprint 4: SPRINT-PROMOTION-RUNTIME-ACTIVATION
+## Sprint 3: SPRINT-PROMOTION-RUNTIME-ACTIVATION
 
 **Priority**: P1 — HIGH **Phase**: Phase 1→3 bridge **Estimated Effort**: 1-2
-days **Linear**: TBD
+days **Linear**: UNI-56
 
 **Objective**: Document and validate the production environment configuration
 needed to activate the full promotion pipeline end-to-end.
@@ -133,16 +108,16 @@ needed to activate the full promotion pipeline end-to-end.
 - Kill switch verified functional
 - Promotion subsystem status can move PARTIAL → VERIFIED
 
-**Why Fourth**: The promotion pipeline is fully wired but disabled by
+**Why Third**: The promotion pipeline is fully wired but disabled by
 configuration. This sprint validates it can be safely activated without code
 changes.
 
 ---
 
-## Sprint 5: SPRINT-DISCORD-RECAP-VERIFICATION
+## Sprint 4: SPRINT-DISCORD-RECAP-VERIFICATION
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 4 (Automation Supremacy — entry)
-**Estimated Effort**: 1-2 days **Linear**: TBD
+**Estimated Effort**: 1-2 days **Linear**: UNI-57
 
 **Objective**: Verify Discord bot integration and RecapAgent runtime behavior.
 Move Discord Bot from UNVERIFIED and Recaps from PARTIAL.
@@ -163,20 +138,55 @@ Move Discord Bot from UNVERIFIED and Recaps from PARTIAL.
 - RecapAgent triggers verified in Temporal workflow
 - All existing tests passing
 
-**Why Fifth**: Two subsystems are at UNVERIFIED/PARTIAL with no recent sprint
+**Why Fourth**: Two subsystems are at UNVERIFIED/PARTIAL with no recent sprint
 work. Verification is low-effort and unblocks Phase 4 planning.
+
+---
+
+## Sprint 5: SPRINT-RISK-DRAWDOWN-PROTECTION
+
+**Priority**: P1 — HIGH **Phase**: Phase 3 (Risk Engine Dominance) **Estimated
+Effort**: 2-3 days **Linear**: TBD
+
+**Objective**: Implement drawdown protection and session-level loss tracking in
+the RiskEngine to freeze promotion during losing streaks.
+
+**Tasks**:
+
+1. Implement daily/session loss tracking — compute realized P&L from settled
+   picks
+2. Implement drawdown freeze trigger — halt promotion when cumulative loss
+   exceeds configurable threshold
+3. Implement automatic freeze release — resume when conditions clear (new day,
+   partial recovery)
+4. Wire drawdown state into `RiskEngine.evaluateForPromotion()` blocked_reasons
+5. Add 20+ tests for drawdown tracking, freeze trigger/release, edge cases
+
+**Success Criteria**:
+
+- Drawdown freeze triggers at configurable threshold (e.g., -10% of bankroll)
+- Freeze blocks all promotions until release conditions met
+- Daily loss tracking computed from settled `unified_picks` records
+- RiskDecision includes drawdown state in warnings/blocked_reasons
+- All existing tests passing + 20+ new tests
+
+**Why Fifth**: Completes the defensive layer of Phase 3. Without drawdown
+protection, a losing streak could deplete bankroll before the system reacts.
+
+**Depends On**: SPRINT-RISK-EXPOSURE-CORRELATION (exposure caps framework)
 
 ---
 
 ## Summary
 
-| #   | Sprint                       | Priority | Phase     | Focus                                         |
-| --- | ---------------------------- | -------- | --------- | --------------------------------------------- |
-| 1   | RISK-BANKROLL-KELLY          | P1       | Phase 3   | Bankroll management + Kelly dynamic sizing    |
-| 2   | RISK-EXPOSURE-CORRELATION    | P1       | Phase 3   | Exposure caps + correlation + drawdown freeze |
-| 3   | OBSERVABILITY-BUILD-FIX      | P1       | Phase 1   | Fix otel build + lifecycle columns + builds   |
-| 4   | PROMOTION-RUNTIME-ACTIVATION | P1       | Phase 1→3 | Production env config + shadow validation     |
-| 5   | DISCORD-RECAP-VERIFICATION   | P2       | Phase 4   | Discord bot + RecapAgent runtime verify       |
+| #     | Sprint                       | Priority | Phase       | Focus                                         | Linear |
+| ----- | ---------------------------- | -------- | ----------- | --------------------------------------------- | ------ |
+| ~~1~~ | ~~RISK-BANKROLL-KELLY~~      | ~~P1~~   | ~~Phase 3~~ | ~~Bankroll + Kelly sizing~~ ✅ DONE           | UNI-53 |
+| 1     | RISK-EXPOSURE-CORRELATION    | P1       | Phase 3     | Exposure caps + correlation + drawdown freeze | UNI-54 |
+| 2     | OBSERVABILITY-BUILD-FIX      | P1       | Phase 1     | Fix otel build + lifecycle columns + builds   | UNI-55 |
+| 3     | PROMOTION-RUNTIME-ACTIVATION | P1       | Phase 1→3   | Production env config + shadow validation     | UNI-56 |
+| 4     | DISCORD-RECAP-VERIFICATION   | P2       | Phase 4     | Discord bot + RecapAgent runtime verify       | UNI-57 |
+| 5     | RISK-DRAWDOWN-PROTECTION     | P1       | Phase 3     | Drawdown freeze + session loss tracking       | TBD    |
 
-**Total estimated effort**: 7-11 days **Dependency chain**: Sprint 1 → Sprint 2
-(sequential); Sprints 3, 4, 5 (parallel, independent)
+**Total estimated effort**: 8-12 days **Dependency chain**: Sprint 1 → Sprint 5
+(sequential); Sprints 2, 3, 4 (parallel, independent)

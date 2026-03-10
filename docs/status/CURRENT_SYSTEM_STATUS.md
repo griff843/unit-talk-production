@@ -1,27 +1,27 @@
 # Current System Status
 
-**Last Updated**: 2026-03-10 **Audit Source**: SPRINT-RISK-ENGINE-INTEGRATION
-(post-sprint verification — 630/630 tests pass, type-check clean; RiskEngine
-wired into GradingAgent promotion)
+**Last Updated**: 2026-03-10 **Audit Source**: SPRINT-RISK-BANKROLL-KELLY
+(post-sprint verification — 666/666 tests pass, type-check clean; bankroll-aware
+Kelly sizing wired into RiskEngine + ProfessionalPropProcessor)
 
 ---
 
 ## Subsystem Readiness Matrix
 
-| Subsystem              | Status     | Evidence                                                                                                                                                     | Blocking Issues                                              |
-| ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| **Ingestion**          | VERIFIED   | SGO + OddsAPI on V3 path via `provider_offers`; Optimal API not in use (by design — 2-provider architecture)                                                 | None                                                         |
-| **Scoring**            | VERIFIED   | GradingAgent + ProfessionalPropProcessor complete; computeConsensus() + probabilityLayer + ShadowScoringService all implemented; 76 new consensus tests      | None                                                         |
-| **Promotion**          | PARTIAL    | Agent wired + shadow mode fixed (opt-in); outbox pattern implemented; requires env config                                                                    | `AUTOPILOT_MODE=prod` + `PROMOTION_CANARY_PERCENT>0` not set |
-| **Settlement**         | VERIFIED   | lifecycleSettle + TOCTOU lock + idempotency preflight; no raw_props dependency                                                                               | None                                                         |
-| **Recaps**             | PARTIAL    | RecapAgent infra complete; daily/weekly triggers exist; live posting deprecated (by design)                                                                  | Needs runtime verification                                   |
-| **Command Center**     | VERIFIED   | READ-ONLY; health + ops-confidence + monitoring endpoints                                                                                                    | None                                                         |
-| **Analytics**          | VERIFIED   | AnalyticsAgent + metrics server + CLV computation + loss attribution; CLV edge validation layer: `clvAnalyzer`, `edgeValidator`, `edgeCalibrator` (46 tests) | Needs runtime verification                                   |
-| **Discord Bot**        | UNVERIFIED | Standalone bot exists; integration unclear                                                                                                                   | No recent sprint work                                        |
-| **Smart Form**         | VERIFIED   | Writes to `bridge_outbox` only; form validation complete                                                                                                     | None                                                         |
-| **Lifecycle Adapters** | VERIFIED   | Core adapters complete; 0 violations, 0 allowlist entries (SPRINT-SINGLE-WRITER-COMPLETION)                                                                  | None                                                         |
-| **CI/CD Pipeline**     | PARTIAL    | Reusable workflows + lifecycle gate exist; vitest 491/491; Jest quarantined separately                                                                       | Jest tests in `test/` partially broken (separate infra)      |
-| **Observability**      | PARTIAL    | FM-2/FM-5/FM-9 closed; outbox depth + orphaned picks + worker heartbeat in /health                                                                           | `@opentelemetry/api` missing in observability package build  |
+| Subsystem              | Status     | Evidence                                                                                                                                                                                                                     | Blocking Issues                                              |
+| ---------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Ingestion**          | VERIFIED   | SGO + OddsAPI on V3 path via `provider_offers`; Optimal API not in use (by design — 2-provider architecture)                                                                                                                 | None                                                         |
+| **Scoring**            | VERIFIED   | GradingAgent + ProfessionalPropProcessor complete; computeConsensus() + probabilityLayer + ShadowScoringService all implemented; 76 new consensus tests; real Kelly fraction from pFinal + odds (SPRINT-RISK-BANKROLL-KELLY) | None                                                         |
+| **Promotion**          | PARTIAL    | Agent wired + shadow mode fixed (opt-in); outbox pattern implemented; requires env config                                                                                                                                    | `AUTOPILOT_MODE=prod` + `PROMOTION_CANARY_PERCENT>0` not set |
+| **Settlement**         | VERIFIED   | lifecycleSettle + TOCTOU lock + idempotency preflight; no raw_props dependency                                                                                                                                               | None                                                         |
+| **Recaps**             | PARTIAL    | RecapAgent infra complete; daily/weekly triggers exist; live posting deprecated (by design)                                                                                                                                  | Needs runtime verification                                   |
+| **Command Center**     | VERIFIED   | READ-ONLY; health + ops-confidence + monitoring endpoints                                                                                                                                                                    | None                                                         |
+| **Analytics**          | VERIFIED   | AnalyticsAgent + metrics server + CLV computation + loss attribution; CLV edge validation layer: `clvAnalyzer`, `edgeValidator`, `edgeCalibrator` (46 tests)                                                                 | Needs runtime verification                                   |
+| **Discord Bot**        | UNVERIFIED | Standalone bot exists; integration unclear                                                                                                                                                                                   | No recent sprint work                                        |
+| **Smart Form**         | VERIFIED   | Writes to `bridge_outbox` only; form validation complete                                                                                                                                                                     | None                                                         |
+| **Lifecycle Adapters** | VERIFIED   | Core adapters complete; 0 violations, 0 allowlist entries (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                                                                  | None                                                         |
+| **CI/CD Pipeline**     | PARTIAL    | Reusable workflows + lifecycle gate exist; vitest 491/491; Jest quarantined separately                                                                                                                                       | Jest tests in `test/` partially broken (separate infra)      |
+| **Observability**      | PARTIAL    | FM-2/FM-5/FM-9 closed; outbox depth + orphaned picks + worker heartbeat in /health                                                                                                                                           | `@opentelemetry/api` missing in observability package build  |
 
 ---
 
@@ -39,36 +39,36 @@ wired into GradingAgent promotion)
 
 ## Infrastructure Health
 
-| Component              | Status        | Notes                                                                                               |
-| ---------------------- | ------------- | --------------------------------------------------------------------------------------------------- |
-| TypeScript Compilation | CLEAN         | 0 errors (scripts/ excluded via tsconfig; shebang fixed)                                            |
-| Test Suite (Vitest)    | CLEAN         | 630/630 passing — scoped to `src/**/__tests__/` (+76 consensus, +46 CLV edge, +17 risk integration) |
-| Test Suite (Jest)      | PARTIAL       | `test/` Jest suite: 14 pass, ~79 quarantined/broken                                                 |
-| Single-Writer Gate     | PASS          | 0 violations, 0 allowlisted (SPRINT-SINGLE-WRITER-COMPLETION)                                       |
-| Build (API)            | UNVERIFIED    | Requires `pnpm --filter api run build`                                                              |
-| Build (Command Center) | UNVERIFIED    | Requires `pnpm --filter command-center run build`                                                   |
-| Build (Smart Form)     | UNVERIFIED    | Requires `pnpm --filter smart-form run build`                                                       |
-| Git Status             | CLEAN         | No uncommitted changes on sprint branch                                                             |
-| Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                                                 |
+| Component              | Status        | Notes                                                                                                                |
+| ---------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------- |
+| TypeScript Compilation | CLEAN         | 0 errors (scripts/ excluded via tsconfig; shebang fixed)                                                             |
+| Test Suite (Vitest)    | CLEAN         | 666/666 passing — scoped to `src/**/__tests__/` (+76 consensus, +46 CLV edge, +17 risk integration, +36 Kelly sizer) |
+| Test Suite (Jest)      | PARTIAL       | `test/` Jest suite: 14 pass, ~79 quarantined/broken                                                                  |
+| Single-Writer Gate     | PASS          | 0 violations, 0 allowlisted (SPRINT-SINGLE-WRITER-COMPLETION)                                                        |
+| Build (API)            | UNVERIFIED    | Requires `pnpm --filter api run build`                                                                               |
+| Build (Command Center) | UNVERIFIED    | Requires `pnpm --filter command-center run build`                                                                    |
+| Build (Smart Form)     | UNVERIFIED    | Requires `pnpm --filter smart-form run build`                                                                        |
+| Git Status             | CLEAN         | No uncommitted changes on sprint branch                                                                              |
+| Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                                                                  |
 
 ---
 
 ## Agent Status
 
-| Agent                 | Lifecycle Compliant | Active | Notes                                                                                   |
-| --------------------- | ------------------- | ------ | --------------------------------------------------------------------------------------- |
-| GradingAgent          | YES                 | YES    | Uses `lifecycleInsert()` with `promoter` role; RiskEngine pre-flight gate (fail-closed) |
-| SettlementAgent       | YES                 | YES    | Uses `lifecycleSettle()` with `settler` role                                            |
-| DiscordPromotionAgent | YES                 | YES    | Uses `atomicClaimForPost()`; L988-993 bypass removed (SPRINT-SINGLE-WRITER-COMPLETION)  |
-| RecapAgent            | YES                 | YES    | Uses `lifecycleUpdate()`                                                                |
-| IngestionAgent        | N/A                 | YES    | Writes to `provider_offers` (different table)                                           |
-| FeedAgent             | N/A                 | YES    | Writes to `provider_offers`/`raw_props`                                                 |
-| AlertAgent            | YES                 | YES    | Migrated to `lifecycleUpdate()` (SPRINT-SINGLE-WRITER-COMPLETION)                       |
-| AnalyticsAgent        | N/A                 | YES    | Read-only analytics                                                                     |
-| NotificationAgent     | N/A                 | YES    | Notifications only                                                                      |
-| PlayerEnrichmentAgent | N/A                 | YES    | Reads participants                                                                      |
-| AuditAgent            | N/A                 | YES    | Audit trail only                                                                        |
-| OperatorAgent         | N/A                 | YES    | Manual operations                                                                       |
+| Agent                 | Lifecycle Compliant | Active | Notes                                                                                                                                               |
+| --------------------- | ------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GradingAgent          | YES                 | YES    | Uses `lifecycleInsert()` with `promoter` role; RiskEngine pre-flight gate (fail-closed); passes sizing inputs (winProb + decimalOdds) to RiskEngine |
+| SettlementAgent       | YES                 | YES    | Uses `lifecycleSettle()` with `settler` role                                                                                                        |
+| DiscordPromotionAgent | YES                 | YES    | Uses `atomicClaimForPost()`; L988-993 bypass removed (SPRINT-SINGLE-WRITER-COMPLETION)                                                              |
+| RecapAgent            | YES                 | YES    | Uses `lifecycleUpdate()`                                                                                                                            |
+| IngestionAgent        | N/A                 | YES    | Writes to `provider_offers` (different table)                                                                                                       |
+| FeedAgent             | N/A                 | YES    | Writes to `provider_offers`/`raw_props`                                                                                                             |
+| AlertAgent            | YES                 | YES    | Migrated to `lifecycleUpdate()` (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                   |
+| AnalyticsAgent        | N/A                 | YES    | Read-only analytics                                                                                                                                 |
+| NotificationAgent     | N/A                 | YES    | Notifications only                                                                                                                                  |
+| PlayerEnrichmentAgent | N/A                 | YES    | Reads participants                                                                                                                                  |
+| AuditAgent            | N/A                 | YES    | Audit trail only                                                                                                                                    |
+| OperatorAgent         | N/A                 | YES    | Manual operations                                                                                                                                   |
 
 ---
 

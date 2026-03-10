@@ -5,6 +5,7 @@
  * Contains:
  * - RiskEngine (singleton, fail-closed)
  * - PortfolioRiskManager
+ * - CorrelationDetector, DrawdownTracker
  * - DriftEvaluator, ExposureCalculator, RiskAlertEmitter
  * - Edge validation modules
  * - Risk types
@@ -18,6 +19,8 @@ export type {
   PortfolioRisk,
   PositionSizingDecision,
 } from './PortfolioRiskManager';
+export { detectCorrelation } from './CorrelationDetector';
+export { computeDrawdown } from './DrawdownTracker';
 export { evaluateDrift, recordDriftSnapshot } from './DriftEvaluator';
 export { computeExposure } from './ExposureCalculator';
 export {
