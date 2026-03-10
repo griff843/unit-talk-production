@@ -1,27 +1,27 @@
 # Current System Status
 
-**Last Updated**: 2026-03-10 **Audit Source**: SPRINT-RISK-BANKROLL-KELLY
-(post-sprint verification — 666/666 tests pass, type-check clean; bankroll-aware
-Kelly sizing wired into RiskEngine + ProfessionalPropProcessor)
+**Last Updated**: 2026-03-10 **Audit Source**: SPRINT-RISK-EXPOSURE-CORRELATION
+(post-sprint verification — 701/701 tests pass, type-check clean; sport exposure
+caps, correlation detection, drawdown freeze wired into RiskEngine)
 
 ---
 
 ## Subsystem Readiness Matrix
 
-| Subsystem              | Status     | Evidence                                                                                                                                                                                                                     | Blocking Issues                                              |
-| ---------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **Ingestion**          | VERIFIED   | SGO + OddsAPI on V3 path via `provider_offers`; Optimal API not in use (by design — 2-provider architecture)                                                                                                                 | None                                                         |
-| **Scoring**            | VERIFIED   | GradingAgent + ProfessionalPropProcessor complete; computeConsensus() + probabilityLayer + ShadowScoringService all implemented; 76 new consensus tests; real Kelly fraction from pFinal + odds (SPRINT-RISK-BANKROLL-KELLY) | None                                                         |
-| **Promotion**          | PARTIAL    | Agent wired + shadow mode fixed (opt-in); outbox pattern implemented; requires env config                                                                                                                                    | `AUTOPILOT_MODE=prod` + `PROMOTION_CANARY_PERCENT>0` not set |
-| **Settlement**         | VERIFIED   | lifecycleSettle + TOCTOU lock + idempotency preflight; no raw_props dependency                                                                                                                                               | None                                                         |
-| **Recaps**             | PARTIAL    | RecapAgent infra complete; daily/weekly triggers exist; live posting deprecated (by design)                                                                                                                                  | Needs runtime verification                                   |
-| **Command Center**     | VERIFIED   | READ-ONLY; health + ops-confidence + monitoring endpoints                                                                                                                                                                    | None                                                         |
-| **Analytics**          | VERIFIED   | AnalyticsAgent + metrics server + CLV computation + loss attribution; CLV edge validation layer: `clvAnalyzer`, `edgeValidator`, `edgeCalibrator` (46 tests)                                                                 | Needs runtime verification                                   |
-| **Discord Bot**        | UNVERIFIED | Standalone bot exists; integration unclear                                                                                                                                                                                   | No recent sprint work                                        |
-| **Smart Form**         | VERIFIED   | Writes to `bridge_outbox` only; form validation complete                                                                                                                                                                     | None                                                         |
-| **Lifecycle Adapters** | VERIFIED   | Core adapters complete; 0 violations, 0 allowlist entries (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                                                                  | None                                                         |
-| **CI/CD Pipeline**     | PARTIAL    | Reusable workflows + lifecycle gate exist; vitest 491/491; Jest quarantined separately                                                                                                                                       | Jest tests in `test/` partially broken (separate infra)      |
-| **Observability**      | PARTIAL    | FM-2/FM-5/FM-9 closed; outbox depth + orphaned picks + worker heartbeat in /health                                                                                                                                           | `@opentelemetry/api` missing in observability package build  |
+| Subsystem              | Status     | Evidence                                                                                                                                                                                                                                                                                        | Blocking Issues                                              |
+| ---------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Ingestion**          | VERIFIED   | SGO + OddsAPI on V3 path via `provider_offers`; Optimal API not in use (by design — 2-provider architecture)                                                                                                                                                                                    | None                                                         |
+| **Scoring**            | VERIFIED   | GradingAgent + ProfessionalPropProcessor complete; computeConsensus() + probabilityLayer + ShadowScoringService all implemented; 76 new consensus tests; real Kelly fraction from pFinal + odds; sport exposure caps, correlation detection, drawdown freeze (SPRINT-RISK-EXPOSURE-CORRELATION) | None                                                         |
+| **Promotion**          | PARTIAL    | Agent wired + shadow mode fixed (opt-in); outbox pattern implemented; requires env config                                                                                                                                                                                                       | `AUTOPILOT_MODE=prod` + `PROMOTION_CANARY_PERCENT>0` not set |
+| **Settlement**         | VERIFIED   | lifecycleSettle + TOCTOU lock + idempotency preflight; no raw_props dependency                                                                                                                                                                                                                  | None                                                         |
+| **Recaps**             | PARTIAL    | RecapAgent infra complete; daily/weekly triggers exist; live posting deprecated (by design)                                                                                                                                                                                                     | Needs runtime verification                                   |
+| **Command Center**     | VERIFIED   | READ-ONLY; health + ops-confidence + monitoring endpoints                                                                                                                                                                                                                                       | None                                                         |
+| **Analytics**          | VERIFIED   | AnalyticsAgent + metrics server + CLV computation + loss attribution; CLV edge validation layer: `clvAnalyzer`, `edgeValidator`, `edgeCalibrator` (46 tests)                                                                                                                                    | Needs runtime verification                                   |
+| **Discord Bot**        | UNVERIFIED | Standalone bot exists; integration unclear                                                                                                                                                                                                                                                      | No recent sprint work                                        |
+| **Smart Form**         | VERIFIED   | Writes to `bridge_outbox` only; form validation complete                                                                                                                                                                                                                                        | None                                                         |
+| **Lifecycle Adapters** | VERIFIED   | Core adapters complete; 0 violations, 0 allowlist entries (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                                                                                                                                     | None                                                         |
+| **CI/CD Pipeline**     | PARTIAL    | Reusable workflows + lifecycle gate exist; vitest 491/491; Jest quarantined separately                                                                                                                                                                                                          | Jest tests in `test/` partially broken (separate infra)      |
+| **Observability**      | PARTIAL    | FM-2/FM-5/FM-9 closed; outbox depth + orphaned picks + worker heartbeat in /health                                                                                                                                                                                                              | `@opentelemetry/api` missing in observability package build  |
 
 ---
 
@@ -39,17 +39,17 @@ Kelly sizing wired into RiskEngine + ProfessionalPropProcessor)
 
 ## Infrastructure Health
 
-| Component              | Status        | Notes                                                                                                                |
-| ---------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------- |
-| TypeScript Compilation | CLEAN         | 0 errors (scripts/ excluded via tsconfig; shebang fixed)                                                             |
-| Test Suite (Vitest)    | CLEAN         | 666/666 passing — scoped to `src/**/__tests__/` (+76 consensus, +46 CLV edge, +17 risk integration, +36 Kelly sizer) |
-| Test Suite (Jest)      | PARTIAL       | `test/` Jest suite: 14 pass, ~79 quarantined/broken                                                                  |
-| Single-Writer Gate     | PASS          | 0 violations, 0 allowlisted (SPRINT-SINGLE-WRITER-COMPLETION)                                                        |
-| Build (API)            | UNVERIFIED    | Requires `pnpm --filter api run build`                                                                               |
-| Build (Command Center) | UNVERIFIED    | Requires `pnpm --filter command-center run build`                                                                    |
-| Build (Smart Form)     | UNVERIFIED    | Requires `pnpm --filter smart-form run build`                                                                        |
-| Git Status             | CLEAN         | No uncommitted changes on sprint branch                                                                              |
-| Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                                                                  |
+| Component              | Status        | Notes                                                                                                                                                   |
+| ---------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript Compilation | CLEAN         | 0 errors (scripts/ excluded via tsconfig; shebang fixed)                                                                                                |
+| Test Suite (Vitest)    | CLEAN         | 701/701 passing — scoped to `src/**/__tests__/` (+35 exposure/correlation/drawdown, +36 Kelly sizer, +17 risk integration, +76 consensus, +46 CLV edge) |
+| Test Suite (Jest)      | PARTIAL       | `test/` Jest suite: 14 pass, ~79 quarantined/broken                                                                                                     |
+| Single-Writer Gate     | PASS          | 0 violations, 0 allowlisted (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                           |
+| Build (API)            | UNVERIFIED    | Requires `pnpm --filter api run build`                                                                                                                  |
+| Build (Command Center) | UNVERIFIED    | Requires `pnpm --filter command-center run build`                                                                                                       |
+| Build (Smart Form)     | UNVERIFIED    | Requires `pnpm --filter smart-form run build`                                                                                                           |
+| Git Status             | CLEAN         | No uncommitted changes on sprint branch                                                                                                                 |
+| Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                                                                                                     |
 
 ---
 
