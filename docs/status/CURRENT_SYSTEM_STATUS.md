@@ -1,8 +1,8 @@
 # Current System Status
 
-**Last Updated**: 2026-03-10 **Audit Source**: SPRINT-RISK-EXPOSURE-CORRELATION
-(post-sprint verification — 701/701 tests pass, type-check clean; sport exposure
-caps, correlation detection, drawdown freeze wired into RiskEngine)
+**Last Updated**: 2026-03-10 **Audit Source**: SPRINT-OBSERVABILITY-BUILD-FIX
+(observability build verified PASS; API + Command Center builds verified PASS;
+Smart Form build pre-existing BROKEN on Windows; DRIFT-M5 closed)
 
 ---
 
@@ -20,8 +20,8 @@ caps, correlation detection, drawdown freeze wired into RiskEngine)
 | **Discord Bot**        | UNVERIFIED | Standalone bot exists; integration unclear                                                                                                                                                                                                                                                      | No recent sprint work                                        |
 | **Smart Form**         | VERIFIED   | Writes to `bridge_outbox` only; form validation complete                                                                                                                                                                                                                                        | None                                                         |
 | **Lifecycle Adapters** | VERIFIED   | Core adapters complete; 0 violations, 0 allowlist entries (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                                                                                                                                     | None                                                         |
-| **CI/CD Pipeline**     | PARTIAL    | Reusable workflows + lifecycle gate exist; vitest 491/491; Jest quarantined separately                                                                                                                                                                                                          | Jest tests in `test/` partially broken (separate infra)      |
-| **Observability**      | PARTIAL    | FM-2/FM-5/FM-9 closed; outbox depth + orphaned picks + worker heartbeat in /health                                                                                                                                                                                                              | `@opentelemetry/api` missing in observability package build  |
+| **CI/CD Pipeline**     | PARTIAL    | Reusable workflows + lifecycle gate exist; vitest 701/701; Jest quarantined separately                                                                                                                                                                                                          | Jest tests in `test/` partially broken (separate infra)      |
+| **Observability**      | VERIFIED   | FM-2/FM-5/FM-9 closed; outbox depth + orphaned picks + worker heartbeat in /health; `packages/observability` build verified PASS (SPRINT-OBSERVABILITY-BUILD-FIX)                                                                                                                               | None                                                         |
 
 ---
 
@@ -45,9 +45,9 @@ caps, correlation detection, drawdown freeze wired into RiskEngine)
 | Test Suite (Vitest)    | CLEAN         | 701/701 passing — scoped to `src/**/__tests__/` (+35 exposure/correlation/drawdown, +36 Kelly sizer, +17 risk integration, +76 consensus, +46 CLV edge) |
 | Test Suite (Jest)      | PARTIAL       | `test/` Jest suite: 14 pass, ~79 quarantined/broken                                                                                                     |
 | Single-Writer Gate     | PASS          | 0 violations, 0 allowlisted (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                           |
-| Build (API)            | UNVERIFIED    | Requires `pnpm --filter api run build`                                                                                                                  |
-| Build (Command Center) | UNVERIFIED    | Requires `pnpm --filter command-center run build`                                                                                                       |
-| Build (Smart Form)     | UNVERIFIED    | Requires `pnpm --filter smart-form run build`                                                                                                           |
+| Build (API)            | PASS          | `pnpm --filter unit-talk-platform run build` exits 0 (SPRINT-OBSERVABILITY-BUILD-FIX)                                                                   |
+| Build (Command Center) | PASS          | `pnpm --filter unit-talk-command-center run build` exits 0; dynamic server warnings during SSG are expected (SPRINT-OBSERVABILITY-BUILD-FIX)            |
+| Build (Smart Form)     | BROKEN        | Next.js 14.2.35 pnpm extraction fails on Windows (`dist/bin/next` missing); pre-existing, not caused by any sprint                                      |
 | Git Status             | CLEAN         | No uncommitted changes on sprint branch                                                                                                                 |
 | Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                                                                                                     |
 
