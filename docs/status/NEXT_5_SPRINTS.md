@@ -46,36 +46,17 @@ gap analysis + risk engine roadmap + Linear backlog
 
 ---
 
-## Sprint 1: SPRINT-DISCORD-RECAP-VERIFICATION
+## ~~Sprint 1: SPRINT-DISCORD-RECAP-VERIFICATION~~ ✅ COMPLETED (2026-03-10)
 
-**Priority**: P2 — MEDIUM **Phase**: Phase 4 (Automation Supremacy — entry)
-**Estimated Effort**: 1-2 days **Linear**: UNI-57
-
-**Objective**: Verify Discord bot integration and RecapAgent runtime behavior.
-Move Discord Bot from UNVERIFIED and Recaps from PARTIAL.
-
-**Tasks**:
-
-1. Audit Discord bot standalone deployment — verify connection, commands, health
-2. Test Discord posting end-to-end with a test channel webhook
-3. Verify RecapAgent daily/weekly triggers fire correctly
-4. Verify recap content generation produces valid output
-5. Document Discord bot operational status and any gaps
-
-**Success Criteria**:
-
-- Discord Bot subsystem status: UNVERIFIED → VERIFIED or documented gaps
-- Recaps subsystem status: PARTIAL → VERIFIED or documented gaps
-- Discord posting confirmed functional with test webhook
-- RecapAgent triggers verified in Temporal workflow
-- All existing tests passing
-
-**Why Third**: Two subsystems are at UNVERIFIED/PARTIAL with no recent sprint
-work. Verification is low-effort and unblocks Phase 4 planning.
+> Merged via PR #152. Tag: SPRINT-DISCORD-RECAP-VERIFICATION (CI-minted).
+> Discord Bot: UNVERIFIED → VERIFIED (37+ commands, 16 services, 6 health
+> endpoints, K8s-ready). RecapAgent: PARTIAL → VERIFIED (lifecycle-compliant,
+> Temporal workflows, embed generation). 101 new verification tests (81
+> recapUtils + 20 discordRouting). Vitest: 742 → 843.
 
 ---
 
-## Sprint 2: SPRINT-RISK-DASHBOARD-MONITORING
+## Sprint 1: SPRINT-RISK-DASHBOARD-MONITORING
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 3 (Risk Engine Dominance —
 visibility) **Estimated Effort**: 2-3 days **Linear**: TBD
@@ -107,7 +88,7 @@ Dashboard visibility enables monitoring and tuning of risk parameters.
 
 ---
 
-## Sprint 3: SPRINT-JEST-QUARANTINE-CLEANUP
+## Sprint 2: SPRINT-JEST-QUARANTINE-CLEANUP
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 1 (Structural Dominance — completion)
 **Estimated Effort**: 1-2 days **Linear**: TBD **Closes**: DRIFT-L2
@@ -143,9 +124,9 @@ moving to VERIFIED status.
 | ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~    | ~~P1~~   | ~~Ph 3~~   | ~~Exposure + correlation + drawdown~~ ✅ DONE | UNI-54 |
 | ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~      | ~~P1~~   | ~~Ph 1~~   | ~~Build verification + DRIFT-M5~~ ✅ DONE     | UNI-55 |
 | ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~ | ~~P1~~   | ~~Ph 1→3~~ | ~~Runbook + guard tests~~ ✅ DONE             | UNI-56 |
-| 1     | DISCORD-RECAP-VERIFICATION       | P2       | Phase 4    | Discord bot + RecapAgent runtime verify       | UNI-57 |
-| 2     | RISK-DASHBOARD-MONITORING        | P2       | Phase 3    | Risk state visibility in Command Center       | TBD    |
-| 3     | JEST-QUARANTINE-CLEANUP          | P2       | Phase 1    | Triage quarantined tests, close DRIFT-L2      | TBD    |
+| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~   | ~~P2~~   | ~~Ph 4~~   | ~~Discord bot + RecapAgent verify~~ ✅ DONE   | UNI-57 |
+| 1     | RISK-DASHBOARD-MONITORING        | P2       | Phase 3    | Risk state visibility in Command Center       | TBD    |
+| 2     | JEST-QUARANTINE-CLEANUP          | P2       | Phase 1    | Triage quarantined tests, close DRIFT-L2      | TBD    |
 
-**Total estimated effort**: 5-8 days **Dependency chain**: All sprints are
+**Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
 independent and can run in any order.
