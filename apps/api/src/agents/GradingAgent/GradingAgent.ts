@@ -974,17 +974,24 @@ export class GradingAgent extends BaseAgent {
     };
 
     // SPRINT-RISK-ENGINE-INTEGRATION: Fail-closed risk pre-flight before any unified_picks write
+    // SPRINT-RISK-BANKROLL-KELLY: Pass sizing inputs for bankroll-aware Kelly sizing
+    const bestOdds = offer.over_odds || offer.under_odds || -110;
+    const decimalOdds = bestOdds > 0 ? bestOdds / 100 + 1 : 100 / Math.abs(bestOdds) + 1;
     const riskDecision = await RiskEngine.getInstance().evaluateForPromotion(
       supabase,
       result.propId,
       result.kellyFraction,
-      event?.id
+      event?.id,
+      result.kellyFraction > 0
+        ? { winProbability: this.kellyToWinProb(result.kellyFraction, decimalOdds), decimalOdds }
+        : undefined
     );
     if (!riskDecision.allowed) {
       this.logger.warn('🚫 Promotion blocked by risk engine', {
         propId: result.propId,
         decision: riskDecision.decision,
         reasons: riskDecision.blocked_reasons,
+        sizing: riskDecision.sizing,
         traceId: riskDecision.trace_id,
       });
       return;
@@ -1033,6 +1040,18 @@ export class GradingAgent extends BaseAgent {
     this.gradingMetrics.throughputPerMinute = Math.round(throughputPerMs * 60000);
 
     this.gradingMetrics.successCount++;
+  }
+
+  /**
+   * SPRINT-RISK-BANKROLL-KELLY: Back-derive win probability from Kelly fraction and odds.
+   * Kelly: f = (b*p - q) / b → p = (f*b + 1) / (b + 1)
+   * Clamped to (0, 1) for safety.
+   */
+  private kellyToWinProb(kellyFraction: number, decimalOdds: number): number {
+    if (decimalOdds <= 1 || kellyFraction <= 0) return 0.5;
+    const b = decimalOdds - 1;
+    const p = (kellyFraction * b + 1) / (b + 1);
+    return Math.max(0.01, Math.min(0.99, p));
   }
 
   private startBatchTimer(): void {
