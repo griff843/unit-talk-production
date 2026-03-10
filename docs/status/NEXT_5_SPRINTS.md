@@ -3,9 +3,10 @@
 **Last Updated**: 2026-03-10 **Source**: Phase status + drift report + system
 gap analysis + risk engine roadmap + Linear backlog
 
-> **Sprint queue refreshed 2026-03-10** after SPRINT-OBSERVABILITY-BUILD-FIX
-> completion. Build infrastructure verified. Focus shifts to promotion
-> activation, Phase 4 entry, and risk visibility.
+> **Sprint queue refreshed 2026-03-10** after
+> SPRINT-PROMOTION-RUNTIME-ACTIVATION completion. Promotion VERIFIED. Focus
+> shifts to Phase 4 entry (Discord/Recaps), risk visibility, and test debt
+> cleanup.
 
 ---
 
@@ -36,39 +37,16 @@ gap analysis + risk engine roadmap + Linear backlog
 
 ---
 
-## Sprint 1: SPRINT-PROMOTION-RUNTIME-ACTIVATION
+## ~~Sprint 1: SPRINT-PROMOTION-RUNTIME-ACTIVATION~~ ✅ COMPLETED (2026-03-10)
 
-**Priority**: P1 — HIGH **Phase**: Phase 1→3 bridge **Estimated Effort**: 1-2
-days **Linear**: UNI-56
-
-**Objective**: Document and validate the production environment configuration
-needed to activate the full promotion pipeline end-to-end.
-
-**Tasks**:
-
-1. Create production environment runbook: all required env vars, values,
-   validation checklist
-2. Validate promotion pipeline in shadow mode (dry run with
-   `PROMOTION_SHADOW_MODE=true`)
-3. Test canary routing at `PROMOTION_CANARY_PERCENT=10` with test sport
-4. Verify kill switch (`PROMOTION_KILL_SWITCH=true`) halts all promotion
-5. Document rollback procedure for each activation step
-
-**Success Criteria**:
-
-- Runbook committed with step-by-step activation guide
-- Shadow mode dry run completes with 10+ picks flowing through
-- Canary routing verified functional
-- Kill switch verified functional
-- Promotion subsystem status can move PARTIAL → VERIFIED
-
-**Why Second**: The promotion pipeline is fully wired but disabled by
-configuration. This sprint validates it can be safely activated without code
-changes.
+> Merged via PR #149. Tag: SPRINT-PROMOTION-RUNTIME-ACTIVATION (CI-minted).
+> Enhanced runbook with staged activation (shadow→canary→prod), 12-var env
+> reference, 41 guard tests, monitoring checklist, rollback procedures.
+> Promotion: PARTIAL → VERIFIED. Vitest: 701 → 742.
 
 ---
 
-## Sprint 2: SPRINT-DISCORD-RECAP-VERIFICATION
+## Sprint 1: SPRINT-DISCORD-RECAP-VERIFICATION
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 4 (Automation Supremacy — entry)
 **Estimated Effort**: 1-2 days **Linear**: UNI-57
@@ -97,7 +75,7 @@ work. Verification is low-effort and unblocks Phase 4 planning.
 
 ---
 
-## Sprint 3: SPRINT-RISK-DASHBOARD-MONITORING
+## Sprint 2: SPRINT-RISK-DASHBOARD-MONITORING
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 3 (Risk Engine Dominance —
 visibility) **Estimated Effort**: 2-3 days **Linear**: TBD
@@ -129,7 +107,7 @@ Dashboard visibility enables monitoring and tuning of risk parameters.
 
 ---
 
-## Sprint 4: SPRINT-JEST-QUARANTINE-CLEANUP
+## Sprint 3: SPRINT-JEST-QUARANTINE-CLEANUP
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 1 (Structural Dominance — completion)
 **Estimated Effort**: 1-2 days **Linear**: TBD **Closes**: DRIFT-L2
@@ -159,15 +137,15 @@ moving to VERIFIED status.
 
 ## Summary
 
-| #     | Sprint                        | Priority | Phase     | Focus                                         | Linear |
-| ----- | ----------------------------- | -------- | --------- | --------------------------------------------- | ------ |
-| ~~1~~ | ~~RISK-BANKROLL-KELLY~~       | ~~P1~~   | ~~Ph 3~~  | ~~Bankroll + Kelly sizing~~ ✅ DONE           | UNI-53 |
-| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~ | ~~P1~~   | ~~Ph 3~~  | ~~Exposure + correlation + drawdown~~ ✅ DONE | UNI-54 |
-| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~   | ~~P1~~   | ~~Ph 1~~  | ~~Build verification + DRIFT-M5~~ ✅ DONE     | UNI-55 |
-| 1     | PROMOTION-RUNTIME-ACTIVATION  | P1       | Phase 1→3 | Production env config + shadow validation     | UNI-56 |
-| 2     | DISCORD-RECAP-VERIFICATION    | P2       | Phase 4   | Discord bot + RecapAgent runtime verify       | UNI-57 |
-| 3     | RISK-DASHBOARD-MONITORING     | P2       | Phase 3   | Risk state visibility in Command Center       | TBD    |
-| 4     | JEST-QUARANTINE-CLEANUP       | P2       | Phase 1   | Triage quarantined tests, close DRIFT-L2      | TBD    |
+| #     | Sprint                           | Priority | Phase      | Focus                                         | Linear |
+| ----- | -------------------------------- | -------- | ---------- | --------------------------------------------- | ------ |
+| ~~1~~ | ~~RISK-BANKROLL-KELLY~~          | ~~P1~~   | ~~Ph 3~~   | ~~Bankroll + Kelly sizing~~ ✅ DONE           | UNI-53 |
+| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~    | ~~P1~~   | ~~Ph 3~~   | ~~Exposure + correlation + drawdown~~ ✅ DONE | UNI-54 |
+| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~      | ~~P1~~   | ~~Ph 1~~   | ~~Build verification + DRIFT-M5~~ ✅ DONE     | UNI-55 |
+| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~ | ~~P1~~   | ~~Ph 1→3~~ | ~~Runbook + guard tests~~ ✅ DONE             | UNI-56 |
+| 1     | DISCORD-RECAP-VERIFICATION       | P2       | Phase 4    | Discord bot + RecapAgent runtime verify       | UNI-57 |
+| 2     | RISK-DASHBOARD-MONITORING        | P2       | Phase 3    | Risk state visibility in Command Center       | TBD    |
+| 3     | JEST-QUARANTINE-CLEANUP          | P2       | Phase 1    | Triage quarantined tests, close DRIFT-L2      | TBD    |
 
-**Total estimated effort**: 6-10 days **Dependency chain**: All sprints are
+**Total estimated effort**: 5-8 days **Dependency chain**: All sprints are
 independent and can run in any order.
