@@ -8,7 +8,7 @@
 // ─── Exposure ────────────────────────────────────────────────────────────────
 
 export interface ExposureBreach {
-  dimension: 'total' | 'event';
+  dimension: 'total' | 'event' | 'sport';
   key: string;
   current: number;
   limit: number;
@@ -20,6 +20,7 @@ export interface ExposureState {
   total_pending_legs: number;
   total_pending_events: number;
   exposure_by_event: Record<string, number>;
+  exposure_by_sport: Record<string, number>;
   max_single_event: { event_id: string; exposure: number } | null;
   herfindahl_index: number;
   breaches: ExposureBreach[];
@@ -54,6 +55,16 @@ export interface RiskEngineConfig {
   bankroll_kelly_multiplier: number;
   /** Maximum single-bet fraction of bankroll. */
   bankroll_max_bet_fraction: number;
+  /** Max Kelly exposure per sport (e.g., 0.4 = 40% of total allowed per sport). */
+  sport_kelly_limit: number;
+  /** Max pending legs on a single event before correlation block. */
+  correlation_max_same_event: number;
+  /** Max pending legs on a single participant before correlation block. */
+  correlation_max_same_participant: number;
+  /** Daily drawdown threshold as fraction of bankroll to trigger freeze (e.g., 0.10 = 10%). */
+  drawdown_freeze_threshold: number;
+  /** Number of days to look back for drawdown calculation. */
+  drawdown_lookback_days: number;
 }
 
 export const DEFAULT_RISK_CONFIG: RiskEngineConfig = {
@@ -66,7 +77,44 @@ export const DEFAULT_RISK_CONFIG: RiskEngineConfig = {
   bankroll_total: 1000,
   bankroll_kelly_multiplier: 0.25,
   bankroll_max_bet_fraction: 0.05,
+  sport_kelly_limit: 0.4,
+  correlation_max_same_event: 3,
+  correlation_max_same_participant: 2,
+  drawdown_freeze_threshold: 0.1,
+  drawdown_lookback_days: 1,
 };
+
+// ─── Correlation ─────────────────────────────────────────────────────────────
+
+export interface CorrelationCluster {
+  type: 'same_event' | 'same_participant';
+  key: string;
+  count: number;
+  limit: number;
+  leg_ids: string[];
+}
+
+export interface CorrelationState {
+  clusters: CorrelationCluster[];
+  blocked: boolean;
+  blocked_reasons: string[];
+  computed_at: string;
+}
+
+// ─── Drawdown ────────────────────────────────────────────────────────────────
+
+export interface DrawdownState {
+  realized_pnl: number;
+  settled_count: number;
+  wins: number;
+  losses: number;
+  pushes: number;
+  drawdown_fraction: number;
+  frozen: boolean;
+  freeze_reason: string | null;
+  lookback_days: number;
+  computed_at: string;
+}
 
 // ─── Risk Decision ───────────────────────────────────────────────────────────
 
@@ -94,6 +142,8 @@ export interface RiskDecision {
   warnings: string[];
   exposure_state: ExposureState | null;
   drift_state: DriftState | null;
+  correlation_state: CorrelationState | null;
+  drawdown_state: DrawdownState | null;
   sizing: RiskSizing | null;
   trace_id: string;
 }
@@ -105,6 +155,8 @@ export type RiskEventType =
   | 'EXPOSURE_BREACH'
   | 'DRIFT_CHECK'
   | 'DRIFT_THROTTLE'
+  | 'CORRELATION_BLOCK'
+  | 'DRAWDOWN_FREEZE'
   | 'PROMOTION_BLOCKED'
   | 'PROMOTION_ALLOWED'
   | 'ENGINE_ERROR';

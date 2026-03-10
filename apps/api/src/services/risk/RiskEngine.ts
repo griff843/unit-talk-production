@@ -9,6 +9,8 @@
  * Integration: Called as async pre-flight in V3ScoringAdapter before evaluatePromotion().
  */
 
+import { detectCorrelation } from './CorrelationDetector';
+import { computeDrawdown } from './DrawdownTracker';
 import { evaluateDrift, recordDriftSnapshot } from './DriftEvaluator';
 import { computeExposure } from './ExposureCalculator';
 import { computeKellySize } from './KellySizer';
@@ -16,6 +18,8 @@ import { emitExposureBreach, emitDriftThrottle, emitEngineError } from './RiskAl
 import { DEFAULT_RISK_CONFIG } from './types';
 
 import type {
+  CorrelationState,
+  DrawdownState,
   RiskDecision,
   RiskEngineConfig,
   RiskEventRow,
@@ -70,6 +74,8 @@ export class RiskEngine {
           warnings: ['risk_engine_disabled'],
           exposure_state: null,
           drift_state: null,
+          correlation_state: null,
+          drawdown_state: null,
           sizing: null,
           trace_id: traceId,
         };
@@ -100,6 +106,29 @@ export class RiskEngine {
             `event_kelly_limit:${eventId}:${eventExposure.toFixed(4)}>${config.event_kelly_limit}`
           );
         }
+      }
+
+      // 5a. Check sport-level exposure
+      for (const [sport, sportExposure] of Object.entries(exposure.exposure_by_sport)) {
+        if (sportExposure > config.sport_kelly_limit) {
+          blockedReasons.push(
+            `sport_kelly_limit:${sport}:${sportExposure.toFixed(4)}>${config.sport_kelly_limit}`
+          );
+        }
+      }
+
+      // 5b. Check correlation
+      const correlation = await detectCorrelation(supabase, config);
+      if (correlation.blocked) {
+        blockedReasons.push(...correlation.blocked_reasons);
+      }
+
+      // 5c. Check drawdown
+      const drawdown = await computeDrawdown(supabase, config);
+      if (drawdown.frozen) {
+        blockedReasons.push(
+          `drawdown_freeze:${drawdown.drawdown_fraction.toFixed(4)}>${config.drawdown_freeze_threshold}`
+        );
       }
 
       // 6. Evaluate drift
@@ -152,6 +181,8 @@ export class RiskEngine {
         warnings,
         exposure_state: exposure,
         drift_state: drift,
+        correlation_state: correlation,
+        drawdown_state: drawdown,
         sizing,
         trace_id: traceId,
       };
@@ -210,6 +241,8 @@ export class RiskEngine {
         warnings: [errorMsg],
         exposure_state: null,
         drift_state: null,
+        correlation_state: null,
+        drawdown_state: null,
         sizing: null,
         trace_id: traceId,
       };
@@ -270,6 +303,16 @@ export class RiskEngine {
         configMap['bankroll_kelly_multiplier'] ?? DEFAULT_RISK_CONFIG.bankroll_kelly_multiplier,
       bankroll_max_bet_fraction:
         configMap['bankroll_max_bet_fraction'] ?? DEFAULT_RISK_CONFIG.bankroll_max_bet_fraction,
+      sport_kelly_limit: configMap['sport_kelly_limit'] ?? DEFAULT_RISK_CONFIG.sport_kelly_limit,
+      correlation_max_same_event:
+        configMap['correlation_max_same_event'] ?? DEFAULT_RISK_CONFIG.correlation_max_same_event,
+      correlation_max_same_participant:
+        configMap['correlation_max_same_participant'] ??
+        DEFAULT_RISK_CONFIG.correlation_max_same_participant,
+      drawdown_freeze_threshold:
+        configMap['drawdown_freeze_threshold'] ?? DEFAULT_RISK_CONFIG.drawdown_freeze_threshold,
+      drawdown_lookback_days:
+        configMap['drawdown_lookback_days'] ?? DEFAULT_RISK_CONFIG.drawdown_lookback_days,
     };
     configLoadedAt = Date.now();
     return cachedConfig;

@@ -14,13 +14,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * Compute aggregate exposure from live scored legs.
  *
  * Uses scored_legs.kelly_fraction for pending ticket_legs to determine
- * total and per-event Kelly exposure.
+ * total, per-event, and per-sport Kelly exposure.
  */
 export async function computeExposure(
   supabase: SupabaseClient,
   config: RiskEngineConfig
 ): Promise<ExposureState> {
   // Query: all latest scored legs for pending ticket legs with positive kelly
+  // Join through ticket_legs → events for sport
   const { data: rows, error } = await supabase
     .from('scored_legs')
     .select(
@@ -28,7 +29,10 @@ export async function computeExposure(
       kelly_fraction,
       ticket_legs!inner (
         event_id,
-        leg_status
+        leg_status,
+        events!inner (
+          sport
+        )
       )
     `
     )
@@ -46,15 +50,20 @@ export async function computeExposure(
   // Aggregate
   let totalKelly = 0;
   const byEvent: Record<string, number> = {};
+  const bySport: Record<string, number> = {};
 
   for (const row of pendingRows) {
     const kelly = Number((row as any).kelly_fraction) || 0;
     const eventId = (row as any).ticket_legs?.event_id as string | null;
+    const sport = (row as any).ticket_legs?.events?.sport as string | null;
 
     totalKelly += kelly;
 
     if (eventId) {
       byEvent[eventId] = (byEvent[eventId] || 0) + kelly;
+    }
+    if (sport) {
+      bySport[sport] = (bySport[sport] || 0) + kelly;
     }
   }
 
@@ -70,7 +79,7 @@ export async function computeExposure(
   const hhi = computeHerfindahl(byEvent, totalKelly);
 
   // Detect breaches
-  const breaches = detectBreaches(totalKelly, byEvent, config);
+  const breaches = detectBreaches(totalKelly, byEvent, bySport, config);
 
   return {
     total_kelly_exposure: round(totalKelly, 5),
@@ -78,6 +87,9 @@ export async function computeExposure(
     total_pending_events: Object.keys(byEvent).length,
     exposure_by_event: Object.fromEntries(
       Object.entries(byEvent).map(([k, v]) => [k, round(v, 5)])
+    ),
+    exposure_by_sport: Object.fromEntries(
+      Object.entries(bySport).map(([k, v]) => [k, round(v, 5)])
     ),
     max_single_event: maxEvent
       ? { event_id: maxEvent.event_id, exposure: round(maxEvent.exposure, 5) }
@@ -112,6 +124,7 @@ function computeHerfindahl(byEvent: Record<string, number>, total: number): numb
 function detectBreaches(
   totalKelly: number,
   byEvent: Record<string, number>,
+  bySport: Record<string, number>,
   config: RiskEngineConfig
 ): ExposureBreach[] {
   const breaches: ExposureBreach[] = [];
@@ -145,6 +158,19 @@ function detectBreaches(
         current: round(exposure, 5),
         limit: config.event_kelly_limit,
         severity: 'critical',
+      });
+    }
+  }
+
+  // Per-sport breaches
+  for (const [sport, exposure] of Object.entries(bySport)) {
+    if (exposure > config.sport_kelly_limit) {
+      breaches.push({
+        dimension: 'sport',
+        key: sport,
+        current: round(exposure, 5),
+        limit: config.sport_kelly_limit,
+        severity: 'high',
       });
     }
   }

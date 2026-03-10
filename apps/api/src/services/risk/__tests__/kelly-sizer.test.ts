@@ -13,6 +13,35 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Mock new risk sub-modules to isolate Kelly sizer integration tests
+vi.mock('../CorrelationDetector', () => ({
+  detectCorrelation: vi.fn(() =>
+    Promise.resolve({
+      clusters: [],
+      blocked: false,
+      blocked_reasons: [],
+      computed_at: new Date().toISOString(),
+    })
+  ),
+}));
+
+vi.mock('../DrawdownTracker', () => ({
+  computeDrawdown: vi.fn(() =>
+    Promise.resolve({
+      realized_pnl: 0,
+      settled_count: 0,
+      wins: 0,
+      losses: 0,
+      pushes: 0,
+      drawdown_fraction: 0,
+      frozen: false,
+      freeze_reason: null,
+      lookback_days: 1,
+      computed_at: new Date().toISOString(),
+    })
+  ),
+}));
+
 import {
   computeKellySize,
   computeKellyFraction,
