@@ -48,6 +48,12 @@ export interface RiskEngineConfig {
   drift_brier_block: number;
   drift_min_settled: number;
   engine_enabled: boolean;
+  /** Total bankroll in units for Kelly sizing. 0 or missing = use default. */
+  bankroll_total: number;
+  /** Fractional Kelly multiplier (0.25 = quarter Kelly). */
+  bankroll_kelly_multiplier: number;
+  /** Maximum single-bet fraction of bankroll. */
+  bankroll_max_bet_fraction: number;
 }
 
 export const DEFAULT_RISK_CONFIG: RiskEngineConfig = {
@@ -57,9 +63,29 @@ export const DEFAULT_RISK_CONFIG: RiskEngineConfig = {
   drift_brier_block: 0.35,
   drift_min_settled: 30,
   engine_enabled: true,
+  bankroll_total: 1000,
+  bankroll_kelly_multiplier: 0.25,
+  bankroll_max_bet_fraction: 0.05,
 };
 
 // ─── Risk Decision ───────────────────────────────────────────────────────────
+
+export interface RiskSizing {
+  /** Raw Kelly fraction: (bp - q) / b */
+  raw_kelly: number;
+  /** Fractional Kelly after multiplier */
+  fractional_kelly: number;
+  /** Recommended bet size in units */
+  recommended_units: number;
+  /** Recommended bet as fraction of bankroll */
+  recommended_fraction: number;
+  /** Whether sizing was capped */
+  capped: boolean;
+  /** Which cap was applied */
+  cap_reason: string | null;
+  /** Whether the pick has positive edge */
+  has_edge: boolean;
+}
 
 export interface RiskDecision {
   allowed: boolean;
@@ -68,6 +94,7 @@ export interface RiskDecision {
   warnings: string[];
   exposure_state: ExposureState | null;
   drift_state: DriftState | null;
+  sizing: RiskSizing | null;
   trace_id: string;
 }
 

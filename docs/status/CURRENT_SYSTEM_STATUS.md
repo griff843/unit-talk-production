@@ -1,8 +1,8 @@
 # Current System Status
 
-**Last Updated**: 2026-03-10 **Audit Source**: SPRINT-GITHUB-LINEAR-INTEGRATION
-(post-sprint verification — 613/613 tests pass, type-check clean; DRIFT-H4
-resolved)
+**Last Updated**: 2026-03-10 **Audit Source**: SPRINT-RISK-ENGINE-INTEGRATION
+(post-sprint verification — 630/630 tests pass, type-check clean; RiskEngine
+wired into GradingAgent promotion)
 
 ---
 
@@ -39,36 +39,36 @@ resolved)
 
 ## Infrastructure Health
 
-| Component              | Status        | Notes                                                                                          |
-| ---------------------- | ------------- | ---------------------------------------------------------------------------------------------- |
-| TypeScript Compilation | CLEAN         | 0 errors (scripts/ excluded via tsconfig; shebang fixed)                                       |
-| Test Suite (Vitest)    | CLEAN         | 613/613 passing — scoped to `src/**/__tests__/` (+76 consensus tests, +46 CLV edge validation) |
-| Test Suite (Jest)      | PARTIAL       | `test/` Jest suite: 14 pass, ~79 quarantined/broken                                            |
-| Single-Writer Gate     | PASS          | 0 violations, 0 allowlisted (SPRINT-SINGLE-WRITER-COMPLETION)                                  |
-| Build (API)            | UNVERIFIED    | Requires `pnpm --filter api run build`                                                         |
-| Build (Command Center) | UNVERIFIED    | Requires `pnpm --filter command-center run build`                                              |
-| Build (Smart Form)     | UNVERIFIED    | Requires `pnpm --filter smart-form run build`                                                  |
-| Git Status             | CLEAN         | No uncommitted changes on sprint branch                                                        |
-| Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                                            |
+| Component              | Status        | Notes                                                                                               |
+| ---------------------- | ------------- | --------------------------------------------------------------------------------------------------- |
+| TypeScript Compilation | CLEAN         | 0 errors (scripts/ excluded via tsconfig; shebang fixed)                                            |
+| Test Suite (Vitest)    | CLEAN         | 630/630 passing — scoped to `src/**/__tests__/` (+76 consensus, +46 CLV edge, +17 risk integration) |
+| Test Suite (Jest)      | PARTIAL       | `test/` Jest suite: 14 pass, ~79 quarantined/broken                                                 |
+| Single-Writer Gate     | PASS          | 0 violations, 0 allowlisted (SPRINT-SINGLE-WRITER-COMPLETION)                                       |
+| Build (API)            | UNVERIFIED    | Requires `pnpm --filter api run build`                                                              |
+| Build (Command Center) | UNVERIFIED    | Requires `pnpm --filter command-center run build`                                                   |
+| Build (Smart Form)     | UNVERIFIED    | Requires `pnpm --filter smart-form run build`                                                       |
+| Git Status             | CLEAN         | No uncommitted changes on sprint branch                                                             |
+| Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                                                 |
 
 ---
 
 ## Agent Status
 
-| Agent                 | Lifecycle Compliant | Active | Notes                                                                                  |
-| --------------------- | ------------------- | ------ | -------------------------------------------------------------------------------------- |
-| GradingAgent          | YES                 | YES    | Uses `lifecycleInsert()` with `promoter` role; writes `promotion_band`                 |
-| SettlementAgent       | YES                 | YES    | Uses `lifecycleSettle()` with `settler` role                                           |
-| DiscordPromotionAgent | YES                 | YES    | Uses `atomicClaimForPost()`; L988-993 bypass removed (SPRINT-SINGLE-WRITER-COMPLETION) |
-| RecapAgent            | YES                 | YES    | Uses `lifecycleUpdate()`                                                               |
-| IngestionAgent        | N/A                 | YES    | Writes to `provider_offers` (different table)                                          |
-| FeedAgent             | N/A                 | YES    | Writes to `provider_offers`/`raw_props`                                                |
-| AlertAgent            | YES                 | YES    | Migrated to `lifecycleUpdate()` (SPRINT-SINGLE-WRITER-COMPLETION)                      |
-| AnalyticsAgent        | N/A                 | YES    | Read-only analytics                                                                    |
-| NotificationAgent     | N/A                 | YES    | Notifications only                                                                     |
-| PlayerEnrichmentAgent | N/A                 | YES    | Reads participants                                                                     |
-| AuditAgent            | N/A                 | YES    | Audit trail only                                                                       |
-| OperatorAgent         | N/A                 | YES    | Manual operations                                                                      |
+| Agent                 | Lifecycle Compliant | Active | Notes                                                                                   |
+| --------------------- | ------------------- | ------ | --------------------------------------------------------------------------------------- |
+| GradingAgent          | YES                 | YES    | Uses `lifecycleInsert()` with `promoter` role; RiskEngine pre-flight gate (fail-closed) |
+| SettlementAgent       | YES                 | YES    | Uses `lifecycleSettle()` with `settler` role                                            |
+| DiscordPromotionAgent | YES                 | YES    | Uses `atomicClaimForPost()`; L988-993 bypass removed (SPRINT-SINGLE-WRITER-COMPLETION)  |
+| RecapAgent            | YES                 | YES    | Uses `lifecycleUpdate()`                                                                |
+| IngestionAgent        | N/A                 | YES    | Writes to `provider_offers` (different table)                                           |
+| FeedAgent             | N/A                 | YES    | Writes to `provider_offers`/`raw_props`                                                 |
+| AlertAgent            | YES                 | YES    | Migrated to `lifecycleUpdate()` (SPRINT-SINGLE-WRITER-COMPLETION)                       |
+| AnalyticsAgent        | N/A                 | YES    | Read-only analytics                                                                     |
+| NotificationAgent     | N/A                 | YES    | Notifications only                                                                      |
+| PlayerEnrichmentAgent | N/A                 | YES    | Reads participants                                                                      |
+| AuditAgent            | N/A                 | YES    | Audit trail only                                                                        |
+| OperatorAgent         | N/A                 | YES    | Manual operations                                                                       |
 
 ---
 
@@ -89,6 +89,8 @@ resolved)
                               │  GradingAgent    │ ← ML scoring + tier
                               │  (Professional)  │
                               └────────┬────────┘
+                                       │ RiskEngine.evaluateForPromotion()
+                                       │ (fail-closed gate)
                                        │ lifecycleInsert(promoter)
                               ┌────────▼────────┐
                               │ unified_picks    │ ← CANONICAL

@@ -20,5 +20,12 @@ export type {
 } from './PortfolioRiskManager';
 export { evaluateDrift, recordDriftSnapshot } from './DriftEvaluator';
 export { computeExposure } from './ExposureCalculator';
+export {
+  computeKellySize,
+  computeKellyFraction,
+  americanToDecimal,
+  DEFAULT_BANKROLL_CONFIG,
+} from './KellySizer';
+export type { BankrollConfig, KellySizingResult } from './KellySizer';
 export { emitExposureBreach, emitDriftThrottle, emitEngineError } from './RiskAlertEmitter';
 export * from './risk-types';

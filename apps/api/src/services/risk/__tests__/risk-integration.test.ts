@@ -539,7 +539,8 @@ describe('GradingAgent + RiskEngine integration gate', () => {
       expect.anything(), // supabase
       'provider-offer-abc123', // propId
       0.12, // kellyFraction
-      expect.anything() // eventId (from canonical_events join)
+      expect.anything(), // eventId (from canonical_events join)
+      expect.anything() // sizingInputs (optional)
     );
   });
 

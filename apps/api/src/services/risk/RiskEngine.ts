@@ -11,6 +11,7 @@
 
 import { evaluateDrift, recordDriftSnapshot } from './DriftEvaluator';
 import { computeExposure } from './ExposureCalculator';
+import { computeKellySize } from './KellySizer';
 import { emitExposureBreach, emitDriftThrottle, emitEngineError } from './RiskAlertEmitter';
 import { DEFAULT_RISK_CONFIG } from './types';
 
@@ -18,6 +19,7 @@ import type {
   RiskDecision,
   RiskEngineConfig,
   RiskEventRow,
+  RiskSizing,
   ExposureState,
   DriftState,
 } from './types';
@@ -50,7 +52,8 @@ export class RiskEngine {
     supabase: SupabaseClient,
     pickId: string,
     kellyFraction: number,
-    eventId?: string
+    eventId?: string,
+    sizingInputs?: { winProbability: number; decimalOdds: number }
   ): Promise<RiskDecision> {
     const traceId = `risk-${pickId}-${Date.now()}`;
 
@@ -67,6 +70,7 @@ export class RiskEngine {
           warnings: ['risk_engine_disabled'],
           exposure_state: null,
           drift_state: null,
+          sizing: null,
           trace_id: traceId,
         };
       }
@@ -114,7 +118,32 @@ export class RiskEngine {
       // Record drift snapshot (non-blocking)
       recordDriftSnapshot(supabase, drift, config).catch(() => {});
 
-      // 7. Make decision
+      // 7. Compute bankroll-aware sizing (if inputs provided)
+      let sizing: RiskSizing | null = null;
+      if (sizingInputs) {
+        const sizingResult = computeKellySize(
+          sizingInputs.winProbability,
+          sizingInputs.decimalOdds,
+          {
+            total_bankroll: config.bankroll_total,
+            kelly_multiplier: config.bankroll_kelly_multiplier,
+            max_bet_fraction: config.bankroll_max_bet_fraction,
+            min_bet_units: 1.0,
+            daily_loss_limit: 0.1,
+          }
+        );
+        sizing = {
+          raw_kelly: sizingResult.raw_kelly,
+          fractional_kelly: sizingResult.fractional_kelly,
+          recommended_units: sizingResult.recommended_units,
+          recommended_fraction: sizingResult.recommended_fraction,
+          capped: sizingResult.capped,
+          cap_reason: sizingResult.cap_reason,
+          has_edge: sizingResult.has_edge,
+        };
+      }
+
+      // 8. Make decision
       const allowed = blockedReasons.length === 0;
       const decision: RiskDecision = {
         allowed,
@@ -123,6 +152,7 @@ export class RiskEngine {
         warnings,
         exposure_state: exposure,
         drift_state: drift,
+        sizing,
         trace_id: traceId,
       };
 
@@ -180,6 +210,7 @@ export class RiskEngine {
         warnings: [errorMsg],
         exposure_state: null,
         drift_state: null,
+        sizing: null,
         trace_id: traceId,
       };
     }
@@ -234,6 +265,11 @@ export class RiskEngine {
       drift_brier_block: configMap['drift_brier_block'] ?? DEFAULT_RISK_CONFIG.drift_brier_block,
       drift_min_settled: configMap['drift_min_settled'] ?? DEFAULT_RISK_CONFIG.drift_min_settled,
       engine_enabled: (configMap['engine_enabled'] ?? 1) === 1,
+      bankroll_total: configMap['bankroll_total'] ?? DEFAULT_RISK_CONFIG.bankroll_total,
+      bankroll_kelly_multiplier:
+        configMap['bankroll_kelly_multiplier'] ?? DEFAULT_RISK_CONFIG.bankroll_kelly_multiplier,
+      bankroll_max_bet_fraction:
+        configMap['bankroll_max_bet_fraction'] ?? DEFAULT_RISK_CONFIG.bankroll_max_bet_fraction,
     };
     configLoadedAt = Date.now();
     return cachedConfig;

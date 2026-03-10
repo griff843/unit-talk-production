@@ -31,6 +31,7 @@ import { createLogger } from '../utils/logger';
 import { CLVTrackingService } from './clv/CLVTrackingService';
 import { DeviggingService } from './devigging/DeviggingService';
 import { MarketOfferAggregator } from './MarketOfferAggregator';
+import { computeKellyFraction, americanToDecimal } from './risk/KellySizer';
 import { supabaseClient } from './supabaseClient';
 
 import type { ComputeScoreV2Result } from '../agents/GradingAgent/scoring/computeScoreV2';
@@ -304,13 +305,21 @@ export class ProfessionalPropProcessor {
       const processingTime = Date.now() - startTime;
       propLogger.info('Processing completed', { pickId, processingTime: `${processingTime}ms` });
 
+      // ── Compute Kelly fraction from probability and odds ──────────────
+      const pFinal = probResult.ok ? (probResult as ProbabilityOutputOk).pFinal : null;
+      const bestOdds = rawProp.over_odds || rawProp.under_odds || -110;
+      const kellyFraction =
+        pFinal != null && pFinal > 0 && pFinal < 1
+          ? computeKellyFraction(pFinal, americanToDecimal(bestOdds))
+          : 0;
+
       return {
         pickId,
         professionalScore: v2Result.score,
         tier: v2Result.tier,
         confidence: Math.round(v2Result.score),
         devigged_edge: v2Result.ev,
-        kelly_fraction: 0,
+        kelly_fraction: kellyFraction,
         professional_insights: {},
         clv_tracking_id: clvTrackingId,
         auto_approved: autoApproved,
