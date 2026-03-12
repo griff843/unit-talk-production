@@ -267,6 +267,10 @@ export interface V3TicketLeg {
   odds?: number;
   override?: V3LegOverride;
   isManual: boolean;
+  participant_image_url?: string | null;
+  team_logo_url?: string | null;
+  home_team_logo_url?: string | null;
+  away_team_logo_url?: string | null;
 }
 
 export interface V3TicketState {

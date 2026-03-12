@@ -121,15 +121,19 @@ export function GamePickForm({
     // SMARTFORM-ENTITY-RESOLUTION-001: Resolve team_id based on selection
     // For home selections, use home_team_uuid; for away, use away_team_uuid
     let team_id: string | undefined;
+    let team_logo_url: string | undefined;
     if (selection.includes('home') || selection === 'over' || selection === 'under') {
       // For totals, no specific team - but for team-specific bets:
       if (selection.includes('home')) {
         team_id = (game as any).home_team_uuid || undefined;
+        team_logo_url = game.home_logo_url || undefined;
       } else if (selection.includes('away')) {
         team_id = (game as any).away_team_uuid || undefined;
+        team_logo_url = game.away_logo_url || undefined;
       }
     } else if (selection.includes('away')) {
       team_id = (game as any).away_team_uuid || undefined;
+      team_logo_url = game.away_logo_url || undefined;
     }
 
     // CLV-COVERAGE-SCALE-001: Explicitly set source:'api' and game_id for Games mode
@@ -146,6 +150,9 @@ export function GamePickForm({
       source: 'api', // CLV-COVERAGE-SCALE-001: Explicit source for game_start_time tracking
       // SMARTFORM-ENTITY-RESOLUTION-001: Include team_id for game-level bets
       ...(team_id && { team_id }),
+      ...(team_logo_url && { team_logo_url }),
+      ...(game.home_logo_url && { home_team_logo_url: game.home_logo_url }),
+      ...(game.away_logo_url && { away_team_logo_url: game.away_logo_url }),
     };
 
     console.log('[ENTITY-RESOLUTION] Adding game selection with entity IDs:', {

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Input } from './input';
+import { SportsAsset } from './sports-asset';
 
 interface SmartSearchItem {
   id: string;
@@ -11,6 +12,8 @@ interface SmartSearchItem {
   abbreviation?: string;
   position?: string;
   team?: string;
+  headshot_url?: string | null;
+  logo_url?: string | null;
 }
 
 interface SmartSearchProps {
@@ -24,16 +27,6 @@ interface SmartSearchProps {
   onClear?: () => void;
 }
 
-/**
- * V1.1 HARDENED: SmartSearch Component
- *
- * SPEC-TRUE ENDPOINTS ONLY:
- * - Teams: GET /api/catalog/teams?sport=&q=
- * - Players: GET /api/catalog/players?sport=&q=
- *
- * Per Section 2 - Canonical Data Source Contract:
- * "All data must originate from canonical DB tables"
- */
 export function SmartSearch({
   onSelect,
   placeholder = 'Start typing to search...',
@@ -52,7 +45,6 @@ export function SmartSearch({
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync external value
   useEffect(() => {
     setQuery(value);
   }, [value]);
@@ -66,10 +58,10 @@ export function SmartSearch({
         return;
       }
 
-      // Cancel any pending request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
 
@@ -80,13 +72,11 @@ export function SmartSearch({
         let searchResults: SmartSearchItem[] = [];
 
         if (searchType === 'teams') {
-          // V1.1 HARDENED: Use SPEC-TRUE /api/catalog/teams endpoint
           const params = new URLSearchParams();
           if (sport) params.set('sport', sport);
           params.set('q', searchQuery);
 
           const response = await fetch(`/api/catalog/teams?${params}`, { signal });
-
           if (signal.aborted) return;
 
           if (!response.ok) {
@@ -101,15 +91,14 @@ export function SmartSearch({
             type: 'team' as const,
             sport: team.sport,
             abbreviation: team.abbr || team.abbreviation,
+            logo_url: team.logo_url || null,
           }));
         } else if (searchType === 'players') {
-          // V1.1 HARDENED: Use SPEC-TRUE /api/catalog/players endpoint
           const params = new URLSearchParams();
           if (sport) params.set('sport', sport);
           params.set('q', searchQuery);
 
           const response = await fetch(`/api/catalog/players?${params}`, { signal });
-
           if (signal.aborted) return;
 
           if (!response.ok) {
@@ -119,33 +108,30 @@ export function SmartSearch({
 
           const data = await response.json();
           searchResults = (data.players || []).map((player: any) => ({
-            id: player.name, // Use name as ID (raw_props doesn't have player UUIDs)
-            name: player.name,
+            id: player.player_id || player.id || player.player_name,
+            name: player.player_name || player.name,
             type: 'player' as const,
-            sport: sport,
-            team: player.team,
+            sport: player.sport || sport,
+            position: player.position || undefined,
+            team: player.team_name || player.team,
+            headshot_url: player.headshot_url || null,
           }));
 
-          // V1.1 COMPLIANCE: Apply team filter for cascading (Section 3)
           if (teamFilter && teamFilter.length > 0) {
             searchResults = searchResults.filter(
               item =>
                 item.team &&
                 teamFilter.some(
-                  t =>
-                    item.team?.toLowerCase().includes(t.toLowerCase()) ||
-                    t.toLowerCase().includes(item.team?.toLowerCase() || '')
+                  teamName =>
+                    item.team?.toLowerCase().includes(teamName.toLowerCase()) ||
+                    teamName.toLowerCase().includes(item.team?.toLowerCase() || '')
                 )
             );
           }
-        } else if (searchType === 'games') {
-          // Games are fetched separately via games endpoint
-          // This search type may be deprecated in favor of game selection UI
-          searchResults = [];
         }
 
         if (!signal.aborted) {
-          setResults(searchResults.slice(0, 10)); // Limit to 10 results
+          setResults(searchResults.slice(0, 10));
           setIsOpen(searchResults.length > 0);
         }
       } catch (err) {
@@ -165,10 +151,9 @@ export function SmartSearch({
     [searchType, sport, teamFilter]
   );
 
-  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
-      performSearch(query);
+      void performSearch(query);
     }, 300);
 
     return () => {
@@ -211,13 +196,13 @@ export function SmartSearch({
           disabled={disabled}
           className="w-full pr-8"
         />
-        {query && !disabled && (
+        {query && !disabled ? (
           <button
             type="button"
             onClick={handleClear}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -226,13 +211,13 @@ export function SmartSearch({
               />
             </svg>
           </button>
-        )}
+        ) : null}
       </div>
 
-      {isLoading && query.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-b-md shadow-lg z-50 p-2">
-          <div className="flex items-center gap-2 text-gray-500 text-sm">
-            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+      {isLoading && query.length >= 2 ? (
+        <div className="absolute top-full left-0 right-0 z-50 rounded-b-md border border-gray-300 bg-white p-2 shadow-lg">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle
                 className="opacity-25"
                 cx="12"
@@ -250,53 +235,62 @@ export function SmartSearch({
             Searching...
           </div>
         </div>
-      )}
+      ) : null}
 
-      {error && query.length >= 2 && !isLoading && (
-        <div className="absolute top-full left-0 right-0 bg-red-50 border border-red-200 rounded-b-md shadow-lg z-50 p-2">
-          <div className="text-red-600 text-sm">{error}</div>
+      {error && query.length >= 2 && !isLoading ? (
+        <div className="absolute top-full left-0 right-0 z-50 rounded-b-md border border-red-200 bg-red-50 p-2 shadow-lg">
+          <div className="text-sm text-red-600">{error}</div>
         </div>
-      )}
+      ) : null}
 
-      {isOpen && results.length > 0 && !isLoading && (
-        <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-b-md shadow-lg z-50 max-h-60 overflow-y-auto">
+      {isOpen && results.length > 0 && !isLoading ? (
+        <div className="absolute top-full left-0 right-0 z-50 max-h-60 overflow-y-auto rounded-b-md border border-gray-300 bg-white shadow-lg">
           {results.map((item, index) => (
             <button
               key={`${item.id}-${index}`}
               onClick={() => handleSelect(item)}
-              className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0 focus:bg-blue-50 focus:outline-none"
+              className="w-full border-b border-gray-100 px-3 py-2 text-left hover:bg-gray-100 focus:bg-blue-50 focus:outline-none last:border-b-0"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-gray-900">{item.name}</div>
-                  <div className="text-sm text-gray-500">
-                    {item.abbreviation && `${item.abbreviation} • `}
-                    {item.position && `${item.position} • `}
-                    {item.team && `${item.team} • `}
-                    {item.sport}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <SportsAsset
+                    label={item.name}
+                    imageUrl={item.headshot_url || item.logo_url}
+                    type={item.type === 'player' ? 'player' : 'team'}
+                    shape={item.type === 'player' ? 'circle' : 'square'}
+                    className="h-9 w-9 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900">{item.name}</div>
+                    <div className="text-sm text-gray-500">
+                      {item.abbreviation ? `${item.abbreviation} • ` : ''}
+                      {item.position ? `${item.position} • ` : ''}
+                      {item.team ? `${item.team} • ` : ''}
+                      {item.sport}
+                    </div>
                   </div>
                 </div>
-                <div className="text-xs text-gray-400 capitalize">{item.type}</div>
+                <div className="text-xs capitalize text-gray-400">{item.type}</div>
               </div>
             </button>
           ))}
         </div>
-      )}
+      ) : null}
 
-      {isOpen && results.length === 0 && query.length >= 2 && !isLoading && !error && (
-        <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-b-md shadow-lg z-50 p-3">
-          <div className="text-gray-500 text-sm">No results found for "{query}"</div>
-          <div className="text-xs text-gray-400 mt-1">
+      {isOpen && results.length === 0 && query.length >= 2 && !isLoading && !error ? (
+        <div className="absolute top-full left-0 right-0 z-50 rounded-b-md border border-gray-300 bg-white p-3 shadow-lg">
+          <div className="text-sm text-gray-500">No results found for "{query}"</div>
+          <div className="mt-1 text-xs text-gray-400">
             Try a different spelling or use manual entry
           </div>
         </div>
-      )}
+      ) : null}
 
-      {query.length > 0 && query.length < 2 && (
-        <div className="absolute top-full left-0 right-0 bg-gray-50 border border-gray-200 rounded-b-md shadow-sm z-50 p-2">
-          <div className="text-gray-400 text-xs">Type at least 2 characters to search</div>
+      {query.length > 0 && query.length < 2 ? (
+        <div className="absolute top-full left-0 right-0 z-50 rounded-b-md border border-gray-200 bg-gray-50 p-2 shadow-sm">
+          <div className="text-xs text-gray-400">Type at least 2 characters to search</div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

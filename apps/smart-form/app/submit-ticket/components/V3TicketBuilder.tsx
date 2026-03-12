@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MatchupAssets, SportsAsset } from '@/components/ui/sports-asset';
 import {
   Select,
   SelectContent,
@@ -28,11 +29,16 @@ import { useToast } from '@/components/ui/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Plus, Trash2, Edit3, Check, AlertCircle, Copy, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiClient, type CatalogTeam } from '@/lib/api-client';
+import {
+  getParticipantImageUrl,
+  getParticipantTeamLogoUrl,
+  resolveTeamLogoUrl,
+} from '@/lib/sports-assets';
 
 import {
   fetchSports,
   fetchEvents,
-  searchEvents,
   fetchMarketTypes,
   fetchParticipants,
   fetchOffers,
@@ -110,6 +116,7 @@ export function V3TicketBuilder() {
   const [participants, setParticipants] = useState<V3Participant[]>([]);
   const [offers, setOffers] = useState<V3ProviderOffer[]>([]);
   const [providers, setProviders] = useState<{ code: string; display_name: string }[]>([]);
+  const [teamAssets, setTeamAssets] = useState<CatalogTeam[]>([]);
 
   // ========================================
   // FORM STATE
@@ -225,6 +232,7 @@ export function V3TicketBuilder() {
     if (!selectedSport) {
       setEvents([]);
       setFilteredEvents([]);
+      setTeamAssets([]);
       setErrors(prev => ({ ...prev, events: null }));
       return;
     }
@@ -260,6 +268,20 @@ export function V3TicketBuilder() {
     setMarketTypes([]);
     setParticipants([]);
     setOffers([]);
+  }, [selectedSport]);
+
+  useEffect(() => {
+    if (!selectedSport) {
+      setTeamAssets([]);
+      return;
+    }
+
+    const loadTeamAssets = async () => {
+      const teams = await apiClient.fetchCatalogTeams(selectedSport);
+      setTeamAssets(teams);
+    };
+
+    void loadTeamAssets();
   }, [selectedSport]);
 
   // ========================================
@@ -389,6 +411,24 @@ export function V3TicketBuilder() {
   // ========================================
   // COMPUTED: Can add leg?
   // ========================================
+  const selectedEventLogos = useMemo(
+    () => ({
+      away: selectedEvent
+        ? resolveTeamLogoUrl(teamAssets, {
+            teamId: selectedEvent.away_participant_id,
+            teamName: selectedEvent.away_team,
+          })
+        : null,
+      home: selectedEvent
+        ? resolveTeamLogoUrl(teamAssets, {
+            teamId: selectedEvent.home_participant_id,
+            teamName: selectedEvent.home_team,
+          })
+        : null,
+    }),
+    [selectedEvent, teamAssets]
+  );
+
   const canAddLeg = useMemo(() => {
     if (!selectedEvent || !selectedMarketType || !selection) return false;
 
@@ -435,7 +475,12 @@ export function V3TicketBuilder() {
     if (selectedParticipant) {
       newLeg.participant_id = selectedParticipant.participant_id;
       newLeg.participant_display = selectedParticipant.display_name || selectedParticipant.name;
+      newLeg.participant_image_url = getParticipantImageUrl(selectedParticipant);
+      newLeg.team_logo_url = getParticipantTeamLogoUrl(selectedParticipant, teamAssets);
     }
+
+    newLeg.home_team_logo_url = selectedEventLogos.home;
+    newLeg.away_team_logo_url = selectedEventLogos.away;
 
     if (selectedOffer && !isManualMode) {
       // Provider-first path
@@ -508,6 +553,8 @@ export function V3TicketBuilder() {
     manualProvider,
     overrideLine,
     overrideOdds,
+    selectedEventLogos,
+    teamAssets,
     toast,
   ]);
 
@@ -755,6 +802,20 @@ export function V3TicketBuilder() {
                           selectedEvent?.id === event.id && 'bg-blue-50 border-l-4 border-blue-500'
                         )}
                       >
+                        <div className="mb-2">
+                          <MatchupAssets
+                            awayLabel={event.away_team || 'Away'}
+                            homeLabel={event.home_team || 'Home'}
+                            awayImageUrl={resolveTeamLogoUrl(teamAssets, {
+                              teamId: event.away_participant_id,
+                              teamName: event.away_team,
+                            })}
+                            homeImageUrl={resolveTeamLogoUrl(teamAssets, {
+                              teamId: event.home_participant_id,
+                              teamName: event.home_team,
+                            })}
+                          />
+                        </div>
                         <div className="font-medium text-sm">{formatEventDisplay(event)}</div>
                         <div className="text-xs text-slate-500">
                           {formatScheduledAt(event.scheduled_at)} • {event.league || event.sport}
@@ -854,15 +915,49 @@ export function V3TicketBuilder() {
                     <SelectContent>
                       {participants.map(p => (
                         <SelectItem key={p.participant_id} value={p.participant_id}>
-                          {p.display_name || p.name}
-                          {p.team_name && (
-                            <span className="text-xs text-slate-400 ml-2">({p.team_name})</span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <SportsAsset
+                              label={p.display_name || p.name}
+                              imageUrl={getParticipantImageUrl(p)}
+                              type={p.participant_type === 'player' ? 'player' : 'team'}
+                              shape={p.participant_type === 'player' ? 'circle' : 'square'}
+                              className="h-7 w-7 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <div className="truncate">{p.display_name || p.name}</div>
+                              {p.team_name ? (
+                                <div className="truncate text-xs text-slate-400">{p.team_name}</div>
+                              ) : null}
+                            </div>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 )}
+                {selectedParticipant ? (
+                  <div className="mt-3 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <SportsAsset
+                      label={selectedParticipant.display_name || selectedParticipant.name}
+                      imageUrl={getParticipantImageUrl(selectedParticipant)}
+                      type={selectedParticipant.participant_type === 'player' ? 'player' : 'team'}
+                      shape={
+                        selectedParticipant.participant_type === 'player' ? 'circle' : 'square'
+                      }
+                      className="h-9 w-9 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-slate-900">
+                        {selectedParticipant.display_name || selectedParticipant.name}
+                      </div>
+                      {selectedParticipant.team_name ? (
+                        <div className="truncate text-xs text-slate-500">
+                          {selectedParticipant.team_name}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
               </Card>
             )}
 
@@ -1191,33 +1286,59 @@ export function V3TicketBuilder() {
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {ticket.legs.map((leg, idx) => (
+                      {ticket.legs.map(leg => (
                         <div key={leg.id} className="p-2 border rounded text-sm bg-slate-50">
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">
-                                {leg.participant_display || leg.event_display}
-                              </div>
-                              <div className="text-xs text-slate-500">
-                                {leg.market_display} • {leg.selection.toUpperCase()}
-                              </div>
-                              <div className="text-xs text-slate-500 flex gap-2">
-                                {leg.line !== undefined && <span>Line: {leg.line}</span>}
-                                {leg.odds !== undefined && (
-                                  <span>Odds: {formatOdds(leg.odds)}</span>
+                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                              {leg.participant_image_url ? (
+                                <SportsAsset
+                                  label={leg.participant_display || leg.event_display}
+                                  imageUrl={leg.participant_image_url}
+                                  type="player"
+                                  className="h-9 w-9 shrink-0"
+                                />
+                              ) : leg.team_logo_url ? (
+                                <SportsAsset
+                                  label={leg.participant_display || leg.event_display}
+                                  imageUrl={leg.team_logo_url}
+                                  type="team"
+                                  shape="square"
+                                  className="h-9 w-9 shrink-0"
+                                />
+                              ) : leg.home_team_logo_url || leg.away_team_logo_url ? (
+                                <MatchupAssets
+                                  awayLabel={leg.event_display.split(' @ ')[0] || 'Away'}
+                                  homeLabel={leg.event_display.split(' @ ')[1] || 'Home'}
+                                  awayImageUrl={leg.away_team_logo_url}
+                                  homeImageUrl={leg.home_team_logo_url}
+                                  assetClassName="h-8 w-8"
+                                />
+                              ) : null}
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate">
+                                  {leg.participant_display || leg.event_display}
+                                </div>
+                                <div className="text-xs text-slate-500">
+                                  {leg.market_display} • {leg.selection.toUpperCase()}
+                                </div>
+                                <div className="text-xs text-slate-500 flex gap-2">
+                                  {leg.line !== undefined && <span>Line: {leg.line}</span>}
+                                  {leg.odds !== undefined && (
+                                    <span>Odds: {formatOdds(leg.odds)}</span>
+                                  )}
+                                  <span>{leg.provider}</span>
+                                </div>
+                                {leg.override && (
+                                  <Badge variant="secondary" className="text-xs mt-1">
+                                    Override
+                                  </Badge>
                                 )}
-                                <span>{leg.provider}</span>
+                                {leg.isManual && (
+                                  <Badge variant="outline" className="text-xs mt-1">
+                                    Manual
+                                  </Badge>
+                                )}
                               </div>
-                              {leg.override && (
-                                <Badge variant="secondary" className="text-xs mt-1">
-                                  Override
-                                </Badge>
-                              )}
-                              {leg.isManual && (
-                                <Badge variant="outline" className="text-xs mt-1">
-                                  Manual
-                                </Badge>
-                              )}
                             </div>
                             <Button
                               variant="ghost"

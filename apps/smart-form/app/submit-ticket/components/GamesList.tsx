@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { MatchupAssets } from '@/components/ui/sports-asset';
+import { apiClient } from '@/lib/api-client';
+import { resolveTeamLogoUrl } from '@/lib/sports-assets';
 import { Sport } from '../types';
 
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical GamesRow
@@ -23,6 +26,8 @@ interface UIGame {
   // SMARTFORM-ENTITY-RESOLUTION-001: Team UUIDs for FanDuel-style entity scoping
   home_team_uuid?: string | null;
   away_team_uuid?: string | null;
+  home_logo_url?: string | null;
+  away_logo_url?: string | null;
 }
 
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Legacy alias for backward compatibility
@@ -96,8 +101,10 @@ export function GamesList({ sport, gameDate, selectedGameId, onSelectGame }: Gam
       setError(null);
 
       try {
-        const { apiClient } = await import('@/lib/api-client');
-        const realGames = await apiClient.fetchGames(sport);
+        const [realGames, teams] = await Promise.all([
+          apiClient.fetchGames(sport),
+          apiClient.fetchCatalogTeams(sport),
+        ]);
 
         if (realGames && realGames.length > 0) {
           const formatted = realGames.map((game: any, index: number) => ({
@@ -128,6 +135,14 @@ export function GamesList({ sport, gameDate, selectedGameId, onSelectGame }: Gam
             // SMARTFORM-ENTITY-RESOLUTION-001: Team UUIDs for FanDuel-style entity scoping
             home_team_uuid: game.home_team_uuid || null,
             away_team_uuid: game.away_team_uuid || null,
+            home_logo_url: resolveTeamLogoUrl(teams, {
+              teamId: game.home_team_uuid || null,
+              teamName: game.home_team_name || game.homeTeam || null,
+            }),
+            away_logo_url: resolveTeamLogoUrl(teams, {
+              teamId: game.away_team_uuid || null,
+              teamName: game.away_team_name || game.awayTeam || null,
+            }),
           }));
           setGames(formatted);
         } else {
@@ -193,17 +208,26 @@ export function GamesList({ sport, gameDate, selectedGameId, onSelectGame }: Gam
             onClick={() => onSelectGame(game)}
           >
             <div className="flex justify-between items-start">
-              <div>
-                <div className="font-medium text-sm text-foreground">
-                  {game.awayTeam} @ {game.homeTeam}
-                </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                  <LocalGameTime utcTimestamp={game.utc_timestamp} fallbackTime={game.time} />
-                  {game.is_live && (
-                    <Badge variant="destructive" className="text-xs px-1.5 py-0">
-                      LIVE
-                    </Badge>
-                  )}
+              <div className="flex min-w-0 items-start gap-3">
+                <MatchupAssets
+                  awayLabel={game.awayTeam}
+                  homeLabel={game.homeTeam}
+                  awayImageUrl={game.away_logo_url}
+                  homeImageUrl={game.home_logo_url}
+                  className="pt-0.5"
+                />
+                <div className="min-w-0">
+                  <div className="font-medium text-sm text-foreground">
+                    {game.awayTeam} @ {game.homeTeam}
+                  </div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                    <LocalGameTime utcTimestamp={game.utc_timestamp} fallbackTime={game.time} />
+                    {game.is_live && (
+                      <Badge variant="destructive" className="text-xs px-1.5 py-0">
+                        LIVE
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
               <Badge variant="outline" className="text-xs">

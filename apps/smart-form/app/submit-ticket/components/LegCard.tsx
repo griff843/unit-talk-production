@@ -20,6 +20,7 @@ import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { SmartSearch } from '@/components/ui/smart-search';
+import { SportsAsset } from '@/components/ui/sports-asset';
 
 interface LegCardProps {
   leg: TicketLeg;
@@ -41,6 +42,7 @@ interface UITeam {
   sport: string;
   abbr?: string;
   team_uuid?: string;
+  logo_url?: string | null;
 }
 
 /**
@@ -85,6 +87,8 @@ export function LegCard({ leg, onRemove, onUpdate, legIndex }: LegCardProps) {
   const gameTeamNames = selectedGame
     ? [selectedGame.home_team, selectedGame.away_team].filter(Boolean)
     : [];
+  const selectedTeamLogo =
+    teams.find(team => team.name === leg.team || team.team_uuid === leg.team)?.logo_url || null;
 
   const handleChange = useCallback(
     (field: keyof TicketLeg | 'manual_home_team' | 'manual_away_team' | 'source', value: any) => {
@@ -543,6 +547,13 @@ export function LegCard({ leg, onRemove, onUpdate, legIndex }: LegCardProps) {
                     Team <span className="text-xs text-gray-400">(auto-filled)</span>
                   </label>
                   <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-md border border-gray-200">
+                    <SportsAsset
+                      label={leg.team}
+                      imageUrl={selectedTeamLogo}
+                      type="team"
+                      shape="square"
+                      className="h-7 w-7 shrink-0"
+                    />
                     <span className="text-gray-700">{leg.team}</span>
                     <span className="text-xs text-gray-400">🔒</span>
                   </div>
