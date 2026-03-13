@@ -1,15 +1,15 @@
 # PR8: Auto-Remediation Playbooks
 
-**Version**: 1.0.0
-**Status**: IMPLEMENTED
-**Date**: 2026-01-19
-**Author**: Platform Engineering Team
+**Version**: 1.0.0 **Status**: IMPLEMENTED **Date**: 2026-01-19 **Author**:
+Platform Engineering Team
 
 ---
 
 ## Overview
 
-PR8 implements an automated remediation system that responds to SLO incidents with pre-defined playbooks. The system follows a **DRY RUN ONLY by default** approach with optional approval workflows for live execution.
+PR8 implements an automated remediation system that responds to SLO incidents
+with pre-defined playbooks. The system follows a **DRY RUN ONLY by default**
+approach with optional approval workflows for live execution.
 
 ### Key Principles
 
@@ -60,24 +60,26 @@ PR8 implements an automated remediation system that responds to SLO incidents wi
 
 ## Phase 0: Control Knobs Discovery
 
-Before implementing any playbooks, we conducted a comprehensive discovery of all control knobs in the system:
+Before implementing any playbooks, we conducted a comprehensive discovery of all
+control knobs in the system:
 
 ### Discovery Results
 
-| Knob ID | Type | Location | Executable |
-|---------|------|----------|------------|
-| AUTOPILOT_MODE | EXECUTABLE | autopilot_mode_config | ✅ |
-| AUTOPILOT_GLOBAL_FREEZE | EXECUTABLE | autopilot_policy_config | ✅ |
-| AUTOPILOT_AGENT_FREEZE | EXECUTABLE | autopilot_policy_config | ✅ |
-| AUTOPILOT_FREEZE_STATE | EXECUTABLE | runtime_config/autopilot_state.json | ✅ |
-| SYSTEM_FREEZE | EXECUTABLE | system_config | ✅ |
-| SAFE_MODE | EXECUTABLE | system_config | ✅ |
-| WORKFLOW_STATUS | EXECUTABLE | workflow_registry | ✅ |
-| AGENT_ENABLED | EXECUTABLE | agent_registry | ✅ |
-| API_QUOTA_THROTTLE | RECOMMENDATION_ONLY | In-memory | ❌ |
-| SLO_EVALUATION_ENABLED | RECOMMENDATION_ONLY | Requires verification | ❌ |
+| Knob ID                 | Type                | Location                            | Executable |
+| ----------------------- | ------------------- | ----------------------------------- | ---------- |
+| AUTOPILOT_MODE          | EXECUTABLE          | autopilot_mode_config               | ✅         |
+| AUTOPILOT_GLOBAL_FREEZE | EXECUTABLE          | autopilot_policy_config             | ✅         |
+| AUTOPILOT_AGENT_FREEZE  | EXECUTABLE          | autopilot_policy_config             | ✅         |
+| AUTOPILOT_FREEZE_STATE  | EXECUTABLE          | runtime_config/autopilot_state.json | ✅         |
+| SYSTEM_FREEZE           | EXECUTABLE          | system_config                       | ✅         |
+| SAFE_MODE               | EXECUTABLE          | system_config                       | ✅         |
+| WORKFLOW_STATUS         | EXECUTABLE          | workflow_registry                   | ✅         |
+| AGENT_ENABLED           | EXECUTABLE          | agent_registry                      | ✅         |
+| API_QUOTA_THROTTLE      | RECOMMENDATION_ONLY | In-memory                           | ❌         |
+| SLO_EVALUATION_ENABLED  | RECOMMENDATION_ONLY | Requires verification               | ❌         |
 
-See [CONTROL_KNOBS_INVENTORY.md](./CONTROL_KNOBS_INVENTORY.md) for complete inventory.
+See [CONTROL_KNOBS_INVENTORY.md](./CONTROL_KNOBS_INVENTORY.md) for complete
+inventory.
 
 ---
 
@@ -85,26 +87,29 @@ See [CONTROL_KNOBS_INVENTORY.md](./CONTROL_KNOBS_INVENTORY.md) for complete inve
 
 ### Summary
 
-| Playbook | Execution Type | Required Knobs | Description |
-|----------|----------------|----------------|-------------|
-| MV_REFRESH_LAG | RECOMMENDATION_ONLY | SLO_EVALUATION_ENABLED | Manual MV refresh guidance |
-| PIPELINE_LAG_THROTTLE | EXECUTABLE | AUTOPILOT_MODE | Throttle autopilot on lag |
-| CREDIT_BURN_THROTTLE | RECOMMENDATION_ONLY | API_QUOTA_THROTTLE | API usage reduction guidance |
-| DISCORD_BACKLOG_NUDGE | EXECUTABLE | DISCORD_WEBHOOK | Send ops notification |
-| SLO_EVALUATOR_STUCK | EXECUTABLE | WORKFLOW_STATUS, AGENT_ENABLED | Restart stuck evaluator |
+| Playbook              | Execution Type      | Required Knobs                 | Description                  |
+| --------------------- | ------------------- | ------------------------------ | ---------------------------- |
+| MV_REFRESH_LAG        | RECOMMENDATION_ONLY | SLO_EVALUATION_ENABLED         | Manual MV refresh guidance   |
+| PIPELINE_LAG_THROTTLE | EXECUTABLE          | AUTOPILOT_MODE                 | Throttle autopilot on lag    |
+| CREDIT_BURN_THROTTLE  | RECOMMENDATION_ONLY | API_QUOTA_THROTTLE             | API usage reduction guidance |
+| DISCORD_BACKLOG_NUDGE | EXECUTABLE          | DISCORD_WEBHOOK                | Send ops notification        |
+| SLO_EVALUATOR_STUCK   | EXECUTABLE          | WORKFLOW_STATUS, AGENT_ENABLED | Restart stuck evaluator      |
 
 ### 1. MV_REFRESH_LAG (Recommendation Only)
 
 **Trigger**: Materialized view staleness SLO breach
 
-**Why Recommendation Only**: No automated MV refresh toggle exists in the system.
+**Why Recommendation Only**: No automated MV refresh toggle exists in the
+system.
 
 **Actions**:
+
 - Generate detailed manual remediation steps
 - Provide SQL commands for MV refresh
 - Log recommendation for audit
 
 **Example Recommendation**:
+
 ```sql
 -- Check stale views
 SELECT schemaname, matviewname FROM pg_matviews;
@@ -120,11 +125,13 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY <view_name>;
 **Required Knob**: AUTOPILOT_MODE
 
 **Actions**:
+
 1. Check current autopilot mode
 2. If not already throttled, set mode to `log_only`
 3. Record previous mode for rollback
 
 **Rollback**:
+
 ```bash
 # Via API
 POST /api/admin/autopilot/mode
@@ -135,9 +142,11 @@ Body: { "mode": "prod", "confirm": true }
 
 **Trigger**: API credit burn rate SLO breach
 
-**Why Recommendation Only**: API quota throttling is in-memory only (APIQuotaCoordinator).
+**Why Recommendation Only**: API quota throttling is in-memory only
+(APIQuotaCoordinator).
 
 **Actions**:
+
 - Identify high-volume API callers
 - Recommend rate reduction strategies
 - Suggest provider contact if needed
@@ -149,6 +158,7 @@ Body: { "mode": "prod", "confirm": true }
 **Required Knob**: DISCORD_WEBHOOK
 
 **Actions**:
+
 1. Build Discord embed with incident details
 2. Send webhook notification to ops channel
 3. Log notification for audit
@@ -160,6 +170,7 @@ Body: { "mode": "prod", "confirm": true }
 **Required Knobs**: WORKFLOW_STATUS, AGENT_ENABLED
 
 **Actions**:
+
 1. Check workflow registry for stale SLO workflows
 2. Mark stale workflows as terminated
 3. Re-enable any disabled SLO agents
@@ -222,13 +233,13 @@ ops.remediation_config (
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REMEDIATION_ENABLED` | `false` | Master enable flag |
-| `REMEDIATION_DRY_RUN_ONLY` | `true` | Force all executions to dry run |
-| `REMEDIATION_REQUIRE_APPROVAL` | `true` | Require approval for live execution |
-| `REMEDIATION_MAX_PER_HOUR` | `10` | Global rate limit |
-| `REMEDIATION_COOLDOWN_SECONDS` | `60` | Cooldown between runs |
+| Variable                       | Default | Description                         |
+| ------------------------------ | ------- | ----------------------------------- |
+| `REMEDIATION_ENABLED`          | `false` | Master enable flag                  |
+| `REMEDIATION_DRY_RUN_ONLY`     | `true`  | Force all executions to dry run     |
+| `REMEDIATION_REQUIRE_APPROVAL` | `true`  | Require approval for live execution |
+| `REMEDIATION_MAX_PER_HOUR`     | `10`    | Global rate limit                   |
+| `REMEDIATION_COOLDOWN_SECONDS` | `60`    | Cooldown between runs               |
 
 ### Feature Flags
 
@@ -254,7 +265,9 @@ REMEDIATION_REQUIRE_APPROVAL=false
 Fetch remediation dashboard data.
 
 **Query Parameters**:
-- `view`: `dashboard` | `playbooks` | `executions` | `pending` | `stats` | `config`
+
+- `view`: `dashboard` | `playbooks` | `executions` | `pending` | `stats` |
+  `config`
 - `playbook_id`: Filter by playbook
 - `status`: Filter by status
 - `limit`: Max results (default: 50)
@@ -265,6 +278,7 @@ Fetch remediation dashboard data.
 Trigger or approve remediation.
 
 **Request Body**:
+
 ```json
 {
   "action": "trigger" | "approve",
@@ -280,6 +294,7 @@ Trigger or approve remediation.
 Update playbook configuration.
 
 **Request Body**:
+
 ```json
 {
   "playbook_id": "PIPELINE_LAG_THROTTLE",
@@ -329,6 +344,7 @@ await worker.start();
 ```
 
 **Configuration**:
+
 ```bash
 OPS_REMEDIATION_WORKER_ENABLED=true
 OPS_REMEDIATION_POLL_INTERVAL_MS=60000
@@ -337,13 +353,14 @@ OPS_REMEDIATION_MAX_PER_HOUR=10
 ```
 
 **SLO to Playbook Mapping**:
+
 ```typescript
 const SLO_PLAYBOOK_MAPPING = {
-  'mv_freshness': 'MV_REFRESH_LAG',
-  'pipeline_latency': 'PIPELINE_LAG_THROTTLE',
-  'api_credit_burn': 'CREDIT_BURN_THROTTLE',
-  'discord_notification_backlog': 'DISCORD_BACKLOG_NUDGE',
-  'slo_evaluator_lag': 'SLO_EVALUATOR_STUCK',
+  mv_freshness: 'MV_REFRESH_LAG',
+  pipeline_latency: 'PIPELINE_LAG_THROTTLE',
+  api_credit_burn: 'CREDIT_BURN_THROTTLE',
+  discord_notification_backlog: 'DISCORD_BACKLOG_NUDGE',
+  slo_evaluator_lag: 'SLO_EVALUATOR_STUCK',
 };
 ```
 
@@ -383,7 +400,7 @@ Playbooks only execute if required knobs exist:
 ```typescript
 const canExecute = await knobResolver.canExecutePlaybook([
   'AUTOPILOT_MODE',
-  'SYSTEM_FREEZE'
+  'SYSTEM_FREEZE',
 ]);
 // Returns { canExecute: boolean, missingKnobs: [], nonExecutableKnobs: [] }
 ```
@@ -424,12 +441,14 @@ npm run test:integration -- --grep "remediation"
 ### Manual Testing
 
 1. Enable remediation in dry run mode:
+
    ```bash
    REMEDIATION_ENABLED=true
    REMEDIATION_DRY_RUN_ONLY=true
    ```
 
 2. Trigger a test playbook:
+
    ```bash
    curl -X POST /api/admin/remediation \
      -H "Content-Type: application/json" \
@@ -471,11 +490,12 @@ console.log(execution.rollback_steps);
 
 ## Related Documentation
 
-- [CONTROL_KNOBS_INVENTORY.md](./CONTROL_KNOBS_INVENTORY.md) - Complete knob inventory
-- [AUTOPILOT_FREEZE_MATRIX.md](./AUTOPILOT_FREEZE_MATRIX.md) - Freeze state details
+- [CONTROL_KNOBS_INVENTORY.md](./CONTROL_KNOBS_INVENTORY.md) - Complete knob
+  inventory
+- [AUTOPILOT_FREEZE_MATRIX.md](./AUTOPILOT_FREEZE_MATRIX.md) - Freeze state
+  details
 - [PR7_INCIDENT_ROUTING.md](./PR7_INCIDENT_ROUTING.md) - Incident routing system
 
 ---
 
-**Last Updated**: 2026-01-19
-**Next Review**: After production deployment
+**Last Updated**: 2026-01-19 **Next Review**: After production deployment

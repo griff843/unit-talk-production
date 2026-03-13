@@ -47,46 +47,58 @@ Documentation Files**: ~4,271
 
 ---
 
-## SUPERSEDED (Replaced by newer documents — keep for reference only)
+## SUPERSEDED (Replaced by newer documents — archived by SPRINT-DOC-CANONICALIZATION-PHASE-A, 2026-03-13)
 
-| Document                                      | Replaced By                                                              | Location                     |
-| --------------------------------------------- | ------------------------------------------------------------------------ | ---------------------------- |
-| UNIT_TALK_MASTER_SYSTEM_BLUEPRINT_v2.0.md     | System current/target docs + invariants                                  | `docs/blueprints/`           |
-| PRODUCTION_DOMINANCE_ROADMAP_v2.0.md          | INTELLIGENCE_PIPELINE_SPRINT_ORDER + ARCHITECTURE_MIGRATION_SPRINT_ORDER | `docs/blueprints/`           |
-| PHASE_2A_INTELLIGENCE_SUPERIORITY_AUDIT_v1.md | Gap analysis + migration sprint order                                    | `docs/blueprints/`           |
-| database-schema-v3.md                         | CANONICAL_SCHEMA_V2.md + supabase migrations                             | `docs/database-schema-v3.md` |
-| DISCORD_DELIVERY_AND_FANOUT_PLAN.md           | Discord distribution contracts                                           | `docs/architecture/`         |
-| V3_ELITE_ROADMAP.md                           | Sprint orders (locked)                                                   | `docs/architecture/`         |
-| PIPELINE_CONTRACT_CLEANROOM_V3.md             | Pick lifecycle contract + state machine                                  | `docs/architecture/`         |
-| STAT_PROJECTION_ARCHITECTURE_v2.md            | Completed via SPRINT-032/032A                                            | `docs/architecture/`         |
-| 15+ blueprint spec files                      | Completed or superseded by sprints                                       | `docs/blueprints/`           |
-| SMARTFORM_DATA_CONTRACT_V1.md                 | SMARTFORM_DATA_CONTRACT_V2.md                                            | `docs/contracts/`            |
-| Architecture \_archive/ (25 files)            | Current v1.0 contracts                                                   | `architecture/_archive/`     |
+| Document                                      | Replaced By                                                              | Archive Location                             |
+| --------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------- |
+| UNIT_TALK_MASTER_SYSTEM_BLUEPRINT_v2.0.md     | System current/target docs + invariants                                  | `docs/archive/blueprints/`                   |
+| PRODUCTION_DOMINANCE_ROADMAP_v2.0.md          | INTELLIGENCE_PIPELINE_SPRINT_ORDER + ARCHITECTURE_MIGRATION_SPRINT_ORDER | `docs/archive/blueprints/`                   |
+| PHASE_2A_INTELLIGENCE_SUPERIORITY_AUDIT_v1.md | Gap analysis + migration sprint order                                    | `docs/archive/blueprints/`                   |
+| database-schema-v3.md                         | CANONICAL_SCHEMA_V2.md + supabase migrations                             | `docs/database-schema-v3.md` (not yet moved) |
+| DISCORD_DELIVERY_AND_FANOUT_PLAN.md           | Discord distribution contracts                                           | `docs/archive/architecture-superseded/`      |
+| V3_ELITE_ROADMAP.md                           | Sprint orders (locked)                                                   | `docs/archive/architecture-superseded/`      |
+| PIPELINE_CONTRACT_CLEANROOM_V3.md             | Pick lifecycle contract + state machine                                  | `docs/archive/architecture-superseded/`      |
+| STAT_PROJECTION_ARCHITECTURE_v2.md            | Completed via SPRINT-032/032A                                            | `docs/archive/architecture-superseded/`      |
+| 18 blueprint spec files                       | Completed or superseded by sprints                                       | `docs/archive/blueprints/`                   |
+| SMARTFORM_DATA_CONTRACT_V1.md                 | SMARTFORM_DATA_CONTRACT_V2.md                                            | `docs/archive/contract-stubs/`               |
+| Contract stub files (5)                       | Active contract versions                                                 | `docs/archive/contract-stubs/`               |
+| Audit evidence files (7)                      | Sprint proof artifacts (belong in out/)                                  | `docs/archive/audit-evidence/`               |
+| PR ops artifacts (PR7, PR8, PR9)              | One-time PR records                                                      | `docs/archive/pr-artifacts/`                 |
+| Architecture operational v1.0 contracts (8)   | Current v1.1 versions in architecture/contracts/operational/             | `architecture/_archive/`                     |
 
 ---
 
 ## ARCHIVED (Historical — no longer representing current system)
 
-| Category                | Count | Location                           |
-| ----------------------- | ----- | ---------------------------------- |
-| Deprecated systems docs | 23    | `docs/archive/deprecated-systems/` |
-| Historical plans        | 23    | `docs/archive/historical-plans/`   |
-| Analysis documents      | 4     | `docs/archive/analysis/`           |
-| Session reports         | 60+   | `docs/archive/session-reports/`    |
-| Sprint artifacts        | 13    | `docs/archive/sprint-artifacts/`   |
-| Sprint proof bundles    | 1000+ | `out/sprints/`                     |
-| Huly OS tooling         | 10+   | `tools/huly-os/` (deprecated)      |
+| Category                                  | Count | Location                                |
+| ----------------------------------------- | ----- | --------------------------------------- |
+| Deprecated systems docs                   | 23    | `docs/archive/deprecated-systems/`      |
+| Historical plans                          | 23    | `docs/archive/historical-plans/`        |
+| Analysis documents                        | 4     | `docs/archive/analysis/`                |
+| Session reports                           | 60+   | `docs/archive/session-reports/`         |
+| Sprint artifacts                          | 13    | `docs/archive/sprint-artifacts/`        |
+| Blueprint specs (moved 2026-03-13)        | 21    | `docs/archive/blueprints/`              |
+| Superseded architecture docs (2026-03-13) | 7     | `docs/archive/architecture-superseded/` |
+| Contract stubs + V1 contract (2026-03-13) | 6     | `docs/archive/contract-stubs/`          |
+| Audit evidence files (2026-03-13)         | 7     | `docs/archive/audit-evidence/`          |
+| PR-specific ops artifacts (2026-03-13)    | 3     | `docs/archive/pr-artifacts/`            |
+| Completed system plans (2026-03-13)       | 2     | `docs/archive/system-completed/`        |
+| Duplicate status file (2026-03-13)        | 1     | `docs/archive/duplicates/`              |
+| Sprint proof bundles                      | 1000+ | `out/sprints/`                          |
+| Huly OS tooling                           | 10+   | `tools/huly-os/` (deprecated)           |
 
 ---
 
 ## CLASSIFICATION NOTES
 
-1. **Blueprint bloat**: 20+ blueprint/spec documents in `docs/blueprints/` are
-   largely superseded by the locked sprint orders and system docs. They should
-   be moved to archive.
+1. **Blueprint bloat**: 21 blueprint/spec documents in `docs/blueprints/` were
+   superseded by the locked sprint orders and system docs. **Archived to
+   `docs/archive/blueprints/` by SPRINT-DOC-CANONICALIZATION-PHASE-A
+   (2026-03-13).**
 
-2. **Stub documents**: 5 `*_STUB.md` files in `docs/contracts/` are
-   placeholder/template versions. Not canonical.
+2. **Stub documents**: 5 `*_STUB.md` files in `docs/contracts/` were
+   placeholder/template versions. **Archived to `docs/archive/contract-stubs/`
+   by SPRINT-DOC-CANONICALIZATION-PHASE-A (2026-03-13).**
 
 3. **Governance closeouts** (23 files in `governance/closeouts/`): These are
    sprint completion records, not governing documents. Classification:
