@@ -266,6 +266,11 @@ pgrst_reload_result.json
 temp_token.txt
 nul
 
+# Canonical status docs are repo truth and must remain tracked.
+# This overrides broad artifact patterns above such as PHASE*.md and *_REPORT*.md.
+!docs/status/
+!docs/status/**
+
 # Root-level temp scripts and SQL (keep scripts/ and supabase/migrations/)
 /*.ps1
 /*.sql
@@ -292,6 +297,7 @@ packages/shared-utils/src/*.d.ts.map
 apps/*/type-check-output.txt
 apps/*/smoke-*.txt
 apps/command-center/tests/screenshots/
+apps/command-center/playwright-verification-report/
 
 # Claude Code configuration
 # =========================

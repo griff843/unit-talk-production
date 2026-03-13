@@ -180,6 +180,71 @@ These capabilities build on the data foundation established in earlier phases.
 
 ---
 
+# 8A. Cross-Cutting Capability — Verification & Simulation
+
+The Verification & Simulation Control Plane is a cross-cutting enabling
+capability that spans all phases.
+
+It is not assigned to a single phase. It runs alongside platform development to
+provide a safety substrate for evolution.
+
+## Purpose
+
+- prove pipeline behavior deterministically without live provider uptime
+- support regression detection as models and rules evolve
+- decouple verification from wall-clock time
+- enable safe deployment of new models, scoring rules, and autopilot logic
+
+## Phased Rollout
+
+| Phase | Capability                  | Status      | Significance                                          |
+| ----- | --------------------------- | ----------- | ----------------------------------------------------- |
+| R1    | Mode-safe adapter layer     | COMPLETE    | All pipeline modes share one code path                |
+| R2    | Deterministic replay engine | COMPLETE    | Pipeline behavior verifiable from event journal       |
+| R3    | Shadow mode                 | IN PROGRESS | Production runs verified in parallel, no side effects |
+| R4    | Fault injection             | IN PROGRESS | Resilience verified under controlled failures         |
+| R5    | Execution simulation        | DEFERRED    | Synthetic strategy evaluation without production data |
+
+## Relationship to Other Phases
+
+- **Phase 4 (Operational Tools)**: Shadow mode enables safe canary promotion of
+  operational workflows.
+- **Phase 5 (Analytics)**: Replay infrastructure is the evaluation substrate for
+  walk-forward evaluation of scoring models.
+- **Phase 6 (Optimization)**: Fault injection validates that optimizations do
+  not degrade resilience.
+- **Phase 7 (Advanced Intelligence)**: Execution simulation enables strategy
+  evaluation without live market risk.
+
+## What Replay Readiness Means
+
+Replay readiness (R2 complete) is a meaningful milestone. It means:
+
+- all production lifecycle events are recordable
+- the pipeline can be replayed deterministically from a JSONL event journal
+- SHA-256 hash comparison confirms behavioral consistency across runs
+- proof bundles are generated automatically for every replay run
+
+Replay readiness enables regression testing of scoring, promotion, and
+settlement logic without requiring production data or live provider connections.
+
+## Shadow and Fault Injection as Prerequisites
+
+Before making strong claims about autopilot correctness or model deployment
+safety, the following must be in place:
+
+- **Shadow mode** (R3): The pipeline must demonstrate it can run in parallel
+  with production without causing side effects. This is the prerequisite for
+  canary promotion claims.
+- **Fault injection** (R4): The pipeline must demonstrate correct behavior under
+  controlled failure scenarios. This validates freeze rules, fail-closed
+  defaults, and error handling.
+
+These are not optional optimizations. They are governance prerequisites for
+elevating autopilot from LOG_ONLY or CANARY to PROD.
+
+---
+
 # 9. Phase Dependencies
 
 The phases must occur in sequence.
