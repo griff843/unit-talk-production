@@ -47,15 +47,15 @@ steps with no ambiguity about _how_ each step should be implemented.
 
 ## Opus — Use When
 
-| Condition                                                     | Example Sprint                          |
-| ------------------------------------------------------------- | --------------------------------------- |
-| Architecture decision affects 3+ services                     | SPRINT-MULTI-BOOK-CONSENSUS             |
-| New contract design (API, lifecycle, schema shape)            | Layer 1/Ph 2 scoring work (Data Truth)  |
-| Cross-system reasoning (provider → scoring → promotion chain) | multi-book consensus                    |
-| Audit/truth sprint (read + reconcile across large codebase)   | SPRINT-SYSTEM-TRUTH-AUDIT               |
-| Sprint has ambiguous requirements needing judgment calls      | any open-ended design                   |
-| Sprint involves risk-engine logic or probability math         | Layer 2/Ph 6-7 (Operator + Reliability) |
-| The operator explicitly requests maximum quality              | use `--model opus`                      |
+| Condition                                                     | Example Sprint              |
+| ------------------------------------------------------------- | --------------------------- |
+| Architecture decision affects 3+ services                     | SPRINT-MULTI-BOOK-CONSENSUS |
+| New contract design (API, lifecycle, schema shape)            | any Phase 2 scoring work    |
+| Cross-system reasoning (provider → scoring → promotion chain) | multi-book consensus        |
+| Audit/truth sprint (read + reconcile across large codebase)   | SPRINT-SYSTEM-TRUTH-AUDIT   |
+| Sprint has ambiguous requirements needing judgment calls      | any open-ended design       |
+| Sprint involves risk-engine logic or probability math         | Phase 3 sprints             |
+| The operator explicitly requests maximum quality              | use `--model opus`          |
 
 **Signal**: The task list has items like "design X", "evaluate Y", "decide how
 to handle Z", or the sprint spans multiple packages without a clear mechanical

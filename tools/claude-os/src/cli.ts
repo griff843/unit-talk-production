@@ -16,28 +16,57 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+import {
+  loadAuthorityLocks,
+  saveAuthorityLocks,
+  checkConflict,
+  lockSurfaces,
+  unlockSurfaces,
+  getAllActiveLocks,
+  getSprintLocks,
+} from './authority-lock.js';
 import { resolveExecutionLevel } from './autonomy-policy.js';
 import { assembleBundle, loadVerificationResultFromIndex } from './bundle-assembler.js';
+import {
+  generateContextPack,
+  checkContextPackFreshness,
+  loadContextPackFromRepoPath,
+} from './context-pack-generator.js';
 import { checkEligibility } from './eligibility-checker.js';
 import { generateEnvelope } from './envelope-generator.js';
 import { loadEnvelope, envelopeToRequest } from './envelope-loader.js';
-import { resolveRepoPath } from './fs-utils.js';
+import { resolveRepoPath, fileExists } from './fs-utils.js';
 import { captureGitEvidence } from './git-evidence.js';
 import { loadGovernance } from './governance-loader.js';
 import { startImplementation, checkImplementation } from './implementation-engine.js';
 import { loadIssue } from './issue-loader.js';
 import { runAutopilotCycle, checkAutopilotFrozen } from './orchestrator.js';
 import { loadProfileById, loadProfileFromPath } from './profile-loader.js';
+import { generatePromptPack } from './prompt-pack-generator.js';
 import { scanIssueQueue, selectNextIssue } from './queue-manager.js';
+import { validateAllReceipts } from './receipt-validator.js';
 import { resolveBlastRadius } from './scope-resolver.js';
 import { assembleSprintPlan, assembleSprintPlanWithProfile } from './sprint-planner.js';
+import {
+  createSprintState,
+  loadSprintState,
+  saveSprintState,
+  updateSprintStage,
+  registerReceipt,
+  closeSprintState,
+  loadArchivedSprint,
+  addBlocker,
+} from './sprint-state.js';
+import { generateStatusArtifact } from './status-artifact-generator.js';
 import { EXECUTION_LEVEL_NAMES, MAX_AUTOPILOT_LEVEL } from './types.js';
 import { executeVerification, executeScopedVerification } from './verification-executor.js';
 import { isValidSprintType } from './verification-resolver.js';
 import { loadWorkflowState } from './workflow-state.js';
 
-
 import type {
+  AuthoritySurface,
+  ReceiptClass,
+  SprintStage,
   AutopilotCycleResult,
   BlastRadius,
   BundleAssemblyResult,
@@ -58,7 +87,6 @@ import type {
   VerificationExecutionResult,
   WorkflowStateFile,
 } from './types.js';
-
 
 // ---------------------------------------------------------------------------
 // Colors
@@ -1790,6 +1818,791 @@ function commandSupervisedRun(args: Record<string, string | boolean | string[]>)
 }
 
 // ---------------------------------------------------------------------------
+// Command: sprint (stateful sprint memory — CLAUDE-OS-UPGRADE-ROADMAP Sprint 1)
+// ---------------------------------------------------------------------------
+
+const VALID_AUTHORITY_SURFACES: AuthoritySurface[] = [
+  'scoring_authority',
+  'promotion_authority',
+  'settlement_authority',
+  'discord_publish_authority',
+  'outbox_state_machine',
+  'canonical_schema_contract',
+  'env_truth_contract',
+  'routing_status_engine',
+];
+
+const VALID_RECEIPT_CLASSES: ReceiptClass[] = [
+  'repo',
+  'build',
+  'test',
+  'runtime',
+  'db',
+  'distribution',
+  'status',
+];
+
+const VALID_SPRINT_STAGES: SprintStage[] = [
+  'planning',
+  'implementing',
+  'verifying',
+  'bundling',
+  'closed',
+];
+
+function commandSprint(args: Record<string, string | boolean | string[]>): void {
+  const subAction = process.argv[3];
+  switch (subAction) {
+    case 'start':
+      commandSprintStart(args);
+      break;
+    case 'resume':
+      commandSprintResume(args);
+      break;
+    case 'review':
+    case 'status':
+      commandSprintReview(args);
+      break;
+    case 'stage':
+      commandSprintStage(args);
+      break;
+    case 'register-receipt':
+      commandSprintRegisterReceipt(args);
+      break;
+    case 'close':
+      commandSprintClose(args);
+      break;
+    case 'locks':
+      commandSprintLocks(args);
+      break;
+    case 'force-unlock':
+      commandSprintForceUnlock(args);
+      break;
+    case 'verify-receipts':
+      commandSprintVerifyReceipts(args);
+      break;
+    default:
+      console.error(`${c.red}Unknown sprint sub-command: ${subAction ?? '(none)'}${c.reset}`);
+      console.error(
+        'Usage: sprint <start|resume|review|stage|register-receipt|close|locks|force-unlock|verify-receipts>'
+      );
+      process.exit(1);
+  }
+}
+
+function commandSprintStart(args: Record<string, string | boolean | string[]>): void {
+  const sprintId = args.sprint as string | undefined;
+  const title = args.title as string | undefined;
+  const surfacesArg = args.surfaces as string | undefined;
+  const owner = (args.owner as string | undefined) ?? 'claude_code';
+  const supportArg = args.support as string | undefined;
+  const receiptsArg = args.receipts as string | undefined;
+  const maturity = args.maturity as string | undefined;
+  const jsonOutput = args.json === true;
+
+  if (!sprintId) {
+    console.error(`${c.red}ERROR: --sprint <id> is required.${c.reset}`);
+    process.exit(1);
+  }
+  if (!title) {
+    console.error(`${c.red}ERROR: --title "<title>" is required.${c.reset}`);
+    process.exit(1);
+  }
+
+  // Parse surfaces
+  const surfaces: AuthoritySurface[] = [];
+  if (surfacesArg) {
+    for (const s of surfacesArg.split(',').map(x => x.trim())) {
+      if (!VALID_AUTHORITY_SURFACES.includes(s as AuthoritySurface)) {
+        console.error(`${c.red}ERROR: Unknown authority surface '${s}'.${c.reset}`);
+        console.error(`Valid surfaces: ${VALID_AUTHORITY_SURFACES.join(', ')}`);
+        process.exit(1);
+      }
+      surfaces.push(s as AuthoritySurface);
+    }
+  }
+
+  // Parse extra receipts
+  const extraReceipts: ReceiptClass[] = [];
+  if (receiptsArg) {
+    for (const r of receiptsArg.split(',').map(x => x.trim())) {
+      if (!VALID_RECEIPT_CLASSES.includes(r as ReceiptClass)) {
+        console.error(`${c.red}ERROR: Unknown receipt class '${r}'.${c.reset}`);
+        console.error(`Valid classes: ${VALID_RECEIPT_CLASSES.join(', ')}`);
+        process.exit(1);
+      }
+      extraReceipts.push(r as ReceiptClass);
+    }
+  }
+
+  const supportOwners = supportArg ? supportArg.split(',').map(x => x.trim()) : [];
+
+  // Check for existing active sprint (fail-closed)
+  const existing = loadSprintState();
+  if (existing) {
+    console.error(
+      `${c.red}ERROR: An active sprint already exists: ${existing.sprint_id}${c.reset}`
+    );
+    console.error(`Close the current sprint with 'sprint close' before starting a new one.`);
+    if (jsonOutput)
+      console.log(JSON.stringify({ error: 'active_sprint_exists', existing }, null, 2));
+    process.exit(1);
+  }
+
+  // Check authority surface conflicts
+  if (surfaces.length > 0) {
+    const registry = loadAuthorityLocks();
+    const conflict = checkConflict(registry, sprintId, surfaces);
+    if (!conflict.allowed) {
+      console.error(`${c.red}ERROR: Authority surface conflict detected.${c.reset}`);
+      console.error(`  ${conflict.blocker_message}`);
+      if (jsonOutput)
+        console.log(JSON.stringify({ error: 'authority_conflict', conflict }, null, 2));
+      process.exit(1);
+    }
+
+    // Acquire locks
+    const lockError = lockSurfaces(registry, sprintId, owner, surfaces);
+    if (lockError) {
+      console.error(`${c.red}ERROR: Failed to acquire authority locks: ${lockError}${c.reset}`);
+      process.exit(1);
+    }
+    const saveLockError = saveAuthorityLocks(registry);
+    if (saveLockError) {
+      console.error(`${c.red}ERROR: Failed to save authority locks: ${saveLockError}${c.reset}`);
+      process.exit(1);
+    }
+  }
+
+  // Generate context pack (fail-closed for protected sprints)
+  let contextPackPath: string | null = null;
+  const packResult = generateContextPack(sprintId, title, surfaces, []);
+  if (!packResult.success) {
+    if (surfaces.length > 0) {
+      console.error(
+        `${c.red}ERROR: Context pack generation failed for protected-surface sprint.${c.reset}`
+      );
+      for (const err of packResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+    for (const w of packResult.errors) {
+      console.error(`${c.yellow}WARNING: Context pack generation failed: ${w}${c.reset}`);
+    }
+  } else {
+    contextPackPath = packResult.repo_relative_path;
+    for (const w of packResult.warnings) {
+      console.error(`${c.yellow}WARNING: Context pack: ${w}${c.reset}`);
+    }
+  }
+
+  // Create and persist sprint state
+  const state = createSprintState({
+    sprint_id: sprintId,
+    title,
+    authority_surfaces: surfaces,
+    primary_owner: owner,
+    support_owners: supportOwners,
+    extra_receipts: extraReceipts.length > 0 ? extraReceipts : undefined,
+    requested_maturity_delta: maturity,
+    repo_context_pack_path: contextPackPath,
+  });
+
+  // Generate prompt pack (auto at sprint start)
+  const promptResult = generatePromptPack(
+    sprintId,
+    title,
+    surfaces,
+    state.required_receipts,
+    packResult.pack?.relevant_governance_docs ?? [],
+    {
+      sprintState: state,
+      contextPack: packResult.pack ?? undefined,
+    }
+  );
+  if (!promptResult.success) {
+    if (surfaces.length > 0) {
+      console.error(
+        `${c.red}ERROR: Prompt pack generation failed for protected-surface sprint.${c.reset}`
+      );
+      for (const err of promptResult.errors) {
+        console.error(`  ${err}`);
+      }
+      process.exit(1);
+    }
+    for (const w of promptResult.errors) {
+      console.error(`${c.yellow}WARNING: Prompt pack generation failed: ${w}${c.reset}`);
+    }
+  } else {
+    state.prompt_pack_paths = promptResult.generated_files.map(f => f.repo_relative_path);
+    state.updated_at = new Date().toISOString();
+    for (const w of promptResult.warnings) {
+      console.error(`${c.yellow}WARNING: Prompt pack: ${w}${c.reset}`);
+    }
+  }
+
+  const saveError = saveSprintState(state);
+  if (saveError) {
+    // Roll back authority locks to prevent orphaned lock state (S-1/A-1)
+    if (surfaces.length > 0) {
+      const rollbackRegistry = loadAuthorityLocks();
+      unlockSurfaces(rollbackRegistry, sprintId);
+      const rollbackSaveError = saveAuthorityLocks(rollbackRegistry);
+      if (rollbackSaveError) {
+        console.error(
+          `${c.red}CRITICAL: Sprint state save failed AND lock rollback failed.${c.reset}`
+        );
+        console.error(`  Manual action required: remove sprint '${sprintId}' from`);
+        console.error(`  governance/claude-os/state/authority-locks.json`);
+      } else {
+        console.error(
+          `${c.yellow}NOTE: Authority locks rolled back for sprint '${sprintId}'.${c.reset}`
+        );
+      }
+    }
+    console.error(`${c.red}ERROR: Failed to save sprint state: ${saveError}${c.reset}`);
+    process.exit(1);
+  }
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(state, null, 2));
+    process.exit(0);
+  }
+
+  console.log(`\n${c.bold}${c.green}Sprint Started${c.reset}\n`);
+  printSprintStateSummary(state);
+  process.exit(0);
+}
+
+function commandSprintResume(args: Record<string, string | boolean | string[]>): void {
+  const sprintId = args.sprint as string | undefined;
+  const jsonOutput = args.json === true;
+
+  let state = loadSprintState();
+
+  if (!state && sprintId) {
+    // Try loading from history
+    state = loadArchivedSprint(sprintId);
+    if (state) {
+      console.error(
+        `${c.yellow}Sprint ${sprintId} is archived (status: ${state.status}).${c.reset}`
+      );
+      console.error(`An archived sprint cannot be resumed.`);
+      process.exit(1);
+    }
+    console.error(
+      `${c.red}ERROR: No active sprint found and no archived sprint '${sprintId}'.${c.reset}`
+    );
+    process.exit(1);
+  }
+
+  if (!state) {
+    console.error(`${c.red}ERROR: No active sprint to resume.${c.reset}`);
+    process.exit(1);
+  }
+
+  if (sprintId && state.sprint_id !== sprintId) {
+    console.error(
+      `${c.red}ERROR: Active sprint is '${state.sprint_id}', not '${sprintId}'.${c.reset}`
+    );
+    process.exit(1);
+  }
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(state, null, 2));
+    process.exit(0);
+  }
+
+  console.log(`\n${c.bold}${c.cyan}Resuming Sprint${c.reset}\n`);
+  printSprintStateSummary(state);
+  process.exit(0);
+}
+
+function commandSprintReview(args: Record<string, string | boolean | string[]>): void {
+  const sprintId = args.sprint as string | undefined;
+  const jsonOutput = args.json === true;
+
+  let state = loadSprintState();
+
+  if (!state && sprintId) {
+    state = loadArchivedSprint(sprintId);
+  }
+
+  if (!state) {
+    if (sprintId) {
+      console.error(
+        `${c.red}ERROR: Sprint '${sprintId}' not found (active or archived).${c.reset}`
+      );
+    } else {
+      console.log(`${c.dim}No active sprint.${c.reset}`);
+    }
+    process.exit(sprintId ? 1 : 0);
+  }
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(state, null, 2));
+    process.exit(0);
+  }
+
+  const statusColor =
+    state.status === 'active' ? c.green : state.status === 'complete' ? c.cyan : c.yellow;
+  console.log(`\n${c.bold}${c.cyan}Sprint Review${c.reset}\n`);
+  console.log(`${c.bold}Status:${c.reset}  ${statusColor}${state.status.toUpperCase()}${c.reset}`);
+  printSprintStateSummary(state);
+  process.exit(0);
+}
+
+function commandSprintStage(args: Record<string, string | boolean | string[]>): void {
+  const stageArg = args.stage as string | undefined;
+  const jsonOutput = args.json === true;
+
+  if (!stageArg) {
+    console.error(`${c.red}ERROR: --stage <stage> is required.${c.reset}`);
+    console.error(`Valid stages: ${VALID_SPRINT_STAGES.join(', ')}`);
+    process.exit(1);
+  }
+
+  if (!VALID_SPRINT_STAGES.includes(stageArg as SprintStage)) {
+    console.error(`${c.red}ERROR: Unknown stage '${stageArg}'.${c.reset}`);
+    console.error(`Valid stages: ${VALID_SPRINT_STAGES.join(', ')}`);
+    process.exit(1);
+  }
+
+  const state = loadSprintState();
+  if (!state) {
+    console.error(`${c.red}ERROR: No active sprint.${c.reset}`);
+    process.exit(1);
+  }
+
+  const error = updateSprintStage(state, stageArg as SprintStage);
+  if (error) {
+    console.error(`${c.red}ERROR: ${error}${c.reset}`);
+    if (jsonOutput) console.log(JSON.stringify({ error }, null, 2));
+    process.exit(1);
+  }
+
+  const saveError = saveSprintState(state);
+  if (saveError) {
+    console.error(`${c.red}ERROR: Failed to save sprint state: ${saveError}${c.reset}`);
+    process.exit(1);
+  }
+
+  if (jsonOutput) {
+    console.log(
+      JSON.stringify(
+        { sprint_id: state.sprint_id, stage: state.stage, next_action: state.next_action },
+        null,
+        2
+      )
+    );
+    process.exit(0);
+  }
+
+  console.log(`${c.green}Stage advanced to:${c.reset} ${state.stage}`);
+  console.log(`${c.bold}Next action:${c.reset} ${state.next_action}`);
+  process.exit(0);
+}
+
+function commandSprintRegisterReceipt(args: Record<string, string | boolean | string[]>): void {
+  const receiptClass = args.class as string | undefined;
+  const artifactPath = args.path as string | undefined;
+  const description = (args.description as string | undefined) ?? '';
+  const jsonOutput = args.json === true;
+
+  if (!receiptClass) {
+    console.error(`${c.red}ERROR: --class <receipt-class> is required.${c.reset}`);
+    console.error(`Valid classes: ${VALID_RECEIPT_CLASSES.join(', ')}`);
+    process.exit(1);
+  }
+  if (!artifactPath) {
+    console.error(`${c.red}ERROR: --path <artifact-path> is required.${c.reset}`);
+    process.exit(1);
+  }
+  if (!VALID_RECEIPT_CLASSES.includes(receiptClass as ReceiptClass)) {
+    console.error(`${c.red}ERROR: Unknown receipt class '${receiptClass}'.${c.reset}`);
+    process.exit(1);
+  }
+
+  const state = loadSprintState();
+  if (!state) {
+    console.error(`${c.red}ERROR: No active sprint.${c.reset}`);
+    process.exit(1);
+  }
+
+  registerReceipt(state, {
+    receipt_class: receiptClass as ReceiptClass,
+    artifact_path: artifactPath,
+    description,
+  });
+
+  const saveError = saveSprintState(state);
+  if (saveError) {
+    console.error(`${c.red}ERROR: Failed to save sprint state: ${saveError}${c.reset}`);
+    process.exit(1);
+  }
+
+  if (jsonOutput) {
+    console.log(
+      JSON.stringify(
+        {
+          sprint_id: state.sprint_id,
+          registered: { receipt_class: receiptClass, artifact_path: artifactPath },
+          found_receipts: state.found_receipts.length,
+          missing_receipts: state.missing_receipts,
+          next_action: state.next_action,
+        },
+        null,
+        2
+      )
+    );
+    process.exit(0);
+  }
+
+  console.log(`${c.green}Receipt registered:${c.reset} ${receiptClass} → ${artifactPath}`);
+  console.log(
+    `${c.bold}Missing receipts:${c.reset} ${state.missing_receipts.join(', ') || '(none)'}`
+  );
+  console.log(`${c.bold}Next action:${c.reset} ${state.next_action}`);
+  process.exit(0);
+}
+
+function commandSprintClose(args: Record<string, string | boolean | string[]>): void {
+  const force = args.force === true;
+  const jsonOutput = args.json === true;
+
+  const state = loadSprintState();
+  if (!state) {
+    console.error(`${c.red}ERROR: No active sprint to close.${c.reset}`);
+    process.exit(1);
+  }
+
+  // Receipt validation gate — runs BEFORE authority lock release
+  // Hoist validation result so it can be passed to status artifact generator
+  let validation: import('./types.js').ReceiptValidationReport | undefined;
+  if (!force) {
+    validation = validateAllReceipts(state);
+    if (!validation.valid) {
+      console.error(`${c.red}ERROR: Receipt validation failed — cannot close sprint.${c.reset}`);
+      for (const entry of validation.entries.filter(e => !e.valid)) {
+        console.error(`  [INVALID] ${entry.receipt.receipt_class}: ${entry.receipt.artifact_path}`);
+        for (const err of entry.errors) console.error(`    ${c.red}→ ${err}${c.reset}`);
+      }
+      if (state.missing_receipts.length > 0) {
+        console.error(`  [MISSING] ${state.missing_receipts.join(', ')}`);
+      }
+      if (jsonOutput)
+        console.log(JSON.stringify({ error: 'receipt_validation_failed', validation }, null, 2));
+      process.exit(1);
+    }
+  }
+
+  // Release authority locks
+  if (state.authority_surfaces.length > 0) {
+    const registry = loadAuthorityLocks();
+    const released = unlockSurfaces(registry, state.sprint_id);
+    if (released.length > 0) {
+      const saveLockError = saveAuthorityLocks(registry);
+      if (saveLockError) {
+        console.error(
+          `${c.red}ERROR: Failed to persist authority lock release — cannot close sprint.${c.reset}`
+        );
+        console.error(`  ${saveLockError}`);
+        console.error(`  The lock registry still shows ${state.sprint_id} holding surfaces.`);
+        console.error(`  Fix the underlying I/O issue and retry 'sprint close'.`);
+        if (jsonOutput) {
+          console.log(
+            JSON.stringify({ error: 'lock_release_save_failed', detail: saveLockError }, null, 2)
+          );
+        }
+        process.exit(1);
+      }
+    }
+  }
+
+  // Generate status artifact BEFORE archiving so path is stored in sprint state
+  const contextPackForStatus = state.repo_context_pack_path
+    ? (loadContextPackFromRepoPath(state.repo_context_pack_path) ?? undefined)
+    : undefined;
+  const statusResult = generateStatusArtifact(state, {
+    validationReport: validation,
+    contextPack: contextPackForStatus,
+  });
+  if (!statusResult.success) {
+    if (state.authority_surfaces.length > 0) {
+      console.error(
+        `${c.red}ERROR: Status artifact generation failed for protected-surface sprint.${c.reset}`
+      );
+      for (const err of statusResult.errors) console.error(`  ${err}`);
+      process.exit(1);
+    }
+    for (const w of statusResult.errors) {
+      console.error(`${c.yellow}WARNING: Status artifact: ${w}${c.reset}`);
+    }
+  } else {
+    state.status_artifact_path = statusResult.repo_relative_json_path;
+    state.updated_at = new Date().toISOString();
+  }
+
+  const error = closeSprintState(state, { force });
+  if (error) {
+    console.error(`${c.red}ERROR: ${error}${c.reset}`);
+    if (jsonOutput) console.log(JSON.stringify({ error }, null, 2));
+    process.exit(1);
+  }
+
+  if (jsonOutput) {
+    console.log(
+      JSON.stringify(
+        {
+          sprint_id: state.sprint_id,
+          status: state.status,
+          closed_at: state.closed_at,
+          status_artifact_path: state.status_artifact_path,
+        },
+        null,
+        2
+      )
+    );
+    process.exit(0);
+  }
+
+  const statusColor = state.status === 'complete' ? c.green : c.yellow;
+  console.log(`\n${c.bold}Sprint Closed${c.reset}`);
+  console.log(`  ID:     ${state.sprint_id}`);
+  console.log(`  Status: ${statusColor}${state.status.toUpperCase()}${c.reset}`);
+  console.log(`  Archived to: governance/claude-os/state/sprint-history/${state.sprint_id}.json`);
+  if (statusResult.success && statusResult.repo_relative_json_path) {
+    console.log(`  Status artifact: ${statusResult.repo_relative_json_path}`);
+  }
+  process.exit(0);
+}
+
+function commandSprintLocks(args: Record<string, string | boolean | string[]>): void {
+  const jsonOutput = args.json === true;
+  const registry = loadAuthorityLocks();
+  const allLocks = getAllActiveLocks(registry);
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(registry, null, 2));
+    process.exit(0);
+  }
+
+  console.log(`\n${c.bold}${c.cyan}Authority Lock Registry${c.reset}\n`);
+  if (allLocks.length === 0) {
+    console.log(`  ${c.dim}No active locks.${c.reset}`);
+  } else {
+    console.log(`  ${'Surface'.padEnd(30)} ${'Sprint'.padEnd(32)} ${'Owner'.padEnd(14)} Locked At`);
+    console.log(`  ${'─'.repeat(30)} ${'─'.repeat(32)} ${'─'.repeat(14)} ${'─'.repeat(25)}`);
+    for (const { surface, lock } of allLocks) {
+      console.log(
+        `  ${surface.padEnd(30)} ${lock.sprint_id.padEnd(32)} ${lock.primary_owner.padEnd(14)} ${lock.locked_at}`
+      );
+    }
+  }
+  console.log('');
+  process.exit(0);
+}
+
+function commandSprintForceUnlock(args: Record<string, string | boolean | string[]>): void {
+  const sprintId = args.sprint as string | undefined;
+  const confirmed = args.confirm === true;
+  const jsonOutput = args.json === true;
+
+  if (!sprintId) {
+    console.error(`${c.red}ERROR: --sprint <id> is required.${c.reset}`);
+    process.exit(1);
+  }
+
+  const registry = loadAuthorityLocks();
+  const held = getSprintLocks(registry, sprintId);
+
+  if (held.length === 0) {
+    if (jsonOutput) {
+      console.log(
+        JSON.stringify(
+          { sprint_id: sprintId, released: [], message: 'No locks held by this sprint' },
+          null,
+          2
+        )
+      );
+    } else {
+      console.log(`${c.dim}No locks held by sprint '${sprintId}'.${c.reset}`);
+    }
+    process.exit(0);
+  }
+
+  if (!confirmed) {
+    console.error(
+      `${c.yellow}⚠  Force-unlock will release authority locks held by '${sprintId}':${c.reset}`
+    );
+    for (const s of held) {
+      console.error(`  - ${s}`);
+    }
+    console.error(`Re-run with --confirm to proceed.`);
+    if (jsonOutput) {
+      console.log(JSON.stringify({ error: 'confirmation_required', held_surfaces: held }, null, 2));
+    }
+    process.exit(1);
+  }
+
+  const released = unlockSurfaces(registry, sprintId);
+  const saveError = saveAuthorityLocks(registry);
+  if (saveError) {
+    console.error(
+      `${c.red}ERROR: Failed to save lock registry after force-unlock: ${saveError}${c.reset}`
+    );
+    if (jsonOutput) {
+      console.log(JSON.stringify({ error: 'save_failed', detail: saveError }, null, 2));
+    }
+    process.exit(1);
+  }
+
+  if (jsonOutput) {
+    console.log(JSON.stringify({ sprint_id: sprintId, released }, null, 2));
+    process.exit(0);
+  }
+
+  console.log(`\n${c.bold}${c.green}Force-Unlock Complete${c.reset}`);
+  console.log(`  Sprint:   ${sprintId}`);
+  console.log(`  Released: ${released.join(', ')}`);
+  console.log('');
+  process.exit(0);
+}
+
+function commandSprintVerifyReceipts(args: Record<string, string | boolean | string[]>): void {
+  const sprintId = args.sprint as string | undefined;
+  const jsonOutput = args.json === true;
+
+  const state = loadSprintState() ?? (sprintId ? loadArchivedSprint(sprintId) : null);
+
+  if (!state) {
+    console.error(
+      `${c.red}ERROR: No active sprint found${sprintId ? ` and no archived sprint '${sprintId}'` : ''}.${c.reset}`
+    );
+    process.exit(1);
+  }
+
+  const report = validateAllReceipts(state);
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(report, null, 2));
+    process.exit(report.valid ? 0 : 1);
+  }
+
+  console.log(`\n${c.bold}${c.cyan}Receipt Verification Report${c.reset}`);
+  console.log(`  Sprint:  ${report.sprint_id}`);
+  console.log(
+    `  Checked: ${report.checked_count} | Valid: ${report.valid_count} | Invalid: ${report.invalid_count}`
+  );
+
+  if (report.entries.length === 0) {
+    console.log(`\n  ${c.dim}No receipts registered.${c.reset}`);
+  } else {
+    console.log('');
+    for (const entry of report.entries) {
+      const icon = entry.valid ? `${c.green}✓` : `${c.red}✗`;
+      console.log(
+        `  ${icon}${c.reset} [${entry.receipt.receipt_class}] ${entry.receipt.artifact_path}`
+      );
+      if (!entry.valid) {
+        for (const err of entry.errors) {
+          console.log(`      ${c.red}→ ${err}${c.reset}`);
+        }
+      }
+      if (entry.hash_match === false) {
+        console.log(`      ${c.red}→ HASH MISMATCH — file may have been tampered${c.reset}`);
+      } else if (entry.hash_match === true) {
+        console.log(`      ${c.green}→ hash verified${c.reset}`);
+      }
+    }
+  }
+
+  if (state.missing_receipts.length > 0) {
+    console.log(
+      `\n  ${c.red}Missing receipt classes: ${state.missing_receipts.join(', ')}${c.reset}`
+    );
+  }
+
+  const overallIcon = report.valid ? `${c.green}PASS` : `${c.red}FAIL`;
+  console.log(`\n  Overall: ${overallIcon}${c.reset}\n`);
+  process.exit(report.valid ? 0 : 1);
+}
+
+function printSprintStateSummary(state: import('./types.js').ActiveSprintState): void {
+  const stageColor = state.stage === 'closed' ? c.dim : c.cyan;
+  console.log(`  ${c.bold}Sprint:${c.reset}    ${state.sprint_id}`);
+  console.log(`  ${c.bold}Title:${c.reset}     ${state.title}`);
+  console.log(`  ${c.bold}Stage:${c.reset}     ${stageColor}${state.stage}${c.reset}`);
+  console.log(`  ${c.bold}Owner:${c.reset}     ${state.primary_owner}`);
+
+  if (state.authority_surfaces.length > 0) {
+    console.log(`  ${c.bold}Surfaces:${c.reset}  ${state.authority_surfaces.join(', ')}`);
+  }
+
+  // Receipts
+  console.log(`\n  ${c.bold}Receipts:${c.reset}`);
+  for (const rc of state.required_receipts) {
+    const found = state.found_receipts.some(f => f.receipt_class === rc);
+    const icon = found ? `${c.green}✓` : `${c.red}✗`;
+    console.log(`    ${icon}${c.reset} ${rc}`);
+  }
+
+  // Blockers
+  if (state.blockers.length > 0) {
+    console.log(`\n  ${c.bold}${c.red}Blockers:${c.reset}`);
+    for (const b of state.blockers) {
+      const sev = b.severity === 'blocking' ? c.red : c.yellow;
+      console.log(`    ${sev}[${b.severity}]${c.reset} ${b.description}`);
+    }
+  }
+
+  // Context pack
+  if (state.repo_context_pack_path) {
+    const pack = loadContextPackFromRepoPath(state.repo_context_pack_path);
+    if (pack) {
+      const freshness = checkContextPackFreshness(pack);
+      const freshIcon = freshness.fresh ? `${c.green}✓ fresh` : `${c.yellow}⚠ stale`;
+      console.log(`\n  ${c.bold}Context Pack:${c.reset} ${state.repo_context_pack_path}`);
+      console.log(
+        `  ${c.bold}Freshness:${c.reset}    ${freshIcon}${c.reset} — ${freshness.reason}`
+      );
+    } else {
+      console.log(
+        `\n  ${c.bold}Context Pack:${c.reset} ${c.yellow}${state.repo_context_pack_path} (unreadable)${c.reset}`
+      );
+    }
+  }
+
+  // Prompt packs
+  if (state.prompt_pack_paths.length > 0) {
+    console.log(`\n  ${c.bold}Prompt Packs:${c.reset}`);
+    for (const pp of state.prompt_pack_paths) {
+      const exists = fileExists(resolveRepoPath(pp));
+      const icon = exists ? `${c.green}✓` : `${c.yellow}✗ (missing)`;
+      console.log(`    ${icon}${c.reset} ${pp}`);
+    }
+  } else {
+    console.log(`\n  ${c.dim}Prompt packs: not yet generated${c.reset}`);
+  }
+
+  // Status artifact
+  if (state.status_artifact_path) {
+    const exists = fileExists(resolveRepoPath(state.status_artifact_path));
+    const icon = exists ? `${c.green}✓` : `${c.yellow}✗ (missing)`;
+    console.log(
+      `\n  ${c.bold}Status Artifact:${c.reset} ${icon}${c.reset} ${state.status_artifact_path}`
+    );
+  } else {
+    console.log(`\n  ${c.dim}Status artifact: not yet generated${c.reset}`);
+  }
+
+  // Next action
+  console.log(`\n  ${c.bold}Next action:${c.reset} ${state.next_action}`);
+  console.log('');
+}
+
+// ---------------------------------------------------------------------------
 // Help
 // ---------------------------------------------------------------------------
 
@@ -2000,6 +2813,30 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}generate${c.reset}        Generate TaskEnvelope from an issue (--write to persist)
   ${c.cyan}implement${c.reset}       Governance wrapper for implementation (--start before, --check after)
   ${c.cyan}autopilot${c.reset}       Bounded autopilot orchestrator (Level 0-1 only)
+  ${c.cyan}sprint${c.reset}          Stateful sprint memory: start, resume, review, close
+
+${c.bold}Sprint usage (stateful sprint memory):${c.reset}
+
+  npx tsx src/cli.ts sprint start \\
+    --sprint SPRINT-NAME-### \\
+    --title "Sprint title" \\
+    [--surfaces scoring_authority,settlement_authority] \\
+    [--owner claude_code] \\
+    [--support codex] \\
+    [--receipts runtime,db] \\
+    [--maturity "Prototype → Operational"] \\
+    [--json]
+
+  npx tsx src/cli.ts sprint resume [--sprint SPRINT-NAME-###] [--json]
+  npx tsx src/cli.ts sprint review [--sprint SPRINT-NAME-###] [--json]
+  npx tsx src/cli.ts sprint stage --stage implementing [--json]
+  npx tsx src/cli.ts sprint register-receipt \\
+    --class repo \\
+    --path out/sprints/SPRINT-NAME/2026-03-13/proofs/proof_git_status.txt \\
+    [--description "Git status"] \\
+    [--json]
+  npx tsx src/cli.ts sprint close [--force] [--json]
+  npx tsx src/cli.ts sprint locks [--json]
 
 ${c.bold}Plan usage:${c.reset}
 
@@ -2256,6 +3093,9 @@ function main(): void {
       break;
     case 'supervised-run':
       commandSupervisedRun(args);
+      break;
+    case 'sprint':
+      commandSprint(args);
       break;
     case 'help':
     case '--help':

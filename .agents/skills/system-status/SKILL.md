@@ -28,24 +28,16 @@ Modes:
 
 ## Sources (read in this exact order)
 
-| Order | File                                                  | What it answers                                                                     |
-| ----- | ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| 1     | `docs/status/CURRENT_SYSTEM_STATUS.md`                | Subsystem status, infrastructure health, agent compliance                           |
-| 2     | `docs/status/PHASE_STATUS.md`                         | Phase completion %, milestones, blocking gaps (operational phase naming — see note) |
-| 3     | `docs/status/NEXT_5_SPRINTS.md`                       | Sprint queue, priorities, dependencies                                              |
-| 4     | `docs/status/DRIFT_REPORT.md`                         | Active drift by severity, drift trend                                               |
-| 5     | `docs/04_roadmap/layer_phase_execution_model.md`      | Canonical layer/phase model — use for sprint classification                         |
-| 6     | Most recent `out/sprints/*/SPRINT_CLOSEOUT_REPORT.md` | Last completed sprint, what it changed                                              |
-
-> **Phase naming note**: `docs/status/PHASE_STATUS.md` uses the pre-2026-03-13
-> operational phase naming (Phase 1 — Structural Dominance, Phase 2 —
-> Intelligence Superiority, etc.). This is distinct from the canonical execution
-> model phases (Phase 0–14 across Layers 1–4) in
-> `docs/04_roadmap/layer_phase_execution_model.md`. For sprint classification,
-> always use the canonical model. For progress tracking, use PHASE_STATUS.md.
+| Order | File                                                  | What it answers                                           |
+| ----- | ----------------------------------------------------- | --------------------------------------------------------- |
+| 1     | `docs/status/CURRENT_SYSTEM_STATUS.md`                | Subsystem status, infrastructure health, agent compliance |
+| 2     | `docs/status/PHASE_STATUS.md`                         | Phase completion %, milestones, blocking gaps             |
+| 3     | `docs/status/NEXT_5_SPRINTS.md`                       | Sprint queue, priorities, dependencies                    |
+| 4     | `docs/status/DRIFT_REPORT.md`                         | Active drift by severity, drift trend                     |
+| 5     | Most recent `out/sprints/*/SPRINT_CLOSEOUT_REPORT.md` | Last completed sprint, what it changed                    |
 
 If any of sources 1–4 are missing, **HALT** — the truth layer is incomplete.
-Source 5 is the canonical execution model authority; source 6 is optional.
+Source 5 is optional (supplements context).
 
 ---
 
@@ -219,19 +211,15 @@ CURRENT_SYSTEM_STATUS.md (<date>), PHASE_STATUS.md (<date>), NEXT_5_SPRINTS.md
 
 ## Phase Status
 
-> Phase names and percentages come from `docs/status/PHASE_STATUS.md`
-> (operational tracking). Sprint classification uses the canonical Layer/Phase
-> model from `docs/04_roadmap/layer_phase_execution_model.md`.
+| Phase                              | Status  | Completion | Blocking Issues    |
+| ---------------------------------- | ------- | ---------- | ------------------ |
+| Phase 1 — Structural Dominance     | Active  | <X>%       | <issues>           |
+| Phase 2 — Intelligence Superiority | Active  | <X>%       | <issues>           |
+| Phase 3 — Risk Engine Dominance    | Planned | <X>%       | <issues>           |
+| Phase 4 — Automation Supremacy     | Planned | <X>%       | <issues>           |
+| Phase 5 — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4 |
 
-| Phase (Operational Name)           | Status   | Completion | Blocking Issues |
-| ---------------------------------- | -------- | ---------- | --------------- |
-| <Phase N — Name from PHASE_STATUS> | <status> | <X>%       | <issues>        |
-
-**Current Platform Phase**: <summary from PHASE_STATUS.md>
-
-**Canonical Layer/Phase classification** (for sprint planning): <active layer,
-e.g., "Layer 1 / Phase 4 — Operational Determinism" — from
-layer_phase_execution_model.md>
+**Current Platform Phase**: <summary>
 
 ---
 
