@@ -227,36 +227,36 @@ both locations.
 | `docs/PLAYER_DATABASE_ANALYSIS_REPORT.md`       | REFERENCE      | KEEP   | Current                 |
 | `docs/system-enhancements.md`                   | REFERENCE      | KEEP   | Current                 |
 
-### docs/architecture/ — KEEP (active sprint-tagged)
+### docs/architecture/ — Mixed (updated 2026-03-13)
 
-| File                                                          | Classification | Action |
-| ------------------------------------------------------------- | -------------- | ------ |
-| `docs/architecture/REPO_MAPPING.md`                           | CANONICAL      | KEEP   |
-| `docs/architecture/SCORING_AUTHORITY.md`                      | CANONICAL      | KEEP   |
-| `docs/architecture/PIPELINE_CONTRACT_CLEANROOM_V3.md`         | CANONICAL      | KEEP   |
-| `docs/architecture/CANONICAL_SCHEMA_V2.md`                    | CANONICAL      | KEEP   |
-| `docs/architecture/STAT_PROJECTION_ARCHITECTURE_v2.md`        | CANONICAL      | KEEP   |
-| `docs/architecture/V3_ELITE_ROADMAP.md`                       | CANONICAL      | KEEP   |
-| `docs/architecture/DISCORD_DELIVERY_AND_FANOUT_PLAN.md`       | CANONICAL      | KEEP   |
-| `docs/architecture/UI_PROJECTION_ARCHITECTURE.md`             | CANONICAL      | KEEP   |
-| `docs/architecture/UI_PROJECTION_ARCHITECTURE_PRIORITIZED.md` | CANONICAL      | KEEP   |
-| `docs/architecture/v1/OBSERVABILITY_ARCHITECTURE_v1.0.md`     | REFERENCE      | KEEP   |
+| File                                                          | Classification | Action   | New Location                            |
+| ------------------------------------------------------------- | -------------- | -------- | --------------------------------------- |
+| `docs/architecture/REPO_MAPPING.md`                           | CANONICAL      | KEEP     | Current                                 |
+| `docs/architecture/SCORING_AUTHORITY.md`                      | CANONICAL      | KEEP     | Current                                 |
+| `docs/architecture/CANONICAL_SCHEMA_V2.md`                    | CANONICAL      | KEEP     | Current                                 |
+| `docs/architecture/PIPELINE_CONTRACT_CLEANROOM_V3.md`         | SUPERSEDED     | ARCHIVED | `docs/archive/architecture-superseded/` |
+| `docs/architecture/STAT_PROJECTION_ARCHITECTURE_v2.md`        | SUPERSEDED     | ARCHIVED | `docs/archive/architecture-superseded/` |
+| `docs/architecture/V3_ELITE_ROADMAP.md`                       | SUPERSEDED     | ARCHIVED | `docs/archive/architecture-superseded/` |
+| `docs/architecture/DISCORD_DELIVERY_AND_FANOUT_PLAN.md`       | SUPERSEDED     | ARCHIVED | `docs/archive/architecture-superseded/` |
+| `docs/architecture/UI_PROJECTION_ARCHITECTURE.md`             | SUPERSEDED     | ARCHIVED | `docs/archive/architecture-superseded/` |
+| `docs/architecture/UI_PROJECTION_ARCHITECTURE_PRIORITIZED.md` | SUPERSEDED     | ARCHIVED | `docs/archive/architecture-superseded/` |
+| `docs/architecture/v1/OBSERVABILITY_ARCHITECTURE_v1.0.md`     | SUPERSEDED     | ARCHIVED | `docs/archive/architecture-superseded/` |
 
-### docs/contracts/ — KEEP (implementation-layer contracts)
+### docs/contracts/ — Mixed (updated 2026-03-13)
 
-| File                                                | Classification | Action |
-| --------------------------------------------------- | -------------- | ------ |
-| `docs/contracts/PICK_LIFECYCLE_CONTRACT.md`         | CANONICAL      | KEEP   |
-| `docs/contracts/PICK_LIFECYCLE_CONTRACT_STUB.md`    | CANONICAL      | KEEP   |
-| `docs/contracts/PROMOTION_AUTHORITY_BOUNDARY.md`    | CANONICAL      | KEEP   |
-| `docs/contracts/DISCORD_EMBED_CONTRACT.md`          | CANONICAL      | KEEP   |
-| `docs/contracts/DISCORD_EMBED_CONTRACT_STUB.md`     | CANONICAL      | KEEP   |
-| `docs/contracts/SEARCH_CATALOG_CONTRACT_V1.md`      | CANONICAL      | KEEP   |
-| `docs/contracts/SEARCH_CATALOG_CONTRACT_V1_STUB.md` | CANONICAL      | KEEP   |
-| `docs/contracts/SMARTFORM_DATA_CONTRACT_V1.md`      | CANONICAL      | KEEP   |
-| `docs/contracts/SMARTFORM_DATA_CONTRACT_V1_STUB.md` | CANONICAL      | KEEP   |
-| `docs/contracts/SMARTFORM_DATA_CONTRACT_V2.md`      | CANONICAL      | KEEP   |
-| `docs/contracts/SMARTFORM_DATA_CONTRACT_V2_STUB.md` | CANONICAL      | KEEP   |
+| File                                                | Classification | Action   | New Location                   |
+| --------------------------------------------------- | -------------- | -------- | ------------------------------ |
+| `docs/contracts/PICK_LIFECYCLE_CONTRACT.md`         | CANONICAL      | KEEP     | Current                        |
+| `docs/contracts/PROMOTION_AUTHORITY_BOUNDARY.md`    | CANONICAL      | KEEP     | Current                        |
+| `docs/contracts/DISCORD_EMBED_CONTRACT.md`          | CANONICAL      | KEEP     | Current                        |
+| `docs/contracts/SEARCH_CATALOG_CONTRACT_V1.md`      | CANONICAL      | KEEP     | Current                        |
+| `docs/contracts/SMARTFORM_DATA_CONTRACT_V2.md`      | CANONICAL      | KEEP     | Current                        |
+| `docs/contracts/PICK_LIFECYCLE_CONTRACT_STUB.md`    | STUB           | ARCHIVED | `docs/archive/contract-stubs/` |
+| `docs/contracts/DISCORD_EMBED_CONTRACT_STUB.md`     | STUB           | ARCHIVED | `docs/archive/contract-stubs/` |
+| `docs/contracts/SEARCH_CATALOG_CONTRACT_V1_STUB.md` | STUB           | ARCHIVED | `docs/archive/contract-stubs/` |
+| `docs/contracts/SMARTFORM_DATA_CONTRACT_V1.md`      | SUPERSEDED     | ARCHIVED | `docs/archive/contract-stubs/` |
+| `docs/contracts/SMARTFORM_DATA_CONTRACT_V1_STUB.md` | STUB           | ARCHIVED | `docs/archive/contract-stubs/` |
+| `docs/contracts/SMARTFORM_DATA_CONTRACT_V2_STUB.md` | STUB           | ARCHIVED | `docs/archive/contract-stubs/` |
 
 ### docs/api/v1/ — KEEP
 
@@ -286,40 +286,35 @@ both locations.
 | ---------------------------------------- | -------------- | ------ |
 | `docs/audit/SYSTEM_CAPABILITY_MATRIX.md` | REFERENCE      | KEEP   |
 
-### docs/blueprints/ — Mixed
+### docs/blueprints/ — ARCHIVED (2026-03-13)
 
-| File                                                                                                                        | Classification | Action  | Destination                      |
-| --------------------------------------------------------------------------------------------------------------------------- | -------------- | ------- | -------------------------------- |
-| `docs/blueprints/ARTIFACT_REGISTRY_v1.0.md`                                                                                 | CANONICAL      | KEEP    | Current                          |
-| `docs/blueprints/REPO_STRUCTURE_LOCK_v1.0.md`                                                                               | CANONICAL      | KEEP    | Current                          |
-| `docs/blueprints/UNIT_TALK_MASTER_SYSTEM_BLUEPRINT_v2.0.md`                                                                 | CANONICAL      | KEEP    | Current                          |
-| `docs/blueprints/PRODUCTION_DOMINANCE_ROADMAP_v2.0.md`                                                                      | CANONICAL      | KEEP    | Current                          |
-| `docs/blueprints/AUTOPILOT_GOVERNANCE_SPEC_v1.md`                                                                           | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/DATA_MOAT_ARCHITECTURE_v1.md`                                                                              | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/DATA_MOAT_REQUIREMENTS_v1.md`                                                                              | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/DEVIG_NORMALIZATION_SPEC_v1.md`                                                                            | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/EXECUTION_ENGINE_SPEC_v1.md`                                                                               | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/FEATURE_TAXONOMY_v1.md`                                                                                    | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/INTELLIGENCE_DIFFERENTIATION_STRATEGY_v1.md`                                                               | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/MODEL_ARCHITECTURE_SPEC_v1.md`                                                                             | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/MODEL_TRAINING_PIPELINE_SPEC_v1.md`                                                                        | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/MULTI_SPORT_UNIFIED_EVENT_SCHEMA_v1.md`                                                                    | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/PHASE_2A_INTELLIGENCE_SUPERIORITY_AUDIT_v1.md`                                                             | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/PROMOTION_BAND_LOGIC_SPEC_v1.md`                                                                           | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/RISK_ENGINE_SPEC_v1.md`                                                                                    | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/TELEMETRY_TRUTH_AUDIT_SPEC_v1.md`                                                                          | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/WALK_FORWARD_EVAL_HARNESS_v1.md`                                                                           | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/phase-2/intelligence-utilization/CAPPER_COMMAND_CENTER_SPEC_v1.0.md`                                       | CANONICAL      | KEEP    | Current                          |
-| `docs/blueprints/phase-2/market-data/MARKET_DATA_FOUNDATION_SPEC_v1.0.md`                                                   | REFERENCE      | KEEP    | Current                          |
-| `docs/blueprints/UNIT_TALK_MASTER_SYSTEM_BLUEPRINT_v1.0.md`                                                                 | ARCHIVE        | ARCHIVE | `docs/archive/historical-plans/` |
-| `docs/blueprints/PRODUCTION_DOMINANCE_ROADMAP_v1.0.md`                                                                      | ARCHIVE        | ARCHIVE | `docs/archive/historical-plans/` |
-| `docs/blueprints/CAPPER_COMMAND_CENTER_BLUEPRINT_v1.0.md`                                                                   | DUPLICATE      | ARCHIVE | `docs/archive/historical-plans/` |
-| `docs/blueprints/PHASE_2_INTELLIGENCE_SUPERIORITY/PHASE_2C_INTELLIGENCE_SURFACE_LOCK/CAPPER_COMMAND_CENTER_UI_SPEC_v1.0.md` | DUPLICATE      | ARCHIVE | `docs/archive/historical-plans/` |
-| `docs/blueprints/CLV_AND_EXECUTION_MODEL_v1.md`                                                                             | EMPTY          | ARCHIVE | `docs/archive/historical-plans/` |
-| `docs/blueprints/INTELLIGENCE_MODEL_FAMILY_v1.md`                                                                           | EMPTY          | ARCHIVE | `docs/archive/historical-plans/` |
-| `docs/blueprints/LOSS_POSTMORTEM_ENGINE_v1.md`                                                                              | EMPTY          | ARCHIVE | `docs/archive/historical-plans/` |
-| `docs/blueprints/MODEL_GOVERNANCE_AND_CANARY_v1.md`                                                                         | EMPTY          | ARCHIVE | `docs/archive/historical-plans/` |
-| `docs/blueprints/PROB_CALIBRATION_SPEC_v1.md`                                                                               | EMPTY          | ARCHIVE | `docs/archive/historical-plans/` |
+All 21 blueprint files moved to `docs/archive/blueprints/` by
+SPRINT-DOC-CANONICALIZATION-PHASE-A. Authority:
+`docs/status/CANONICAL_DOC_SET.md` (2026-03-09) classifies all as SUPERSEDED.
+
+| File                                                                  | Previous Classification | Action   | Archive Location                                            |
+| --------------------------------------------------------------------- | ----------------------- | -------- | ----------------------------------------------------------- |
+| `ARTIFACT_REGISTRY_v1.0.md`                                           | CANONICAL               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `REPO_STRUCTURE_LOCK_v1.0.md`                                         | CANONICAL               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `UNIT_TALK_MASTER_SYSTEM_BLUEPRINT_v2.0.md`                           | CANONICAL               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `PRODUCTION_DOMINANCE_ROADMAP_v2.0.md`                                | CANONICAL               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `AUTOPILOT_GOVERNANCE_SPEC_v1.md`                                     | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `DATA_MOAT_ARCHITECTURE_v1.md`                                        | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `DATA_MOAT_REQUIREMENTS_v1.md`                                        | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `DEVIG_NORMALIZATION_SPEC_v1.md`                                      | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `EXECUTION_ENGINE_SPEC_v1.md`                                         | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `FEATURE_TAXONOMY_v1.md`                                              | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `INTELLIGENCE_DIFFERENTIATION_STRATEGY_v1.md`                         | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `MODEL_ARCHITECTURE_SPEC_v1.md`                                       | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `MODEL_TRAINING_PIPELINE_SPEC_v1.md`                                  | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `MULTI_SPORT_UNIFIED_EVENT_SCHEMA_v1.md`                              | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `PHASE_2A_INTELLIGENCE_SUPERIORITY_AUDIT_v1.md`                       | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `PROMOTION_BAND_LOGIC_SPEC_v1.md`                                     | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `RISK_ENGINE_SPEC_v1.md`                                              | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `TELEMETRY_TRUTH_AUDIT_SPEC_v1.md`                                    | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `WALK_FORWARD_EVAL_HARNESS_v1.md`                                     | REFERENCE               | ARCHIVED | `docs/archive/blueprints/`                                  |
+| `phase-2/intelligence-utilization/CAPPER_COMMAND_CENTER_SPEC_v1.0.md` | CANONICAL               | ARCHIVED | `docs/archive/blueprints/phase-2/intelligence-utilization/` |
+| `phase-2/market-data/MARKET_DATA_FOUNDATION_SPEC_v1.0.md`             | REFERENCE               | ARCHIVED | `docs/archive/blueprints/phase-2/market-data/`              |
 
 ### docs/claude/ — KEEP
 
@@ -336,28 +331,28 @@ both locations.
 
 ### docs/ops/ — Mixed
 
-| File                                        | Classification   | Action  | Destination                        |
-| ------------------------------------------- | ---------------- | ------- | ---------------------------------- |
-| `docs/ops/AUTO_RESOLUTION_POLICY.md`        | CANONICAL        | KEEP    | Current                            |
-| `docs/ops/AUTOPILOT_FREEZE_MATRIX.md`       | CANONICAL        | KEEP    | Current                            |
-| `docs/ops/AUTOPILOT_LIVE_FIRE_DRILLS.md`    | REFERENCE        | KEEP    | Current                            |
-| `docs/ops/AUTOPILOT_ROLLOUT_RUNBOOK.md`     | CANONICAL        | KEEP    | Current                            |
-| `docs/ops/CI_FAILURE_CLASSIFICATION.md`     | CANONICAL        | KEEP    | Current                            |
-| `docs/ops/CI_FAILURE_RESOLVER_GUIDE.md`     | REFERENCE        | KEEP    | Current                            |
-| `docs/ops/CONTROL_KNOBS_INVENTORY.md`       | REFERENCE        | KEEP    | Current                            |
-| `docs/ops/E2E_SMOKE_AUTOMATION.md`          | REFERENCE        | KEEP    | Current                            |
-| `docs/ops/FORBIDDEN_ACTIONS.md`             | CANONICAL        | KEEP    | Current                            |
-| `docs/ops/GO_LIVE_RUNBOOK.md`               | CANONICAL        | KEEP    | Current                            |
-| `docs/ops/PR_FAILURE_TEMPLATE.md`           | REFERENCE        | KEEP    | Current                            |
-| `docs/ops/PR7_INCIDENT_ROUTING.md`          | REFERENCE        | KEEP    | Current                            |
-| `docs/ops/PR8_AUTO_REMEDIATION.md`          | REFERENCE        | KEEP    | Current                            |
-| `docs/ops/PR9_GO_LIVE_HARDENING_PR.md`      | REFERENCE        | KEEP    | Current                            |
-| `docs/ops/REQUIRED_CHECKS_ROLLOUT.md`       | REFERENCE        | KEEP    | Current                            |
-| `docs/ops/RUNBOOK_LOCAL.md`                 | CANONICAL        | KEEP    | Current                            |
-| `docs/ops/SUPABASE_CI_ENVIRONMENT_SETUP.md` | REFERENCE        | KEEP    | Current                            |
-| `docs/ops/PHASE65_COMPLETION_REPORT.md`     | SESSION_ARTIFACT | ARCHIVE | `docs/archive/sprint-artifacts/`   |
-| `docs/ops/sop/*.md` (5 files)               | CANONICAL        | KEEP    | Current                            |
-| `docs/ops/huly/*.md` (5 files)              | ARCHIVE          | ARCHIVE | `docs/archive/deprecated-systems/` |
+| File                                        | Classification   | Action   | Destination                        |
+| ------------------------------------------- | ---------------- | -------- | ---------------------------------- |
+| `docs/ops/AUTO_RESOLUTION_POLICY.md`        | CANONICAL        | KEEP     | Current                            |
+| `docs/ops/AUTOPILOT_FREEZE_MATRIX.md`       | CANONICAL        | KEEP     | Current                            |
+| `docs/ops/AUTOPILOT_LIVE_FIRE_DRILLS.md`    | REFERENCE        | KEEP     | Current                            |
+| `docs/ops/AUTOPILOT_ROLLOUT_RUNBOOK.md`     | CANONICAL        | KEEP     | Current                            |
+| `docs/ops/CI_FAILURE_CLASSIFICATION.md`     | CANONICAL        | KEEP     | Current                            |
+| `docs/ops/CI_FAILURE_RESOLVER_GUIDE.md`     | REFERENCE        | KEEP     | Current                            |
+| `docs/ops/CONTROL_KNOBS_INVENTORY.md`       | REFERENCE        | KEEP     | Current                            |
+| `docs/ops/E2E_SMOKE_AUTOMATION.md`          | REFERENCE        | KEEP     | Current                            |
+| `docs/ops/FORBIDDEN_ACTIONS.md`             | CANONICAL        | KEEP     | Current                            |
+| `docs/ops/GO_LIVE_RUNBOOK.md`               | CANONICAL        | KEEP     | Current                            |
+| `docs/ops/PR_FAILURE_TEMPLATE.md`           | REFERENCE        | KEEP     | Current                            |
+| `docs/ops/PR7_INCIDENT_ROUTING.md`          | PR_ARTIFACT      | ARCHIVED | `docs/archive/pr-artifacts/`       |
+| `docs/ops/PR8_AUTO_REMEDIATION.md`          | PR_ARTIFACT      | ARCHIVED | `docs/archive/pr-artifacts/`       |
+| `docs/ops/PR9_GO_LIVE_HARDENING_PR.md`      | PR_ARTIFACT      | ARCHIVED | `docs/archive/pr-artifacts/`       |
+| `docs/ops/REQUIRED_CHECKS_ROLLOUT.md`       | REFERENCE        | KEEP     | Current                            |
+| `docs/ops/RUNBOOK_LOCAL.md`                 | CANONICAL        | KEEP     | Current                            |
+| `docs/ops/SUPABASE_CI_ENVIRONMENT_SETUP.md` | REFERENCE        | KEEP     | Current                            |
+| `docs/ops/PHASE65_COMPLETION_REPORT.md`     | SESSION_ARTIFACT | ARCHIVE  | `docs/archive/sprint-artifacts/`   |
+| `docs/ops/sop/*.md` (5 files)               | CANONICAL        | KEEP     | Current                            |
+| `docs/ops/huly/*.md` (5 files)              | ARCHIVE          | ARCHIVE  | `docs/archive/deprecated-systems/` |
 
 ### docs/phases/ — KEEP
 

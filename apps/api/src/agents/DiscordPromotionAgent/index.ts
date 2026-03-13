@@ -6,6 +6,7 @@ import FormData from 'form-data';
 // SPRINT-REPO-TRUTH-LOCK-002: Distribution domain boundary — type-only import
 
 import { resolveDiscordRoutingConfig } from '../../config/discordRouting';
+import { runAutoApproval } from '../../lib/auto-approval';
 import { autopilotGuard } from '../../lib/AutopilotGuard';
 import { getBuildInfo } from '../../lib/buildInfo';
 import {
@@ -24,6 +25,7 @@ import {
 } from '../../lib/executionTelemetry';
 import { atomicClaimForPost, atomicClaimParlayForPost, lifecycleUpdate } from '../../lib/lifecycle';
 import { BlockedError } from '../../lib/lifecycle/errors';
+import { getPromotionMode } from '../../lib/promotion-mode';
 import { logger } from '../../services/logging';
 import { buildPickPresentation } from '../../services/pickPresentationBuilder';
 import {
@@ -1511,10 +1513,12 @@ export async function promoteToDiscord() {
   const autopilotMode = process.env.AUTOPILOT_MODE || '(not set — defaults to off)';
   const promotionPolicyCfg = parsePromotionPolicyConfig();
 
+  const promotionMode = getPromotionMode();
   logger.info('POSTING-AUTHORITY: Promotion cycle started', {
     shadowModeEnabled: shadowMode,
     webhookConfigured,
     autopilotMode,
+    promotionMode,
     killSwitch: promotionPolicyCfg.killSwitch,
     promotionPolicyEnabled: promotionPolicyCfg.policyEnabled,
     actionRequired: shadowMode
@@ -1530,6 +1534,12 @@ export async function promoteToDiscord() {
     logger.info('POSTING-AUTHORITY: Kill switch active — ALL Discord posting blocked');
     return;
   }
+
+  // SPRINT-PROMOTION-MODE-SPLIT: Auto-approve eligible system picks in dev/canary (PROMOTION_MODE=auto).
+  // In manual/production mode this is a no-op. Must run before processSystemPicks()
+  // so that newly approved picks are immediately eligible for Discord posting.
+  await runAutoApproval(supabase);
+
   const total =
     (await processCapperPicks()) + (await processSystemPicks()) + (await processLegacyPicks());
   if (total === 0) logger.info('POSTING-AUTHORITY: No eligible picks found.');

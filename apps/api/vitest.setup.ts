@@ -39,3 +39,7 @@ process.env.USE_PRO_SCORER = process.env.USE_PRO_SCORER || 'false';
 process.env.PROMOTION_POLICY_V2 = process.env.PROMOTION_POLICY_V2 || 'false';
 process.env.ENABLE_TEMPORAL_SCHEDULES = process.env.ENABLE_TEMPORAL_SCHEDULES || 'false';
 process.env.DEMO_MODE = process.env.DEMO_MODE || 'false';
+
+// SPRINT-PROMOTION-MODE-SPLIT: Default to manual (production-safe) in tests.
+// Override per-test with process.env.PROMOTION_MODE = 'auto' to test auto path.
+process.env.PROMOTION_MODE = process.env.PROMOTION_MODE || 'manual';

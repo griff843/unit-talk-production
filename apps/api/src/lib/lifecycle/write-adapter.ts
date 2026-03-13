@@ -3,24 +3,33 @@
  * LIFECYCLE WRITE ADAPTER
  * Sprint: LIFECYCLE-CONTRACT-LOCK-037
  * Sprint: SPRINT-E2E-SMOKE-AUTOMATION-005 (freeze guard hardening)
+ * Sprint: SPRINT-VERIFICATION-SIMULATION-LAYER-R1 (clock injection)
  *
  * Adapts Supabase writes to enforce lifecycle validation.
  * All writes to unified_picks MUST go through this adapter.
  *
  * INVARIANT: Autopilot freeze blocks ALL writes (hard fail-closed)
  * NOTE: eslint rules disabled - lifecycle functions require validation complexity
+ *
+ * CLOCK INJECTION (R1):
+ *   WriteContext.clock is optional. When present, lifecycle-critical timestamps
+ *   (updated_at, promotion_posted_at, settled_at) are resolved through the
+ *   ClockProvider rather than the system wall clock. This enables deterministic
+ *   replay and shadow mode without changing any existing callers.
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { isAutopilotFrozenAsync, getFreezeDetails } from '@unit-talk/shared';
 
 import { logger } from '../../services/logging';
+import { resolveNow } from '../verification/clock';
 
 import { AutopilotFrozenError, ConcurrentModificationError } from './errors';
 import { deriveLifecycleStage, assertTransition, validateInvariants } from './transition-validator';
 import { validateWrite, assertWriterAuthority } from './writer-authority';
 
 import type { WriterRole, LifecyclePick, LifecycleStage } from './types';
+import type { ClockProvider } from '../verification/clock';
 
 // ============================================================
 // FREEZE GUARD - HARD FAIL-CLOSED
@@ -51,6 +60,12 @@ export interface WriteContext {
   pickId?: string;
   traceId?: string;
   skipTransitionValidation?: boolean; // For initial insert
+  /**
+   * Optional clock provider for deterministic time in replay/shadow/fault modes.
+   * SPRINT-VERIFICATION-SIMULATION-LAYER-R1: When absent, falls back to wall clock.
+   * Existing callers require no change — clock injection is additive.
+   */
+  clock?: ClockProvider;
 }
 
 export interface WriteResult {
@@ -192,7 +207,8 @@ export async function lifecycleUpdate(
       .from('unified_picks')
       .update({
         ...updates,
-        updated_at: new Date().toISOString(),
+        // SPRINT-VERIFICATION-SIMULATION-LAYER-R1: clock-injected timestamp
+        updated_at: resolveNow(context.clock).toISOString(),
       })
       .eq('id', pickId);
 
@@ -290,7 +306,8 @@ export async function lifecycleClaimForPosting(
       .from('unified_picks')
       .update({
         posted_to_discord: true,
-        promotion_posted_at: new Date().toISOString(),
+        // SPRINT-VERIFICATION-SIMULATION-LAYER-R1: clock-injected timestamp
+        promotion_posted_at: resolveNow(context.clock).toISOString(),
       })
       .eq('id', pickId)
       .eq('posted_to_discord', false)
@@ -386,7 +403,8 @@ export async function lifecycleSettle(
     // 4. Perform settlement
     const updates = {
       ...settlement,
-      settled_at: new Date().toISOString(),
+      // SPRINT-VERIFICATION-SIMULATION-LAYER-R1: clock-injected timestamp
+      settled_at: resolveNow(context.clock).toISOString(),
       status:
         settlement.settlement_result === 'win'
           ? 'won'

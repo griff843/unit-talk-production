@@ -515,3 +515,27 @@ For agent-related issues:
 
 This documentation is maintained alongside agent development. For the latest
 updates, refer to the agent source code and associated tests.
+
+## Canonical Documentation Authority
+
+The following directories define the authoritative documentation for the system:
+
+docs/01_principles docs/02_architecture docs/03_product docs/04_roadmap
+docs/05_operations docs/06_status
+
+These documents override any conflicting information in other documentation
+directories.
+
+**Roadmap execution authority**:
+`docs/04_roadmap/layer_phase_execution_model.md` is the canonical source for
+Layer/Phase classification, roadmap sequencing rules, and Claude OS sprint
+planning. All sprint plans must classify work against this model. Status claims
+must not bypass lower-layer gaps (see Section 4 of that document for sequencing
+rules).
+
+All other documentation directories exist for:
+
+- detailed technical references
+- runbooks
+- historical artifacts
+- archived plans

@@ -6,16 +6,19 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests',
-  testMatch: ['**/command-center-production-verification.spec.ts', '**/command-center-simple-verification.spec.ts'],
+  testMatch: [
+    '**/command-center-production-verification.spec.ts',
+    '**/command-center-simple-verification.spec.ts',
+  ],
   fullyParallel: false, // Run tests sequentially for better debugging
   forbidOnly: !!process.env.CI,
   retries: 1,
   workers: 1,
   reporter: [
-    ['html', { open: 'never', outputFolder: 'playwright-verification-report' }],
-    ['line']
+    ['html', { open: 'never', outputFolder: 'test-results/playwright-verification-report' }],
+    ['line'],
   ],
-  
+
   use: {
     // Target the exposed Docker port
     baseURL: 'http://localhost:3004',

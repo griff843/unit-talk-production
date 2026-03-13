@@ -3,6 +3,12 @@
 **Last Updated**: 2026-03-10 **Source**: Phase status + drift report + system
 gap analysis + risk engine roadmap + Linear backlog
 
+> **PHASE NAMING NOTICE** (added 2026-03-13): "Phase" labels in this file use
+> the operational naming convention from `docs/status/PHASE_STATUS.md`. For
+> canonical sprint classification, consult
+> `docs/04_roadmap/layer_phase_execution_model.md`. The canonical Layer/Phase
+> equivalent is noted inline where applicable.
+
 > **Sprint queue refreshed 2026-03-10** after
 > SPRINT-PROMOTION-RUNTIME-ACTIVATION completion. Promotion VERIFIED. Focus
 > shifts to Phase 4 entry (Discord/Recaps), risk visibility, and test debt
@@ -59,7 +65,8 @@ gap analysis + risk engine roadmap + Linear backlog
 ## Sprint 1: SPRINT-RISK-DASHBOARD-MONITORING
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 3 (Risk Engine Dominance —
-visibility) **Estimated Effort**: 2-3 days **Linear**: TBD
+visibility) | Canonical: Layer 2 / Phase 7 (Reliability & Monitoring)
+**Estimated Effort**: 2-3 days **Linear**: TBD
 
 **Objective**: Add risk state visibility to the Command Center — exposure
 heatmap, correlation clusters, drawdown status, and risk decision audit trail.
@@ -91,7 +98,8 @@ Dashboard visibility enables monitoring and tuning of risk parameters.
 ## Sprint 2: SPRINT-JEST-QUARANTINE-CLEANUP
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 1 (Structural Dominance — completion)
-**Estimated Effort**: 1-2 days **Linear**: TBD **Closes**: DRIFT-L2
+| Canonical: Layer 1 / Phase 0 (Governance Lock) **Estimated Effort**: 1-2 days
+**Linear**: TBD **Closes**: DRIFT-L2
 
 **Objective**: Triage and resolve quarantined Jest tests. Either fix, migrate to
 vitest, or permanently archive with documented rationale.

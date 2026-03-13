@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { SportsAsset } from '@/components/ui/sports-asset';
 import {
   Command,
   CommandEmpty,
@@ -17,6 +18,9 @@ export interface ComboboxItem {
   value: string;
   label: string;
   team_id?: string; // GAUNTLET-CLOSEOUT-028: Optional team_id for player items
+  description?: string;
+  imageUrl?: string | null;
+  assetType?: 'player' | 'team';
 }
 
 interface ComboboxProps {
@@ -45,6 +49,7 @@ export function Combobox({
   onSearch,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
+  const selectedItem = items.find(item => item.value === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -59,7 +64,18 @@ export function Combobox({
           {loading ? (
             <span className="text-gray-500">Loading...</span>
           ) : value ? (
-            items.find(item => item.value === value)?.label || placeholder
+            <span className="flex min-w-0 items-center gap-2">
+              {selectedItem ? (
+                <SportsAsset
+                  label={selectedItem.label}
+                  imageUrl={selectedItem.imageUrl}
+                  type={selectedItem.assetType || 'team'}
+                  shape={selectedItem.assetType === 'player' ? 'circle' : 'square'}
+                  className="h-6 w-6 shrink-0"
+                />
+              ) : null}
+              <span className="truncate">{selectedItem?.label || placeholder}</span>
+            </span>
           ) : (
             placeholder
           )}
@@ -90,7 +106,21 @@ export function Combobox({
                 <Check
                   className={cn('mr-2 h-4 w-4', value === item.value ? 'opacity-100' : 'opacity-0')}
                 />
-                {item.label}
+                <div className="flex min-w-0 items-center gap-2">
+                  <SportsAsset
+                    label={item.label}
+                    imageUrl={item.imageUrl}
+                    type={item.assetType || 'team'}
+                    shape={item.assetType === 'player' ? 'circle' : 'square'}
+                    className="h-7 w-7 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="truncate">{item.label}</div>
+                    {item.description ? (
+                      <div className="truncate text-xs text-gray-500">{item.description}</div>
+                    ) : null}
+                  </div>
+                </div>
               </CommandItem>
             ))}
           </CommandGroup>

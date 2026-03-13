@@ -1,4 +1,5 @@
 import { jest, beforeAll, afterAll } from '@jest/globals';
+
 import { Logger } from '../src/shared/logger/types';
 
 declare global {
@@ -13,6 +14,7 @@ declare global {
     }
   }
 
+  // eslint-disable-next-line no-var
   var testUtils: {
     mockLogger: Logger;
     mockSupabase: any;
@@ -34,7 +36,7 @@ const mockLogger: Logger = {
   warn: jest.fn(),
   error: jest.fn(),
   child: jest.fn(() => mockLogger),
-  setLevel: jest.fn()
+  setLevel: jest.fn(),
 };
 
 // Set up global test utilities
@@ -73,12 +75,12 @@ global.testUtils = {
     range: jest.fn().mockReturnThis(),
     abortSignal: jest.fn().mockReturnThis(),
     count: jest.fn().mockReturnThis(),
-    then: jest.fn().mockReturnThis()
+    then: jest.fn().mockReturnThis(),
   },
   mockDeps: {
     logger: mockLogger,
-    supabase: null
-  }
+    supabase: null,
+  },
 };
 
 beforeAll(async () => {

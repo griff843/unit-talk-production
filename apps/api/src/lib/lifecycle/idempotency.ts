@@ -3,15 +3,22 @@
 /**
  * IDEMPOTENCY GUARDS
  * Sprint: LIFECYCLE-CONTRACT-LOCK-037
+ * Sprint: SPRINT-VERIFICATION-SIMULATION-LAYER-R1 (clock injection)
  *
  * Ensures operations are idempotent - same input = same output.
  * Prevents duplicate submissions, posts, and settlements.
+ *
+ * CLOCK INJECTION (R1):
+ *   atomicClaimForPost, atomicClaimParlayForPost, atomicClaimForSettle now accept
+ *   an optional ClockProvider. Existing callers require no change.
  */
 
 import { logger } from '../../services/logging';
+import { resolveNow } from '../verification/clock';
 
 import { IdempotencyError } from './errors';
 
+import type { ClockProvider } from '../verification/clock';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // ============================================================
@@ -136,17 +143,23 @@ export async function assertPostIdempotency(
 /**
  * Atomic claim for posting - returns false if already claimed.
  * This is the preferred idempotent pattern for posting.
+ *
+ * @param clock Optional clock provider (SPRINT-VERIFICATION-SIMULATION-LAYER-R1).
+ *              When present, promotion_posted_at is resolved through the clock.
+ *              Existing callers omit this parameter and get wall-clock behaviour.
  */
 export async function atomicClaimForPost(
   supabase: SupabaseClient,
-  pickId: string
+  pickId: string,
+  clock?: ClockProvider
 ): Promise<{ claimed: boolean; messageId?: string }> {
   // Atomic update: only succeeds if not already posted
   const { data, error } = await supabase
     .from('unified_picks')
     .update({
       posted_to_discord: true,
-      promotion_posted_at: new Date().toISOString(),
+      // SPRINT-VERIFICATION-SIMULATION-LAYER-R1: clock-injected timestamp
+      promotion_posted_at: resolveNow(clock).toISOString(),
     })
     .eq('id', pickId)
     .eq('posted_to_discord', false)
@@ -171,16 +184,20 @@ export async function atomicClaimForPost(
  *
  * SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-002 - Partial parlay
  * Now enforces ALL-OR-NOTHING semantics - partial claims are rolled back.
+ *
+ * @param clock Optional clock provider (SPRINT-VERIFICATION-SIMULATION-LAYER-R1).
  */
 export async function atomicClaimParlayForPost(
   supabase: SupabaseClient,
-  pickIds: string[]
+  pickIds: string[],
+  clock?: ClockProvider
 ): Promise<{ claimed: boolean; claimedCount: number; reason?: string }> {
   const { data, error } = await supabase
     .from('unified_picks')
     .update({
       posted_to_discord: true,
-      promotion_posted_at: new Date().toISOString(),
+      // SPRINT-VERIFICATION-SIMULATION-LAYER-R1: clock-injected timestamp
+      promotion_posted_at: resolveNow(clock).toISOString(),
     })
     .in('id', pickIds)
     .eq('posted_to_discord', false)
@@ -322,6 +339,9 @@ export async function assertSettleIdempotency(
 
 /**
  * Atomic claim for settlement - returns false if already settled.
+ *
+ * @param clock Optional clock provider (SPRINT-VERIFICATION-SIMULATION-LAYER-R1).
+ *              When present, settled_at is resolved through the clock.
  */
 export async function atomicClaimForSettle(
   supabase: SupabaseClient,
@@ -330,14 +350,16 @@ export async function atomicClaimForSettle(
     settlement_status: 'settled' | 'void';
     settlement_result?: 'win' | 'loss' | 'push';
     settlement_source?: string;
-  }
+  },
+  clock?: ClockProvider
 ): Promise<{ claimed: boolean }> {
   // Atomic update: only succeeds if not already settled
   const { data, error } = await supabase
     .from('unified_picks')
     .update({
       ...settlement,
-      settled_at: new Date().toISOString(),
+      // SPRINT-VERIFICATION-SIMULATION-LAYER-R1: clock-injected timestamp
+      settled_at: resolveNow(clock).toISOString(),
     })
     .eq('id', pickId)
     .in('settlement_status', ['pending', null])
@@ -547,7 +569,7 @@ export async function resetPostingClaim(
       parlay_legs: parlayLegIds.length > 1 ? parlayLegIds : undefined,
       audit_id: auditId,
     },
-    created_at: new Date().toISOString(),
+    created_at: new Date().toISOString(), // WALL-CLOCK-ALLOWED: audit log created_at, non-lifecycle
   });
 
   if (auditError) {
@@ -686,7 +708,7 @@ export async function resetSettlementForRetry(
       trace_id: traceId,
       audit_id: auditId,
     },
-    created_at: new Date().toISOString(),
+    created_at: new Date().toISOString(), // WALL-CLOCK-ALLOWED: audit log created_at, non-lifecycle
   });
 
   if (auditError) {

@@ -44,13 +44,14 @@ export interface CatalogTeam {
 }
 
 export interface CatalogPlayer {
-  id: string;
-  name: string;
+  player_id: string;
+  player_name: string;
   sport: string;
   team_id: string | null;
   team_name: string | null;
   team_abbr: string | null;
   position: string | null;
+  headshot_url: string | null;
 }
 
 export interface CatalogGame {
@@ -94,6 +95,8 @@ export interface SearchResult {
   team_id?: string;
   abbr?: string;
   display_label?: string;
+  headshot_url?: string | null;
+  logo_url?: string | null;
 }
 
 export interface Prop {

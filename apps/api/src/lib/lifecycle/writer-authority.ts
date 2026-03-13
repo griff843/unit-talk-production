@@ -258,6 +258,13 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
     allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: false,
   },
+  // SPRINT-PROMOTION-MODE-SPLIT: workflow_stage is the human-readable approval gate field.
+  // Promoter can set it (auto-approval in dev/canary); operator_override for manual corrections.
+  {
+    field: 'workflow_stage',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: false,
+  },
   {
     field: 'blocked_reason',
     allowedWriters: ['promoter', 'operator_override'],

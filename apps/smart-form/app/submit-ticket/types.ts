@@ -519,6 +519,10 @@ export interface GameSelection {
   team_id?: string;
   player_id?: string; // GAUNTLET-CLOSEOUT-028: For player prop entries
   player_name?: string; // GAUNTLET-CLOSEOUT-028: For player prop entries
+  player_headshot_url?: string;
+  team_logo_url?: string;
+  home_team_logo_url?: string;
+  away_team_logo_url?: string;
 }
 
 // Step validation interface

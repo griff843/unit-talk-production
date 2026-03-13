@@ -30,6 +30,12 @@ const envSchema = z.object({
   // Monitoring
   PROMETHEUS_PORT: z.coerce.number().default(9090),
   HEALTH_CHECK_INTERVAL: z.coerce.number().default(60000),
+
+  // SPRINT-PROMOTION-MODE-SPLIT: Controls auto-approval of system-generated picks.
+  // 'manual' = production default (human approval required in Command Center).
+  // 'auto'   = dev/canary only (system picks auto-transition to approved for E2E testing).
+  // Fail-closed: any value other than 'auto' behaves as 'manual'.
+  PROMOTION_MODE: z.enum(['manual', 'auto']).default('manual'),
 });
 
 const parsed = envSchema.safeParse(process.env);

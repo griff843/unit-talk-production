@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxItem } from '@/components/ui/combobox';
+import { SportsAsset } from '@/components/ui/sports-asset';
 import { GameSelection, Sport } from '../types';
 import { ManualPropCreator } from './ManualPropCreator';
 import type { Game } from './GamesList';
@@ -40,7 +41,7 @@ export function PlayerPropsPanel({
   const [selectedPlayerData, setSelectedPlayerData] = useState<ComboboxItem | null>(null);
   const playerDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // SEARCH-CATALOG-CONTRACT-035: Player search via unified search API
+  // SEARCH-CATALOG-CONTRACT-035: Player search via canonical player catalog
   // SMARTFORM-ENTITY-RESOLUTION-001: Includes team_id for entity resolution
   const searchPlayers = useCallback(
     async (q: string) => {
@@ -51,21 +52,27 @@ export function PlayerPropsPanel({
       setPlayersLoading(true);
       setPlayersError(null);
       try {
-        // SEARCH-CATALOG-CONTRACT-035: Use unified search endpoint
-        const url = `/api/search?q=${encodeURIComponent(q)}&sport=${sport || ''}&type=player&limit=20`;
+        const params = new URLSearchParams({
+          q,
+          sport: sport || '',
+          limit: '20',
+        });
+        const url = `/api/catalog/players?${params.toString()}`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.error) throw new Error(data.message || data.error);
 
-        // SEARCH-CATALOG-CONTRACT-035: Transform search results to ComboboxItem format
+        // SEARCH-CATALOG-CONTRACT-035: Transform catalog results to ComboboxItem format
         // SMARTFORM-ENTITY-RESOLUTION-001: Include team_id for auto-fill
-        const items: ComboboxItem[] = (data.results || []).map((p: any) => ({
-          value: p.id,
-          label: p.display_label || `${p.name} (${p.team || p.sport})`,
-          // Store team_id for player->team auto-fill
+        const items: ComboboxItem[] = (data.players || []).map((p: any) => ({
+          value: p.player_id,
+          label: p.player_name,
           team_id: p.team_id,
+          description: [p.team_abbr || p.team_name, p.position].filter(Boolean).join(' • '),
+          imageUrl: p.headshot_url || null,
+          assetType: 'player',
         }));
         setPlayerItems(items);
       } catch (err: any) {
@@ -152,6 +159,7 @@ export function PlayerPropsPanel({
     const resolvedPlayerId = selectedPlayerData?.value || (selectedProp as any)?.player_id;
     const resolvedPlayerName = selectedPlayerData?.label || (selectedProp as any)?.player_name;
     const resolvedTeamId = selectedPlayerData?.team_id || (selectedProp as any)?.team_id;
+    const resolvedPlayerHeadshotUrl = selectedPlayerData?.imageUrl || null;
 
     // CLV-COVERAGE-SCALE-001: Explicitly set source:'api' and game_id for Games mode
     // SMARTFORM-ENTITY-RESOLUTION-001: Include entity IDs for FanDuel-style resolution
@@ -169,6 +177,9 @@ export function PlayerPropsPanel({
       ...(resolvedPlayerId && { player_id: resolvedPlayerId }),
       ...(resolvedPlayerName && { player_name: resolvedPlayerName }),
       ...(resolvedTeamId && { team_id: resolvedTeamId }),
+      ...(resolvedPlayerHeadshotUrl && { player_headshot_url: resolvedPlayerHeadshotUrl }),
+      ...(game.home_logo_url && { home_team_logo_url: game.home_logo_url }),
+      ...(game.away_logo_url && { away_team_logo_url: game.away_logo_url }),
     };
 
     console.log('[ENTITY-RESOLUTION] Adding selection with entity IDs:', {
@@ -310,6 +321,26 @@ export function PlayerPropsPanel({
             onSearch={handlePlayerSearch}
           />
         )}
+        {selectedPlayerData ? (
+          <div className="mt-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+            <SportsAsset
+              label={selectedPlayerData.label}
+              imageUrl={selectedPlayerData.imageUrl}
+              type="player"
+              className="h-8 w-8 shrink-0"
+            />
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-gray-900">
+                {selectedPlayerData.label}
+              </div>
+              {selectedPlayerData.description ? (
+                <div className="truncate text-xs text-gray-500">
+                  {selectedPlayerData.description}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-2">

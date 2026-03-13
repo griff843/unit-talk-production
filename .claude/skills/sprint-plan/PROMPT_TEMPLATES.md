@@ -63,8 +63,12 @@ North star:
 
 ## Template: Architecture / Feature Sprint
 
-Use for: SPRINT-MULTI-BOOK-CONSENSUS, Phase 3+ sprints, any sprint requiring new
-contract or cross-service design.
+Use for: SPRINT-MULTI-BOOK-CONSENSUS, Layer 1 Phase 5+ sprints, any sprint
+requiring new contract or cross-service design.
+
+> **Sprint classification**: All sprint prompts must declare their canonical
+> Layer/Phase per `docs/04_roadmap/layer_phase_execution_model.md`. Format:
+> `Layer <N> / Phase <M> — <Name>`.
 
 ```
 SPRINT — <SPRINT-NAME-NNN>
@@ -77,11 +81,13 @@ Include relevant phase status, which services are involved, and any prior
 work this sprint builds on.>
 
 Example:
-Unit Talk is Phase 2 (Intelligence Superiority) at 70%. SGO and OddsAPI feed
-provider_offers on the V3 path, but Optimal API still routes to legacy raw_props
+Unit Talk is at Layer 1 / Phase 4 (Operational Determinism) with distribution
+pipeline verified. The canonical ops phase status shows Phase 2 Intelligence
+Superiority at 80% (PHASE_STATUS.md). Optimal API still routes to legacy raw_props
 (DRIFT-M3). Multi-book consensus scoring (UNI-11) is the highest-value intelligence
 gap: without consensus devigging across 3+ providers, edge calculations are based
 on single-book prices. Linear issues UNI-11 and UNI-13 define this work.
+Layer/Phase classification: Layer 1 / Phase 2 — Data Truth.
 
 Mission:
 <One sentence>
