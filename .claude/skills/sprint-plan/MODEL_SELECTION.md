@@ -1,17 +1,25 @@
 # Sprint Plan — Model Selection
 
+> **Canonical Authority**: The routing matrix in this file is governed by
+> `docs/02_architecture/claude_os_ceiling_blueprint.md §6`. If this file
+> conflicts with that document, the blueprint wins. Update this file to resolve
+> any divergence.
+
 ## Decision Principle
 
 Choose the **cheapest model that can reliably complete the sprint without
-errors**. Sonnet is faster and sufficient for most implementation work. Opus is
-justified when the sprint requires sustained multi-system reasoning or
-architectural judgment that Sonnet routinely gets wrong.
+errors**. Haiku for pure read/status work. Sonnet for most implementation work.
+Opus when the sprint requires sustained multi-system reasoning or architectural
+judgment that Sonnet routinely gets wrong.
 
 ---
 
 ## Quick Reference
 
 ```
+Is the sprint purely reading status, querying health, or running a known script?
+  → Haiku
+
 Is the sprint primarily writing or moving code to a known pattern?
   → Sonnet
 
@@ -28,6 +36,21 @@ Does the sprint objective fit in a clear, mechanical task list?
 
 ---
 
+## Haiku — Use When
+
+| Condition                                                | Example                           |
+| -------------------------------------------------------- | --------------------------------- |
+| Status check only (read current_phase.md, report status) | `/status-sync` read phase         |
+| Health endpoint query (no reasoning)                     | agent_health table check          |
+| Simple known-pattern script generation                   | bash script from a known template |
+| Sprint dependency tag existence check                    | `git ls-remote` check             |
+| Single-file read with no cross-system reasoning needed   | read one config file, summarize   |
+
+**Signal**: The task is read-only or purely mechanical with no judgment calls.
+If a status check reveals something unexpected, escalate to Sonnet or Opus.
+
+---
+
 ## Sonnet — Use When
 
 | Condition                                                     | Example Sprint                  |
@@ -39,9 +62,10 @@ Does the sprint objective fit in a clear, mechanical task list?
 | Documentation generation (from known facts)                   | any docs sprint                 |
 | Build fix (clear error → known fix)                           | any CI/build fix                |
 | Activation sprint (existing code, toggle a flag + wire it up) | SPRINT-PROMOTION-ACTIVATION     |
+| Claude OS governance doc update (mechanical)                  | COS-001, COS-004                |
 
-**Signal**: The task list in `NEXT_5_SPRINTS.md` reads as numbered, concrete
-steps with no ambiguity about _how_ each step should be implemented.
+**Signal**: The task list reads as numbered, concrete steps with no ambiguity
+about _how_ each step should be implemented.
 
 ---
 
@@ -55,6 +79,7 @@ steps with no ambiguity about _how_ each step should be implemented.
 | Audit/truth sprint (read + reconcile across large codebase)   | SPRINT-SYSTEM-TRUTH-AUDIT               |
 | Sprint has ambiguous requirements needing judgment calls      | any open-ended design                   |
 | Sprint involves risk-engine logic or probability math         | Layer 2/Ph 6-7 (Operator + Reliability) |
+| Blueprint / ceiling definition sprint                         | SPRINT-CLAUDE-OS-CEILING-BLUEPRINT-\*   |
 | The operator explicitly requests maximum quality              | use `--model opus`                      |
 
 **Signal**: The task list has items like "design X", "evaluate Y", "decide how
@@ -86,42 +111,64 @@ for implementation).
 → Use **Opus** for the planning prompt. Break the sprint into smaller units and
 re-evaluate model per sub-unit.
 
+### "It's a status check that revealed a problem"
+
+→ Escalate from **Haiku** to **Sonnet** or **Opus** depending on the nature of
+the problem. The discovery step is Haiku; the fix sprint is classified normally.
+
 ---
 
 ## Model Choice in Generated Prompt
 
-The skill MUST include a model directive in the generated prompt header:
+The skill MUST include a `Model:` and `Routing:` directive in the generated
+prompt header. Both fields are required. A sprint prompt missing either field is
+malformed.
 
 ```markdown
-Model: Sonnet
-```
-
-or
-
-```markdown
-Model: Opus
-```
-
-And a one-sentence justification:
-
-```markdown
-Model: Sonnet — this sprint is a mechanical migration of 13 files to a known
-lifecycle adapter pattern with no design decisions required.
+Model: Sonnet Routing: this sprint is a mechanical migration of 13 files to a
+known lifecycle adapter pattern with no design decisions required.
 ```
 
 ```markdown
-Model: Opus — this sprint designs new cross-provider contracts across ingestion,
-scoring, and promotion layers requiring multi-system architectural judgment.
+Model: Opus Routing: this sprint designs new cross-provider contracts across
+ingestion, scoring, and promotion layers requiring multi-system architectural
+judgment.
 ```
+
+```markdown
+Model: Haiku Routing: status-only read of current_phase.md and agent_health
+table; no implementation or reasoning required.
+```
+
+The `Routing:` field must be a single sentence that references the sprint type
+category from `claude_os_ceiling_blueprint.md §6`. It is the auditable record of
+why this model was chosen.
 
 ---
 
-## Current Sprint Queue — Model Assignments (as of 2026-03-09)
+## Routing Escalation Protocol
 
-| Sprint                           | Type         | Model      | Reason                                  |
-| -------------------------------- | ------------ | ---------- | --------------------------------------- |
-| SPRINT-TEST-INFRA-RECOVERY       | Fix          | **Sonnet** | Known errors, known fixes, mechanical   |
-| SPRINT-SINGLE-WRITER-COMPLETION  | Migration    | **Sonnet** | Same adapter pattern, 13 files          |
-| SPRINT-PROMOTION-ACTIVATION      | Activation   | **Sonnet** | Code exists, wire + validate            |
-| SPRINT-MULTI-BOOK-CONSENSUS      | Architecture | **Opus**   | New provider contracts + scoring design |
-| SPRINT-OPERATIONAL-OBSERVABILITY | Feature      | **Sonnet** | Specific endpoints and CI checks        |
+If the selected model fails to complete the sprint cleanly:
+
+| Escalation Trigger                          | Action                                                   |
+| ------------------------------------------- | -------------------------------------------------------- |
+| Sonnet produces incorrect output in Phase 2 | Document failure, escalate to Opus for that phase        |
+| Haiku misses a non-obvious status condition | Escalate to Sonnet, re-run status check                  |
+| Opus produces over-engineered output        | Scope-reduce the sprint; re-run with tighter constraints |
+
+Escalation must be documented in the sprint plan notes with the original model,
+escalation model, and reason.
+
+---
+
+## Current Sprint Queue — Model Assignments
+
+> Note: The table below reflects the active sprint queue. Update when the queue
+> changes. See `docs/status/NEXT_5_SPRINTS.md` for the authoritative queue. This
+> table is a convenience reference only.
+
+| Sprint                                               | Type       | Model      | Reason                                         |
+| ---------------------------------------------------- | ---------- | ---------- | ---------------------------------------------- |
+| SPRINT-CLAUDE-OS-CEILING-BLUEPRINT-CANONICALIZATION  | Blueprint  | **Sonnet** | Mechanical doc synthesis from existing context |
+| SPRINT-CLAUDE-OS-COS001-MODEL-ROUTING-FORMALIZATION  | Governance | **Sonnet** | Mechanical doc update to known template format |
+| SPRINT-RISK-DASHBOARD-MONITORING (Layer 2 / Phase 7) | Feature    | **Sonnet** | Specific endpoints + CI checks; clear spec     |
