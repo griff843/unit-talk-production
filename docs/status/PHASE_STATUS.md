@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-14 (SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE)
+**Last Updated**: 2026-03-14 (SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING)
 **Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -229,10 +229,32 @@ Layer 2 / Phase 6 — Operator Control Plane deliverables:
   failures resolved
 - (PR #189)
 
+### Additional Completed Work (SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING, 2026-03-14)
+
+Layer 2 / Phase 7 — Reliability & Monitoring deliverables:
+
+- `GET /api/slo/status` — 4-SLO attainment endpoint: lifecycle completion (95%
+  target), Discord posting (98% target), grading latency p50 (<300s target),
+  settlement accuracy (99.5% target); `Promise.allSettled` parallel queries;
+  `deriveRateSloStatus` / `deriveLatencySloStatus` helpers exported for reuse
+- `GET /api/health/summary` — unified platform health: HEALTHY/DEGRADED/CRITICAL
+  status from 7 subsystems (4 SLO + risk_engine + outbox + workers); returns
+  `slo_breaches`, `slo_warns`, `alert_count`, `high_alert_count`,
+  `autopilot_mode`
+- `PlatformThresholdEvaluator` — structured alerting service (drawdown freeze →
+  HIGH, outbox depth >20 → MEDIUM, SLO breach → HIGH/WARN → MEDIUM, heartbeat
+  stale >10min → HIGH); called by `/api/health/summary` with pre-computed SLOs
+- `docs/ops/SLO_DEFINITIONS.md` — 4 SLOs with measurement queries and thresholds
+- `docs/ops/ON_CALL_RUNBOOK.md` — 5 operational scenarios (drawdown freeze,
+  Discord posting failure, risk gate blocking, heartbeat gap, external feed
+  down)
+- 11 new vitest tests; 921/921 total (35 suites)
+- (PR #191)
+
 ### Remaining Work
 
-None (Phase 3 risk engine controls complete; Phase 6 operator control API
-delivered)
+None (Phase 3 risk engine controls + Phase 6 operator control API + Phase 7
+reliability monitoring all delivered)
 
 ### Assessment
 
@@ -242,7 +264,10 @@ drawdown freeze. Risk state fully visible in Command Center (exposure, drift,
 correlation, drawdown, market-type panels). Decision audit trail queryable via
 `/api/risk/decisions`. Operator control API live (Layer 2 / Phase 6
 deliverable): autopilot mode changeable at runtime, risk config updatable
-without deploy, manual pick overrides via lifecycle adapter.
+without deploy, manual pick overrides via lifecycle adapter. Reliability
+monitoring live (Layer 2 / Phase 7 deliverable): 4 SLOs defined and tracked via
+live endpoint, unified health summary with HEALTHY/DEGRADED/CRITICAL derivation,
+structured alerting thresholds, on-call runbook (5 scenarios).
 
 ---
 

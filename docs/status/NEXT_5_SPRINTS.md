@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-14 (SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE)
+**Last Updated**: 2026-03-14 (SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING)
 **Source**: Phase status + drift report + system gap analysis + risk engine
 roadmap + Linear backlog
 
@@ -119,32 +119,42 @@ roadmap + Linear backlog
 
 ---
 
-## Sprint 1: SPRINT-043 — TBD
+## ~~Sprint 1: SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING~~ ✅ COMPLETED (2026-03-14)
+
+> Layer 2 / Phase 7 — Reliability & Monitoring. SLO framework (4 SLOs + GET
+> /api/slo/status); GET /api/health/summary (HEALTHY/DEGRADED/CRITICAL);
+> PlatformThresholdEvaluator; SLO_DEFINITIONS.md + ON_CALL_RUNBOOK.md; 11 new
+> vitest tests; 921/921 vitest. PR #191.
+
+---
+
+## Sprint 1: SPRINT-044 — TBD
 
 **Priority**: TBD **Phase**: TBD **Linear**: TBD
 
-**Note**: SPRINT-043 is next. Define scope via `/sprint-plan` before beginning.
-Layer 2 / Phase 7 (Reliability & Monitoring) or Phase 4 automation work are
-likely candidates.
+**Note**: SPRINT-044 is next. Define scope via `/sprint-plan` before beginning.
+Phase 4 automation work (edge ranking feeds, market alerts) or further Layer 2
+refinements are likely candidates.
 
 ---
 
 ## Summary
 
-| #     | Sprint                            | Priority | Phase       | Focus                                                | Linear    |
-| ----- | --------------------------------- | -------- | ----------- | ---------------------------------------------------- | --------- |
-| ~~1~~ | ~~RISK-BANKROLL-KELLY~~           | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                  | UNI-53    |
-| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~     | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE        | UNI-54    |
-| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~       | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE            | UNI-55    |
-| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~  | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                    | UNI-56    |
-| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~    | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE          | UNI-57    |
-| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~     | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE        | TBD       |
-| ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~  | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW   | UNI-64–68 |
-| ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~     | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE             | UNI-69    |
-| ~~1~~ | ~~JEST-QUARANTINE-CLEANUP~~       | ~~P2~~   | ~~L1/Ph 0~~ | ~~Delete quarantined tests, close DRIFT-L2~~ ✅ DONE | UNI-70    |
-| ~~1~~ | ~~041-MARKET-TYPE-EXPOSURE-CAPS~~ | ~~P1~~   | ~~Ph 3~~    | ~~Market-type caps; Phase 3 → 100%~~ ✅ DONE         | UNI-72    |
-| ~~1~~ | ~~042-LAYER2-PHASE6-OPERATOR-CP~~ | ~~P1~~   | ~~L2/Ph 6~~ | ~~Operator control API + pick override~~ ✅ DONE     | TBD       |
-| 1     | SPRINT-043 TBD                    | TBD      | TBD         | Define via /sprint-plan                              | TBD       |
+| #     | Sprint                            | Priority | Phase       | Focus                                                 | Linear    |
+| ----- | --------------------------------- | -------- | ----------- | ----------------------------------------------------- | --------- |
+| ~~1~~ | ~~RISK-BANKROLL-KELLY~~           | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                   | UNI-53    |
+| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~     | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE         | UNI-54    |
+| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~       | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE             | UNI-55    |
+| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~  | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                     | UNI-56    |
+| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~    | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE           | UNI-57    |
+| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~     | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE         | TBD       |
+| ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~  | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW    | UNI-64–68 |
+| ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~     | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE              | UNI-69    |
+| ~~1~~ | ~~JEST-QUARANTINE-CLEANUP~~       | ~~P2~~   | ~~L1/Ph 0~~ | ~~Delete quarantined tests, close DRIFT-L2~~ ✅ DONE  | UNI-70    |
+| ~~1~~ | ~~041-MARKET-TYPE-EXPOSURE-CAPS~~ | ~~P1~~   | ~~Ph 3~~    | ~~Market-type caps; Phase 3 → 100%~~ ✅ DONE          | UNI-72    |
+| ~~1~~ | ~~042-LAYER2-PHASE6-OPERATOR-CP~~ | ~~P1~~   | ~~L2/Ph 6~~ | ~~Operator control API + pick override~~ ✅ DONE      | TBD       |
+| ~~1~~ | ~~043-LAYER2-PHASE7-RELIABILITY~~ | ~~P1~~   | ~~L2/Ph 7~~ | ~~SLO framework + health summary + alerting~~ ✅ DONE | TBD       |
+| 1     | SPRINT-044 TBD                    | TBD      | TBD         | Define via /sprint-plan                               | TBD       |
 
 **Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
 independent and can run in any order.
