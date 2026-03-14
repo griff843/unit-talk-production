@@ -14,7 +14,8 @@ SPRINT-PROMOTION-ACTIVATION, and similar implementation-heavy sprints.
 ```
 SPRINT — <SPRINT-NAME-NNN>
 
-Model: <Sonnet | Opus>
+Model: <Sonnet | Opus | Haiku>
+Routing: <one sentence — why this model for this sprint type. See claude_os_ceiling_blueprint.md §6>
 
 Context:
 <2–4 sentences of current system state relevant to this sprint.
@@ -74,6 +75,7 @@ requiring new contract or cross-service design.
 SPRINT — <SPRINT-NAME-NNN>
 
 Model: Opus
+Routing: Architecture / new contract design — multi-system reasoning required; see claude_os_ceiling_blueprint.md §6
 
 Context:
 <3–5 sentences of current state + the architectural gap this sprint fills.
@@ -135,6 +137,7 @@ Use for: SPRINT-SYSTEM-TRUTH-AUDIT, any sprint whose output is docs not code.
 SPRINT — <SPRINT-NAME-NNN>
 
 Model: Opus
+Routing: Audit/truth sprint — cross-system read + reconciliation requires sustained judgment; see claude_os_ceiling_blueprint.md §6
 
 Context:
 <Status of the canonical docs layer and why a re-audit is needed.
@@ -208,12 +211,13 @@ Once <DEPENDENCY-SPRINT> is merged and tagged, re-run /sprint-plan to confirm
 
 ## Variable Reference
 
-| Variable            | Source                                              |
-| ------------------- | --------------------------------------------------- |
-| `<SPRINT-NAME-NNN>` | NEXT_5_SPRINTS.md sprint name + next git tag number |
-| `<Sonnet \| Opus>`  | MODEL_SELECTION.md                                  |
-| Context block       | CURRENT_SYSTEM_STATUS.md + DRIFT_REPORT.md          |
-| Task list           | NEXT_5_SPRINTS.md Tasks section                     |
-| Success criteria    | NEXT_5_SPRINTS.md Success Criteria section          |
-| `<UNI-N>`           | Linear issue lookup via mcp**linear**list_issues    |
-| Sprint branch       | lowercase sprint name with hyphens                  |
+| Variable            | Source                                                                       |
+| ------------------- | ---------------------------------------------------------------------------- |
+| `<SPRINT-NAME-NNN>` | NEXT_5_SPRINTS.md sprint name + next git tag number                          |
+| `Model:`            | `MODEL_SELECTION.md` → canonical matrix: `claude_os_ceiling_blueprint.md §6` |
+| `Routing:`          | One sentence from routing matrix justifying model choice; always required    |
+| Context block       | CURRENT_SYSTEM_STATUS.md + DRIFT_REPORT.md                                   |
+| Task list           | NEXT_5_SPRINTS.md Tasks section                                              |
+| Success criteria    | NEXT_5_SPRINTS.md Success Criteria section                                   |
+| `<UNI-N>`           | Linear issue lookup via mcp**linear**list_issues                             |
+| Sprint branch       | lowercase sprint name with hyphens                                           |

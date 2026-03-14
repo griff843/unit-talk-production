@@ -109,10 +109,12 @@ This classification drives model selection in Step 5.
 
 ### Step 5: Choose Model
 
-Apply `MODEL_SELECTION.md` rules. Summary:
+Apply `MODEL_SELECTION.md` rules. Canonical authority:
+`docs/02_architecture/claude_os_ceiling_blueprint.md §6`
 
 | Condition                                             | Model      |
 | ----------------------------------------------------- | ---------- |
+| Status-only read, health check, no reasoning          | **Haiku**  |
 | Fix, Migration, Activation sprint                     | **Sonnet** |
 | Feature sprint (clear requirements)                   | **Sonnet** |
 | Architecture or cross-system design                   | **Opus**   |
@@ -120,7 +122,12 @@ Apply `MODEL_SELECTION.md` rules. Summary:
 | Ambiguous requirements needing reasoning              | **Opus**   |
 | Large mechanical refactor (> 10 files, clear pattern) | **Sonnet** |
 
-Explain the choice in one sentence in the output.
+The generated prompt MUST include both:
+
+- `Model: <Sonnet | Opus | Haiku>`
+- `Routing: <one sentence justifying the choice>`
+
+A sprint prompt missing either field is malformed and must be regenerated.
 
 ### Step 6: Determine Sprint Number
 

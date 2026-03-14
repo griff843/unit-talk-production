@@ -171,14 +171,20 @@ If `NEXT_5_SPRINTS.md` is empty (all 5 sprints complete):
 
 ## Sprint Type Classification
 
-| Type             | Indicators                                                           |
-| ---------------- | -------------------------------------------------------------------- |
-| **Fix**          | "Restore", "fix broken", "recover", CRITICAL drift source            |
-| **Migration**    | "Migrate X to Y", "move", "eliminate violations", mechanical changes |
-| **Feature**      | New capability, UNI-N feature issue, "implement", "add"              |
-| **Architecture** | "Redesign", "restructure", affects 3+ services, new contracts        |
-| **Audit/Truth**  | "Audit", "reconcile", "verify", "truth", output is docs not code     |
-| **Activation**   | "Enable", "wire", "activate", code exists but disabled               |
+> **Model routing**: Each sprint type maps to a default model. The `Model:` and
+> `Routing:` fields in every sprint prompt must reflect this mapping. Canonical
+> authority: `docs/02_architecture/claude_os_ceiling_blueprint.md §6`
+
+| Type             | Indicators                                                           | Default Model                       |
+| ---------------- | -------------------------------------------------------------------- | ----------------------------------- |
+| **Fix**          | "Restore", "fix broken", "recover", CRITICAL drift source            | Sonnet                              |
+| **Migration**    | "Migrate X to Y", "move", "eliminate violations", mechanical changes | Sonnet                              |
+| **Feature**      | New capability, UNI-N feature issue, "implement", "add"              | Sonnet (clear spec) / Opus (vague)  |
+| **Architecture** | "Redesign", "restructure", affects 3+ services, new contracts        | Opus                                |
+| **Audit/Truth**  | "Audit", "reconcile", "verify", "truth", output is docs not code     | Opus                                |
+| **Activation**   | "Enable", "wire", "activate", code exists but disabled               | Sonnet                              |
+| **Governance**   | Blueprint, rule update, doc canonicalization, no code changes        | Sonnet (mechanical) / Opus (design) |
+| **Status-Only**  | Read and report state; no code, no doc update, no implementation     | Haiku                               |
 
 ---
 
