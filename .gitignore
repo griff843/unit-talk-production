@@ -256,6 +256,9 @@ PHASE*.json
 *_FINAL*.md
 *_COMPLETE*.md
 *_REPORT*.md
+# docs/claude governance files are tracked regardless of name patterns above
+!docs/claude/
+!docs/claude/**
 APPLY_MIGRATIONS*.sql
 GO_NO_GO*.md
 CANARY_*.md

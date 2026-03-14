@@ -67,6 +67,7 @@
     "verify:sprint": "npx tsx scripts/verify-sprint.ts",
     "sprint:validate": "npx tsx scripts/sprint-close.ts --validate-only",
     "sprint:close": "npx tsx scripts/sprint-close.ts",
+    "phase:proof": "npx tsx scripts/generate-phase-proof.ts",
     "guard:lockfiles": "npx tsx scripts/guard-no-npm-lock.ts",
     "guard:supabase-endpoint": "node scripts/assert-no-stale-supabase.mjs",
     "guard:env": "node scripts/guard-env-proliferation.mjs",

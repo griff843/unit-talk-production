@@ -12,14 +12,16 @@
 
 ## Quick Reference
 
-| Resource                                  | Purpose                                  |
-| ----------------------------------------- | ---------------------------------------- |
-| `docs/CLAUDE_OS_GOVERNANCE_CONTRACT.md`   | Sprint execution rules (authoritative)   |
-| `CLAUDE_EXECUTION_CONTRACT.md`            | Hard law - non-negotiable invariants     |
-| `.claude/rules/*.md`                      | Modular rule files                       |
-| `.claude/agents/*.md`                     | Specialist role definitions              |
-| `.claude/skills/*.md`                     | Repeatable procedures (invoke on-demand) |
-| `docs/claude/SPRINT_WORKFLOW_TEMPLATE.md` | Sprint execution template                |
+| Resource                                              | Purpose                                    |
+| ----------------------------------------------------- | ------------------------------------------ |
+| `docs/CLAUDE_OS_GOVERNANCE_CONTRACT.md`               | Sprint execution rules (authoritative)     |
+| `CLAUDE_EXECUTION_CONTRACT.md`                        | Hard law - non-negotiable invariants       |
+| `docs/02_architecture/claude_os_ceiling_blueprint.md` | Claude OS evolution authority              |
+| `.claude/rules/*.md`                                  | Modular rule files                         |
+| `.claude/rules/07-lane-model.md`                      | Lane model — parallel execution discipline |
+| `.claude/agents/*.md`                                 | Specialist role definitions                |
+| `.claude/skills/*.md`                                 | Repeatable procedures (invoke on-demand)   |
+| `docs/claude/SPRINT_WORKFLOW_TEMPLATE.md`             | Sprint execution template                  |
 
 ---
 
