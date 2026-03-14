@@ -118,6 +118,14 @@ on:
         description: "Run ci-run-admin-rpcs.ts"
         type: boolean
         default: false
+      run_shadow_guardrails:
+        description: "Run R3 shadow divergence guardrails (--fixture, no Supabase required)"
+        type: boolean
+        default: false
+      run_fault_suite:
+        description: "Run R4 fault injection full suite F1–F10 (no Supabase required)"
+        type: boolean
+        default: false
       extra_setup:
         description: "Extra shell commands after install (e.g. playwright install)"
         type: string
@@ -284,6 +292,48 @@ jobs:
         env:
           SUPABASE_URL: http://localhost:0
           SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
+
+      - name: R3 Shadow divergence guardrails
+        # SPRINT-LAYER1-PHASE5-E2E-CLOSURE: Phase 5 CI gate
+        # Uses fixture mode — no Supabase connection required.
+        # Exit 0 = all 7 acceptance gates pass; exit 1 = gate failure (fail-closed).
+        if: inputs.run_shadow_guardrails
+        run: |
+          pnpm exec tsx src/scripts/run-shadow-guardrails.ts --fixture --out=../..
+        working-directory: apps/api
+        env:
+          SUPABASE_URL: http://localhost:0
+          SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
+
+      - name: Upload shadow guardrails proof bundle
+        if: inputs.run_shadow_guardrails && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-guardrails-proof
+          path: out/shadow-runs/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: R4 Fault injection suite (F1–F10)
+        # SPRINT-LAYER1-PHASE5-E2E-CLOSURE: Phase 5 CI gate
+        # Runs all 10 canonical fault scenarios with 4 assertions each.
+        # Exit 0 = all scenarios pass; exit 1 = any failure (fail-closed).
+        if: inputs.run_fault_suite
+        run: |
+          pnpm exec tsx src/scripts/run-fault.ts --suite --out=../..
+        working-directory: apps/api
+        env:
+          SUPABASE_URL: http://localhost:0
+          SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
+
+      - name: Upload fault suite proof bundles
+        if: inputs.run_fault_suite && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fault-suite-proof
+          path: out/fault-runs/
+          retention-days: 30
+          if-no-files-found: warn
 
       - name: Install Playwright browsers
         if: inputs.run_smartform_runtime_audit || inputs.run_smartform_static_gates
