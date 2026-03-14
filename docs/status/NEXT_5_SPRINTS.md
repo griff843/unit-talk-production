@@ -1,8 +1,8 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-14 (SPRINT-041-MARKET-TYPE-EXPOSURE-CAPS) **Source**:
-Phase status + drift report + system gap analysis + risk engine roadmap + Linear
-backlog
+**Last Updated**: 2026-03-14 (SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE)
+**Source**: Phase status + drift report + system gap analysis + risk engine
+roadmap + Linear backlog
 
 > **PHASE NAMING NOTICE** (added 2026-03-13): "Phase" labels in this file use
 > the operational naming convention from `docs/status/PHASE_STATUS.md`. For
@@ -110,13 +110,22 @@ backlog
 
 ---
 
-## Sprint 1: SPRINT-042 — TBD
+## ~~Sprint 1: SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE~~ ✅ COMPLETED (2026-03-14)
+
+> Layer 2 / Phase 6 — Operator Control Plane. Added GET/PUT /ops/autopilot, POST
+> /ops/picks/:id/override, PUT /api/risk/config/:key; AutopilotGuard
+> persistMode() + setCanaryPercentage(); migration 20260314120000; 12 new vitest
+> tests; 910/910 vitest clean. PR #189.
+
+---
+
+## Sprint 1: SPRINT-043 — TBD
 
 **Priority**: TBD **Phase**: TBD **Linear**: TBD
 
-**Note**: SPRINT-042 is the next locked sprint per
-`docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md`. Define scope via
-`/sprint-plan` before beginning.
+**Note**: SPRINT-043 is next. Define scope via `/sprint-plan` before beginning.
+Layer 2 / Phase 7 (Reliability & Monitoring) or Phase 4 automation work are
+likely candidates.
 
 ---
 
@@ -134,7 +143,8 @@ backlog
 | ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~     | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE             | UNI-69    |
 | ~~1~~ | ~~JEST-QUARANTINE-CLEANUP~~       | ~~P2~~   | ~~L1/Ph 0~~ | ~~Delete quarantined tests, close DRIFT-L2~~ ✅ DONE | UNI-70    |
 | ~~1~~ | ~~041-MARKET-TYPE-EXPOSURE-CAPS~~ | ~~P1~~   | ~~Ph 3~~    | ~~Market-type caps; Phase 3 → 100%~~ ✅ DONE         | UNI-72    |
-| 1     | SPRINT-042 TBD                    | TBD      | TBD         | Define via /sprint-plan                              | TBD       |
+| ~~1~~ | ~~042-LAYER2-PHASE6-OPERATOR-CP~~ | ~~P1~~   | ~~L2/Ph 6~~ | ~~Operator control API + pick override~~ ✅ DONE     | TBD       |
+| 1     | SPRINT-043 TBD                    | TBD      | TBD         | Define via /sprint-plan                              | TBD       |
 
 **Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
 independent and can run in any order.

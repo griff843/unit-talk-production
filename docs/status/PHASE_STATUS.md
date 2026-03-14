@@ -1,7 +1,7 @@
 # Phase Status
 
-**Last Updated**: 2026-03-14 (SPRINT-041-MARKET-TYPE-EXPOSURE-CAPS) **Source**:
-Linear initiatives + repo implementation + sprint closeouts
+**Last Updated**: 2026-03-14 (SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE)
+**Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
 
@@ -211,9 +211,28 @@ freeze
   risk-integration.test.ts — not introduced by this sprint)
 - (PR #185, UNI-72 Done)
 
+### Additional Completed Work (SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE, 2026-03-14)
+
+Layer 2 / Phase 6 — Operator Control Plane deliverables:
+
+- `GET /ops/autopilot` — read current AutopilotGuard mode + status
+- `PUT /ops/autopilot` — set mode at runtime without container restart; persists
+  to `risk_engine_config` DB
+- `POST /ops/picks/:id/override` — promote or reject any pick via
+  `operator_override` lifecycle role
+- `PUT /api/risk/config/:key` — update risk engine config values at runtime with
+  14-key whitelist + 60s cache invalidation
+- `AutopilotGuard.setCanaryPercentage()` + `persistMode()` methods added
+- Migration: `autopilot_mode` + `canary_percentage` seed rows in
+  `risk_engine_config`
+- 12 new vitest tests; 910/910 total (34 suites) — pre-existing risk-integration
+  failures resolved
+- (PR #189)
+
 ### Remaining Work
 
-None
+None (Phase 3 risk engine controls complete; Phase 6 operator control API
+delivered)
 
 ### Assessment
 
@@ -221,7 +240,9 @@ None
 exposure caps (total + event + sport + market-type), correlation detection,
 drawdown freeze. Risk state fully visible in Command Center (exposure, drift,
 correlation, drawdown, market-type panels). Decision audit trail queryable via
-`/api/risk/decisions`. No remaining work.
+`/api/risk/decisions`. Operator control API live (Layer 2 / Phase 6
+deliverable): autopilot mode changeable at runtime, risk config updatable
+without deploy, manual pick overrides via lifecycle adapter.
 
 ---
 
