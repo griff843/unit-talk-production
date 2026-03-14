@@ -4,7 +4,7 @@
 # ==============================================
 
 # Base image
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -25,20 +25,21 @@ RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
 # ==============================================
 FROM base AS development
 
-# Copy monorepo root pnpm files (context is repo root)
+# === LAYER: Workspace manifests (cached until lockfile/manifests change) ===
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# SPRINT-RUNTIME-TRUTH-008: Copy tsconfig.base.json for packages
 COPY tsconfig.base.json ./
 
-# Copy all source code first (before pnpm install)
+# Shared packages source (changes rarely → stable install cache layer)
 COPY packages ./packages
-COPY apps/smart-form ./apps/smart-form
 COPY config ./config
+# App package.json only — pnpm workspace resolution requires it before install
+COPY apps/smart-form/package.json ./apps/smart-form/package.json
 
-# Install all workspace dependencies (ignore-scripts skips husky)
-# This runs AFTER copying source to create correct symlinks
+# === LAYER: Install (cached until above layers change) ===
 RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# === LAYER: App source (busts build layer only — install stays cached) ===
+COPY apps/smart-form ./apps/smart-form
 
 WORKDIR /app/apps/smart-form
 
@@ -75,16 +76,19 @@ CMD ["node", ".next/standalone/apps/smart-form/server.js"]
 # ==============================================
 FROM base AS builder
 
-# Copy monorepo root pnpm files
+# Workspace manifests
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Copy all source code first
+# Shared packages (stable cache layer)
 COPY packages ./packages
-COPY apps/smart-form ./apps/smart-form
 COPY config ./config
+COPY apps/smart-form/package.json ./apps/smart-form/package.json
 
-# Install all workspace dependencies
+# Install
 RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# Full app source
+COPY apps/smart-form ./apps/smart-form
 
 WORKDIR /app/apps/smart-form
 
@@ -99,28 +103,25 @@ FROM base AS production
 
 WORKDIR /app
 
-# Copy monorepo root pnpm files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Create non-root user first — eliminates chown -R sweep entirely
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
 
-# Copy workspace source (needed for pnpm install to work)
+# Copy workspace source (needed for prod pnpm install)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages ./packages
 COPY apps/smart-form ./apps/smart-form
 COPY config ./config
 
-# Install only production dependencies
+# Install only production dependencies (runs as root; files are readable by nodejs)
 RUN pnpm install --frozen-lockfile --ignore-scripts --prod
 
 WORKDIR /app/apps/smart-form
 
-# Copy built application (overwrites source with optimized build)
-COPY --from=builder /app/apps/smart-form/.next/standalone ./
-COPY --from=builder /app/apps/smart-form/.next/static ./.next/static
-COPY --from=builder /app/apps/smart-form/public ./public
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
+# Copy built artifacts with correct ownership — no chown -R needed
+COPY --chown=nodejs:nodejs --from=builder /app/apps/smart-form/.next/standalone ./
+COPY --chown=nodejs:nodejs --from=builder /app/apps/smart-form/.next/static ./.next/static
+COPY --chown=nodejs:nodejs --from=builder /app/apps/smart-form/public ./public
 
 USER nodejs
 

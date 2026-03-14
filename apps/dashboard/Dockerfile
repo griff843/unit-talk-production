@@ -5,7 +5,7 @@
 # ==============================================
 
 # Base image
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -26,19 +26,20 @@ RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
 # ==============================================
 FROM base AS development
 
-# Copy monorepo root pnpm files (context is repo root)
+# === LAYER: Workspace manifests (cached until lockfile/manifests change) ===
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# SPRINT-RUNTIME-TRUTH-008: Copy tsconfig.base.json for packages
 COPY tsconfig.base.json ./
 
-# Copy all source code first (before pnpm install)
+# Shared packages source (changes rarely → stable install cache layer)
 COPY packages ./packages
-COPY apps/dashboard ./apps/dashboard
+# App package.json only — pnpm workspace resolution requires it before install
+COPY apps/dashboard/package.json ./apps/dashboard/package.json
 
-# Install all workspace dependencies (ignore-scripts skips husky)
-# This runs AFTER copying source to create correct symlinks
+# === LAYER: Install (cached until above layers change) ===
 RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# === LAYER: App source (busts build layer only — install stays cached) ===
+COPY apps/dashboard ./apps/dashboard
 
 WORKDIR /app/apps/dashboard
 
@@ -70,15 +71,18 @@ CMD ["node", ".next/standalone/apps/dashboard/server.js"]
 # ==============================================
 FROM base AS builder
 
-# Copy monorepo root pnpm files
+# Workspace manifests
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Copy all source code first
+# Shared packages (stable cache layer)
 COPY packages ./packages
-COPY apps/dashboard ./apps/dashboard
+COPY apps/dashboard/package.json ./apps/dashboard/package.json
 
-# Install all workspace dependencies
+# Install
 RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# Full app source
+COPY apps/dashboard ./apps/dashboard
 
 WORKDIR /app/apps/dashboard
 
@@ -96,15 +100,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 WORKDIR /app
 
-# Copy built application
-COPY --from=builder /app/apps/dashboard/.next/standalone ./
-COPY --from=builder /app/apps/dashboard/.next/static ./.next/static
-COPY --from=builder /app/apps/dashboard/public ./public
-
-# Create non-root user
+# Create non-root user first — eliminates chown -R sweep entirely
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
+    adduser -S nodejs -u 1001
+
+# Copy built artifacts with correct ownership — no chown -R needed
+COPY --chown=nodejs:nodejs --from=builder /app/apps/dashboard/.next/standalone ./
+COPY --chown=nodejs:nodejs --from=builder /app/apps/dashboard/.next/static ./.next/static
+COPY --chown=nodejs:nodejs --from=builder /app/apps/dashboard/public ./public
 
 USER nodejs
 
