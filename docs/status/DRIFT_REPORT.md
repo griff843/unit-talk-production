@@ -1,8 +1,8 @@
 # Drift Report
 
 **Sprint**: SPRINT-PLATFORM-TRUTH-AUDIT (original) / Updated:
-SPRINT-LAYER1-CLOSURE-STATUS-SYNC **Date**: 2026-03-13 **Sources Compared**:
-Blueprint docs, repo implementation, Linear issues, roadmap, runtime
+SPRINT-DISCORD-PROMOTION-BAND-NULL-FIX **Date**: 2026-03-14 **Sources
+Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ---
 
@@ -161,6 +161,23 @@ Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 - **Impact**: Known broken tests accumulating without remediation
 - **Severity**: **LOW**
 
+#### DRIFT-L4: Worker Heartbeat False Negative in /api/health
+
+- **What**: `/api/health` reports `temporal-worker: status "missing"` despite
+  fresh heartbeats
+- **Where**: `apps/api/src` health check query — queries `worker_name` +
+  `last_heartbeat_at`
+- **Expected**: Health check reads actual schema columns
+- **Actual**: Schema has `agent` + `last_heartbeat`; mismatch causes false
+  "missing" status
+- **Impact**: Monitoring false negative — workers ARE healthy but health
+  endpoint says missing
+- **Fix**: Update health check query to use `agent` (not `worker_name`) and
+  `last_heartbeat` (not `last_heartbeat_at`)
+- **Severity**: **LOW** (monitoring only — does not affect actual worker
+  operation)
+- **First Detected**: 2026-03-14 (SPRINT-DOCKER-COMPOSE-STARTUP-AUDIT)
+
 #### DRIFT-L3: Deprecated Tables Still Referenced
 
 - **What**: `daily_picks`, `players`, `teams` still referenced in some utility
@@ -173,21 +190,22 @@ Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ## DRIFT SUMMARY
 
-| Severity            | Count | Key Theme                                                   |
-| ------------------- | ----- | ----------------------------------------------------------- |
-| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                           |
-| HIGH                | 1     | Naming convention inconsistency (DRIFT-H2)                  |
-| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                      |
-| LOW                 | 3     | Cycle overlap, quarantined tests, deprecated references     |
-| **ACTIVE TOTAL**    | **7** |                                                             |
-| **Resolved/Closed** | 10    | C1, C2, C3, H1, H3, H4, H5, M-CONSENSUS, M3 (won't fix), M5 |
+| Severity            | Count | Key Theme                                                             |
+| ------------------- | ----- | --------------------------------------------------------------------- |
+| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                     |
+| HIGH                | 1     | Naming convention inconsistency (DRIFT-H2)                            |
+| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                                |
+| LOW                 | 4     | Cycle overlap, quarantined tests, deprecated references, health check |
+| **ACTIVE TOTAL**    | **8** |                                                                       |
+| **Resolved/Closed** | 10    | C1, C2, C3, H1, H3, H4, H5, M-CONSENSUS, M3 (won't fix), M5           |
 
-**Drift Trend**: DECREASING — DRIFT-H5 resolved via PR #157 merge
-(SPRINT-VERIFICATION-GIT-COMMIT, 2026-03-13). 10 items resolved/closed total.
-DRIFT-H5 fully moved to resolved section (SPRINT-LAYER1-CLOSURE-STATUS-SYNC).
+**Drift Trend**: STABLE — DRIFT-L4 added (worker heartbeat false negative,
+discovered SPRINT-DOCKER-COMPOSE-STARTUP-AUDIT 2026-03-14). DRIFT-H5 resolved
+last cycle. 10 items resolved/closed total.
 
 **Top 3 Active Actions**:
 
 1. Resolve sprint naming convention inconsistency (DRIFT-H2)
-2. Sync roadmap doc to completed sprints (DRIFT-M1)
+2. Fix health check column mismatch — `worker_name` → `agent`,
+   `last_heartbeat_at` → `last_heartbeat` (DRIFT-L4)
 3. Triage quarantined Jest tests (DRIFT-L2)

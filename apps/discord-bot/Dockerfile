@@ -12,18 +12,16 @@ COPY package*.json ./
 # ==============================================
 FROM base AS development
 
-# Install all dependencies (including dev dependencies)
-RUN npm install && npm cache clean --force
-
-# Copy source code (config provided via env vars)
-COPY . .
-
-# Create non-root user for security
+# Create non-root user before installing deps so no chown -R is needed
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S botuser -u 1001
 
-# Change ownership of the app directory
-RUN chown -R botuser:nodejs /app
+# Install all dependencies (including dev dependencies)
+RUN npm install && npm cache clean --force
+
+# Copy source code with correct ownership directly (avoids expensive chown -R)
+COPY --chown=botuser:nodejs . .
+
 USER botuser
 
 # Expose port (if your bot has a health check endpoint)
@@ -41,21 +39,19 @@ CMD ["npm", "run", "dev"]
 # ==============================================
 FROM base AS production
 
+# Create non-root user before installing deps so no chown -R is needed
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S botuser -u 1001
+
 # Install only production dependencies
 RUN npm install --only=production && npm cache clean --force
 
-# Copy source code
-COPY . .
+# Copy source code with correct ownership directly
+COPY --chown=botuser:nodejs . .
 
 # Build the application
 RUN npm run build
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S botuser -u 1001
-
-# Change ownership of the app directory
-RUN chown -R botuser:nodejs /app
 USER botuser
 
 # Expose port (if your bot has a health check endpoint)

@@ -969,7 +969,11 @@ export class GradingAgent extends BaseAgent {
       confidence: result.confidence,
       tier: result.tier,
       kelly_fraction: result.kellyFraction,
-      promotion_band: result.promotionBand || null,
+      // SPRINT-DISCORD-PROMOTION-BAND-NULL-FIX: Picks reaching this path have passed
+      // meetsPromotionCriteria() (tier S/A, edge ≥8%, confidence ≥85%). They are HARD band
+      // by definition. Fall back to 'HARD' when V2 promotionBand is not set (e.g. SCORING_ENGINE_V2
+      // disabled) so DiscordPromotionAgent's legacy path can find them.
+      promotion_band: result.promotionBand || 'HARD',
       created_at: new Date().toISOString(),
     };
 

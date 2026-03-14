@@ -46,10 +46,10 @@ async function fetchOpsStatus() {
 function runCommand(cmd, description) {
   console.log(`Running: ${description}`);
   try {
-    const output = execSync(cmd, { encoding: 'utf8', timeout: 30000 });
+    const output = execSync(cmd, { encoding: 'utf8', timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] });
     return output;
   } catch (error) {
-    console.error(`  Error: ${error.message}`);
+    console.log(`  Warning: ${error.message}`);
     return `ERROR: ${error.message}`;
   }
 }
@@ -85,14 +85,21 @@ function captureComposeProfiles() {
 
   // List services per profile
   const cloudServices = runCommand(
-    'docker compose config --services 2>/dev/null || echo "Error getting services"',
+    'docker compose config --services',
     'List default (cloud) services'
   );
 
-  const localServices = runCommand(
-    'docker compose -f docker-compose.yml -f docker-compose.local.yml config --services 2>/dev/null || echo "Error getting services"',
-    'List local mode services'
-  );
+  // Note: combined local+cloud config may fail validation (postgres depends_on issue)
+  let localServices = '(skipped - combined compose validation not supported in cloud mode)';
+  try {
+    const result = execSync(
+      'docker compose -f docker-compose.yml -f docker-compose.local.yml config --services',
+      { encoding: 'utf8', timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] }
+    );
+    localServices = result;
+  } catch {
+    localServices = '(not available - local compose config validation error in cloud mode)';
+  }
 
   const output = `=== COMPOSE PROFILES ===
 Date: ${new Date().toISOString()}
@@ -115,18 +122,29 @@ Postgres is assigned to profile: [local]
 function captureEnvConsistency() {
   console.log('\n--- Capturing Environment Consistency ---');
 
-  // Capture API env (redacted)
-  const apiEnv = runCommand(
-    'docker exec unit-talk-api printenv 2>/dev/null | grep -E "^(DB_MODE|DATABASE_URL|SUPABASE_URL|NODE_ENV)=" | sed "s/=.*/=<REDACTED>/" || echo "Container not running"',
-    'API environment keys'
-  );
+  const FILTER_KEYS = ['DB_MODE', 'DATABASE_URL', 'SUPABASE_URL', 'NODE_ENV'];
+
+  function getRedactedEnv(container) {
+    try {
+      const raw = execSync(`docker exec ${container} printenv`, {
+        encoding: 'utf8',
+        timeout: 30000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      return raw
+        .split('\n')
+        .filter(line => FILTER_KEYS.some(k => line.startsWith(k + '=')))
+        .map(line => line.replace(/=.*/, '=<REDACTED>'))
+        .join('\n');
+    } catch {
+      return 'Container not running';
+    }
+  }
+
+  const apiEnv = getRedactedEnv('unit-talk-api');
   writeProof('proof_env_consistency_api.txt', `=== API Environment Keys ===\nDate: ${new Date().toISOString()}\n\n${apiEnv}`);
 
-  // Capture workers env (redacted)
-  const workersEnv = runCommand(
-    'docker exec unit-talk-workers printenv 2>/dev/null | grep -E "^(DB_MODE|DATABASE_URL|SUPABASE_URL|NODE_ENV)=" | sed "s/=.*/=<REDACTED>/" || echo "Container not running"',
-    'Workers environment keys'
-  );
+  const workersEnv = getRedactedEnv('unit-talk-workers');
   writeProof('proof_env_consistency_workers.txt', `=== Workers Environment Keys ===\nDate: ${new Date().toISOString()}\n\n${workersEnv}`);
 }
 
