@@ -13,6 +13,7 @@ import opsDiscordRoutingRouter from './routes/ops-discord-routing';
 import opsStatusRouter from './routes/ops-status';
 import picksRouter from './routes/picks';
 import riskRouter from './routes/risk';
+import sloRouter from './routes/slo';
 import { smartFormRouter } from './routes/smart-form';
 import versionRouter from './routes/version';
 import { agentHealthHeartbeat } from './services/agentHealthHeartbeat';
@@ -98,6 +99,8 @@ app.use('/version', versionRouter);
 app.use('/api/version', versionRouter);
 // RISK-ENGINE-FOUNDATION-001: Risk telemetry API
 app.use('/api/risk', riskRouter);
+// SPRINT-043: SLO attainment tracking
+app.use('/api/slo', sloRouter);
 
 // Provider health endpoint
 app.get('/health/provider', async (req, res) => {
