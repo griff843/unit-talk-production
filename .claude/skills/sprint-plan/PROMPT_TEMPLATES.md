@@ -16,6 +16,7 @@ SPRINT — <SPRINT-NAME-NNN>
 
 Model: <Sonnet | Opus | Haiku>
 Routing: <one sentence — why this model for this sprint type. See claude_os_ceiling_blueprint.md §6>
+Layer/Phase: Layer <N> / Phase <M> — <Canonical Name from layer_phase_execution_model.md>
 
 Context:
 <2–4 sentences of current system state relevant to this sprint.

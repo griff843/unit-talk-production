@@ -31,11 +31,12 @@ Modes:
 | Order | File                                                  | What it answers                                                                     |
 | ----- | ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | 1     | `docs/status/CURRENT_SYSTEM_STATUS.md`                | Subsystem status, infrastructure health, agent compliance                           |
-| 2     | `docs/status/PHASE_STATUS.md`                         | Phase completion %, milestones, blocking gaps (operational phase naming — see note) |
-| 3     | `docs/status/NEXT_5_SPRINTS.md`                       | Sprint queue, priorities, dependencies                                              |
-| 4     | `docs/status/DRIFT_REPORT.md`                         | Active drift by severity, drift trend                                               |
-| 5     | `docs/04_roadmap/layer_phase_execution_model.md`      | Canonical layer/phase model — use for sprint classification                         |
-| 6     | Most recent `out/sprints/*/SPRINT_CLOSEOUT_REPORT.md` | Last completed sprint, what it changed                                              |
+| 2     | `docs/06_status/current_phase.md`                     | **Canonical active Layer/Phase position** — read BEFORE PHASE_STATUS.md             |
+| 3     | `docs/status/PHASE_STATUS.md`                         | Phase completion %, milestones, blocking gaps (operational phase naming — see note) |
+| 4     | `docs/status/NEXT_5_SPRINTS.md`                       | Sprint queue, priorities, dependencies                                              |
+| 5     | `docs/status/DRIFT_REPORT.md`                         | Active drift by severity, drift trend                                               |
+| 6     | `docs/04_roadmap/layer_phase_execution_model.md`      | Canonical layer/phase model — use for sprint classification                         |
+| 7     | Most recent `out/sprints/*/SPRINT_CLOSEOUT_REPORT.md` | Last completed sprint, what it changed                                              |
 
 > **Phase naming note**: `docs/status/PHASE_STATUS.md` uses the pre-2026-03-13
 > operational phase naming (Phase 1 — Structural Dominance, Phase 2 —
@@ -55,12 +56,13 @@ Source 5 is the canonical execution model authority; source 6 is optional.
 
 ```bash
 cat docs/status/CURRENT_SYSTEM_STATUS.md
+cat docs/06_status/current_phase.md
 cat docs/status/PHASE_STATUS.md
 cat docs/status/NEXT_5_SPRINTS.md
 cat docs/status/DRIFT_REPORT.md
 ```
 
-Read all four completely before producing any output.
+Read all five completely before producing any output.
 
 ### Step 2: Check Freshness
 
@@ -91,11 +93,24 @@ If the most recent closeout's date is AFTER the `Last Updated` timestamp in
 
 ### Step 3: Extract Current Phase
 
-From `PHASE_STATUS.md`, extract:
+First, read `docs/06_status/current_phase.md` and record the **canonical active
+Layer/Phase**:
 
-- Which phases are Active
+```
+Current active work: Layer N / Phase M — <Name>
+```
+
+This is the PRIMARY classification for sprint planning and output. Record it as:
+`Canonical position: Layer N / Phase M — <Name>`
+
+Then, from `PHASE_STATUS.md`, extract the **operational context**:
+
+- Which phases are Active (operational names)
 - Current completion % for each Active phase
 - The overall platform phase label (e.g., "Transitioning Phase 1 → Phase 2")
+
+These percentages are tracking context only — they do not override the canonical
+position.
 
 ### Step 4: Extract Subsystem Health
 
@@ -167,9 +182,10 @@ Based on what the status shows:
 ```markdown
 # Unit Talk — System Status
 
-**As of**: <YYYY-MM-DD> | **Freshness**: FRESH | AGING | STALE **Phase**: <Phase
-N — Name> (<X>% complete) **Active Sprint**: <branch name> | none **Next
-Sprint**: <SPRINT-NAME> (P0/P1)
+**As of**: <YYYY-MM-DD> | **Freshness**: FRESH | AGING | STALE **Layer/Phase**:
+Layer N / Phase M — <Canonical Name> | Operational: <PHASE_STATUS nickname>
+(<X>%) **Active Sprint**: <branch name> | none **Next Sprint**: <SPRINT-NAME>
+(P0/P1)
 
 ## Subsystem Health
 
