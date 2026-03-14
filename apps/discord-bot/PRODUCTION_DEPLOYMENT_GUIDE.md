@@ -118,10 +118,40 @@ mkdir -p config/nginx/ssl
    - Go to
      [Discord Developer Portal](https://discord.com/developers/applications)
    - Create new application
-   - Create bot and get token
-   - Enable necessary intents
+   - Navigate to **Bot** tab → create bot → copy token
 
-2. **Invite Bot to Server**
+2. **Enable Required Privileged Gateway Intents**
+
+   > ⚠️ **CRITICAL**: Without these intents the bot will log "Used disallowed
+   > intents" and disconnect from the gateway. Slash commands and pick delivery
+   > via webhook are **not affected**, but member events and message content
+   > reading will fail.
+
+   In the Discord Developer Portal → **Bot** tab → **Privileged Gateway
+   Intents**:
+
+   | Intent                     | Portal Toggle     | Required For                                       | Enable? |
+   | -------------------------- | ----------------- | -------------------------------------------------- | ------- |
+   | **Server Members Intent**  | `GUILD_MEMBERS`   | Member join/update events, role-change onboarding  | ✅ YES  |
+   | **Message Content Intent** | `MESSAGE_CONTENT` | Reading message text for keyword/emoji DM triggers | ✅ YES  |
+   | **Presence Intent**        | `GUILD_PRESENCES` | (not used — bot does not listen to presenceUpdate) | ❌ NO   |
+
+   **Steps:**
+   1. Go to https://discord.com/developers/applications
+   2. Select your application → **Bot** tab
+   3. Scroll to **Privileged Gateway Intents**
+   4. Toggle **Server Members Intent** → ON
+   5. Toggle **Message Content Intent** → ON
+   6. Leave **Presence Intent** → OFF (not needed; not requested in code)
+   7. Click **Save Changes**
+
+   > **Gateway vs Webhook distinction**: The Discord bot uses a WebSocket
+   > gateway connection for slash commands and member/message events. Pick
+   > delivery (DiscordPromotionAgent) posts via a standalone
+   > `DISCORD_WEBHOOK_URL` and does NOT depend on the bot gateway being
+   > connected. Both health surfaces are reported separately at `GET /health`.
+
+3. **Invite Bot to Server**
    ```
    https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands
    ```

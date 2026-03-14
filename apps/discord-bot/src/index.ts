@@ -10,6 +10,7 @@ if (process.env.NODE_ENV === 'production' && process.env.DOCKER_CONTAINER !== 't
 import 'dotenv/config';
 import { Client, GatewayIntentBits, Partials, GuildMember } from 'discord.js';
 
+
 // REMOVED: AutomatedOnboardingIntegration - nuked as part of clean slate rebuild
 import { AdminCommands } from './commands/adminCommands';
 import { CommandHandler } from './handlers/commandHandler';
@@ -33,6 +34,12 @@ import { RoleChangeService } from './services/roleChangeService';
 import { SupabaseService } from './services/supabase';
 import { VIPNotificationService } from './services/vipNotificationService';
 import { WelcomeService } from './services/welcomeService';
+import {
+  setGatewayConnected,
+  setGatewayConnecting,
+  setGatewayDisconnected,
+  setGatewayError,
+} from './utils/gatewayStatus';
 import { logger } from './utils/logger';
 import { registerCommands } from './utils/registerCommands';
 
@@ -72,12 +79,13 @@ export class UnitTalkBot {
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMembers, // PRIVILEGED — required: guildMemberAdd, guildMemberUpdate
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.DirectMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.MessageContent, // PRIVILEGED — required: keywordEmojiDMService.processMessageForKeywords (message.content)
+        // GuildPresences removed: presenceUpdate event handler is never registered;
+        // setPresence() for the bot's own status does NOT require this intent.
       ],
       partials: [
         Partials.Message,
@@ -241,8 +249,15 @@ export class UnitTalkBot {
    * Setup Discord event handlers
    */
   private setupEventHandlers(): void {
+    // Gateway connectivity tracking
+    this.client.on('shardReady', () => setGatewayConnected());
+    this.client.on('shardDisconnect', () => setGatewayDisconnected());
+    this.client.on('shardReconnecting', () => setGatewayConnecting());
+    this.client.on('shardError', (err: Error) => setGatewayError(err.message));
+
     // Bot ready event
     this.client.once('ready', async () => {
+      setGatewayConnected();
       console.log(`🤖 Bot online: ${this.client.user?.tag}`);
       console.log(`🏠 Serving ${this.client.guilds.cache.size} guilds`);
       logger.info(`Bot logged in as ${this.client.user?.tag}`);
