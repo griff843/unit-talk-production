@@ -1,6 +1,6 @@
 # Current System Status
 
-**Last Updated**: 2026-03-14 (SPRINT-DISCORD-PROMOTION-BAND-NULL-FIX) **Audit
+**Last Updated**: 2026-03-14 (SPRINT-CLAUDE-OS-UPGRADE-COS001-005) **Audit
 Sources**: SPRINT-DISCORD-PROMOTION-BAND-NULL-FIX (promotion_band null bug fixed
 in GradingAgent; 4 approved picks backfilled; 35c700ad);
 SPRINT-DOCKER-COMPOSE-STARTUP-AUDIT (all 12 services verified healthy; Discord
@@ -14,7 +14,10 @@ SPRINT-SMARTFORM-DOCKER-BUILD-TRUTH-FIX (Smart Form Docker build restored);
 SPRINT-LAYER1-PHASE5-E2E-CLOSURE (R3 shadow guardrails + R4 fault suite wired
 into CI; E2E lifecycle traversal proven; Phase 5 COMPLETE; Layer 1 COMPLETE);
 SPRINT-DISCORD-WORKER-HEALTH-RESTORE (bcbc20f7); SPRINT-VERIFICATION-GIT-COMMIT
-(a6f69276)
+(a6f69276); SPRINT-CLAUDE-OS-UPGRADE-COS001-005 (COS-001 model routing
+formalization done; COS-002 Linear sync automation; COS-003 phase advancement
+proof template + generator; COS-004 lane model rules; COS-005 session baseline
+hook — COS-002–005 in PR #170, UNI-64–68)
 
 ---
 
@@ -69,6 +72,7 @@ SPRINT-DISCORD-WORKER-HEALTH-RESTORE (bcbc20f7); SPRINT-VERIFICATION-GIT-COMMIT
 | Build (Dashboard)      | PASS          | Docker `development` target build succeeds; stale `packages/shared-types` build step removed; manifest-first layer caching; node:18→20-alpine; no `@unit-talk/*` workspace deps (SPRINT-FRONTEND-DOCKER-PERMANENT-HARDENING) |
 | Git Status             | CLEAN         | No uncommitted changes on sprint branch                                                                                                                                                                                      |
 | Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                                                                                                                                                                          |
+| Claude OS Governance   | PARTIAL       | COS-001 complete (MODEL_SELECTION.md, sprint-plan Model/Routing fields, UNI-64 Done); COS-002–005 in PR #170 (Linear sync, phase proof template, lane model rules, session baseline hook; UNI-65–68 In Review)               |
 
 ---
 
