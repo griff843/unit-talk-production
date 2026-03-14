@@ -38,6 +38,7 @@ interface ExposureState {
   total_pending_legs: number;
   total_pending_events: number;
   exposure_by_event: Record<string, number>;
+  exposure_by_market_type?: Record<string, number>;
   max_single_event: { event_id: string; exposure: number } | null;
   herfindahl_index: number;
   breaches: {
@@ -243,10 +244,11 @@ export default function RiskDashboardPage() {
         <EngineStatusCard config={data?.config ?? {}} eventCounts={data?.eventCounts ?? {}} />
       </div>
 
-      {/* Live Risk Cards — correlation + drawdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Live Risk Cards — correlation, drawdown, market type */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <CorrelationPanel correlation={liveStatus?.correlation ?? null} />
         <DrawdownPanel drawdown={liveStatus?.drawdown ?? null} />
+        <MarketTypePanel exposure={liveStatus?.exposure ?? null} />
       </div>
 
       {/* Events Timeline */}
@@ -560,6 +562,60 @@ function DrawdownPanel({ drawdown }: { drawdown: DrawdownState | null }) {
               <p className="text-xs text-red-400">{drawdown.freeze_reason}</p>
             )}
           </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MarketTypePanel({ exposure }: { exposure: ExposureState | null }) {
+  const marketTypeEntries = Object.entries(exposure?.exposure_by_market_type ?? {});
+  const marketBreaches = exposure?.breaches?.filter(b => b.dimension === 'market_type') ?? [];
+  const hasBreaches = marketBreaches.length > 0;
+  const borderClass = hasBreaches ? 'border-red-500/50' : 'border-emerald-500/30';
+
+  return (
+    <Card className={borderClass}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Market Type Exposure
+          </CardTitle>
+          {hasBreaches ? (
+            <Badge className="bg-red-600 text-white">BREACH</Badge>
+          ) : exposure ? (
+            <Badge className="bg-emerald-600 text-white">OK</Badge>
+          ) : (
+            <Badge variant="outline">NO DATA</Badge>
+          )}
+        </div>
+        <CardDescription>Kelly exposure by market category</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {!exposure || marketTypeEntries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No market type data yet</p>
+        ) : (
+          <div className="space-y-2">
+            {marketTypeEntries.map(([category, exp]) => {
+              const breach = marketBreaches.find(b => b.key === category);
+              return (
+                <div key={category} className="text-xs rounded-md bg-muted/30 p-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium capitalize">{category.replace(/_/g, ' ')}</span>
+                    <span className={breach ? 'text-red-400' : 'text-muted-foreground'}>
+                      {exp.toFixed(4)}
+                    </span>
+                  </div>
+                  {breach && (
+                    <p className="text-red-300 mt-0.5">
+                      Limit: {breach.limit} (over by {(exp - breach.limit).toFixed(4)})
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </CardContent>
     </Card>

@@ -8,7 +8,7 @@
 // ─── Exposure ────────────────────────────────────────────────────────────────
 
 export interface ExposureBreach {
-  dimension: 'total' | 'event' | 'sport';
+  dimension: 'total' | 'event' | 'sport' | 'market_type';
   key: string;
   current: number;
   limit: number;
@@ -21,6 +21,7 @@ export interface ExposureState {
   total_pending_events: number;
   exposure_by_event: Record<string, number>;
   exposure_by_sport: Record<string, number>;
+  exposure_by_market_type: Record<string, number>;
   max_single_event: { event_id: string; exposure: number } | null;
   herfindahl_index: number;
   breaches: ExposureBreach[];
@@ -57,6 +58,8 @@ export interface RiskEngineConfig {
   bankroll_max_bet_fraction: number;
   /** Max Kelly exposure per sport (e.g., 0.4 = 40% of total allowed per sport). */
   sport_kelly_limit: number;
+  /** Max Kelly exposure per market category (player_prop, game_line, team_total, etc.). */
+  market_type_kelly_limit: number;
   /** Max pending legs on a single event before correlation block. */
   correlation_max_same_event: number;
   /** Max pending legs on a single participant before correlation block. */
@@ -78,6 +81,7 @@ export const DEFAULT_RISK_CONFIG: RiskEngineConfig = {
   bankroll_kelly_multiplier: 0.25,
   bankroll_max_bet_fraction: 0.05,
   sport_kelly_limit: 0.4,
+  market_type_kelly_limit: 0.35,
   correlation_max_same_event: 3,
   correlation_max_same_participant: 2,
   drawdown_freeze_threshold: 0.1,

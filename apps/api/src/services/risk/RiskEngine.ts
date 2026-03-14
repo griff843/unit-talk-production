@@ -117,13 +117,22 @@ export class RiskEngine {
         }
       }
 
-      // 5b. Check correlation
+      // 5b. Check market-type-level exposure
+      for (const [marketType, mtExposure] of Object.entries(exposure.exposure_by_market_type)) {
+        if (mtExposure > config.market_type_kelly_limit) {
+          blockedReasons.push(
+            `market_type_kelly_limit:${marketType}:${mtExposure.toFixed(4)}>${config.market_type_kelly_limit}`
+          );
+        }
+      }
+
+      // 5c. Check correlation
       const correlation = await detectCorrelation(supabase, config);
       if (correlation.blocked) {
         blockedReasons.push(...correlation.blocked_reasons);
       }
 
-      // 5c. Check drawdown
+      // 5d. Check drawdown
       const drawdown = await computeDrawdown(supabase, config);
       if (drawdown.frozen) {
         blockedReasons.push(
@@ -320,6 +329,8 @@ export class RiskEngine {
       bankroll_max_bet_fraction:
         configMap['bankroll_max_bet_fraction'] ?? DEFAULT_RISK_CONFIG.bankroll_max_bet_fraction,
       sport_kelly_limit: configMap['sport_kelly_limit'] ?? DEFAULT_RISK_CONFIG.sport_kelly_limit,
+      market_type_kelly_limit:
+        configMap['market_type_kelly_limit'] ?? DEFAULT_RISK_CONFIG.market_type_kelly_limit,
       correlation_max_same_event:
         configMap['correlation_max_same_event'] ?? DEFAULT_RISK_CONFIG.correlation_max_same_event,
       correlation_max_same_participant:

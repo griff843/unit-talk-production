@@ -199,17 +199,26 @@ freeze
 - DRIFT-L4 closed as false positive: `ops_worker_heartbeats` schema has
   `worker_name` + `last_heartbeat_at` matching `health.ts` query exactly
 
+### Additional Completed Work (SPRINT-041-MARKET-TYPE-EXPOSURE-CAPS, 2026-03-14)
+
+- Market-type level exposure caps: `ExposureCalculator` extended with
+  `markets!inner(category)` join through `ticket_legs`; `byMarketType`
+  aggregation added; `detectBreaches()` covers `dimension='market_type'`;
+  `market_type_kelly_limit` config key (default 0.35); `MarketTypePanel` added
+  to Command Center risk dashboard (3-col grid alongside Correlation +
+  Drawdown); 5 new vitest tests; migration
+  `20260314141057_market_type_exposure_config.sql`
+
 ### Remaining Work
 
-- Market-type level exposure caps (beyond sport-level)
+None.
 
 ### Assessment
 
-**PHASE 3 is 85% complete.** Core risk controls fully implemented: Kelly sizing,
-exposure caps (total + event + sport), correlation detection, drawdown freeze.
-Risk state now fully visible in Command Center (exposure, drift, correlation,
-drawdown panels). Decision audit trail queryable via `/api/risk/decisions`. Only
-remaining work: market-type level exposure caps.
+**PHASE 3 is 100% complete.** All risk controls fully implemented and verified:
+Kelly sizing, exposure caps (total + event + sport + market-type), correlation
+detection, drawdown freeze. Risk state fully visible in Command Center (all 5
+panels). Decision audit trail queryable via `/api/risk/decisions`.
 
 ---
 
@@ -320,14 +329,14 @@ Phase F (COS-006) pending second project.**
 
 ## Phase Summary
 
-| Phase                                  | Status  | Completion | Blocking Issues                                                                                              |
-| -------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure |
-| **Phase 2** — Intelligence Superiority | Active  | 80%        | Linear-GitHub integration (UNI-14)                                                                           |
-| **Phase 3** — Risk Engine Dominance    | Active  | 85%        | Market-type level exposure caps remaining; core controls + dashboard visibility complete                     |
-| **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started |
-| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                           |
-| **Claude OS Upgrade**                  | Active  | 80%        | COS-001–005 Done (PR #170 merged); Phase F (COS-006) blocked by second project                               |
+| Phase                                  | Status  | Completion | Blocking Issues                                                                                               |
+| -------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------------- |
+| **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure  |
+| **Phase 2** — Intelligence Superiority | Active  | 80%        | Linear-GitHub integration (UNI-14)                                                                            |
+| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | All risk controls complete: Kelly, exposure (total/event/sport/market-type), correlation, drawdown, dashboard |
+| **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started  |
+| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                            |
+| **Claude OS Upgrade**                  | Active  | 80%        | COS-001–005 Done (PR #170 merged); Phase F (COS-006) blocked by second project                                |
 
 **Current Platform Phase**: Phase 1 at 97%, Phase 4 advancing (40%); canonical
 Layer 1 / Phase 5 (Platform Stabilization) is the active completion gate — see

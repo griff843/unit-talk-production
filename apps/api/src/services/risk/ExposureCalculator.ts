@@ -32,6 +32,9 @@ export async function computeExposure(
         leg_status,
         events!inner (
           sport
+        ),
+        markets!inner (
+          category
         )
       )
     `
@@ -51,11 +54,13 @@ export async function computeExposure(
   let totalKelly = 0;
   const byEvent: Record<string, number> = {};
   const bySport: Record<string, number> = {};
+  const byMarketType: Record<string, number> = {};
 
   for (const row of pendingRows) {
     const kelly = Number((row as any).kelly_fraction) || 0;
     const eventId = (row as any).ticket_legs?.event_id as string | null;
     const sport = (row as any).ticket_legs?.events?.sport as string | null;
+    const marketType = (row as any).ticket_legs?.markets?.category as string | null;
 
     totalKelly += kelly;
 
@@ -64,6 +69,9 @@ export async function computeExposure(
     }
     if (sport) {
       bySport[sport] = (bySport[sport] || 0) + kelly;
+    }
+    if (marketType) {
+      byMarketType[marketType] = (byMarketType[marketType] || 0) + kelly;
     }
   }
 
@@ -79,7 +87,7 @@ export async function computeExposure(
   const hhi = computeHerfindahl(byEvent, totalKelly);
 
   // Detect breaches
-  const breaches = detectBreaches(totalKelly, byEvent, bySport, config);
+  const breaches = detectBreaches(totalKelly, byEvent, bySport, byMarketType, config);
 
   return {
     total_kelly_exposure: round(totalKelly, 5),
@@ -90,6 +98,9 @@ export async function computeExposure(
     ),
     exposure_by_sport: Object.fromEntries(
       Object.entries(bySport).map(([k, v]) => [k, round(v, 5)])
+    ),
+    exposure_by_market_type: Object.fromEntries(
+      Object.entries(byMarketType).map(([k, v]) => [k, round(v, 5)])
     ),
     max_single_event: maxEvent
       ? { event_id: maxEvent.event_id, exposure: round(maxEvent.exposure, 5) }
@@ -125,6 +136,7 @@ function detectBreaches(
   totalKelly: number,
   byEvent: Record<string, number>,
   bySport: Record<string, number>,
+  byMarketType: Record<string, number>,
   config: RiskEngineConfig
 ): ExposureBreach[] {
   const breaches: ExposureBreach[] = [];
@@ -170,6 +182,19 @@ function detectBreaches(
         key: sport,
         current: round(exposure, 5),
         limit: config.sport_kelly_limit,
+        severity: 'high',
+      });
+    }
+  }
+
+  // Per-market-type breaches
+  for (const [marketType, exposure] of Object.entries(byMarketType)) {
+    if (exposure > config.market_type_kelly_limit) {
+      breaches.push({
+        dimension: 'market_type',
+        key: marketType,
+        current: round(exposure, 5),
+        limit: config.market_type_kelly_limit,
         severity: 'high',
       });
     }

@@ -187,6 +187,176 @@ describe('ExposureCalculator — sport-level exposure', () => {
 });
 
 // ============================================================================
+// 1b. ExposureCalculator — market-type-level exposure
+// ============================================================================
+
+describe('ExposureCalculator — market-type exposure', () => {
+  let computeExposure: typeof import('../ExposureCalculator').computeExposure;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    const mod = await import('../ExposureCalculator');
+    computeExposure = mod.computeExposure;
+  });
+
+  it('returns exposure_by_market_type breakdown', async () => {
+    const mockRows = [
+      {
+        kelly_fraction: 0.1,
+        ticket_legs: {
+          event_id: 'evt-1',
+          leg_status: 'pending',
+          events: { sport: 'NBA' },
+          markets: { category: 'player_prop' },
+        },
+      },
+      {
+        kelly_fraction: 0.08,
+        ticket_legs: {
+          event_id: 'evt-2',
+          leg_status: 'pending',
+          events: { sport: 'NBA' },
+          markets: { category: 'player_prop' },
+        },
+      },
+      {
+        kelly_fraction: 0.05,
+        ticket_legs: {
+          event_id: 'evt-3',
+          leg_status: 'pending',
+          events: { sport: 'NFL' },
+          markets: { category: 'game_line' },
+        },
+      },
+    ];
+
+    const supabase = createMockSupabase();
+    supabase._chainable.gt.mockResolvedValue({ data: mockRows, error: null });
+
+    const result = await computeExposure(supabase, DEFAULT_RISK_CONFIG);
+
+    expect(result.exposure_by_market_type).toBeDefined();
+    expect(result.exposure_by_market_type['player_prop']).toBeCloseTo(0.18, 4);
+    expect(result.exposure_by_market_type['game_line']).toBeCloseTo(0.05, 4);
+  });
+
+  it('detects market-type breach when exposure exceeds limit', async () => {
+    const mockRows = [
+      {
+        kelly_fraction: 0.2,
+        ticket_legs: {
+          event_id: 'evt-1',
+          leg_status: 'pending',
+          events: { sport: 'NBA' },
+          markets: { category: 'player_prop' },
+        },
+      },
+      {
+        kelly_fraction: 0.2,
+        ticket_legs: {
+          event_id: 'evt-2',
+          leg_status: 'pending',
+          events: { sport: 'NBA' },
+          markets: { category: 'player_prop' },
+        },
+      },
+    ];
+
+    const config = { ...DEFAULT_RISK_CONFIG, market_type_kelly_limit: 0.3 };
+    const supabase = createMockSupabase();
+    supabase._chainable.gt.mockResolvedValue({ data: mockRows, error: null });
+
+    const result = await computeExposure(supabase, config);
+
+    const mtBreaches = result.breaches.filter(b => b.dimension === 'market_type');
+    expect(mtBreaches.length).toBe(1);
+    expect(mtBreaches[0].key).toBe('player_prop');
+    expect(mtBreaches[0].current).toBeCloseTo(0.4, 4);
+    expect(mtBreaches[0].limit).toBe(0.3);
+    expect(mtBreaches[0].severity).toBe('high');
+  });
+
+  it('no market-type breach when under limit', async () => {
+    const mockRows = [
+      {
+        kelly_fraction: 0.1,
+        ticket_legs: {
+          event_id: 'evt-1',
+          leg_status: 'pending',
+          events: { sport: 'NBA' },
+          markets: { category: 'player_prop' },
+        },
+      },
+    ];
+
+    const config = { ...DEFAULT_RISK_CONFIG, market_type_kelly_limit: 0.35 };
+    const supabase = createMockSupabase();
+    supabase._chainable.gt.mockResolvedValue({ data: mockRows, error: null });
+
+    const result = await computeExposure(supabase, config);
+
+    const mtBreaches = result.breaches.filter(b => b.dimension === 'market_type');
+    expect(mtBreaches.length).toBe(0);
+  });
+
+  it('handles missing markets data gracefully (null category)', async () => {
+    const mockRows = [
+      {
+        kelly_fraction: 0.1,
+        ticket_legs: {
+          event_id: 'evt-1',
+          leg_status: 'pending',
+          events: { sport: 'NBA' },
+          markets: null,
+        },
+      },
+    ];
+
+    const supabase = createMockSupabase();
+    supabase._chainable.gt.mockResolvedValue({ data: mockRows, error: null });
+
+    const result = await computeExposure(supabase, DEFAULT_RISK_CONFIG);
+
+    expect(result.total_kelly_exposure).toBeCloseTo(0.1, 4);
+    expect(Object.keys(result.exposure_by_market_type).length).toBe(0);
+  });
+
+  it('detects multiple market-type breaches independently', async () => {
+    const mockRows = [
+      {
+        kelly_fraction: 0.4,
+        ticket_legs: {
+          event_id: 'evt-1',
+          leg_status: 'pending',
+          events: { sport: 'NBA' },
+          markets: { category: 'player_prop' },
+        },
+      },
+      {
+        kelly_fraction: 0.4,
+        ticket_legs: {
+          event_id: 'evt-2',
+          leg_status: 'pending',
+          events: { sport: 'NFL' },
+          markets: { category: 'game_line' },
+        },
+      },
+    ];
+
+    const config = { ...DEFAULT_RISK_CONFIG, market_type_kelly_limit: 0.3 };
+    const supabase = createMockSupabase();
+    supabase._chainable.gt.mockResolvedValue({ data: mockRows, error: null });
+
+    const result = await computeExposure(supabase, config);
+
+    const mtBreaches = result.breaches.filter(b => b.dimension === 'market_type');
+    expect(mtBreaches.length).toBe(2);
+    const keys = mtBreaches.map(b => b.key).sort();
+    expect(keys).toEqual(['game_line', 'player_prop']);
+  });
+});
+
+// ============================================================================
 // 2. CorrelationDetector
 // ============================================================================
 
