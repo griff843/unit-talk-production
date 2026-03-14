@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 const {
   Client,
   Interaction,
@@ -12,12 +14,13 @@ const {
   SlashCommandBuilder,
   ComponentType,
 } = require('discord.js');
-const fs = require('fs');
+
 const configFile = fs.readFileSync(`config.json`);
 const config = JSON.parse(configFile);
 const backtickmulti = '```';
 const backtick = '`';
 const { info } = require('console');
+
 const page = require(`${config.directory}/manager/pagination`);
 const moment = require('moment-timezone');
 const mysql = require(`${config.directory}/data/mysql`);
@@ -71,7 +74,7 @@ module.exports = {
       await interaction.reply({ embeds: [noinfoEmbed] });
     } else {
       let reply = '';
-      a = 0;
+      let a = 0;
       const pageSize = 5; // 5
       const pages = [];
 

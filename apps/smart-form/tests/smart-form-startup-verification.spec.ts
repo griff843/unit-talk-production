@@ -2,8 +2,8 @@ import { test, expect, Page } from '@playwright/test';
 
 test.describe('Smart Form Application Startup Verification', () => {
   let page: Page;
-  let consoleErrors: string[] = [];
-  let consoleWarnings: string[] = [];
+  const consoleErrors: string[] = [];
+  const consoleWarnings: string[] = [];
 
   test.beforeEach(async ({ browser }) => {
     // Create new browser context and page
@@ -11,10 +11,10 @@ test.describe('Smart Form Application Startup Verification', () => {
     page = await context.newPage();
 
     // Listen for console messages
-    page.on('console', (msg) => {
+    page.on('console', msg => {
       const type = msg.type();
       const text = msg.text();
-      
+
       if (type === 'error') {
         consoleErrors.push(text);
         console.log(`❌ Console Error: ${text}`);
@@ -27,13 +27,13 @@ test.describe('Smart Form Application Startup Verification', () => {
     });
 
     // Listen for page errors
-    page.on('pageerror', (error) => {
+    page.on('pageerror', error => {
       consoleErrors.push(`Page Error: ${error.message}`);
       console.log(`🚨 Page Error: ${error.message}`);
     });
 
     // Listen for network failures
-    page.on('requestfailed', (request) => {
+    page.on('requestfailed', request => {
       console.log(`🌐 Network Failure: ${request.url()} - ${request.failure()?.errorText}`);
     });
   });
@@ -45,7 +45,7 @@ test.describe('Smart Form Application Startup Verification', () => {
     console.log('📍 Navigating to localhost:3002...');
     const response = await page.goto('http://localhost:3002', {
       waitUntil: 'networkidle',
-      timeout: 30000
+      timeout: 30000,
     });
 
     // Verify successful response
@@ -75,7 +75,7 @@ test.describe('Smart Form Application Startup Verification', () => {
 
     // Verify React/Next.js has hydrated (check for interactive elements)
     await page.waitForTimeout(2000); // Allow time for hydration
-    
+
     // Look for common Smart Form UI elements
     const mainContent = page.locator('main, [role="main"], .main-content, #__next');
     await expect(mainContent.first()).toBeVisible({ timeout: 10000 });
@@ -83,14 +83,16 @@ test.describe('Smart Form Application Startup Verification', () => {
 
     // Check for navigation or header elements
     const navigation = page.locator('nav, header, .header, .navigation, .navbar');
-    if (await navigation.count() > 0) {
+    if ((await navigation.count()) > 0) {
       await expect(navigation.first()).toBeVisible();
       console.log('✅ Navigation/header elements found');
     }
 
     // Check if this is the submit ticket page or main page
-    const submitTicketContent = page.locator('text=/submit.ticket/i, text=/smart.form/i, text=/ticket.form/i');
-    if (await submitTicketContent.count() > 0) {
+    const submitTicketContent = page.locator(
+      'text=/submit.ticket/i, text=/smart.form/i, text=/ticket.form/i'
+    );
+    if ((await submitTicketContent.count()) > 0) {
       console.log('✅ Submit ticket content detected');
     }
 
@@ -99,11 +101,12 @@ test.describe('Smart Form Application Startup Verification', () => {
     console.log(`📊 Console Warnings: ${consoleWarnings.length}`);
 
     // Filter out non-critical errors (like favicon 404s)
-    const criticalErrors = consoleErrors.filter(error => 
-      !error.includes('favicon') && 
-      !error.includes('manifest.json') &&
-      !error.includes('Failed to load resource') &&
-      !error.toLowerCase().includes('404')
+    const criticalErrors = consoleErrors.filter(
+      error =>
+        !error.includes('favicon') &&
+        !error.includes('manifest.json') &&
+        !error.includes('Failed to load resource') &&
+        !error.toLowerCase().includes('404')
     );
 
     if (criticalErrors.length > 0) {
@@ -117,7 +120,9 @@ test.describe('Smart Form Application Startup Verification', () => {
     }
 
     // Test basic interactivity - look for clickable elements
-    const clickableElements = page.locator('button, a, input[type="button"], input[type="submit"], [role="button"]');
+    const clickableElements = page.locator(
+      'button, a, input[type="button"], input[type="submit"], [role="button"]'
+    );
     const clickableCount = await clickableElements.count();
     console.log(`🖱️  Found ${clickableCount} clickable elements`);
 
@@ -138,12 +143,12 @@ test.describe('Smart Form Application Startup Verification', () => {
     console.log(`📱 Viewport: ${viewportSize?.width}x${viewportSize?.height}`);
 
     // Verify CSS has loaded (check if elements have computed styles)
-    const bodyStyles = await page.locator('body').evaluate((el) => {
+    const bodyStyles = await page.locator('body').evaluate(el => {
       const styles = window.getComputedStyle(el);
       return {
         fontFamily: styles.fontFamily,
         backgroundColor: styles.backgroundColor,
-        margin: styles.margin
+        margin: styles.margin,
       };
     });
     console.log('🎨 CSS styles computed:', bodyStyles);
@@ -152,7 +157,7 @@ test.describe('Smart Form Application Startup Verification', () => {
     // Take a screenshot for visual verification
     await page.screenshot({
       path: 'tests/screenshots/smart-form-startup-verification.png',
-      fullPage: true
+      fullPage: true,
     });
     console.log('📸 Screenshot saved');
 
@@ -177,7 +182,7 @@ test.describe('Smart Form Application Startup Verification', () => {
     // Test props API endpoint
     const propsResponse = await page.request.get('http://localhost:3002/api/props');
     console.log(`📡 Props API status: ${propsResponse.status()}`);
-    
+
     // Test games API endpoint
     const gamesResponse = await page.request.get('http://localhost:3002/api/games');
     console.log(`📡 Games API status: ${gamesResponse.status()}`);
@@ -188,8 +193,8 @@ test.describe('Smart Form Application Startup Verification', () => {
 
     // At least some endpoints should be accessible (200 or 404 is acceptable, 5xx is not)
     const endpoints = [propsResponse, gamesResponse, cappersResponse];
-    const healthyEndpoints = endpoints.filter(response => 
-      response.status() >= 200 && response.status() < 500
+    const healthyEndpoints = endpoints.filter(
+      response => response.status() >= 200 && response.status() < 500
     );
 
     expect(healthyEndpoints.length).toBeGreaterThan(0);
@@ -201,12 +206,14 @@ test.describe('Smart Form Application Startup Verification', () => {
 
     // Navigate to main page
     await page.goto('http://localhost:3002');
-    
+
     // Check if we can navigate to submit ticket page
     await page.goto('http://localhost:3002/submit-ticket');
-    const submitResponse = await page.waitForResponse(response => 
-      response.url().includes('submit-ticket') && response.status() === 200
-    ).catch(() => null);
+    const submitResponse = await page
+      .waitForResponse(
+        response => response.url().includes('submit-ticket') && response.status() === 200
+      )
+      .catch(() => null);
 
     if (submitResponse) {
       console.log('✅ Submit ticket page accessible');
@@ -216,7 +223,7 @@ test.describe('Smart Form Application Startup Verification', () => {
 
     // Test analytics page if it exists
     await page.goto('http://localhost:3002/analytics').catch(() => {
-      console.log('ℹ️  Analytics page not accessible or doesn\'t exist');
+      console.log("ℹ️  Analytics page not accessible or doesn't exist");
     });
 
     // Return to main page and verify it still works

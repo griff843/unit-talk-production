@@ -20,6 +20,8 @@ import {
   Activity,
   TrendingUp,
   BarChart3,
+  Link2,
+  TrendingDown,
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
@@ -69,6 +71,33 @@ interface RiskEvent {
   created_at: string;
 }
 
+interface CorrelationCluster {
+  type: 'same_event' | 'same_participant';
+  key: string;
+  count: number;
+  limit: number;
+}
+
+interface CorrelationState {
+  clusters: CorrelationCluster[];
+  blocked: boolean;
+  blocked_reasons: string[];
+  computed_at: string;
+}
+
+interface DrawdownState {
+  realized_pnl: number;
+  settled_count: number;
+  wins: number;
+  losses: number;
+  pushes: number;
+  drawdown_fraction: number;
+  frozen: boolean;
+  freeze_reason: string | null;
+  lookback_days: number;
+  computed_at: string;
+}
+
 interface RiskDashboardData {
   exposure: ExposureState | null;
   drift: DriftState | null;
@@ -76,6 +105,13 @@ interface RiskDashboardData {
   events: RiskEvent[];
   eventCounts: Record<string, number>;
   lastUpdated: string | null;
+}
+
+interface RiskLiveStatus {
+  exposure: ExposureState | null;
+  drift: DriftState | null;
+  correlation: CorrelationState | null;
+  drawdown: DrawdownState | null;
 }
 
 // ============================================================================
@@ -123,19 +159,34 @@ function formatTime(iso: string): string {
 
 export default function RiskDashboardPage() {
   const [data, setData] = useState<RiskDashboardData | null>(null);
+  const [liveStatus, setLiveStatus] = useState<RiskLiveStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/risk/dashboard');
-      const json = await res.json();
-      if (!json.success) {
-        setError(json.message || 'Failed to load risk data');
-        return;
+      const [dashRes, liveRes] = await Promise.allSettled([
+        fetch('/api/risk/dashboard'),
+        fetch('/api/risk/status'),
+      ]);
+
+      if (dashRes.status === 'fulfilled' && dashRes.value.ok) {
+        const json = await dashRes.value.json();
+        if (json.success) {
+          setData(json.data);
+        } else {
+          setError(json.message || 'Failed to load risk snapshot data');
+        }
       }
-      setData(json.data);
+
+      if (liveRes.status === 'fulfilled' && liveRes.value.ok) {
+        const json = await liveRes.value.json();
+        if (json.success) {
+          setLiveStatus(json.data as RiskLiveStatus);
+        }
+      }
+
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Network error');
@@ -185,16 +236,17 @@ export default function RiskDashboardPage() {
         </Card>
       )}
 
-      {/* Top Cards */}
+      {/* Top Cards — snapshot data */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Exposure Card */}
-        <ExposureCard exposure={data?.exposure ?? null} />
-
-        {/* Drift Card */}
-        <DriftCard drift={data?.drift ?? null} />
-
-        {/* Engine Status Card */}
+        <ExposureCard exposure={liveStatus?.exposure ?? data?.exposure ?? null} />
+        <DriftCard drift={liveStatus?.drift ?? data?.drift ?? null} />
         <EngineStatusCard config={data?.config ?? {}} eventCounts={data?.eventCounts ?? {}} />
+      </div>
+
+      {/* Live Risk Cards — correlation + drawdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CorrelationPanel correlation={liveStatus?.correlation ?? null} />
+        <DrawdownPanel drawdown={liveStatus?.drawdown ?? null} />
       </div>
 
       {/* Events Timeline */}
@@ -380,6 +432,135 @@ function EngineStatusCard({
             <span>Drift Block: {config.drift_brier_block?.value ?? '?'}</span>
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CorrelationPanel({ correlation }: { correlation: CorrelationState | null }) {
+  const isBlocked = correlation?.blocked ?? false;
+  const clusterCount = correlation?.clusters?.length ?? 0;
+  const borderClass = isBlocked ? 'border-red-500/50' : 'border-emerald-500/30';
+
+  return (
+    <Card className={borderClass}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
+            Correlation
+          </CardTitle>
+          {isBlocked ? (
+            <Badge className="bg-red-600 text-white">BLOCKED</Badge>
+          ) : correlation ? (
+            <Badge className="bg-emerald-600 text-white">OK</Badge>
+          ) : (
+            <Badge variant="outline">NO DATA</Badge>
+          )}
+        </div>
+        <CardDescription>Same-event and same-participant clustering</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {!correlation ? (
+          <p className="text-sm text-muted-foreground">Live data unavailable (API offline)</p>
+        ) : clusterCount === 0 ? (
+          <p className="text-sm text-muted-foreground">No correlation clusters detected</p>
+        ) : (
+          <div className="space-y-2">
+            {correlation.clusters.map((cluster, i) => (
+              <div key={i} className="text-xs rounded-md bg-muted/30 p-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">
+                    {cluster.type === 'same_event' ? 'Same Event' : 'Same Participant'}
+                  </span>
+                  <span
+                    className={
+                      cluster.count > cluster.limit ? 'text-red-400' : 'text-muted-foreground'
+                    }
+                  >
+                    {cluster.count} / {cluster.limit}
+                  </span>
+                </div>
+                <p className="text-muted-foreground mt-0.5 truncate">{cluster.key}</p>
+              </div>
+            ))}
+            {isBlocked && (
+              <div className="space-y-1 mt-2">
+                <p className="text-xs font-medium text-red-400">Block reasons:</p>
+                {correlation.blocked_reasons.map((r, i) => (
+                  <p key={i} className="text-xs text-red-300 truncate">
+                    {r}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DrawdownPanel({ drawdown }: { drawdown: DrawdownState | null }) {
+  const isFrozen = drawdown?.frozen ?? false;
+  const drawdownPct = ((drawdown?.drawdown_fraction ?? 0) * 100).toFixed(1);
+  const borderClass = isFrozen ? 'border-red-500/50' : 'border-emerald-500/30';
+
+  return (
+    <Card className={borderClass}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <TrendingDown className="h-4 w-4" />
+            Drawdown
+          </CardTitle>
+          {isFrozen ? (
+            <Badge className="bg-red-600 text-white">FROZEN</Badge>
+          ) : drawdown ? (
+            <Badge className="bg-emerald-600 text-white">OK</Badge>
+          ) : (
+            <Badge variant="outline">NO DATA</Badge>
+          )}
+        </div>
+        <CardDescription>
+          Realized P&amp;L over last {drawdown?.lookback_days ?? 1} day(s)
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {!drawdown ? (
+          <p className="text-sm text-muted-foreground">Live data unavailable (API offline)</p>
+        ) : (
+          <>
+            <div>
+              <div className="text-2xl font-bold">{drawdownPct}%</div>
+              <p className="text-xs text-muted-foreground">Drawdown fraction</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-sm">
+              <div>
+                <div className="font-bold text-emerald-400">{drawdown.wins}</div>
+                <p className="text-[10px] text-muted-foreground">Wins</p>
+              </div>
+              <div>
+                <div className="font-bold text-red-400">{drawdown.losses}</div>
+                <p className="text-[10px] text-muted-foreground">Losses</p>
+              </div>
+              <div>
+                <div className="font-bold text-yellow-400">{drawdown.pushes}</div>
+                <p className="text-[10px] text-muted-foreground">Pushes</p>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Realized P&amp;L:{' '}
+              <span className={drawdown.realized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                {drawdown.realized_pnl >= 0 ? '+' : ''}
+                {drawdown.realized_pnl.toFixed(4)} units
+              </span>
+            </div>
+            {isFrozen && drawdown.freeze_reason && (
+              <p className="text-xs text-red-400">{drawdown.freeze_reason}</p>
+            )}
+          </>
+        )}
       </CardContent>
     </Card>
   );

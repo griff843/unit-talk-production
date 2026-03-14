@@ -266,6 +266,22 @@ export class RiskEngine {
   }
 
   /**
+   * Standalone correlation detection (for API/dashboard).
+   */
+  async computeCorrelation(supabase: SupabaseClient): Promise<CorrelationState> {
+    const config = await this.getConfig(supabase);
+    return detectCorrelation(supabase, config);
+  }
+
+  /**
+   * Standalone drawdown computation (for API/dashboard).
+   */
+  async computeDrawdown(supabase: SupabaseClient): Promise<DrawdownState> {
+    const config = await this.getConfig(supabase);
+    return computeDrawdown(supabase, config);
+  }
+
+  /**
    * Load config from risk_engine_config table with 60s cache.
    */
   async getConfig(supabase: SupabaseClient): Promise<RiskEngineConfig> {
