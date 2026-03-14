@@ -48,6 +48,7 @@ interface ParsedArgs {
   lane: string;
   validateOnly: boolean;
   phase: number | null;
+  linearIssue: string | null;
 }
 
 function parseArgs(): ParsedArgs {
@@ -57,6 +58,7 @@ function parseArgs(): ParsedArgs {
   let lane = 'ops-submit';
   let validateOnly = false;
   let phase: number | null = null;
+  let linearIssue: string | null = null;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -70,6 +72,9 @@ function parseArgs(): ParsedArgs {
     } else if (arg === '--phase' && nextArg) {
       phase = parseInt(nextArg, 10);
       i++;
+    } else if (arg === '--linear' && nextArg) {
+      linearIssue = nextArg;
+      i++;
     } else if (arg === '--validate-only') {
       validateOnly = true;
     } else if (!arg.startsWith('--')) {
@@ -77,7 +82,7 @@ function parseArgs(): ParsedArgs {
     }
   }
 
-  return { sprintId, date, lane, validateOnly, phase };
+  return { sprintId, date, lane, validateOnly, phase, linearIssue };
 }
 
 function validatePhaseProofContent(proofsDir: string, phase: number): boolean {
@@ -298,11 +303,11 @@ function findDateDirectory(sprintDir: string, date: string | null): string | nul
 }
 
 function main(): void {
-  const { sprintId, date, lane, validateOnly, phase } = parseArgs();
+  const { sprintId, date, lane, validateOnly, phase, linearIssue } = parseArgs();
 
   if (!sprintId) {
     console.error(
-      'Usage: npm run sprint:close -- <SPRINT-ID> [--date YYYY-MM-DD] [--lane ops-submit|api|full] [--phase N]'
+      'Usage: npm run sprint:close -- <SPRINT-ID> [--date YYYY-MM-DD] [--lane ops-submit|api|full] [--phase N] [--linear UNI-N]'
     );
     process.exit(1);
   }
@@ -312,6 +317,9 @@ function main(): void {
   console.log(`   Mode: ${validateOnly ? 'VALIDATE ONLY' : 'FULL CLOSEOUT'}`);
   if (phase !== null) {
     console.log(`   Phase claim: ${phase} (phase advancement proof required)`);
+  }
+  if (linearIssue) {
+    console.log(`   Linear issue: ${linearIssue} (will sync on success)`);
   }
 
   const sprintDir = validateSprintDirectory(sprintId);
@@ -368,6 +376,23 @@ function main(): void {
   }
 
   console.log('\n✅ SPRINT CLOSEOUT VALIDATION PASSED');
+
+  // COS-002: Linear sync (runs after all gates pass, gracefully skips if no API key)
+  if (linearIssue && !validateOnly) {
+    console.log(`\n🔗 Running Linear sync for ${linearIssue}...`);
+    try {
+      const dateArg = targetDate ? `--date ${targetDate}` : '';
+      execSync(
+        `npx tsx ${path.join(WORKSPACE_ROOT, 'scripts', 'sprint-linear-sync.ts')} --issue ${linearIssue} --sprint ${sprintId} ${dateArg}`,
+        { cwd: WORKSPACE_ROOT, stdio: 'inherit' }
+      );
+    } catch {
+      // Non-fatal — linear sync failure does not fail the closeout
+      console.warn('   ⚠️  Linear sync failed (non-fatal). Run manually:');
+      console.warn(`   npm run sprint:linear-sync -- --issue ${linearIssue} --sprint ${sprintId}`);
+    }
+  }
+
   process.exit(0);
 }
 
