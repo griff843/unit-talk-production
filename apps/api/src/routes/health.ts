@@ -4,10 +4,19 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Router, Request, Response } from 'express';
 import Redis from 'ioredis';
 
+import { autopilotGuard } from '../lib/AutopilotGuard';
 import { detectOrphanedPicks } from '../monitoring/OrphanedStateDetector';
+import { evaluatePlatformThresholds } from '../services/PlatformThresholdEvaluator';
 import { getOutboxDepthMetrics } from '../services/publishOutbox';
 import { getEnv } from '../utils/getEnv';
 import { createLogger } from '../utils/logger';
+
+import {
+  computeLifecycleCompletionSlo,
+  computeDiscordPostingSlo,
+  computeGradingLatencySlo,
+  computeSettlementAccuracySlo,
+} from './slo';
 // SPRINT-OPERATIONAL-OBSERVABILITY
 
 const env = getEnv();
@@ -419,5 +428,162 @@ async function collectMetrics(): Promise<string> {
   return 'metrics collected';
 }
 */
+
+// ─── SPRINT-043: Platform Health Summary ──────────────────────────────────────
+
+type SubsystemStatus = 'UP' | 'DEGRADED' | 'DOWN';
+type PlatformStatus = 'HEALTHY' | 'DEGRADED' | 'CRITICAL';
+
+interface SubsystemEntry {
+  name: string;
+  status: SubsystemStatus;
+  notes?: string;
+}
+
+interface HealthSummaryResponse {
+  platform_status: PlatformStatus;
+  computed_at: string;
+  subsystems: SubsystemEntry[];
+  slo_breaches: number;
+  slo_warns: number;
+  alert_count: number;
+  high_alert_count: number;
+  autopilot_mode: string;
+}
+
+/**
+ * GET /api/health/summary
+ * Unified platform health: subsystems + SLO attainment + threshold alerts + autopilot mode.
+ * No auth required — designed for monitoring dashboards and ops checks.
+ */
+router.get('/summary', async (_req: Request, res: Response) => {
+  const { client: db } = getHealthSupabase();
+
+  if (!db) {
+    return res.status(503).json({
+      platform_status: 'CRITICAL',
+      computed_at: new Date().toISOString(),
+      subsystems: [{ name: 'database', status: 'DOWN', notes: 'Supabase not configured' }],
+      slo_breaches: 0,
+      slo_warns: 0,
+      alert_count: 0,
+      high_alert_count: 0,
+      autopilot_mode: autopilotGuard.getMode(),
+    });
+  }
+
+  // Compute SLOs and thresholds in parallel
+  const [sloResults, thresholdResults] = await Promise.allSettled([
+    Promise.allSettled([
+      computeLifecycleCompletionSlo(db),
+      computeDiscordPostingSlo(db),
+      computeGradingLatencySlo(db),
+      computeSettlementAccuracySlo(db),
+    ]),
+    // Threshold evaluation runs after SLOs (needs them for SLO breach alerts);
+    // we'll pass slos once computed
+    Promise.resolve(null), // placeholder — evaluated below
+  ]);
+
+  const slos =
+    sloResults.status === 'fulfilled'
+      ? (sloResults.value
+          .map(r => (r.status === 'fulfilled' ? r.value : null))
+          .filter(Boolean) as import('./slo').SloEntry[])
+      : [];
+
+  // Now evaluate thresholds with computed SLOs
+  const thresholds = await evaluatePlatformThresholds(db, slos).catch(() => ({
+    alerts: [],
+    evaluated_at: new Date().toISOString(),
+  }));
+
+  // SLO summary counts
+  const sloBreaches = slos.filter(s => s.status === 'BREACH').length;
+  const sloWarns = slos.filter(s => s.status === 'WARN').length;
+  const highAlerts = thresholds.alerts.filter(a => a.severity === 'HIGH').length;
+
+  // Build subsystem statuses
+  const subsystems: SubsystemEntry[] = [
+    {
+      name: 'lifecycle_completion_slo',
+      status:
+        slos.find(s => s.id === 'lifecycle_completion')?.status === 'BREACH'
+          ? 'DOWN'
+          : slos.find(s => s.id === 'lifecycle_completion')?.status === 'WARN'
+            ? 'DEGRADED'
+            : 'UP',
+    },
+    {
+      name: 'discord_posting_slo',
+      status:
+        slos.find(s => s.id === 'discord_posting')?.status === 'BREACH'
+          ? 'DOWN'
+          : slos.find(s => s.id === 'discord_posting')?.status === 'WARN'
+            ? 'DEGRADED'
+            : 'UP',
+    },
+    {
+      name: 'grading_latency_slo',
+      status:
+        slos.find(s => s.id === 'grading_latency_p50')?.status === 'BREACH'
+          ? 'DOWN'
+          : slos.find(s => s.id === 'grading_latency_p50')?.status === 'WARN'
+            ? 'DEGRADED'
+            : 'UP',
+    },
+    {
+      name: 'settlement_accuracy_slo',
+      status:
+        slos.find(s => s.id === 'settlement_accuracy')?.status === 'BREACH'
+          ? 'DOWN'
+          : slos.find(s => s.id === 'settlement_accuracy')?.status === 'WARN'
+            ? 'DEGRADED'
+            : 'UP',
+    },
+    {
+      name: 'risk_engine',
+      status: (thresholds.alerts.some(a => a.source === 'drawdown' && a.severity === 'HIGH')
+        ? 'DEGRADED'
+        : 'UP') as SubsystemStatus,
+      notes: thresholds.alerts.find(a => a.source === 'drawdown')?.message,
+    },
+    {
+      name: 'outbox',
+      status: thresholds.alerts.some(a => a.source === 'outbox') ? 'DEGRADED' : 'UP',
+      notes: thresholds.alerts.find(a => a.source === 'outbox')?.message,
+    },
+    {
+      name: 'workers',
+      status: thresholds.alerts.some(a => a.source === 'heartbeat' && a.severity === 'HIGH')
+        ? 'DEGRADED'
+        : 'UP',
+      notes: thresholds.alerts.find(a => a.source === 'heartbeat')?.message,
+    },
+  ];
+
+  // Derive platform status
+  const hasDown = subsystems.some(s => s.status === 'DOWN');
+  const hasHighAlert = highAlerts > 0;
+  const hasDegraded = subsystems.some(s => s.status === 'DEGRADED');
+
+  const platform_status: PlatformStatus =
+    hasDown || hasHighAlert ? 'CRITICAL' : hasDegraded || sloWarns > 0 ? 'DEGRADED' : 'HEALTHY';
+
+  const response: HealthSummaryResponse = {
+    platform_status,
+    computed_at: new Date().toISOString(),
+    subsystems,
+    slo_breaches: sloBreaches,
+    slo_warns: sloWarns,
+    alert_count: thresholds.alerts.length,
+    high_alert_count: highAlerts,
+    autopilot_mode: autopilotGuard.getMode(),
+  };
+
+  const statusCode =
+    platform_status === 'HEALTHY' ? 200 : platform_status === 'DEGRADED' ? 200 : 503;
+  res.status(statusCode).json(response);
+});
 
 export default router;

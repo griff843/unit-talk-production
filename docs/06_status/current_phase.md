@@ -10,26 +10,26 @@
 
 Per `docs/04_roadmap/layer_phase_execution_model.md`:
 
-| Layer | Phase | Name                       | Status                                                                                                                                                          |
-| ----- | ----- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | 0     | Governance Lock            | COMPLETE                                                                                                                                                        |
-| **1** | 1     | Runtime Truth              | COMPLETE                                                                                                                                                        |
-| **1** | 2     | Data Truth                 | COMPLETE                                                                                                                                                        |
-| **1** | 3     | Distribution Determinism   | COMPLETE                                                                                                                                                        |
-| **1** | 4     | Operational Determinism    | COMPLETE (worker health + pipeline observability verified)                                                                                                      |
-| **1** | **5** | **Platform Stabilization** | **COMPLETE** — R3 shadow guardrails + R4 fault suite wired into CI; E2E lifecycle traversal proven via R2 replay (SPRINT-LAYER1-PHASE5-E2E-CLOSURE, 2026-03-14) |
-| 2     | 6     | Operator Control Plane     | PLANNED                                                                                                                                                         |
-| 2     | 7     | Reliability & Monitoring   | PLANNED                                                                                                                                                         |
-| 2     | 8     | Recovery & Replay          | PLANNED                                                                                                                                                         |
-| 3     | 9     | SmartForm UX               | PLANNED                                                                                                                                                         |
-| 3     | 10    | Command Center UX          | PLANNED                                                                                                                                                         |
-| 3     | 11    | Workflow Optimization      | PLANNED                                                                                                                                                         |
-| 4     | 12    | Edge Detection             | PLANNED                                                                                                                                                         |
-| 4     | 13    | Market Resistance          | PLANNED                                                                                                                                                         |
-| 4     | 14    | CLV Analytics              | PLANNED                                                                                                                                                         |
+| Layer | Phase | Name                         | Status                                                                                                                                                                                                                                    |
+| ----- | ----- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | 0     | Governance Lock              | COMPLETE                                                                                                                                                                                                                                  |
+| **1** | 1     | Runtime Truth                | COMPLETE                                                                                                                                                                                                                                  |
+| **1** | 2     | Data Truth                   | COMPLETE                                                                                                                                                                                                                                  |
+| **1** | 3     | Distribution Determinism     | COMPLETE                                                                                                                                                                                                                                  |
+| **1** | 4     | Operational Determinism      | COMPLETE (worker health + pipeline observability verified)                                                                                                                                                                                |
+| **1** | **5** | **Platform Stabilization**   | **COMPLETE** — R3 shadow guardrails + R4 fault suite wired into CI; E2E lifecycle traversal proven via R2 replay (SPRINT-LAYER1-PHASE5-E2E-CLOSURE, 2026-03-14)                                                                           |
+| **2** | **6** | **Operator Control Plane**   | **COMPLETE** — GET/PUT /ops/autopilot, POST /ops/picks/:id/override, PUT /api/risk/config/:key; AutopilotGuard.persistMode(); migration 20260314120000; 12 new vitest tests (SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE, 2026-03-14) |
+| **2** | **7** | **Reliability & Monitoring** | **ACTIVE** — SLO framework, platform health summary, alerting thresholds, on-call runbook (SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING, in progress)                                                                                  |
+| 2     | 8     | Recovery & Replay            | PLANNED                                                                                                                                                                                                                                   |
+| 3     | 9     | SmartForm UX                 | PLANNED                                                                                                                                                                                                                                   |
+| 3     | 10    | Command Center UX            | PLANNED                                                                                                                                                                                                                                   |
+| 3     | 11    | Workflow Optimization        | PLANNED                                                                                                                                                                                                                                   |
+| 4     | 12    | Edge Detection               | PLANNED                                                                                                                                                                                                                                   |
+| 4     | 13    | Market Resistance            | PLANNED                                                                                                                                                                                                                                   |
+| 4     | 14    | CLV Analytics                | PLANNED                                                                                                                                                                                                                                   |
 
-**Current active work**: Layer 2 / Phase 6 — Operator Control Plane (Layer 1
-COMPLETE)
+**Current active work**: Layer 2 / Phase 7 — Reliability & Monitoring (Layer 2 /
+Phase 6 COMPLETE)
 
 ---
 

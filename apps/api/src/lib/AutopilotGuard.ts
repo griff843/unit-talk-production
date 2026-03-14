@@ -23,6 +23,8 @@ import { supabase as supabaseClient } from '../services/supabaseClient';
 import { shadowMode } from '../shadow/ShadowMode';
 import { createLogger } from '../utils/logger';
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -397,11 +399,57 @@ export class AutopilotGuard {
   }
 
   /**
-   * Set mode programmatically (for testing)
+   * Set mode programmatically (for testing and operator control API)
    */
   public setMode(mode: AutopilotMode): void {
     this.logger.info('Autopilot mode changed', { from: this.mode, to: mode });
     this.mode = mode;
+  }
+
+  /**
+   * Set canary percentage programmatically (for operator control API)
+   */
+  public setCanaryPercentage(percentage: number): void {
+    const clamped = Math.max(0, Math.min(100, Math.round(percentage)));
+    this.logger.info('Autopilot canary percentage changed', {
+      from: this.canaryPercentage,
+      to: clamped,
+    });
+    this.canaryPercentage = clamped;
+  }
+
+  /**
+   * Persist current mode and canary_percentage to risk_engine_config table.
+   * Best-effort: caller should catch errors and keep the in-memory update.
+   */
+  public async persistMode(
+    supabase: SupabaseClient,
+    mode: AutopilotMode,
+    canaryPercentage?: number
+  ): Promise<void> {
+    const upserts: { config_key: string; config_value: string; updated_by: string }[] = [
+      { config_key: 'autopilot_mode', config_value: mode as string, updated_by: 'operator_api' },
+    ];
+
+    if (canaryPercentage !== undefined) {
+      upserts.push({
+        config_key: 'canary_percentage',
+        config_value: String(canaryPercentage),
+        updated_by: 'operator_api',
+      });
+    }
+
+    for (const row of upserts) {
+      const { error } = await supabase
+        .from('risk_engine_config')
+        .upsert(row, { onConflict: 'config_key' });
+
+      if (error) {
+        throw new Error(`Failed to persist ${row.config_key}: ${error.message}`);
+      }
+    }
+
+    this.logger.info('Autopilot mode persisted to DB', { mode, canaryPercentage });
   }
 
   /**

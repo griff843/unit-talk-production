@@ -1,7 +1,7 @@
 # Phase Status
 
-**Last Updated**: 2026-03-14 (SPRINT-RISK-DASHBOARD-MONITORING) **Source**:
-Linear initiatives + repo implementation + sprint closeouts
+**Last Updated**: 2026-03-14 (SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE)
+**Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
 
@@ -199,17 +199,50 @@ freeze
 - DRIFT-L4 closed as false positive: `ops_worker_heartbeats` schema has
   `worker_name` + `last_heartbeat_at` matching `health.ts` query exactly
 
+### Additional Completed Work (SPRINT-041-MARKET-TYPE-EXPOSURE-CAPS, 2026-03-14)
+
+- Market-type level exposure caps via `markets!inner(category)` join in
+  ExposureCalculator; `byMarketType` aggregation + breach detection
+- `market_type_kelly_limit = 0.35` seeded into `risk_engine_config`
+- RiskEngine gate check for market-type dimension (step 5b in
+  `evaluateForPromotion()`)
+- Command Center risk dashboard: MarketTypePanel added; 3-col grid
+- 5 new vitest tests; 901/903 total (2 pre-existing failures in
+  risk-integration.test.ts — not introduced by this sprint)
+- (PR #185, UNI-72 Done)
+
+### Additional Completed Work (SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE, 2026-03-14)
+
+Layer 2 / Phase 6 — Operator Control Plane deliverables:
+
+- `GET /ops/autopilot` — read current AutopilotGuard mode + status
+- `PUT /ops/autopilot` — set mode at runtime without container restart; persists
+  to `risk_engine_config` DB
+- `POST /ops/picks/:id/override` — promote or reject any pick via
+  `operator_override` lifecycle role
+- `PUT /api/risk/config/:key` — update risk engine config values at runtime with
+  14-key whitelist + 60s cache invalidation
+- `AutopilotGuard.setCanaryPercentage()` + `persistMode()` methods added
+- Migration: `autopilot_mode` + `canary_percentage` seed rows in
+  `risk_engine_config`
+- 12 new vitest tests; 910/910 total (34 suites) — pre-existing risk-integration
+  failures resolved
+- (PR #189)
+
 ### Remaining Work
 
-- Market-type level exposure caps (beyond sport-level)
+None (Phase 3 risk engine controls complete; Phase 6 operator control API
+delivered)
 
 ### Assessment
 
-**PHASE 3 is 85% complete.** Core risk controls fully implemented: Kelly sizing,
-exposure caps (total + event + sport), correlation detection, drawdown freeze.
-Risk state now fully visible in Command Center (exposure, drift, correlation,
-drawdown panels). Decision audit trail queryable via `/api/risk/decisions`. Only
-remaining work: market-type level exposure caps.
+**PHASE 3 is 100% complete.** All risk controls fully implemented: Kelly sizing,
+exposure caps (total + event + sport + market-type), correlation detection,
+drawdown freeze. Risk state fully visible in Command Center (exposure, drift,
+correlation, drawdown, market-type panels). Decision audit trail queryable via
+`/api/risk/decisions`. Operator control API live (Layer 2 / Phase 6
+deliverable): autopilot mode changeable at runtime, risk config updatable
+without deploy, manual pick overrides via lifecycle adapter.
 
 ---
 
@@ -324,7 +357,7 @@ Phase F (COS-006) pending second project.**
 | -------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
 | **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure |
 | **Phase 2** — Intelligence Superiority | Active  | 80%        | Linear-GitHub integration (UNI-14)                                                                           |
-| **Phase 3** — Risk Engine Dominance    | Active  | 85%        | Market-type level exposure caps remaining; core controls + dashboard visibility complete                     |
+| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + market-type caps + full dashboard visibility (SPRINT-041, PR #185, UNI-72)    |
 | **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started |
 | **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                           |
 | **Claude OS Upgrade**                  | Active  | 80%        | COS-001–005 Done (PR #170 merged); Phase F (COS-006) blocked by second project                               |

@@ -8,10 +8,12 @@ import { validateDbMode } from './config/dbMode';
 import { enforceFailClosedBoot } from './lib/enforcement';
 import healthRouter from './routes/health';
 import opsRouter from './routes/ops';
+import opsControlRouter from './routes/ops-control';
 import opsDiscordRoutingRouter from './routes/ops-discord-routing';
 import opsStatusRouter from './routes/ops-status';
 import picksRouter from './routes/picks';
 import riskRouter from './routes/risk';
+import sloRouter from './routes/slo';
 import { smartFormRouter } from './routes/smart-form';
 import versionRouter from './routes/version';
 import { agentHealthHeartbeat } from './services/agentHealthHeartbeat';
@@ -91,10 +93,14 @@ app.use('/ops', opsStatusRouter);
 app.use('/ops', opsDiscordRoutingRouter);
 // Admin ops routes (auth required)
 app.use('/ops', opsRouter);
+// SPRINT-042: Operator control plane (autopilot mode + pick override)
+app.use('/ops', opsControlRouter);
 app.use('/version', versionRouter);
 app.use('/api/version', versionRouter);
 // RISK-ENGINE-FOUNDATION-001: Risk telemetry API
 app.use('/api/risk', riskRouter);
+// SPRINT-043: SLO attainment tracking
+app.use('/api/slo', sloRouter);
 
 // Provider health endpoint
 app.get('/health/provider', async (req, res) => {
