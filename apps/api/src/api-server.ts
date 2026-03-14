@@ -8,6 +8,7 @@ import { validateDbMode } from './config/dbMode';
 import { enforceFailClosedBoot } from './lib/enforcement';
 import healthRouter from './routes/health';
 import opsRouter from './routes/ops';
+import opsControlRouter from './routes/ops-control';
 import opsDiscordRoutingRouter from './routes/ops-discord-routing';
 import opsStatusRouter from './routes/ops-status';
 import picksRouter from './routes/picks';
@@ -91,6 +92,8 @@ app.use('/ops', opsStatusRouter);
 app.use('/ops', opsDiscordRoutingRouter);
 // Admin ops routes (auth required)
 app.use('/ops', opsRouter);
+// SPRINT-042: Operator control plane (autopilot mode + pick override)
+app.use('/ops', opsControlRouter);
 app.use('/version', versionRouter);
 app.use('/api/version', versionRouter);
 // RISK-ENGINE-FOUNDATION-001: Risk telemetry API
