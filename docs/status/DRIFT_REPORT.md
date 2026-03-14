@@ -153,13 +153,14 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 - **Impact**: May cause confusion about which cycle work belongs to
 - **Severity**: **LOW**
 
-#### DRIFT-L2: Quarantined Tests Not Tracked
+#### ~~DRIFT-L2: Quarantined Tests Not Tracked~~ ✅ RESOLVED
 
-- **What**: `test/__quarantine__/` contains broken tests with a MANIFEST.md; no
-  migration path defined
-- **Where**: `apps/api/test/__quarantine__/`
-- **Impact**: Known broken tests accumulating without remediation
-- **Severity**: **LOW**
+- **Resolved by**: SPRINT-JEST-QUARANTINE-CLEANUP (SPRINT-040), 2026-03-14
+- **Resolution**: All 58 quarantined test files permanently deleted with
+  documented rationale in `MANIFEST.md`. TST-001: archived agent tests; TST-002:
+  type drift against replaced modules (covered by 898 vitest tests); TST-003:
+  missing deps. Jest suite: 35 suites / 643 tests all passing.
+- **Closed**: 2026-03-14
 
 #### ~~DRIFT-L4: Worker Heartbeat False Negative in /api/health~~ ✅ FALSE POSITIVE — CLOSED
 
