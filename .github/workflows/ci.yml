@@ -114,6 +114,26 @@ jobs:
     with:
       run_tests: smoke
 
+  # R3 Shadow Divergence Guardrails
+  # SPRINT-LAYER1-PHASE5-E2E-CLOSURE: Layer 1 / Phase 5 closure gate
+  # Uses fixture mode — no Supabase required. All 7 acceptance gates must pass.
+  shadow-guardrails:
+    name: R3 Shadow Divergence Guardrails
+    needs: [lifecycle-gate]
+    uses: ./.github/workflows/_ci-core.yml
+    with:
+      run_shadow_guardrails: true
+
+  # R4 Fault Injection Suite
+  # SPRINT-LAYER1-PHASE5-E2E-CLOSURE: Layer 1 / Phase 5 closure gate
+  # All 10 fault scenarios (F1–F10) with 4 assertions each. All must pass.
+  fault-suite:
+    name: R4 Fault Injection Suite (F1–F10)
+    needs: [lifecycle-gate]
+    uses: ./.github/workflows/_ci-core.yml
+    with:
+      run_fault_suite: true
+
   # ══════════════════════════════════════════════════════════════════════
   # Exempt jobs (service containers / matrix / special tools)
   # See EXEMPT_JOBS in scripts/ci/guard-ci-core-usage.mjs

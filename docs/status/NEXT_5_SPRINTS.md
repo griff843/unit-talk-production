@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-13 (SPRINT-LAYER1-CLOSURE-STATUS-SYNC) **Source**:
+**Last Updated**: 2026-03-14 (SPRINT-LAYER1-PHASE5-E2E-CLOSURE) **Source**:
 Phase status + drift report + system gap analysis + risk engine roadmap + Linear
 backlog
 
@@ -63,49 +63,21 @@ backlog
 
 ---
 
-## Sprint 1: SPRINT-LAYER1-PHASE5-E2E-CLOSURE
+## ~~Sprint 1: SPRINT-LAYER1-PHASE5-E2E-CLOSURE~~ ✅ COMPLETED (2026-03-14)
 
-**Priority**: P1 — HIGH **Phase**: Layer 1 / Phase 5 — Platform Stabilization
-**Estimated Effort**: 1-2 days **Linear**: TBD
-
-**Objective**: Close Layer 1 / Phase 5 (Platform Stabilization) by proving
-shadow mode (R3) and fault injection (R4) in CI and completing the E2E smoke
-test suite to prove full-lifecycle pick traversal.
-
-**Tasks**:
-
-1. Add shadow guardrails run (`pnpm shadow:guardrails`) as a CI gate step
-2. Add fault suite run (`pnpm fault:suite`) as a CI gate step
-3. Prove full-lifecycle pick traversal in E2E smoke test (ingestion → scoring →
-   promotion → Discord → settlement)
-4. Update `docs/06_status/current_phase.md` Phase 5 → COMPLETE
-5. Issue formal Layer 1 COMPLETE declaration with proof artifacts
-
-**Success Criteria**:
-
-- Shadow guardrails: PASS in CI
-- Fault suite: all gates A–G PASS in CI
-- E2E smoke test: full pick lifecycle proven end-to-end
-- `docs/06_status/current_phase.md` Phase 5 row: COMPLETE
-- Layer 1 COMPLETE verdict issued with proof bundle
-
-**Sequencing Note**: This sprint gates all Layer 2 work.
-SPRINT-RISK-DASHBOARD-MONITORING (Layer 2 / Phase 7) must not be promoted ahead
-of Phase 5 closure per `docs/04_roadmap/layer_phase_execution_model.md` §4.1.
+> Shadow guardrails + fault suite wired into CI; R2 deterministic replay proves
+> full lifecycle traversal (SUBMITTED→GRADED→POSTED→SETTLED→RECAP, SHA-256
+> verified). Phase 5 COMPLETE. Layer 1 COMPLETE. Layer 2 now unblocked. Proof:
+> `out/sprints/SPRINT-LAYER1-PHASE5-E2E-CLOSURE/2026-03-14/`
 
 ---
 
-## Sprint 2: SPRINT-RISK-DASHBOARD-MONITORING
+## Sprint 1: SPRINT-RISK-DASHBOARD-MONITORING
 
-**Priority**: P2 — MEDIUM **Phase**: Phase 3 (Risk Engine Dominance —
-visibility) | Canonical: Layer 2 / Phase 7 (Reliability & Monitoring)
+**Priority**: P1 — HIGH **Phase**: Layer 2 / Phase 7 — Reliability & Monitoring
 **Estimated Effort**: 2-3 days **Linear**: TBD
 
-> ⚠️ **SEQUENCING NOTE** (added 2026-03-13): This sprint is Layer 2 / Phase 7
-> and must not begin until Layer 1 / Phase 5 is COMPLETE per
-> `docs/04_roadmap/layer_phase_execution_model.md` §4.1. It is listed here to
-> preserve sprint queue state but should not be started before
-> SPRINT-LAYER1-PHASE5-E2E-CLOSURE completes.
+> Layer 1 is COMPLETE (2026-03-14). This sprint is now unblocked.
 
 **Objective**: Add risk state visibility to the Command Center — exposure
 heatmap, correlation clusters, drawdown status, and risk decision audit trail.
@@ -165,16 +137,16 @@ moving to VERIFIED status.
 
 ## Summary
 
-| #     | Sprint                           | Priority | Phase        | Focus                                                | Linear |
-| ----- | -------------------------------- | -------- | ------------ | ---------------------------------------------------- | ------ |
-| ~~1~~ | ~~RISK-BANKROLL-KELLY~~          | ~~P1~~   | ~~Ph 3~~     | ~~Bankroll + Kelly sizing~~ ✅ DONE                  | UNI-53 |
-| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~    | ~~P1~~   | ~~Ph 3~~     | ~~Exposure + correlation + drawdown~~ ✅ DONE        | UNI-54 |
-| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~      | ~~P1~~   | ~~Ph 1~~     | ~~Build verification + DRIFT-M5~~ ✅ DONE            | UNI-55 |
-| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~ | ~~P1~~   | ~~Ph 1→3~~   | ~~Runbook + guard tests~~ ✅ DONE                    | UNI-56 |
-| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~   | ~~P2~~   | ~~Ph 4~~     | ~~Discord bot + RecapAgent verify~~ ✅ DONE          | UNI-57 |
-| 1     | LAYER1-PHASE5-E2E-CLOSURE        | **P1**   | L1 / Ph 5    | Shadow/fault CI + E2E smoke proof → Phase 5 COMPLETE | TBD    |
-| 2     | RISK-DASHBOARD-MONITORING        | P2       | L2 / Ph 7 ⚠️ | Risk visibility (blocked until Phase 5 done)         | TBD    |
-| 3     | JEST-QUARANTINE-CLEANUP          | P2       | L1 / Ph 0    | Triage quarantined tests, close DRIFT-L2             | TBD    |
+| #     | Sprint                           | Priority | Phase       | Focus                                              | Linear |
+| ----- | -------------------------------- | -------- | ----------- | -------------------------------------------------- | ------ |
+| ~~1~~ | ~~RISK-BANKROLL-KELLY~~          | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                | UNI-53 |
+| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~    | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE      | UNI-54 |
+| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~      | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE          | UNI-55 |
+| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~ | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                  | UNI-56 |
+| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~   | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE        | UNI-57 |
+| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~    | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE      | TBD    |
+| 1     | RISK-DASHBOARD-MONITORING        | **P1**   | L2 / Ph 7   | Risk visibility (Layer 1 COMPLETE — now unblocked) | TBD    |
+| 2     | JEST-QUARANTINE-CLEANUP          | P2       | L1 / Ph 0   | Triage quarantined tests, close DRIFT-L2           | TBD    |
 
 **Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
 independent and can run in any order.
