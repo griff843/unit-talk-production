@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-14 (SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING)
+**Last Updated**: 2026-03-14 (SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY)
 **Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -251,23 +251,49 @@ Layer 2 / Phase 7 — Reliability & Monitoring deliverables:
 - 11 new vitest tests; 921/921 total (35 suites)
 - (PR #191)
 
+### Additional Completed Work (SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY, 2026-03-14)
+
+Layer 2 / Phase 8 — Recovery & Replay deliverables:
+
+- `POST /ops/recovery/replay` — deterministic replay from production event
+  journal; accepts `journalPath` + `eventWindow { from, to }`; runs
+  `ReplayOrchestrator` with non-production adapter manifest; returns
+  `{ replayId, divergences, proofPath, status: "PASS"|"FAIL" }`; writes proof
+  bundle to `out/replay-runs/<replayId>/`
+- `GET /ops/recovery/replays` — list recent replay proof bundles (up to 20,
+  sorted by most recent); returns `{ replayId, proofPath, ranAt }` per run
+- `apps/api/src/routes/ops-recovery.ts` — new route file, mounted at `/ops` in
+  `api-server.ts`; adminAuth guard; same pattern as `ops-control.ts`
+- `docs/ops/JOURNAL_BACKUP_PROCEDURE.md` — journal backup/restore procedure,
+  health checks, and replay trigger reference
+- `docs/ops/ON_CALL_RUNBOOK.md §Scenario 6` — incident recovery runbook: journal
+  backup, replay trigger, result interpretation, divergence handling, escalation
+  steps
+- 5 new vitest tests (JournalEventStore in-memory, storeFromJsonl,
+  getEventsBetween, ReplayOrchestrator determinism hash, empty-store run);
+  926/926 total
+- Layer 2 complete: Phases 6 (Operator Control), 7 (Reliability), 8 (Recovery)
+  all delivered
+
 ### Remaining Work
 
-None (Phase 3 risk engine controls + Phase 6 operator control API + Phase 7
-reliability monitoring all delivered)
+None — Layer 2 / Phase 8 is the final Layer 2 phase. All Layer 2 deliverables
+are complete.
 
 ### Assessment
 
-**PHASE 3 is 100% complete.** All risk controls fully implemented: Kelly sizing,
-exposure caps (total + event + sport + market-type), correlation detection,
-drawdown freeze. Risk state fully visible in Command Center (exposure, drift,
-correlation, drawdown, market-type panels). Decision audit trail queryable via
-`/api/risk/decisions`. Operator control API live (Layer 2 / Phase 6
-deliverable): autopilot mode changeable at runtime, risk config updatable
-without deploy, manual pick overrides via lifecycle adapter. Reliability
-monitoring live (Layer 2 / Phase 7 deliverable): 4 SLOs defined and tracked via
-live endpoint, unified health summary with HEALTHY/DEGRADED/CRITICAL derivation,
-structured alerting thresholds, on-call runbook (5 scenarios).
+**PHASE 3 is 100% complete. Layer 2 is 100% complete.** All risk controls fully
+implemented: Kelly sizing, exposure caps (total + event + sport + market-type),
+correlation detection, drawdown freeze. Risk state fully visible in Command
+Center (exposure, drift, correlation, drawdown, market-type panels). Decision
+audit trail queryable via `/api/risk/decisions`. Operator control API live
+(Phase 6): autopilot mode changeable at runtime, risk config updatable without
+deploy, manual pick overrides via lifecycle adapter. Reliability monitoring live
+(Phase 7): 4 SLOs defined and tracked, unified health summary with
+HEALTHY/DEGRADED/CRITICAL derivation, structured alerting, on-call runbook (6
+scenarios). Incident recovery live (Phase 8): deterministic replay from
+production event journal, proof bundle generation, operator-accessible via
+`/ops/recovery/replay`.
 
 ---
 
@@ -364,15 +390,29 @@ Tracking AI operator tooling improvements separate from product phases.
   UserPromptSubmit hook; `scripts/check-session-baseline.mjs` warns when
   baseline >30 min stale (UNI-68 Done)
 
-### Future (Phase F)
+### Complete (COS-006 — LLM Routing Engine, 2026-03-14)
 
-- **COS-006 — Core/Adapter Extraction**: Extract lane router + proof bundler
-  into `packages/claude-os/`; requires second real project for validation
+- **COS-006 — LLM Routing Engine**: `tools/claude-os/src/llm-router.ts` (~460
+  lines); 5 functions: `classifyTask`, `assignLanes`, `routeModels`,
+  `recommendInstances`, `generatePrompts`; `route` CLI command added to
+  `tools/claude-os/src/cli.ts`; Step 4.5 added to sprint-plan SKILL.md; LLM
+  routing section added to PROMPT_TEMPLATES.md; architecture doc
+  `docs/02_architecture/claude_os_llm_routing_engine.md`; Lane 2/3/5 hardcoded
+  never-delegate; Mode A default (backward compatible);
+  `LLM_ROUTING_DECISION.md` evidence artifact; (UNI-76 Done)
+
+### Future
+
+- **COS-007 — sprint:close validation**: validate `LLM_ROUTING_DECISION.md`
+  exists and is well-formed during `sprint:close`
+- **COS-008 — Mode B task envelopes**: artifact bundle format for external LLM
+  advisory lanes
+- **COS-009 — Mode B pilot**: ChatGPT-4o for Lane 4 docs advisory
 
 ### Assessment
 
-**Claude OS Upgrade: COS-001–005 all COMPLETE (PR #170 merged, UNI-64–68 Done).
-Phase F (COS-006) pending second project.**
+**Claude OS Upgrade: COS-001–006 all COMPLETE. COS-006 (LLM Routing Engine)
+merged 2026-03-14 (UNI-76 Done). Next: COS-007 sprint:close validation.**
 
 ---
 
@@ -382,11 +422,12 @@ Phase F (COS-006) pending second project.**
 | -------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
 | **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure |
 | **Phase 2** — Intelligence Superiority | Active  | 80%        | Linear-GitHub integration (UNI-14)                                                                           |
-| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + market-type caps + full dashboard visibility (SPRINT-041, PR #185, UNI-72)    |
+| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)              |
 | **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started |
 | **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                           |
-| **Claude OS Upgrade**                  | Active  | 80%        | COS-001–005 Done (PR #170 merged); Phase F (COS-006) blocked by second project                               |
+| **Claude OS Upgrade**                  | Active  | 90%        | COS-001–006 Done; COS-007 (sprint:close validation) next                                                     |
 
-**Current Platform Phase**: Phase 1 at 97%, Phase 4 advancing (40%); canonical
-Layer 1 / Phase 5 (Platform Stabilization) is the active completion gate — see
+**Current Platform Phase**: Layer 2 / Phase 8 COMPLETE — Layer 2 fully done.
+Phase 1 at 97%, Phase 4 advancing (40%); canonical Layer 1 / Phase 5 (Platform
+Stabilization) is the active completion gate — see
 `docs/06_status/current_phase.md` for canonical layer/phase position.

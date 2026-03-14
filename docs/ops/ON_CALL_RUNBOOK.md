@@ -307,8 +307,124 @@ curl -X PUT -H "Authorization: Bearer admin-$ADMIN_TOKEN" \
 
 ---
 
+## Scenario 6: Incident Recovery via Deterministic Replay
+
+**Trigger**: A data integrity incident, failed deploy, or corrupted pick state
+requires reconstructing the expected system state from the event journal. Use
+replay to verify that the journal produces consistent final state and to
+generate a forensic proof bundle.
+
+**When to trigger**:
+
+- Post-incident: verify pick lifecycle state matches recorded events
+- Pre-deploy: baseline the event history before a risky migration
+- Audit: produce a determinism proof for compliance review
+
+### Step 1: Identify the Event Window
+
+Determine the time range of the incident or audit period:
+
+```bash
+# Check event journal exists and get line count
+docker-compose exec api sh -c "wc -l /app/data/events/production.jsonl"
+
+# Review last 10 events to confirm journal is current
+docker-compose exec api sh -c "tail -10 /app/data/events/production.jsonl | python3 -m json.tool"
+```
+
+### Step 2: Take a Journal Backup (Required Before Replay)
+
+```bash
+docker-compose exec api sh -c \
+  "cp /app/data/events/production.jsonl /app/data/events/production-backup-$(date +%Y%m%d-%H%M%S).jsonl"
+```
+
+See `docs/ops/JOURNAL_BACKUP_PROCEDURE.md` for full backup details.
+
+### Step 3: Trigger Replay via API
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer admin-$ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "journalPath": "/app/data/events/production.jsonl",
+    "eventWindow": {
+      "from": "<INCIDENT_START_ISO>",
+      "to": "<INCIDENT_END_ISO>"
+    }
+  }' \
+  $API_URL/ops/recovery/replay
+```
+
+**Example** (replay the last 24 hours):
+
+```bash
+FROM=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%S.000Z)
+TO=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+
+curl -X POST \
+  -H "Authorization: Bearer admin-$ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"journalPath\": \"/app/data/events/production.jsonl\", \"eventWindow\": {\"from\": \"$FROM\", \"to\": \"$TO\"}}" \
+  $API_URL/ops/recovery/replay
+```
+
+### Step 4: Interpret Results
+
+```json
+{
+  "data": {
+    "replayId": "replay-1710432000000-abc12345",
+    "divergences": 0,
+    "status": "PASS",
+    "eventsProcessed": 142,
+    "proofPath": "/app/out/replay-runs/replay-1710432000000-abc12345"
+  }
+}
+```
+
+| Result           | Meaning                                    | Action                                      |
+| ---------------- | ------------------------------------------ | ------------------------------------------- |
+| `status: "PASS"` | All events replayed without errors         | Review proof bundle; no intervention needed |
+| `status: "FAIL"` | `divergences > 0` — replay errors detected | Inspect `errors.jsonl` in proof bundle      |
+
+### Step 5: Review the Proof Bundle
+
+```bash
+# List proof artifacts
+ls $API_URL_PROOF_PATH/  # or docker-compose exec api ls <proofPath>
+
+# Key files:
+# manifest.json           — run metadata (runId, eventsProcessed, hash)
+# events-processed.json   — all events that were replayed
+# errors.jsonl            — any replay errors (empty on PASS)
+# determinism-hash.txt    — SHA-256 of final pick state (for comparison)
+# clock-log.jsonl         — VirtualEventClock advancement log
+```
+
+### Step 6: If Divergences Detected
+
+1. **Read `errors.jsonl`** — each entry has `eventId`, `eventType`, `pickId`,
+   `error`
+2. **Cross-reference** with `unified_picks` in the DB for the affected pick IDs
+3. **If pick state is corrupted**: use `POST /ops/picks/:id/override` to correct
+4. **Escalate to engineering** if divergences are systemic (> 5% of events)
+
+### Step 7: List Previous Replay Runs
+
+```bash
+curl -H "Authorization: Bearer admin-$ADMIN_TOKEN" \
+  $API_URL/ops/recovery/replays
+```
+
+Returns up to 20 most recent replay proof bundles with timestamps and paths.
+
+---
+
 ## Related Runbooks
 
+- **Incident recovery via replay**: `docs/ops/JOURNAL_BACKUP_PROCEDURE.md`
 - **Autopilot rollout**: `docs/ops/AUTOPILOT_ROLLOUT_RUNBOOK.md`
 - **Go-live procedures**: `docs/ops/GO_LIVE_RUNBOOK.md`
 - **E2E replay**: `docs/ops/RUNBOOK_E2E_REPLAY_AND_SHADOW_v1.md`

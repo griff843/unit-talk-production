@@ -10,6 +10,7 @@ import healthRouter from './routes/health';
 import opsRouter from './routes/ops';
 import opsControlRouter from './routes/ops-control';
 import opsDiscordRoutingRouter from './routes/ops-discord-routing';
+import opsRecoveryRouter from './routes/ops-recovery';
 import opsStatusRouter from './routes/ops-status';
 import picksRouter from './routes/picks';
 import riskRouter from './routes/risk';
@@ -95,6 +96,8 @@ app.use('/ops', opsDiscordRoutingRouter);
 app.use('/ops', opsRouter);
 // SPRINT-042: Operator control plane (autopilot mode + pick override)
 app.use('/ops', opsControlRouter);
+// SPRINT-044: Recovery & Replay endpoints (incident recovery via deterministic replay)
+app.use('/ops', opsRecoveryRouter);
 app.use('/version', versionRouter);
 app.use('/api/version', versionRouter);
 // RISK-ENGINE-FOUNDATION-001: Risk telemetry API
