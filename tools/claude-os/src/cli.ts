@@ -40,6 +40,7 @@ import { captureGitEvidence } from './git-evidence.js';
 import { loadGovernance } from './governance-loader.js';
 import { startImplementation, checkImplementation } from './implementation-engine.js';
 import { loadIssue } from './issue-loader.js';
+import { runRouterCli } from './llm-router.js';
 import { runAutopilotCycle, checkAutopilotFrozen } from './orchestrator.js';
 import { loadProfileById, loadProfileFromPath } from './profile-loader.js';
 import { generatePromptPack } from './prompt-pack-generator.js';
@@ -3096,6 +3097,13 @@ function main(): void {
       break;
     case 'sprint':
       commandSprint(args);
+      break;
+    case 'route':
+      // LLM Routing Engine — emits a governed multi-LLM routing plan for /sprint-plan
+      // Usage: cli.ts route --sprint <id> --summary "<text>" [--type <type>]
+      //        [--layer <L>] [--phase <P>] [--orchestration-mode A|B|C]
+      //        [--output-dir <path>]
+      runRouterCli(process.argv.slice(2));
       break;
     case 'help':
     case '--help':
