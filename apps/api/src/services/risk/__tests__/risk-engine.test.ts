@@ -277,4 +277,59 @@ describe('RiskEngine', () => {
       expect(drift.global_brier).toBeNull();
     });
   });
+
+  describe('computeCorrelation (public method)', () => {
+    it('should return unblocked state when no pending legs', async () => {
+      const supabase = createMockSupabase({});
+
+      const engine = RiskEngine.getInstance();
+      const correlation = await engine.computeCorrelation(supabase);
+
+      expect(correlation.blocked).toBe(false);
+      expect(correlation.clusters).toEqual([]);
+      expect(typeof correlation.computed_at).toBe('string');
+    });
+
+    it('should expose correlation state without running full promotion gate', async () => {
+      const supabase = createMockSupabase({});
+
+      const engine = RiskEngine.getInstance();
+      const correlation = await engine.computeCorrelation(supabase);
+
+      // Result has the expected shape
+      expect(correlation).toHaveProperty('clusters');
+      expect(correlation).toHaveProperty('blocked');
+      expect(correlation).toHaveProperty('blocked_reasons');
+      expect(correlation).toHaveProperty('computed_at');
+    });
+  });
+
+  describe('computeDrawdown (public method)', () => {
+    it('should return zero drawdown when no settled legs', async () => {
+      const supabase = createMockSupabase({});
+
+      const engine = RiskEngine.getInstance();
+      const drawdown = await engine.computeDrawdown(supabase);
+
+      expect(drawdown.frozen).toBe(false);
+      expect(drawdown.settled_count).toBe(0);
+      expect(drawdown.drawdown_fraction).toBe(0);
+      expect(typeof drawdown.computed_at).toBe('string');
+    });
+
+    it('should expose drawdown state without running full promotion gate', async () => {
+      const supabase = createMockSupabase({});
+
+      const engine = RiskEngine.getInstance();
+      const drawdown = await engine.computeDrawdown(supabase);
+
+      expect(drawdown).toHaveProperty('realized_pnl');
+      expect(drawdown).toHaveProperty('wins');
+      expect(drawdown).toHaveProperty('losses');
+      expect(drawdown).toHaveProperty('pushes');
+      expect(drawdown).toHaveProperty('drawdown_fraction');
+      expect(drawdown).toHaveProperty('frozen');
+      expect(drawdown).toHaveProperty('lookback_days');
+    });
+  });
 });

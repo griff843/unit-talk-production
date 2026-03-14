@@ -26,7 +26,7 @@ test.describe('Production Readiness Verification', () => {
       '[data-testid]',
     ];
 
-    let foundElements = [];
+    const foundElements = [];
     for (const selector of step1Elements) {
       const elements = await page.locator(selector).all();
       if (elements.length > 0) {

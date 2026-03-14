@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-14 (SPRINT-CLAUDE-OS-UPGRADE-COS001-005) **Source**:
+**Last Updated**: 2026-03-14 (SPRINT-RISK-DASHBOARD-MONITORING) **Source**:
 Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -182,18 +182,33 @@ freeze
   (fail-closed)
 - 35 new exposure/correlation/drawdown tests (701 total vitest passing)
 
+### Additional Completed Work (SPRINT-RISK-DASHBOARD-MONITORING, 2026-03-14)
+
+- `GET /api/risk/status` endpoint: parallel aggregation of ExposureState,
+  DriftState, CorrelationState, DrawdownState via `Promise.allSettled` (PR #177,
+  UNI-69)
+- `GET /api/risk/decisions` endpoint: paginated risk decision audit trail with
+  sport/date/severity/type filters
+- `computeCorrelation` + `computeDrawdown` public methods on RiskEngine
+  (standalone dashboard access without running full promotion gate)
+- Command Center risk dashboard: CorrelationPanel + DrawdownPanel added; live
+  `/api/risk/status` proxy + `/api/risk/decisions` proxy routes
+- 4 new vitest tests (computeCorrelation + computeDrawdown public method
+  coverage); 898/898 total passing
+- DRIFT-L4 closed as false positive: `ops_worker_heartbeats` schema has
+  `worker_name` + `last_heartbeat_at` matching `health.ts` query exactly
+
 ### Remaining Work
 
-- Risk dashboard / monitoring UI for risk state visibility
-- Historical risk decision audit trail queries
 - Market-type level exposure caps (beyond sport-level)
 
 ### Assessment
 
-**PHASE 3 is 70% complete.** Core risk controls fully implemented: Kelly sizing,
+**PHASE 3 is 85% complete.** Core risk controls fully implemented: Kelly sizing,
 exposure caps (total + event + sport), correlation detection, drawdown freeze.
-All gates wired into promotion pipeline with fail-closed semantics. Remaining
-work is visibility tooling and refinement, not core risk logic.
+Risk state now fully visible in Command Center (exposure, drift, correlation,
+drawdown panels). Decision audit trail queryable via `/api/risk/decisions`. Only
+remaining work: market-type level exposure caps.
 
 ---
 
@@ -275,19 +290,20 @@ Tracking AI operator tooling improvements separate from product phases.
   created; sprint-plan skill generates `Model:` + `Routing:` fields (UNI-64
   Done)
 
-### In Review (PR #170)
+### Complete (PR #170 merged)
 
 - **COS-002 — Linear Sync Automation**: `scripts/sprint-linear-sync.ts`; posts
-  closeout comment + marks Done; `sprint:close --linear UNI-N` flag (UNI-65)
+  closeout comment + marks Done; `sprint:close --linear UNI-N` flag (UNI-65
+  Done)
 - **COS-003 — Phase Advancement Proof Template**:
   `docs/claude/PHASE_ADVANCEMENT_PROOF_TEMPLATE.md`;
   `scripts/generate-phase-proof.ts`; `sprint:close --phase N` flag + content
-  validation (UNI-66)
+  validation (UNI-66 Done)
 - **COS-004 — Lane Model Rules File**: `.claude/rules/07-lane-model.md`; Lanes
-  1–6 definitions from blueprint §5 (UNI-67)
+  1–6 definitions from blueprint §5 (UNI-67 Done)
 - **COS-005 — Session Baseline Auto-Trigger**: `.claude/settings.json`
   UserPromptSubmit hook; `scripts/check-session-baseline.mjs` warns when
-  baseline >30 min stale (UNI-68)
+  baseline >30 min stale (UNI-68 Done)
 
 ### Future (Phase F)
 
@@ -296,8 +312,8 @@ Tracking AI operator tooling improvements separate from product phases.
 
 ### Assessment
 
-**Claude OS Upgrade: Phase A + COS-001 COMPLETE; COS-002–005 in PR #170 (In
-Review). Phase F pending PR merge + second project.**
+**Claude OS Upgrade: COS-001–005 all COMPLETE (PR #170 merged, UNI-64–68 Done).
+Phase F (COS-006) pending second project.**
 
 ---
 
@@ -307,10 +323,10 @@ Review). Phase F pending PR merge + second project.**
 | -------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
 | **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure |
 | **Phase 2** — Intelligence Superiority | Active  | 80%        | Linear-GitHub integration (UNI-14)                                                                           |
-| **Phase 3** — Risk Engine Dominance    | Active  | 70%        | Core risk controls complete (Kelly, exposure, correlation, drawdown); visibility tooling remaining           |
+| **Phase 3** — Risk Engine Dominance    | Active  | 85%        | Market-type level exposure caps remaining; core controls + dashboard visibility complete                     |
 | **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started |
 | **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                           |
-| **Claude OS Upgrade**                  | Active  | 40%        | COS-001 done; COS-002–005 in PR #170; Phase F blocked by second project                                      |
+| **Claude OS Upgrade**                  | Active  | 80%        | COS-001–005 Done (PR #170 merged); Phase F (COS-006) blocked by second project                               |
 
 **Current Platform Phase**: Phase 1 at 97%, Phase 4 advancing (40%); canonical
 Layer 1 / Phase 5 (Platform Stabilization) is the active completion gate — see

@@ -102,7 +102,7 @@ test.describe('Full MLB Props Submission Test', () => {
     } else {
       // Alternative: look for any clickable element with player props text
       const betCards = await page.locator('div[class*="cursor-pointer"], button').all();
-      for (let card of betCards) {
+      for (const card of betCards) {
         const text = await card.textContent();
         if (text?.includes('Player') && text?.includes('Prop')) {
           await card.click();

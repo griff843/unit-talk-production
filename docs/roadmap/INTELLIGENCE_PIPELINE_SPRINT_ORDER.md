@@ -77,13 +77,22 @@ new architecture decision and committed governance update.
 - Versioned calibration profiles with deterministic transforms
 - 29 unit tests
 
+### SPRINT-040 — Jest Quarantine Cleanup
+
+- 58 quarantined test files permanently deleted with documented rationale
+- TST-001: archived agent tests; TST-002: type drift (replaced modules);
+  TST-003: missing deps
+- Jest suite: 35 suites / 643 tests passing; vitest: 898/898 passing
+- CI/CD Pipeline: PARTIAL → VERIFIED; DRIFT-L2 closed
+- 2026-03-14
+
 ---
 
 ## Next Sprint (LOCKED)
 
-### SPRINT-040 — TBD
+### SPRINT-041 — TBD
 
-Next intelligence pipeline sprint to be defined.
+Next sprint to be defined based on current phase priorities.
 
 ---
 
