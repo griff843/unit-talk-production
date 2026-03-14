@@ -40,10 +40,6 @@ COPY apps/dashboard ./apps/dashboard
 # This runs AFTER copying source to create correct symlinks
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-# SPRINT-RUNTIME-TRUTH-008: Build shared-types before app (monorepo dependency)
-WORKDIR /app/packages/shared-types
-RUN pnpm run build
-
 WORKDIR /app/apps/dashboard
 
 # Build Next.js application in production mode

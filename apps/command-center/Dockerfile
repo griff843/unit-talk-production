@@ -39,10 +39,6 @@ COPY apps/command-center ./apps/command-center
 # This runs AFTER copying source to create correct symlinks
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-# SPRINT-RUNTIME-TRUTH-008: Build shared-types before app (monorepo dependency)
-WORKDIR /app/packages/shared-types
-RUN pnpm run build
-
 WORKDIR /app/apps/command-center
 
 # SPRINT-BUILD-TIME-ISOLATION-111: Accept build-time args for NEXT_PUBLIC_* vars

@@ -1,12 +1,13 @@
 # Current System Status
 
-**Last Updated**: 2026-03-14 (SPRINT-SMARTFORM-DOCKER-BUILD-TRUTH-FIX) **Audit
-Sources**: SPRINT-SMARTFORM-DOCKER-BUILD-TRUTH-FIX (Smart Form Docker build
-restored — stale shared-types step removed); SPRINT-LAYER1-PHASE5-E2E-CLOSURE
-(R3 shadow guardrails + R4 fault suite wired into CI; E2E lifecycle traversal
-proven; Phase 5 COMPLETE; Layer 1 COMPLETE);
-SPRINT-DISCORD-WORKER-HEALTH-RESTORE (bcbc20f7); SPRINT-VERIFICATION-GIT-COMMIT
-(a6f69276)
+**Last Updated**: 2026-03-14 (SPRINT-DOCKER-SHARED-TYPES-TRUTH-SWEEP) **Audit
+Sources**: SPRINT-DOCKER-SHARED-TYPES-TRUTH-SWEEP (command-center + dashboard
+Docker builds restored — stale shared-types steps removed from all 3 frontend
+Dockerfiles); SPRINT-SMARTFORM-DOCKER-BUILD-TRUTH-FIX (Smart Form Docker build
+restored); SPRINT-LAYER1-PHASE5-E2E-CLOSURE (R3 shadow guardrails + R4 fault
+suite wired into CI; E2E lifecycle traversal proven; Phase 5 COMPLETE; Layer 1
+COMPLETE); SPRINT-DISCORD-WORKER-HEALTH-RESTORE (bcbc20f7);
+SPRINT-VERIFICATION-GIT-COMMIT (a6f69276)
 
 ---
 
@@ -48,17 +49,19 @@ SPRINT-DISCORD-WORKER-HEALTH-RESTORE (bcbc20f7); SPRINT-VERIFICATION-GIT-COMMIT
 
 ## Infrastructure Health
 
-| Component              | Status        | Notes                                                                                                                                        |
-| ---------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| TypeScript Compilation | CLEAN         | 0 errors (scripts/ excluded via tsconfig; shebang fixed)                                                                                     |
-| Test Suite (Vitest)    | CLEAN         | 843/843 passing — scoped to `src/**/__tests__/` (+101 Discord/Recap verification tests SPRINT-DISCORD-RECAP-VERIFICATION)                    |
-| Test Suite (Jest)      | PARTIAL       | `test/` Jest suite: 14 pass, ~79 quarantined/broken                                                                                          |
-| Single-Writer Gate     | PASS          | 0 violations, 0 allowlisted (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                |
-| Build (API)            | PASS          | `pnpm --filter unit-talk-platform run build` exits 0 (SPRINT-OBSERVABILITY-BUILD-FIX)                                                        |
-| Build (Command Center) | PASS          | `pnpm --filter unit-talk-command-center run build` exits 0; dynamic server warnings during SSG are expected (SPRINT-OBSERVABILITY-BUILD-FIX) |
-| Build (Smart Form)     | PASS          | Docker `development` target build succeeds; stale `packages/shared-types` build step removed (SPRINT-SMARTFORM-DOCKER-BUILD-TRUTH-FIX)       |
-| Git Status             | CLEAN         | No uncommitted changes on sprint branch                                                                                                      |
-| Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                                                                                          |
+| Component              | Status        | Notes                                                                                                                                                                   |
+| ---------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript Compilation | CLEAN         | 0 errors (scripts/ excluded via tsconfig; shebang fixed)                                                                                                                |
+| Test Suite (Vitest)    | CLEAN         | 843/843 passing — scoped to `src/**/__tests__/` (+101 Discord/Recap verification tests SPRINT-DISCORD-RECAP-VERIFICATION)                                               |
+| Test Suite (Jest)      | PARTIAL       | `test/` Jest suite: 14 pass, ~79 quarantined/broken                                                                                                                     |
+| Single-Writer Gate     | PASS          | 0 violations, 0 allowlisted (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                                           |
+| Build (API)            | PASS          | `pnpm --filter unit-talk-platform run build` exits 0 (SPRINT-OBSERVABILITY-BUILD-FIX)                                                                                   |
+| Build (Command Center) | PASS          | `pnpm --filter unit-talk-command-center run build` exits 0; dynamic server warnings during SSG are expected (SPRINT-OBSERVABILITY-BUILD-FIX)                            |
+| Build (Smart Form)     | PASS          | Docker `development` target build succeeds; stale `packages/shared-types` build step removed (SPRINT-SMARTFORM-DOCKER-BUILD-TRUTH-FIX)                                  |
+| Build (Command Center) | PASS          | Docker `development` target build succeeds; stale `packages/shared-types` build step removed (SPRINT-DOCKER-SHARED-TYPES-TRUTH-SWEEP)                                   |
+| Build (Dashboard)      | PASS          | Docker `development` target build succeeds; stale `packages/shared-types` build step removed; no `@unit-talk/*` workspace deps (SPRINT-DOCKER-SHARED-TYPES-TRUTH-SWEEP) |
+| Git Status             | CLEAN         | No uncommitted changes on sprint branch                                                                                                                                 |
+| Database Schema        | 73 migrations | Latest: Mar 8, 2026                                                                                                                                                     |
 
 ---
 
