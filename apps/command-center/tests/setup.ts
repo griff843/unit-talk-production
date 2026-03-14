@@ -5,7 +5,7 @@ export const test = base.extend<{
   testData: any;
 }>({
   // Add test data setup
-  testData: async ({}, use) => {
+  testData: async (_ctx, use) => {
     const data = {
       testUser: {
         id: 'test-user-1',

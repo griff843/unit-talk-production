@@ -14,7 +14,7 @@ export const test = base.extend<{
   testData: TestData;
 }>({
   // Database client fixture
-  dbClient: async ({}, use: any) => {
+  dbClient: async (_ctx: unknown, use: any) => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey =
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
