@@ -260,6 +260,98 @@ router.get('/decisions', async (req, res) => {
   }
 });
 
+// Whitelist of keys that can be updated via the operator API.
+// Matches the RiskEngineConfig interface fields stored in risk_engine_config table.
+const RISK_CONFIG_WRITABLE_KEYS = new Set([
+  'total_kelly_high',
+  'total_kelly_critical',
+  'event_kelly_limit',
+  'drift_brier_block',
+  'drift_min_settled',
+  'engine_enabled',
+  'bankroll_total',
+  'bankroll_kelly_multiplier',
+  'bankroll_max_bet_fraction',
+  'sport_kelly_limit',
+  'correlation_max_same_event',
+  'correlation_max_same_participant',
+  'drawdown_freeze_threshold',
+  'drawdown_lookback_days',
+]);
+
+/**
+ * PUT /api/risk/config/:key
+ * Update a single risk engine config value at runtime.
+ * Clears the 60s config cache so the next request picks up the new value.
+ *
+ * Body: { value: number | boolean }
+ */
+router.put('/config/:key', async (req, res) => {
+  const { key } = req.params;
+  const { value } = req.body as { value?: unknown };
+
+  try {
+    if (!RISK_CONFIG_WRITABLE_KEYS.has(key)) {
+      return res.status(400).json({
+        success: false,
+        error: `Unknown config key: '${key}'. Writable keys: ${[...RISK_CONFIG_WRITABLE_KEYS].join(', ')}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (value === undefined || value === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'value is required',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const numericValue = Number(value);
+    if (isNaN(numericValue)) {
+      return res.status(400).json({
+        success: false,
+        error: 'value must be numeric (use 1/0 for boolean engine_enabled)',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const { error: upsertError } = await supabase
+      .from('risk_engine_config')
+      .upsert(
+        { config_key: key, config_value: numericValue, updated_by: 'operator_api' },
+        { onConflict: 'config_key' }
+      );
+
+    if (upsertError) {
+      throw new Error(`DB upsert failed: ${upsertError.message}`);
+    }
+
+    // Invalidate cache so next risk evaluation reads the new value
+    RiskEngine.resetConfigCache();
+
+    logger.info('Risk config key updated', { key, value: numericValue });
+
+    res.json({
+      success: true,
+      data: { key, value: numericValue },
+      message: 'Config updated and cache cleared',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Failed to update risk config', {
+      key,
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update risk config',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 /**
  * GET /api/risk/config
  * Returns current risk engine configuration.
