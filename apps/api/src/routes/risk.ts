@@ -149,6 +149,118 @@ router.get('/events', async (req, res) => {
 });
 
 /**
+ * GET /api/risk/status
+ * Returns live aggregated risk state: exposure + drift + correlation + drawdown.
+ * All four computations run in parallel; any failure surfaces as an error field.
+ */
+router.get('/status', async (_req, res) => {
+  try {
+    const riskEngine = RiskEngine.getInstance();
+
+    const [exposure, drift, correlation, drawdown] = await Promise.allSettled([
+      riskEngine.computeExposure(supabase),
+      riskEngine.evaluateDrift(supabase),
+      riskEngine.computeCorrelation(supabase),
+      riskEngine.computeDrawdown(supabase),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        exposure: exposure.status === 'fulfilled' ? exposure.value : null,
+        drift: drift.status === 'fulfilled' ? drift.value : null,
+        correlation: correlation.status === 'fulfilled' ? correlation.value : null,
+        drawdown: drawdown.status === 'fulfilled' ? drawdown.value : null,
+        errors: {
+          exposure: exposure.status === 'rejected' ? (exposure.reason as Error).message : null,
+          drift: drift.status === 'rejected' ? (drift.reason as Error).message : null,
+          correlation:
+            correlation.status === 'rejected' ? (correlation.reason as Error).message : null,
+          drawdown: drawdown.status === 'rejected' ? (drawdown.reason as Error).message : null,
+        },
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Failed to compute risk status', {
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to compute risk status',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
+ * GET /api/risk/decisions
+ * Returns paginated risk_events with optional sport + date filters.
+ * Query params: limit (default 50), offset (default 0), sport, date_from, date_to, type, severity
+ */
+router.get('/decisions', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 200);
+    const offset = parseInt(req.query.offset as string, 10) || 0;
+    const sport = req.query.sport as string | undefined;
+    const dateFrom = req.query.date_from as string | undefined;
+    const dateTo = req.query.date_to as string | undefined;
+    const eventType = req.query.type as string | undefined;
+    const severity = req.query.severity as string | undefined;
+
+    let query = supabase
+      .from('risk_events')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (sport) {
+      query = query.eq('sport', sport);
+    }
+    if (dateFrom) {
+      query = query.gte('created_at', dateFrom);
+    }
+    if (dateTo) {
+      query = query.lte('created_at', dateTo);
+    }
+    if (eventType) {
+      query = query.eq('event_type', eventType);
+    }
+    if (severity) {
+      query = query.eq('severity', severity);
+    }
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      throw new Error(`Risk decisions query failed: ${error.message}`);
+    }
+
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        limit,
+        offset,
+        total: count ?? 0,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Failed to fetch risk decisions', {
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch risk decisions',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
  * GET /api/risk/config
  * Returns current risk engine configuration.
  */
