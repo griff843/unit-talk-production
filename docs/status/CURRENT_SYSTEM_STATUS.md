@@ -1,9 +1,11 @@
 # Current System Status
 
-**Last Updated**: 2026-03-14 (SPRINT-RISK-DASHBOARD-MONITORING) **Audit
-Sources**: SPRINT-RISK-DASHBOARD-MONITORING (correlation+drawdown panels added
-to CC risk dashboard; GET /api/risk/status + /api/risk/decisions; 898/898
-vitest; DRIFT-L4 closed; PR #177, UNI-69 Done);
+**Last Updated**: 2026-03-14 (SPRINT-JEST-QUARANTINE-CLEANUP) **Audit Sources**:
+SPRINT-JEST-QUARANTINE-CLEANUP (58 quarantined Jest tests permanently deleted;
+DRIFT-L2 closed; CI/CD Pipeline PARTIAL→VERIFIED; Jest 643/643 passing 0
+quarantined; UNI-70 Done); SPRINT-RISK-DASHBOARD-MONITORING
+(correlation+drawdown panels added to CC risk dashboard; GET /api/risk/status +
+/api/risk/decisions; 898/898 vitest; DRIFT-L4 closed; PR #177, UNI-69 Done);
 SPRINT-DISCORD-PROMOTION-BAND-NULL-FIX (promotion_band null bug fixed in
 GradingAgent; 4 approved picks backfilled; 35c700ad);
 SPRINT-DOCKER-COMPOSE-STARTUP-AUDIT (all 12 services verified healthy; Discord

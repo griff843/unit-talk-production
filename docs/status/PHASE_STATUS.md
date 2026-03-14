@@ -76,7 +76,8 @@ enforce canonical state, deterministic outbox, settlement immutability
 
 - Promotion requires runtime env config: `AUTOPILOT_MODE=prod`,
   `PROMOTION_CANARY_PERCENT>0`, `DISCORD_WEBHOOK_URL`
-- Jest test suite in `test/` ~79 quarantined/broken (separate from vitest)
+- Jest test suite in `test/`: ✅ CLEAN — 643/643 passing (35 suites, 0
+  quarantined — SPRINT-JEST-QUARANTINE-CLEANUP, 2026-03-14)
 - Smart Form build pre-existing BROKEN on Windows (Next.js 14.2.35 pnpm
   extraction)
 - Shadow mode (R3) and fault injection (R4) CI integration pending (code
