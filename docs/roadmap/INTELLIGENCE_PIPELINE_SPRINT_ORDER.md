@@ -86,11 +86,23 @@ new architecture decision and committed governance update.
 - CI/CD Pipeline: PARTIAL → VERIFIED; DRIFT-L2 closed
 - 2026-03-14
 
+### SPRINT-041 — Market-Type Exposure Caps
+
+- Market-type level exposure caps added to ExposureCalculator
+  (markets!inner(category) join + byMarketType aggregation + breach detection)
+- market_type_kelly_limit = 0.35 seeded into risk_engine_config
+- RiskEngine gate check added for market-type dimension (step 5b)
+- MarketTypePanel + 3-col grid in Command Center risk dashboard
+- Phase 3 (Risk Engine Dominance) → 100% complete
+- 5 new vitest tests; 901/903 vitest (2 pre-existing failures in
+  risk-integration.test.ts — not introduced by this sprint)
+- PR #185; 2026-03-14
+
 ---
 
 ## Next Sprint (LOCKED)
 
-### SPRINT-041 — TBD
+### SPRINT-042 — TBD
 
 Next sprint to be defined based on current phase priorities.
 

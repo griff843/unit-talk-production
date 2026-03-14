@@ -27,7 +27,8 @@ Or with an override hint:
 
 ```bash
 cat docs/status/CURRENT_SYSTEM_STATUS.md
-cat docs/status/PHASE_STATUS.md
+cat docs/06_status/current_phase.md          # CANONICAL LAYER/PHASE POSITION — read BEFORE PHASE_STATUS
+cat docs/status/PHASE_STATUS.md              # Operational progress tracking — context only, not classification authority
 cat docs/status/NEXT_5_SPRINTS.md
 cat docs/status/DRIFT_REPORT.md
 
@@ -35,7 +36,15 @@ cat docs/status/DRIFT_REPORT.md
 ls -t out/sprints/*/*/SPRINT_CLOSEOUT_REPORT.md | head -1
 ```
 
-Do not proceed until all four status docs are read.
+Do not proceed until all five status docs are read.
+
+> **Source-of-truth authority**: `docs/06_status/current_phase.md` governs the
+> canonical active Layer/Phase position.
+> `docs/04_roadmap/layer_phase_execution_model.md` governs phase classification.
+> `docs/status/PHASE_STATUS.md` provides operational progress tracking ONLY —
+> its pre-canonicalization phase nicknames (Phase 3 — Risk Engine Dominance,
+> Phase 4 — Automation Supremacy, etc.) must never be used as canonical sprint
+> classification. See DOC_SYSTEM_AUTHORITY_MAP for the full authority hierarchy.
 
 ---
 
@@ -54,6 +63,27 @@ recent sprint before planning. Stale context produces wrong sprint selection.
 
 If the most recent sprint closeout exists but `CURRENT_SYSTEM_STATUS.md` was NOT
 updated after it, that is a signal to run `/status-sync` first.
+
+### Step 1b: Establish Canonical Layer/Phase Position
+
+From `docs/06_status/current_phase.md`, extract the **canonical active
+Layer/Phase**:
+
+```
+Current active work: Layer N / Phase M — <Name>
+```
+
+This is the classification baseline for the recommended sprint. Validate the
+recommended sprint's work against
+`docs/04_roadmap/layer_phase_execution_model.md §4` sequencing rules:
+
+- Lower layers must be functionally complete before upper-layer work is claimed
+  complete
+- Layer 3/4 work must not be prioritized over open Layer 1/2 gaps
+- Any sprint that would advance a higher layer while lower layers have open gaps
+  requires explicit documented justification
+
+Record: `Active canonical position: Layer N / Phase M — <Name>`
 
 ### Step 2: Check for Critical Drift Override
 
@@ -156,13 +186,19 @@ Use `PROMPT_TEMPLATES.md` to construct the ready-to-paste sprint prompt.
 The prompt MUST include:
 
 - Sprint name and number
+- **`Layer/Phase: Layer N / Phase M — <Canonical Name>`** (from
+  `layer_phase_execution_model.md §3`)
 - Model recommendation and reason
 - Objective (one sentence)
-- Context block (relevant status, phase, drift items addressed)
+- Context block (relevant status, canonical layer/phase, operational context,
+  drift items addressed)
 - Task list from `NEXT_5_SPRINTS.md`
 - Success criteria
 - Linear issue reference (if found)
 - Governance reminders (session baseline, proof bundle, status sync)
+
+A sprint prompt missing the `Layer/Phase:` field is malformed per
+`layer_phase_execution_model.md §4.7`.
 
 ---
 
@@ -173,8 +209,10 @@ The prompt MUST include:
 
 **Model**: Sonnet | Opus — <one-sentence reason> **Type**: Fix | Migration |
 Feature | Architecture | Audit | Activation **Priority**: P0 | P1 | P2
-**Linear**: UNI-N | (no issue — create before starting) **Phase**: Phase N —
-<Name> **Depends On**: <sprint tag or "none">
+**Linear**: UNI-N | (no issue — create before starting) **Layer/Phase**: Layer N
+/ Phase M — <Canonical Name from layer_phase_execution_model.md> **Operational
+context**: <PHASE_STATUS.md nickname, e.g., "Phase 3 — Risk Engine Dominance at
+100%"> (tracking only) **Depends On**: <sprint tag or "none">
 
 ---
 

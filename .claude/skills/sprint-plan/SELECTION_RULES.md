@@ -143,11 +143,33 @@ Model: Opus (cross-system reasoning required)
 ## §6 — Queue Selection (Default Path)
 
 When no override fires, the recommendation is **Sprint 1 from
-`NEXT_5_SPRINTS.md`**.
+`NEXT_5_SPRINTS.md`** — but ONLY after passing the canonical classification gate
+below.
 
-Never skip Sprint 1 without an override reason documented in the output. Never
-select Sprint 3, 4, or 5 without completing 1 and 2 first (unless `--force` or a
-dependency analysis explicitly unlocks out-of-order execution).
+### §6.1 — Canonical Layer/Phase Classification Gate
+
+Before accepting Sprint 1, classify it against the canonical model:
+
+1. Read the active canonical position from `docs/06_status/current_phase.md`.
+2. Classify the Sprint 1 work against
+   `docs/04_roadmap/layer_phase_execution_model.md §4`.
+3. Apply sequencing rules:
+   - **Lower layers must be functionally complete** before upper-layer work is
+     claimed complete.
+   - If Sprint 1 targets Layer N+1 or higher while Layer N has open gaps → **do
+     not recommend Sprint 1**; recommend the Layer N gap sprint instead, with a
+     sequencing violation explanation.
+   - If Sprint 1 correctly targets the canonical active Layer/Phase → PASS;
+     include `Layer/Phase: Layer N / Phase M — <Name>` in the recommendation.
+
+**Record in output**: `Active canonical position: Layer N / Phase M — <Name>`
+
+### §6.2 — Queue Accept
+
+After §6.1 passes: recommend Sprint 1. Never skip Sprint 1 without an override
+reason documented in the output. Never select Sprint 3, 4, or 5 without
+completing 1 and 2 first (unless `--force` or a dependency analysis explicitly
+unlocks out-of-order execution).
 
 ---
 
