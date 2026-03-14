@@ -91,48 +91,39 @@ backlog
 
 ---
 
-## Sprint 1: SPRINT-JEST-QUARANTINE-CLEANUP
+## ~~Sprint 1: SPRINT-JEST-QUARANTINE-CLEANUP~~ ✅ COMPLETED (2026-03-14)
 
-**Priority**: P2 — MEDIUM **Phase**: Phase 1 (Structural Dominance — completion)
-| Canonical: Layer 1 / Phase 0 (Governance Lock) **Estimated Effort**: 1-2 days
-**Linear**: TBD **Closes**: DRIFT-L2
+> All 58 quarantined Jest tests permanently deleted with documented rationale
+> (MANIFEST.md). DRIFT-L2 closed. CI/CD Pipeline: PARTIAL → VERIFIED. Jest:
+> 643/643 passing (35 suites, 0 quarantined). Vitest: 898/898 passing. PR merged
+> to main, tag SPRINT-JEST-QUARANTINE-CLEANUP minted by CI. UNI-70 Done.
 
-**Objective**: Triage and resolve quarantined Jest tests. Either fix, migrate to
-vitest, or permanently archive with documented rationale.
+---
 
-**Tasks**:
+## Sprint 1: SPRINT-041 — TBD
 
-1. Read `test/__quarantine__/MANIFEST.md` and categorize each test
-2. Fix tests that are still relevant and can be repaired
-3. Migrate valuable tests to vitest runner (`src/__tests__/`)
-4. Archive permanently broken tests with documented "won't fix" rationale
-5. Update CI to remove Jest runner if all tests migrated
+**Priority**: TBD **Phase**: TBD **Linear**: TBD
 
-**Success Criteria**:
-
-- Quarantine count reduced from ~79 to <10
-- Remaining quarantined tests documented with clear rationale
-- No regression in vitest suite
-- CI/CD Pipeline subsystem status: PARTIAL → VERIFIED
-
-**Why Fifth**: Long-standing debt. Closes DRIFT-L2 and unblocks CI/CD Pipeline
-moving to VERIFIED status.
+**Note**: SPRINT-041 is the next locked sprint per
+`docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md`. Define scope via
+`/sprint-plan` before beginning.
 
 ---
 
 ## Summary
 
-| #     | Sprint                           | Priority | Phase       | Focus                                              | Linear    |
-| ----- | -------------------------------- | -------- | ----------- | -------------------------------------------------- | --------- |
-| ~~1~~ | ~~RISK-BANKROLL-KELLY~~          | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                | UNI-53    |
-| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~    | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE      | UNI-54    |
-| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~      | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE          | UNI-55    |
-| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~ | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                  | UNI-56    |
-| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~   | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE        | UNI-57    |
-| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~    | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE      | TBD       |
-| ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~ | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW | UNI-64–68 |
-| ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~    | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE           | UNI-69    |
-| 1     | JEST-QUARANTINE-CLEANUP          | **P2**   | L1 / Ph 0   | Triage quarantined tests, close DRIFT-L2           | TBD       |
+| #     | Sprint                           | Priority | Phase       | Focus                                                | Linear    |
+| ----- | -------------------------------- | -------- | ----------- | ---------------------------------------------------- | --------- |
+| ~~1~~ | ~~RISK-BANKROLL-KELLY~~          | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                  | UNI-53    |
+| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~    | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE        | UNI-54    |
+| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~      | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE            | UNI-55    |
+| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~ | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                    | UNI-56    |
+| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~   | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE          | UNI-57    |
+| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~    | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE        | TBD       |
+| ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~ | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW   | UNI-64–68 |
+| ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~    | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE             | UNI-69    |
+| ~~1~~ | ~~JEST-QUARANTINE-CLEANUP~~      | ~~P2~~   | ~~L1/Ph 0~~ | ~~Delete quarantined tests, close DRIFT-L2~~ ✅ DONE | UNI-70    |
+| 1     | SPRINT-041 TBD                   | TBD      | TBD         | Define via /sprint-plan                              | TBD       |
 
 **Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
 independent and can run in any order.

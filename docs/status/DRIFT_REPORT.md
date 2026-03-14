@@ -184,21 +184,21 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ## DRIFT SUMMARY
 
-| Severity            | Count | Key Theme                                                       |
-| ------------------- | ----- | --------------------------------------------------------------- |
-| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                               |
-| HIGH                | 1     | Naming convention inconsistency (DRIFT-H2)                      |
-| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                          |
-| LOW                 | 3     | Cycle overlap, quarantined tests, deprecated references         |
-| **ACTIVE TOTAL**    | **7** |                                                                 |
-| **Resolved/Closed** | 11    | C1, C2, C3, H1, H3, H4, H5, M-CONSENSUS, M3, M5, L4 (false +ve) |
+| Severity            | Count | Key Theme                                                           |
+| ------------------- | ----- | ------------------------------------------------------------------- |
+| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                   |
+| HIGH                | 1     | Naming convention inconsistency (DRIFT-H2)                          |
+| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                              |
+| LOW                 | 2     | Cycle overlap, deprecated references                                |
+| **ACTIVE TOTAL**    | **6** |                                                                     |
+| **Resolved/Closed** | 12    | C1, C2, C3, H1, H3, H4, H5, M-CONSENSUS, M3, M5, L2, L4 (false +ve) |
 
-**Drift Trend**: IMPROVING — DRIFT-L4 closed as false positive (schema matches
-query exactly, confirmed SPRINT-RISK-DASHBOARD-MONITORING 2026-03-14). 11 items
-resolved/closed total.
+**Drift Trend**: IMPROVING — DRIFT-L2 resolved (SPRINT-JEST-QUARANTINE-CLEANUP,
+2026-03-14); DRIFT-L4 closed as false positive
+(SPRINT-RISK-DASHBOARD-MONITORING, 2026-03-14). 12 items resolved/closed total.
 
 **Top 3 Active Actions**:
 
 1. Resolve sprint naming convention inconsistency (DRIFT-H2)
-2. Triage quarantined Jest tests (DRIFT-L2)
-3. Update roadmap sprint order doc (DRIFT-M1)
+2. Update roadmap sprint order doc (DRIFT-M1)
+3. Clean up deprecated table references in utility scripts (DRIFT-L3)
