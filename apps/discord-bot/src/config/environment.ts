@@ -75,6 +75,7 @@ const EnvironmentSchema = z.object({
   OWNER_ROLE_IDS: z.string().default(''),
 
   // Discord Roles - Member Tiers
+  MEMBER_ROLE_ID: z.string().default(''),
   VIP_ROLE_IDS: z.string().default(''),
   VIP_PLUS_ROLE_IDS: z.string().default(''),
   CAPPER_ROLE_IDS: z.string().default(''),
@@ -360,6 +361,7 @@ class EnvironmentConfig {
       DISCORD_GUILD_ID: '',
 
       // Default role/channel IDs (empty in browser)
+      MEMBER_ROLE_ID: '',
       ADMIN_ROLE_IDS: '',
       MODERATOR_ROLE_IDS: '',
       BOT_ROLE_IDS: '',
@@ -527,6 +529,7 @@ class EnvironmentConfig {
       clientId: this.config.DISCORD_CLIENT_ID,
       guildId: this.config.DISCORD_GUILD_ID,
       roles: {
+        member: this.config.MEMBER_ROLE_ID,
         admin: this.config.ADMIN_ROLE_IDS.split(',').filter(Boolean),
         moderator: this.config.MODERATOR_ROLE_IDS.split(',').filter(Boolean),
         bot: this.config.BOT_ROLE_IDS.split(',').filter(Boolean),

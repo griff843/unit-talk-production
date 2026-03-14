@@ -10,7 +10,6 @@ if (process.env.NODE_ENV === 'production' && process.env.DOCKER_CONTAINER !== 't
 import 'dotenv/config';
 import { Client, GatewayIntentBits, Partials, GuildMember } from 'discord.js';
 
-
 // REMOVED: AutomatedOnboardingIntegration - nuked as part of clean slate rebuild
 import { AdminCommands } from './commands/adminCommands';
 import { CommandHandler } from './handlers/commandHandler';
@@ -127,13 +126,8 @@ export class UnitTalkBot {
     // Initialize command handler
     this.commandHandler = new CommandHandler(this.supabaseService);
 
-    // Initialize interaction handler with correct parameters
-    this.interactionHandler = new InteractionHandler(
-      this.client,
-      this.supabaseService,
-      this.permissionsService,
-      this.getAllServices()
-    );
+    // NOTE: interactionHandler is initialized in initialize() AFTER initializeServices()
+    // resolves so that getAllServices() returns fully-populated service references.
 
     // Initialize remaining services
     this.initialize();
@@ -145,6 +139,16 @@ export class UnitTalkBot {
   private async initialize(): Promise<void> {
     try {
       await this.initializeServices();
+
+      // SPRINT-DISCORD-BOT-FIX: InteractionHandler must be created AFTER initializeServices()
+      // so getAllServices() returns fully-populated references (not undefined snapshots).
+      this.interactionHandler = new InteractionHandler(
+        this.client,
+        this.supabaseService,
+        this.permissionsService,
+        this.getAllServices()
+      );
+
       this.setupEventHandlers();
     } catch (error) {
       logger.error('Failed to initialize bot:', error);
@@ -328,11 +332,9 @@ export class UnitTalkBot {
       try {
         console.log(`👋 New member joined: ${member.user.username} (${member.id})`);
 
-        // REMOVED: AI onboarding - nuked as part of clean slate rebuild
-        // New onboarding system will be implemented here
-
-        // Handle user profile creation and analytics tracking
-        await this.createUserProfileAndTrackJoin(member);
+        // SPRINT-DISCORD-BOT-FIX (Bug 2): Route through full onboarding flow (profile
+        // creation, welcome DM, XP init, trial role assignment, analytics tracking).
+        await this.eventHandler.handleMemberJoin(member);
       } catch (error) {
         logger.error('Error handling member join:', error);
         await this.advancedAnalyticsService.logError(
@@ -370,6 +372,53 @@ export class UnitTalkBot {
         );
       }
     });
+
+    // SPRINT-DISCORD-BOT-FIX (Bug 3): Wire previously-unregistered event handlers.
+    this.client.on('guildMemberRemove', async member => {
+      try {
+        await this.eventHandler.handleMemberLeave(member);
+      } catch (error) {
+        logger.error('Error handling member leave:', error);
+        await this.advancedAnalyticsService.logError(
+          error instanceof Error ? error : new Error(String(error)),
+          'member_leave'
+        );
+      }
+    });
+
+    this.client.on('messageDelete', async message => {
+      try {
+        await this.eventHandler.handleMessageDelete(message);
+      } catch (error) {
+        logger.error('Error handling message delete:', error);
+      }
+    });
+
+    this.client.on('messageUpdate', async (oldMessage, newMessage) => {
+      try {
+        await this.eventHandler.handleMessageUpdate(oldMessage, newMessage);
+      } catch (error) {
+        logger.error('Error handling message update:', error);
+      }
+    });
+
+    this.client.on('voiceStateUpdate', async (oldState, newState) => {
+      try {
+        await this.eventHandler.handleVoiceStateUpdate(oldState, newState);
+      } catch (error) {
+        logger.error('Error handling voice state update:', error);
+      }
+    });
+
+    // presenceUpdate: requires GuildPresences privileged intent (currently disabled
+    // in client options above). Enable GatewayIntentBits.GuildPresences first:
+    // this.client.on('presenceUpdate', async (oldPresence, newPresence) => {
+    //   try {
+    //     await this.eventHandler.handlePresenceUpdate(oldPresence, newPresence);
+    //   } catch (error) {
+    //     logger.error('Error handling presence update:', error);
+    //   }
+    // });
 
     // Thread events
     this.client.on('threadCreate', async thread => {

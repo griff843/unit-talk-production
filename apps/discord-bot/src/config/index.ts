@@ -33,7 +33,7 @@ export const botConfig: BotConfig = {
     threads: env.discord.channels.threads,
   },
   roles: {
-    member: env.discord.roles.vip[0] || '', // Using VIP role as member fallback
+    member: env.discord.roles.member || '',
     vip: env.discord.roles.vip[0] || '',
     vipPlus: env.discord.roles.vipPlus[0] || '',
     staff: env.discord.roles.staff[0] || '',
