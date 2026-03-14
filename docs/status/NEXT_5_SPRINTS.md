@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-14 (SPRINT-CLAUDE-OS-UPGRADE-COS001-005) **Source**:
+**Last Updated**: 2026-03-14 (SPRINT-RISK-DASHBOARD-MONITORING) **Source**:
 Phase status + drift report + system gap analysis + risk engine roadmap + Linear
 backlog
 
@@ -82,41 +82,16 @@ backlog
 
 ---
 
-## Sprint 1: SPRINT-RISK-DASHBOARD-MONITORING
+## ~~Sprint 1: SPRINT-RISK-DASHBOARD-MONITORING~~ ✅ COMPLETED (2026-03-14)
 
-**Priority**: P1 — HIGH **Phase**: Layer 2 / Phase 7 — Reliability & Monitoring
-**Estimated Effort**: 2-3 days **Linear**: TBD
-
-> Layer 1 is COMPLETE (2026-03-14). This sprint is now unblocked.
-
-**Objective**: Add risk state visibility to the Command Center — exposure
-heatmap, correlation clusters, drawdown status, and risk decision audit trail.
-
-**Tasks**:
-
-1. Add `/api/risk/status` endpoint returning current ExposureState,
-   CorrelationState, DrawdownState
-2. Add `/api/risk/decisions` endpoint for historical risk decision audit trail
-3. Build Command Center risk dashboard page with exposure/correlation/drawdown
-   panels
-4. Add risk event query helpers for filtering by event_type, severity, date
-   range
-5. Add tests for new endpoints and query helpers
-
-**Success Criteria**:
-
-- Risk state visible in Command Center (not just logs)
-- Historical risk decisions queryable by date, sport, decision type
-- Exposure heatmap shows per-sport and per-event concentration
-- Drawdown freeze status clearly visible with trigger/release history
-- All existing tests passing + new endpoint tests
-
-**Why Fourth**: Core risk controls exist but are invisible to operators.
-Dashboard visibility enables monitoring and tuning of risk parameters.
+> `/api/risk/status` + `/api/risk/decisions` endpoints added;
+> `computeCorrelation` + `computeDrawdown` public methods on RiskEngine;
+> CorrelationPanel + DrawdownPanel in Command Center; DRIFT-L4 closed (false
+> positive); 898/898 vitest; PR #177, UNI-69 Done.
 
 ---
 
-## Sprint 3: SPRINT-JEST-QUARANTINE-CLEANUP
+## Sprint 1: SPRINT-JEST-QUARANTINE-CLEANUP
 
 **Priority**: P2 — MEDIUM **Phase**: Phase 1 (Structural Dominance — completion)
 | Canonical: Layer 1 / Phase 0 (Governance Lock) **Estimated Effort**: 1-2 days
@@ -156,8 +131,8 @@ moving to VERIFIED status.
 | ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~   | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE        | UNI-57    |
 | ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~    | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE      | TBD       |
 | ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~ | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW | UNI-64–68 |
-| 1     | RISK-DASHBOARD-MONITORING        | **P1**   | L2 / Ph 7   | Risk visibility (Layer 1 COMPLETE — now unblocked) | TBD       |
-| 2     | JEST-QUARANTINE-CLEANUP          | P2       | L1 / Ph 0   | Triage quarantined tests, close DRIFT-L2           | TBD       |
+| ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~    | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE           | UNI-69    |
+| 1     | JEST-QUARANTINE-CLEANUP          | **P2**   | L1 / Ph 0   | Triage quarantined tests, close DRIFT-L2           | TBD       |
 
 **Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
 independent and can run in any order.
