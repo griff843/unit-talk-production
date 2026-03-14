@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-14 (SPRINT-LAYER1-PHASE5-E2E-CLOSURE) **Source**:
+**Last Updated**: 2026-03-14 (SPRINT-CLAUDE-OS-UPGRADE-COS001-005) **Source**:
 Phase status + drift report + system gap analysis + risk engine roadmap + Linear
 backlog
 
@@ -72,6 +72,16 @@ backlog
 
 ---
 
+## ~~Sprint: SPRINT-CLAUDE-OS-UPGRADE-COS001-005~~ ✅ COS-001 DONE / COS-002–005 IN REVIEW (2026-03-14)
+
+> COS-001 complete: MODEL_SELECTION.md, sprint-plan Model/Routing fields (UNI-64
+> Done). COS-002–005 in PR #170 on `sprint/claude-os-cos004-lane-model-rules`:
+> Linear sync automation (UNI-65), phase proof template + generator (UNI-66),
+> lane model rules (UNI-67), session baseline auto-trigger hook (UNI-68). PR
+> #169 is redundant (superseded by #170 — close before merging).
+
+---
+
 ## Sprint 1: SPRINT-RISK-DASHBOARD-MONITORING
 
 **Priority**: P1 — HIGH **Phase**: Layer 2 / Phase 7 — Reliability & Monitoring
@@ -137,16 +147,17 @@ moving to VERIFIED status.
 
 ## Summary
 
-| #     | Sprint                           | Priority | Phase       | Focus                                              | Linear |
-| ----- | -------------------------------- | -------- | ----------- | -------------------------------------------------- | ------ |
-| ~~1~~ | ~~RISK-BANKROLL-KELLY~~          | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                | UNI-53 |
-| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~    | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE      | UNI-54 |
-| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~      | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE          | UNI-55 |
-| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~ | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                  | UNI-56 |
-| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~   | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE        | UNI-57 |
-| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~    | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE      | TBD    |
-| 1     | RISK-DASHBOARD-MONITORING        | **P1**   | L2 / Ph 7   | Risk visibility (Layer 1 COMPLETE — now unblocked) | TBD    |
-| 2     | JEST-QUARANTINE-CLEANUP          | P2       | L1 / Ph 0   | Triage quarantined tests, close DRIFT-L2           | TBD    |
+| #     | Sprint                           | Priority | Phase       | Focus                                              | Linear    |
+| ----- | -------------------------------- | -------- | ----------- | -------------------------------------------------- | --------- |
+| ~~1~~ | ~~RISK-BANKROLL-KELLY~~          | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                | UNI-53    |
+| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~    | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE      | UNI-54    |
+| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~      | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE          | UNI-55    |
+| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~ | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                  | UNI-56    |
+| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~   | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE        | UNI-57    |
+| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~    | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE      | TBD       |
+| ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~ | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW | UNI-64–68 |
+| 1     | RISK-DASHBOARD-MONITORING        | **P1**   | L2 / Ph 7   | Risk visibility (Layer 1 COMPLETE — now unblocked) | TBD       |
+| 2     | JEST-QUARANTINE-CLEANUP          | P2       | L1 / Ph 0   | Triage quarantined tests, close DRIFT-L2           | TBD       |
 
 **Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
 independent and can run in any order.

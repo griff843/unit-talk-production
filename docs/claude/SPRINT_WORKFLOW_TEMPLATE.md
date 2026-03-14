@@ -37,12 +37,12 @@ rg "<pattern>" apps/api/src --type ts -l
 
 ### 1.3 Implications Check
 
-| Question | Answer | Action |
-|----------|--------|--------|
-| Touches unified_picks? | Y/N | Use lifecycle adapters |
-| Needs migration? | Y/N | Create migration file |
-| Affects agents? | Y/N | Check agent health after |
-| Changes API? | Y/N | E2E test coverage |
+| Question               | Answer | Action                   |
+| ---------------------- | ------ | ------------------------ |
+| Touches unified_picks? | Y/N    | Use lifecycle adapters   |
+| Needs migration?       | Y/N    | Create migration file    |
+| Affects agents?        | Y/N    | Check agent health after |
+| Changes API?           | Y/N    | E2E test coverage        |
 
 ### 1.4 Create Plan
 
@@ -52,16 +52,20 @@ Write to `out/sprints/$SPRINT/$DATE/notes/plan.md`:
 # Sprint Plan: <SPRINT-NAME>
 
 ## Objective
+
 <one line>
 
 ## Tasks
+
 1. [ ] Task 1
 2. [ ] Task 2
 
 ## Files to Modify
+
 - path/to/file.ts
 
 ## Verification
+
 - [ ] Type check
 - [ ] Tests
 - [ ] Build
@@ -88,6 +92,7 @@ Write to `out/sprints/$SPRINT/$DATE/notes/plan.md`:
 ### 2.3 Progress Tracking
 
 After each task:
+
 1. Mark complete in plan
 2. Run quick verification
 3. Note any issues
@@ -156,12 +161,31 @@ cd apps/api && npm run lifecycle:single-writer -- --strict 2>&1 | tee ../../$PRO
 - [ ] proof_build.txt
 - [ ] proof_gate.txt (if lifecycle-related)
 
+### 4.3 Phase Advancement Proof (if claiming phase complete)
+
+If this sprint claims a phase complete, generate and fill in the proof:
+
+```bash
+# Generate skeleton (pre-populated with phase criteria)
+npm run phase:proof -- --sprint <SPRINT-ID> --phase <N>
+
+# Edit the generated file:
+# out/sprints/<SPRINT-ID>/<DATE>/proofs/proof_phase_advancement_<N>.txt
+# → Fill in every [FILL IN: ...] field with actual evidence
+# → Replace [REPLACE THIS LINE] with completed sign-off statement
+
+# Then close with --phase flag (validates content + presence):
+npm run sprint:close -- <SPRINT-ID> --phase <N>
+```
+
+Reference: `docs/claude/PHASE_ADVANCEMENT_PROOF_TEMPLATE.md`
+
 ---
 
 ## Phase 5: Commit + Tag + Merge (MANDATORY)
 
-> ⚠️ **HARD RULE**: A sprint is NOT complete until this phase is done.
-> Skip this phase = Sprint incomplete = Must be done before next sprint.
+> ⚠️ **HARD RULE**: A sprint is NOT complete until this phase is done. Skip this
+> phase = Sprint incomplete = Must be done before next sprint.
 
 ### 5.1 Commit the Sprint
 
@@ -219,10 +243,8 @@ Create `out/sprints/$SPRINT/$DATE/SPRINT_CLOSEOUT_REPORT.md`:
 ```markdown
 # SPRINT CLOSEOUT REPORT
 
-**Sprint**: <SPRINT-NAME>
-**Objective**: <One line description>
-**Date**: <YYYY-MM-DD>
-**Status**: ✅ COMPLETE | ⚠️ PARTIAL | ❌ BLOCKED
+**Sprint**: <SPRINT-NAME> **Objective**: <One line description> **Date**:
+<YYYY-MM-DD> **Status**: ✅ COMPLETE | ⚠️ PARTIAL | ❌ BLOCKED
 
 ---
 
@@ -235,6 +257,7 @@ Create `out/sprints/$SPRINT/$DATE/SPRINT_CLOSEOUT_REPORT.md`:
 ## Deliverables
 
 ### Phase 1: <Name> ✅
+
 - Deliverable 1
 - Deliverable 2
 
@@ -244,10 +267,12 @@ Create `out/sprints/$SPRINT/$DATE/SPRINT_CLOSEOUT_REPORT.md`:
 
 ### Tests
 ```
+
 <test summary or reference to proof file>
 ```
 
 ### Gate Status
+
 ```
 <gate summary or reference to proof file>
 ```
@@ -256,8 +281,8 @@ Create `out/sprints/$SPRINT/$DATE/SPRINT_CLOSEOUT_REPORT.md`:
 
 ## Changes Summary
 
-| File | Change |
-|------|--------|
+| File              | Change      |
+| ----------------- | ----------- |
 | `path/to/file.ts` | Description |
 
 ---
@@ -270,6 +295,7 @@ Create `out/sprints/$SPRINT/$DATE/SPRINT_CLOSEOUT_REPORT.md`:
 - [ ] Documentation updated (if needed)
 
 **Sprint Status**: ✅ COMPLETE
+
 ```
 
 ---
@@ -277,7 +303,9 @@ Create `out/sprints/$SPRINT/$DATE/SPRINT_CLOSEOUT_REPORT.md`:
 ## Sprint Naming Convention
 
 ```
+
 <CATEGORY>-<DESCRIPTION>-<NNN>
+
 ```
 
 ### Categories
@@ -318,17 +346,12 @@ Minimize back-and-forth by:
 ## Directory Structure
 
 ```
-out/sprints/<SPRINT>/<DATE>/
-├── proofs/
-│   ├── proof_git_status.txt
-│   ├── proof_typecheck.txt
-│   ├── proof_tests.txt
-│   ├── proof_build.txt
-│   └── proof_gate.txt
-├── diffs/
-│   └── changes.diff
-├── notes/
-│   ├── plan.md
-│   └── decisions.md
-└── SPRINT_CLOSEOUT_REPORT.md
+
+out/sprints/<SPRINT>/<DATE>/ ├── proofs/ │ ├── proof_git_status.txt │ ├──
+proof_typecheck.txt │ ├── proof_tests.txt │ ├── proof_build.txt │ └──
+proof_gate.txt ├── diffs/ │ └── changes.diff ├── notes/ │ ├── plan.md │ └──
+decisions.md └── SPRINT_CLOSEOUT_REPORT.md
+
+```
+
 ```

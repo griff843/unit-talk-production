@@ -47,6 +47,8 @@ interface ParsedArgs {
   date: string | null;
   lane: string;
   validateOnly: boolean;
+  phase: number | null;
+  linearIssue: string | null;
 }
 
 function parseArgs(): ParsedArgs {
@@ -55,6 +57,8 @@ function parseArgs(): ParsedArgs {
   let date: string | null = null;
   let lane = 'ops-submit';
   let validateOnly = false;
+  let phase: number | null = null;
+  let linearIssue: string | null = null;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -65,6 +69,12 @@ function parseArgs(): ParsedArgs {
     } else if (arg === '--lane' && nextArg) {
       lane = nextArg;
       i++;
+    } else if (arg === '--phase' && nextArg) {
+      phase = parseInt(nextArg, 10);
+      i++;
+    } else if (arg === '--linear' && nextArg) {
+      linearIssue = nextArg;
+      i++;
     } else if (arg === '--validate-only') {
       validateOnly = true;
     } else if (!arg.startsWith('--')) {
@@ -72,7 +82,51 @@ function parseArgs(): ParsedArgs {
     }
   }
 
-  return { sprintId, date, lane, validateOnly };
+  return { sprintId, date, lane, validateOnly, phase, linearIssue };
+}
+
+function validatePhaseProofContent(proofsDir: string, phase: number): boolean {
+  const filename = `proof_phase_advancement_${phase}.txt`;
+  const filePath = path.join(proofsDir, filename);
+
+  if (!fs.existsSync(filePath)) {
+    console.error(`\n❌ PHASE PROOF CONTENT VALIDATION: file not found: ${filename}`);
+    return false;
+  }
+
+  const content = fs.readFileSync(filePath, 'utf8');
+  const errors: string[] = [];
+
+  if (content.includes('[FILL IN')) {
+    errors.push('Evidence fields not completed — contains "[FILL IN"');
+  }
+  if (content.includes('[REPLACE THIS LINE')) {
+    errors.push('Sign-off not completed — contains "[REPLACE THIS LINE"');
+  }
+  if (!content.includes(`Phase ${phase} criteria satisfied as of`)) {
+    errors.push(
+      `Sign-off statement missing — must contain "Phase ${phase} criteria satisfied as of"`
+    );
+  }
+
+  console.log('\n' + '='.repeat(70));
+  console.log('PHASE ADVANCEMENT PROOF CONTENT VALIDATION');
+  console.log('='.repeat(70));
+  console.log(`Phase: ${phase}`);
+  console.log(`File:  ${filename}`);
+
+  if (errors.length === 0) {
+    console.log('STATUS: ✅ PHASE PROOF CONTENT VALID');
+    console.log('='.repeat(70));
+    return true;
+  }
+
+  console.log('STATUS: ❌ PHASE PROOF CONTENT INVALID');
+  for (const err of errors) {
+    console.log(`  • ${err}`);
+  }
+  console.log('='.repeat(70));
+  return false;
 }
 
 function findLatestDateFolder(sprintDir: string): string | null {
@@ -249,11 +303,11 @@ function findDateDirectory(sprintDir: string, date: string | null): string | nul
 }
 
 function main(): void {
-  const { sprintId, date, lane, validateOnly } = parseArgs();
+  const { sprintId, date, lane, validateOnly, phase, linearIssue } = parseArgs();
 
   if (!sprintId) {
     console.error(
-      'Usage: npm run sprint:close -- <SPRINT-ID> [--date YYYY-MM-DD] [--lane ops-submit|api|full]'
+      'Usage: npm run sprint:close -- <SPRINT-ID> [--date YYYY-MM-DD] [--lane ops-submit|api|full] [--phase N] [--linear UNI-N]'
     );
     process.exit(1);
   }
@@ -261,6 +315,12 @@ function main(): void {
   console.log('🛡️  SPRINT CLOSEOUT VALIDATOR');
   console.log(`   Sprint ID: ${sprintId}`);
   console.log(`   Mode: ${validateOnly ? 'VALIDATE ONLY' : 'FULL CLOSEOUT'}`);
+  if (phase !== null) {
+    console.log(`   Phase claim: ${phase} (phase advancement proof required)`);
+  }
+  if (linearIssue) {
+    console.log(`   Linear issue: ${linearIssue} (will sync on success)`);
+  }
 
   const sprintDir = validateSprintDirectory(sprintId);
   if (!sprintDir) process.exit(1);
@@ -292,6 +352,11 @@ function main(): void {
   fs.writeFileSync(inventoryPath, inventory);
   console.log(`   Written: ${inventoryPath}`);
 
+  // If phase claim, add proof_phase_advancement_<N>.txt to required artifacts
+  if (phase !== null) {
+    REQUIRED_ARTIFACTS.push(`proof_phase_advancement_${phase}.txt`);
+  }
+
   const results = validateArtifacts(proofsDir);
   const allFound = printComplianceTable(sprintId, targetDate, results);
 
@@ -300,7 +365,34 @@ function main(): void {
     process.exit(1);
   }
 
+  // Phase proof content validation (in addition to presence check)
+  if (phase !== null) {
+    const contentValid = validatePhaseProofContent(proofsDir, phase);
+    if (!contentValid) {
+      console.error('\n❌ CLOSEOUT FAILED: Phase advancement proof content invalid');
+      console.error('   Fill in all evidence fields and complete the sign-off, then re-run.');
+      process.exit(1);
+    }
+  }
+
   console.log('\n✅ SPRINT CLOSEOUT VALIDATION PASSED');
+
+  // COS-002: Linear sync (runs after all gates pass, gracefully skips if no API key)
+  if (linearIssue && !validateOnly) {
+    console.log(`\n🔗 Running Linear sync for ${linearIssue}...`);
+    try {
+      const dateArg = targetDate ? `--date ${targetDate}` : '';
+      execSync(
+        `npx tsx ${path.join(WORKSPACE_ROOT, 'scripts', 'sprint-linear-sync.ts')} --issue ${linearIssue} --sprint ${sprintId} ${dateArg}`,
+        { cwd: WORKSPACE_ROOT, stdio: 'inherit' }
+      );
+    } catch {
+      // Non-fatal — linear sync failure does not fail the closeout
+      console.warn('   ⚠️  Linear sync failed (non-fatal). Run manually:');
+      console.warn(`   npm run sprint:linear-sync -- --issue ${linearIssue} --sprint ${sprintId}`);
+    }
+  }
+
   process.exit(0);
 }
 

@@ -1,7 +1,7 @@
 # Phase Status
 
-**Last Updated**: 2026-03-13 (status-sync) **Source**: Linear initiatives + repo
-implementation + sprint closeouts
+**Last Updated**: 2026-03-14 (SPRINT-CLAUDE-OS-UPGRADE-COS001-005) **Source**:
+Linear initiatives + repo implementation + sprint closeouts
 
 ---
 
@@ -260,6 +260,47 @@ isolation, config scoping, branded delivery, tenant controls
 
 ---
 
+## CLAUDE OS UPGRADE
+
+**Source**: `docs/02_architecture/claude_os_ceiling_blueprint.md` §10
+**Linear**: UNI-64 (Done), UNI-65–68 (In Review — PR #170)
+
+Tracking AI operator tooling improvements separate from product phases.
+
+### Completed
+
+- **Phase A — Blueprint Committed**: ceiling blueprint ratified in
+  `docs/02_architecture/claude_os_ceiling_blueprint.md` (COMPLETE)
+- **COS-001 — Model Routing Formalization**: `docs/claude/MODEL_SELECTION.md`
+  created; sprint-plan skill generates `Model:` + `Routing:` fields (UNI-64
+  Done)
+
+### In Review (PR #170)
+
+- **COS-002 — Linear Sync Automation**: `scripts/sprint-linear-sync.ts`; posts
+  closeout comment + marks Done; `sprint:close --linear UNI-N` flag (UNI-65)
+- **COS-003 — Phase Advancement Proof Template**:
+  `docs/claude/PHASE_ADVANCEMENT_PROOF_TEMPLATE.md`;
+  `scripts/generate-phase-proof.ts`; `sprint:close --phase N` flag + content
+  validation (UNI-66)
+- **COS-004 — Lane Model Rules File**: `.claude/rules/07-lane-model.md`; Lanes
+  1–6 definitions from blueprint §5 (UNI-67)
+- **COS-005 — Session Baseline Auto-Trigger**: `.claude/settings.json`
+  UserPromptSubmit hook; `scripts/check-session-baseline.mjs` warns when
+  baseline >30 min stale (UNI-68)
+
+### Future (Phase F)
+
+- **COS-006 — Core/Adapter Extraction**: Extract lane router + proof bundler
+  into `packages/claude-os/`; requires second real project for validation
+
+### Assessment
+
+**Claude OS Upgrade: Phase A + COS-001 COMPLETE; COS-002–005 in PR #170 (In
+Review). Phase F pending PR merge + second project.**
+
+---
+
 ## Phase Summary
 
 | Phase                                  | Status  | Completion | Blocking Issues                                                                                              |
@@ -269,6 +310,7 @@ isolation, config scoping, branded delivery, tenant controls
 | **Phase 3** — Risk Engine Dominance    | Active  | 70%        | Core risk controls complete (Kelly, exposure, correlation, drawdown); visibility tooling remaining           |
 | **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started |
 | **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                           |
+| **Claude OS Upgrade**                  | Active  | 40%        | COS-001 done; COS-002–005 in PR #170; Phase F blocked by second project                                      |
 
 **Current Platform Phase**: Phase 1 at 97%, Phase 4 advancing (40%); canonical
 Layer 1 / Phase 5 (Platform Stabilization) is the active completion gate — see
