@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-10 **Source**: Linear initiatives + repo
+**Last Updated**: 2026-03-13 (status-sync) **Source**: Linear initiatives + repo
 implementation + sprint closeouts
 
 ---
@@ -59,6 +59,19 @@ enforce canonical state, deterministic outbox, settlement immutability
 - Build verification: API PASS, Command Center PASS, Observability PASS
   (SPRINT-OBSERVABILITY-BUILD-FIX, 2026-03-10)
 
+### Additional Completed Work (Sprint Closeouts through 2026-03-13)
+
+- Promotion activation runbook: staged shadow→canary→prod, 41 guard tests (kill
+  switch, canary band, config validation), 12-var env reference, monitoring
+  checklist + rollback procedures (SPRINT-PROMOTION-RUNTIME-ACTIVATION, UNI-56,
+  2026-03-10) — vitest 742/742
+- Discord worker health restore: dead_letter quarantine applied,
+  ops_worker_heartbeats wired, /ops/status: ready, 6 unrecoverable outbox rows
+  quarantined (SPRINT-DISCORD-WORKER-HEALTH-RESTORE, bcbc20f7, 2026-03-13)
+- Verification control plane R1–R5 committed to origin/main via PR #157
+  (a6f69276, 2026-03-13); DRIFT-H5 resolved; R1 clock injection in lifecycle
+  adapters (SPRINT-VERIFICATION-GIT-COMMIT)
+
 ### Remaining Gaps
 
 - Promotion requires runtime env config: `AUTOPILOT_MODE=prod`,
@@ -66,12 +79,17 @@ enforce canonical state, deterministic outbox, settlement immutability
 - Jest test suite in `test/` ~79 quarantined/broken (separate from vitest)
 - Smart Form build pre-existing BROKEN on Windows (Next.js 14.2.35 pnpm
   extraction)
+- Shadow mode (R3) and fault injection (R4) CI integration pending (code
+  verified, not yet wired into CI pipeline)
+- E2E smoke test suite (full-lifecycle pick proof) pending
 
 ### Assessment
 
-**PHASE 1 is 95% complete.** Core invariants enforced, migration debt cleared,
-promotion pipeline wired, builds verified. Remaining gaps are runtime promotion
-config, Jest quarantine, and Smart Form Windows build.
+**PHASE 1 is 97% complete.** Core invariants enforced, migration debt cleared,
+promotion pipeline fully activated with staged runbook + 41 guard tests, worker
+health restored, verification control plane on origin/main. Remaining gaps are
+runtime promotion config, Jest quarantine, Smart Form Windows build, and Phase 5
+E2E closure items.
 
 ---
 
@@ -191,17 +209,32 @@ automation, edge ranking feeds, market alerts, context/recap automation
 - Temporal workflow orchestration in place
 - Discord bot standalone deployment
 
+### Additional Completed Work (Sprint Closeouts through 2026-03-13)
+
+- Discord bot VERIFIED: 37+ slash commands, 16 services, 6 health endpoints, K8s
+  probes, Docker deployment, blue-green support, fail-closed feature flags
+  (SPRINT-DISCORD-RECAP-VERIFICATION, UNI-57, 2026-03-10) — 20 discordRouting
+  tests
+- RecapAgent VERIFIED: lifecycle-compliant (`lifecycleUpdate` with `poster`
+  role), Temporal workflows (daily/weekly/monthly/micro), RecapFormatter Discord
+  embeds, RecapStateManager for idempotent operation, 81 recapUtils unit tests
+  (SPRINT-DISCORD-RECAP-VERIFICATION, UNI-57, 2026-03-10)
+- Vitest: 843/843 passing (includes 101 Discord/Recap verification tests)
+
 ### Remaining Work
 
 - Automated edge ranking feeds
 - Full market alert automation
-- Context-aware recap generation
+- Context-aware recap generation (RecapAgent infrastructure ready; scheduling
+  config external to codebase)
 - Workflow orchestration refinement
 
 ### Assessment
 
-**PHASE 4 is 20% complete.** Building blocks exist. Automation logic not yet
-integrated.
+**PHASE 4 is 40% complete.** Discord bot fully verified and K8s-ready.
+RecapAgent lifecycle-compliant with Temporal workflows and embed generation.
+AlertAgent live. Core automation infrastructure complete. Remaining: edge
+ranking feeds, full market alert automation, Temporal scheduling configuration.
 
 ---
 
@@ -229,13 +262,14 @@ isolation, config scoping, branded delivery, tenant controls
 
 ## Phase Summary
 
-| Phase                                  | Status  | Completion | Blocking Issues                                                                                    |
-| -------------------------------------- | ------- | ---------- | -------------------------------------------------------------------------------------------------- |
-| **Phase 1** — Structural Dominance     | Active  | 95%        | Runtime env config, Jest quarantine, Smart Form Windows build                                      |
-| **Phase 2** — Intelligence Superiority | Active  | 80%        | Linear-GitHub integration (UNI-14)                                                                 |
-| **Phase 3** — Risk Engine Dominance    | Active  | 70%        | Core risk controls complete (Kelly, exposure, correlation, drawdown); visibility tooling remaining |
-| **Phase 4** — Automation Supremacy     | Planned | 20%        | Blocked by Phase 3                                                                                 |
-| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                 |
+| Phase                                  | Status  | Completion | Blocking Issues                                                                                              |
+| -------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
+| **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure |
+| **Phase 2** — Intelligence Superiority | Active  | 80%        | Linear-GitHub integration (UNI-14)                                                                           |
+| **Phase 3** — Risk Engine Dominance    | Active  | 70%        | Core risk controls complete (Kelly, exposure, correlation, drawdown); visibility tooling remaining           |
+| **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started |
+| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                           |
 
-**Current Platform Phase**: Transitioning from Phase 1 → Phase 2 (parallel
-tracks)
+**Current Platform Phase**: Phase 1 at 97%, Phase 4 advancing (40%); canonical
+Layer 1 / Phase 5 (Platform Stabilization) is the active completion gate — see
+`docs/06_status/current_phase.md` for canonical layer/phase position.
