@@ -107,6 +107,38 @@ Classify the recommended sprint using `SELECTION_RULES.md §Sprint Types`:
 
 This classification drives model selection in Step 5.
 
+### Step 4.5: Run LLM Router (New — COS-006)
+
+After sprint type is classified, run the routing engine to emit a governed
+multi-LLM routing plan. This step is required for all sprint planning.
+
+```bash
+# From repo root — run the routing engine
+npx tsx tools/claude-os/src/cli.ts route \
+  --sprint "<SPRINT-NAME>" \
+  --type "<sprint-type>" \
+  --summary "<one-line sprint summary>" \
+  --layer "<Layer N>" \
+  --phase "<Phase M — Name>" \
+  --orchestration-mode A \
+  --output-dir "out/sprints/<SPRINT>/<DATE>"
+```
+
+The router will:
+
+1. Classify the sprint into work types (implementation, architecture, audit,
+   etc.)
+2. Assign the relevant execution lanes (Lane 1–6 per `07-lane-model.md`)
+3. Route each lane to the optimal model (Sonnet/Opus/Haiku or external advisory)
+4. Recommend a Claude Code instance count (SINGLE/TWO/THREE_INSTANCES)
+5. Generate structured prompts for external helper LLMs (Mode B/C only)
+6. Write `LLM_ROUTING_DECISION.md` to the sprint output directory
+
+**Include the router output in the sprint plan output** (under "LLM Routing
+Plan" section). The routing decision is part of the sprint artifact bundle.
+
+Authority: `docs/02_architecture/claude_os_multi_llm_orchestration_blueprint.md`
+
 ### Step 5: Choose Model
 
 Apply `MODEL_SELECTION.md` rules. Canonical authority:
@@ -184,6 +216,24 @@ Feature | Architecture | Audit | Activation **Priority**: P0 | P1 | P2
 
 ---
 
+### LLM Routing Plan
+
+<output of Step 4.5 — paste router output here>
+
+Work type(s): <classification> Instance mode: <SINGLE_INSTANCE | TWO_INSTANCES |
+THREE_INSTANCES>
+
+Lane assignments:
+
+- Lane 1 (Implementation) — Claude Sonnet — Claude Code internal
+- Lane 3 (Verification) — Claude Sonnet — Claude Code internal
+- Lane 4 (Governance/Docs) — Claude Sonnet — Claude Code internal (adjust based
+  on actual router output)
+
+External prompts generated: <count>
+
+---
+
 ### Ready-to-Paste Prompt
 
 <full implementation prompt — see PROMPT_TEMPLATES.md>
@@ -199,6 +249,8 @@ Before starting, confirm:
 - [ ] All dependencies complete (tags exist)
 - [ ] Linear issue exists and is In Progress
 - [ ] Sprint number confirmed unique
+- [ ] LLM routing plan run and output included above
+- [ ] `LLM_ROUTING_DECISION.md` written to sprint output directory
 ```
 
 ---
