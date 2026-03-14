@@ -9,6 +9,7 @@ import Redis from 'ioredis';
 import { SupabaseService } from '../services/supabase';
 import { toISOString } from '../utils/dateUtils';
 import { HealthChecker, PerformanceMonitor, logger } from '../utils/enterpriseErrorHandling';
+import { getGatewayStatus, isGatewayConnected } from '../utils/gatewayStatus';
 
 const router: Router = express.Router();
 const healthChecker = new HealthChecker();
@@ -79,7 +80,8 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
 router.get('/ready', async (_req: Request, res: Response) => {
   try {
     // Check critical dependencies
-    const criticalChecks = ['database', 'discord', 'redis'];
+    // discord_api: REST reachability; discord_gateway: WebSocket connection
+    const criticalChecks = ['database', 'discord_api', 'discord_gateway', 'redis'];
     const health = await healthChecker.getOverallHealth();
 
     const criticalStatus = criticalChecks.every(
@@ -225,11 +227,10 @@ function initializeHealthChecks(): void {
     }
   });
 
-  // Discord API health check
-  healthChecker.addCheck('discord', async () => {
+  // Discord REST API health check (does NOT reflect gateway/WebSocket connection)
+  healthChecker.addCheck('discord_api', async () => {
     const startTime = performance.now();
     try {
-      // Simple Discord API health check
       const response = await fetch('https://discord.com/api/v10/gateway', {
         method: 'GET',
         headers: {
@@ -248,6 +249,7 @@ function initializeHealthChecks(): void {
           details: {
             error: `Discord API returned ${response.status}`,
             status: response.status,
+            note: 'REST API reachability only — see discord_gateway for WebSocket connection',
           },
         };
       }
@@ -259,6 +261,7 @@ function initializeHealthChecks(): void {
         details: {
           responseTime: `${Math.round(duration)}ms`,
           status: response.status,
+          note: 'REST API reachability only — see discord_gateway for WebSocket connection',
         },
       };
     } catch (error) {
@@ -269,6 +272,26 @@ function initializeHealthChecks(): void {
         details: { error: error instanceof Error ? error.message : 'Discord API check failed' },
       };
     }
+  });
+
+  // Discord WebSocket gateway connectivity check (bot is CONNECTED to Discord gateway)
+  // This is separate from webhook posting (DiscordPromotionAgent uses standalone webhook URL).
+  healthChecker.addCheck('discord_gateway', async () => {
+    const snapshot = getGatewayStatus();
+    const connected = isGatewayConnected();
+
+    return {
+      status: connected ? 'healthy' : snapshot.state === 'connecting' ? 'degraded' : 'unhealthy',
+      timestamp: toISOString(new Date()),
+      duration: 0,
+      details: {
+        state: snapshot.state,
+        connectedAt: snapshot.connectedAt,
+        lastError: snapshot.lastError,
+        lastErrorAt: snapshot.lastErrorAt,
+        note: 'WebSocket gateway connection — required for slash commands, member events, message events. Webhook posting (pick delivery) does NOT depend on this.',
+      },
+    };
   });
 
   // Memory health check
