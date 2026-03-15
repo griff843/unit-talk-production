@@ -382,8 +382,13 @@ export function ManualEntryForm({
 
   // Error banner component
   const ErrorBanner = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
-    <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-      <AlertTriangle className="h-4 w-4 shrink-0" />
+    <div
+      role="alert"
+      aria-live="polite"
+      aria-atomic="true"
+      className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm"
+    >
+      <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
       <span className="flex-1">{message}</span>
       {onRetry && (
         <Button
@@ -392,7 +397,7 @@ export function ManualEntryForm({
           onClick={onRetry}
           className="text-red-700 hover:text-red-900 hover:bg-red-100 shrink-0"
         >
-          <RefreshCw className="h-3.5 w-3.5 mr-1" />
+          <RefreshCw className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
           Retry
         </Button>
       )}
@@ -405,33 +410,49 @@ export function ManualEntryForm({
     side: 'home' | 'away',
     value: string,
     onChange: (v: string) => void
-  ) => (
-    <div>
-      <label className="text-xs font-medium text-muted-foreground mb-1 block">{label}</label>
-      {teamsLoading ? (
-        <div className="flex items-center gap-2 h-10 px-3 border border-border rounded-md bg-muted">
-          <div className="animate-spin h-4 w-4 border-2 border-primary rounded-full border-t-transparent" />
-          <span className="text-sm text-muted-foreground">Loading teams...</span>
-        </div>
-      ) : teamsError ? (
-        <ErrorBanner message={teamsError} onRetry={loadTeams} />
-      ) : teamItems.length > 0 ? (
-        <Combobox
-          items={teamItems}
-          value={value}
-          onValueChange={onChange}
-          placeholder={getPlaceholder(sport, side)}
-          searchPlaceholder="Search teams..."
-          emptyText="No teams found"
-          loading={teamsLoading}
-        />
-      ) : (
-        <div className="flex items-center h-10 px-3 border border-border rounded-md bg-muted">
-          <span className="text-sm text-muted-foreground">No teams found for this sport</span>
-        </div>
-      )}
-    </div>
-  );
+  ) => {
+    const fieldId = `team-${side}`;
+    return (
+      <div>
+        <label htmlFor={fieldId} className="text-xs font-medium text-muted-foreground mb-1 block">
+          {label}
+        </label>
+        {teamsLoading ? (
+          <div
+            id={fieldId}
+            role="status"
+            aria-label={`Loading ${label} options`}
+            className="flex items-center gap-2 h-10 px-3 border border-border rounded-md bg-muted"
+          >
+            <div
+              className="animate-spin h-4 w-4 border-2 border-primary rounded-full border-t-transparent"
+              aria-hidden="true"
+            />
+            <span className="text-sm text-muted-foreground">Loading teams...</span>
+          </div>
+        ) : teamsError ? (
+          <ErrorBanner message={teamsError} onRetry={loadTeams} />
+        ) : teamItems.length > 0 ? (
+          <Combobox
+            items={teamItems}
+            value={value}
+            onValueChange={onChange}
+            placeholder={getPlaceholder(sport, side)}
+            searchPlaceholder="Search teams..."
+            emptyText="No teams found"
+            loading={teamsLoading}
+          />
+        ) : (
+          <div
+            id={fieldId}
+            className="flex items-center h-10 px-3 border border-border rounded-md bg-muted"
+          >
+            <span className="text-sm text-muted-foreground">No teams found for this sport</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Bet type selector for multi-leg tickets
   const BetTypeSelector = () =>

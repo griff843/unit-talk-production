@@ -29,6 +29,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Plus, Trash2, Check, AlertCircle, Copy, RefreshCw, X, Search, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 
 import {
   submitTicketV3,
@@ -886,11 +887,14 @@ export function SportsbookManualEntry() {
     <div className="min-h-screen bg-[#1a1d24]" onKeyDown={handleKeyDown}>
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">Smart Manual Entry</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Select capper + teams • Enter to add • Esc to clear
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Smart Manual Entry</h1>
+            <p className="text-slate-400 text-sm mt-1">
+              Select capper + teams • Enter to add • Esc to clear
+            </p>
+          </div>
+          <KeyboardShortcutsHelp className="shrink-0 mt-1" />
         </div>
 
         {/* SPRINT-093: Discord Routing Warning */}

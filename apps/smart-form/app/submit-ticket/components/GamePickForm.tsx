@@ -178,8 +178,14 @@ export function GamePickForm({
       {/* Bet type selector for parlays */}
       {isMultiLegTicket && (
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">Bet Type</label>
+          <label
+            htmlFor="gpf-bet-type"
+            className="text-xs font-medium text-muted-foreground mb-1 block"
+          >
+            Bet Type
+          </label>
           <select
+            id="gpf-bet-type"
             value={legBetType}
             onChange={e => setLegBetType(e.target.value)}
             className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -194,11 +200,18 @@ export function GamePickForm({
       )}
 
       <div>
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">Selection</label>
+        <label
+          htmlFor="gpf-selection"
+          className="text-xs font-medium text-muted-foreground mb-1 block"
+        >
+          Selection
+        </label>
         <select
+          id="gpf-selection"
           value={selection}
           onChange={e => handleSelectionChange(e.target.value)}
           className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-required="true"
         >
           <option value="">Choose your pick</option>
           {availableSelections.map(opt => (
@@ -211,12 +224,19 @@ export function GamePickForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">Odds</label>
+          <label
+            htmlFor="gpf-odds"
+            className="text-xs font-medium text-muted-foreground mb-1 block"
+          >
+            Odds
+          </label>
           <Input
+            id="gpf-odds"
             type="number"
             placeholder="-110"
             value={odds}
             onChange={e => setOdds(e.target.value)}
+            aria-required="true"
           />
         </div>
         {(effectiveBetType === 'spread' ||
@@ -224,8 +244,14 @@ export function GamePickForm({
           effectiveBetType === 'team_total' ||
           effectiveBetType === 'player_prop') && (
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Line</label>
+            <label
+              htmlFor="gpf-line"
+              className="text-xs font-medium text-muted-foreground mb-1 block"
+            >
+              Line
+            </label>
             <Input
+              id="gpf-line"
               type="number"
               step="0.5"
               placeholder="8.5"
