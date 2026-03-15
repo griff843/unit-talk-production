@@ -20,6 +20,8 @@ export interface AuthUser {
   userId: string;
   /** Display name (optional) */
   displayName?: string;
+  /** RBAC role (optional — defaults to OPS if not provided) */
+  role?: string;
 }
 
 interface AuthContextValue {

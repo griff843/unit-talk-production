@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
+import { PermissionGate } from '@/components/PermissionGate';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +44,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { useAgentControl, type AgentControlInfo, type AgentState } from '@/hooks/useAgentControl';
+import { Permission } from '@/lib/rbac';
 
 interface AgentControlPanelProps {
   className?: string;
@@ -260,10 +262,12 @@ export function AgentControlPanel({ className = '' }: AgentControlPanelProps) {
             Refresh
           </Button>
 
-          <Button variant="destructive" size="sm" onClick={() => setEmergencyDialogOpen(true)}>
-            <ShieldAlert className="w-4 h-4 mr-2" />
-            Emergency Stop
-          </Button>
+          <PermissionGate permission={Permission.EMERGENCY_CONTROLS}>
+            <Button variant="destructive" size="sm" onClick={() => setEmergencyDialogOpen(true)}>
+              <ShieldAlert className="w-4 h-4 mr-2" />
+              Emergency Stop
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -387,42 +391,65 @@ export function AgentControlPanel({ className = '' }: AgentControlPanelProps) {
                       </Badge>
                     )}
 
-                    {/* Action buttons */}
-                    <div className="flex gap-1 ml-2">
-                      {agent.currentState === 'running' && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleAction(agent, 'pause')}
-                            disabled={actionInProgress === agent.agentId}
-                            title="Pause"
-                          >
-                            <Pause className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleAction(agent, 'drain')}
-                            disabled={actionInProgress === agent.agentId}
-                            title="Drain"
-                          >
-                            <Timer className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleAction(agent, 'stop')}
-                            disabled={actionInProgress === agent.agentId}
-                            title="Stop"
-                          >
-                            <Square className="w-3 h-3" />
-                          </Button>
-                        </>
-                      )}
+                    {/* Action buttons — SPRINT-050: gated by CONTROL_AGENTS */}
+                    <PermissionGate permission={Permission.CONTROL_AGENTS}>
+                      <div className="flex gap-1 ml-2">
+                        {agent.currentState === 'running' && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleAction(agent, 'pause')}
+                              disabled={actionInProgress === agent.agentId}
+                              title="Pause"
+                            >
+                              <Pause className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleAction(agent, 'drain')}
+                              disabled={actionInProgress === agent.agentId}
+                              title="Drain"
+                            >
+                              <Timer className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleAction(agent, 'stop')}
+                              disabled={actionInProgress === agent.agentId}
+                              title="Stop"
+                            >
+                              <Square className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
 
-                      {agent.currentState === 'paused' && (
-                        <>
+                        {agent.currentState === 'paused' && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleAction(agent, 'resume')}
+                              disabled={actionInProgress === agent.agentId}
+                              title="Resume"
+                            >
+                              <Play className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleAction(agent, 'stop')}
+                              disabled={actionInProgress === agent.agentId}
+                              title="Stop"
+                            >
+                              <Square className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+
+                        {agent.currentState === 'stopped' && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -432,57 +459,38 @@ export function AgentControlPanel({ className = '' }: AgentControlPanelProps) {
                           >
                             <Play className="w-3 h-3" />
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleAction(agent, 'stop')}
-                            disabled={actionInProgress === agent.agentId}
-                            title="Stop"
-                          >
-                            <Square className="w-3 h-3" />
-                          </Button>
-                        </>
-                      )}
+                        )}
 
-                      {agent.currentState === 'stopped' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAction(agent, 'resume')}
-                          disabled={actionInProgress === agent.agentId}
-                          title="Resume"
-                        >
-                          <Play className="w-3 h-3" />
-                        </Button>
-                      )}
+                        {agent.currentState === 'draining' && (
+                          <Badge variant="outline" className="text-xs animate-pulse">
+                            Draining...
+                          </Badge>
+                        )}
 
-                      {agent.currentState === 'draining' && (
-                        <Badge variant="outline" className="text-xs animate-pulse">
-                          Draining...
-                        </Badge>
-                      )}
+                        {/* Kill button — SPRINT-050: gated by EMERGENCY_CONTROLS */}
+                        <PermissionGate permission={Permission.EMERGENCY_CONTROLS}>
+                          {agent.currentState !== 'killed' && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                setKillTarget(agent);
+                                setKillDialogOpen(true);
+                              }}
+                              disabled={actionInProgress === agent.agentId}
+                              title="Kill (requires confirmation)"
+                            >
+                              <Skull className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </PermissionGate>
 
-                      {/* Kill button (always available except for killed agents) */}
-                      {agent.currentState !== 'killed' && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => {
-                            setKillTarget(agent);
-                            setKillDialogOpen(true);
-                          }}
-                          disabled={actionInProgress === agent.agentId}
-                          title="Kill (requires confirmation)"
-                        >
-                          <Skull className="w-3 h-3" />
-                        </Button>
-                      )}
-
-                      {/* Loading indicator */}
-                      {actionInProgress === agent.agentId && (
-                        <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
-                      )}
-                    </div>
+                        {/* Loading indicator */}
+                        {actionInProgress === agent.agentId && (
+                          <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
+                        )}
+                      </div>
+                    </PermissionGate>
                   </div>
                 </div>
               ))}

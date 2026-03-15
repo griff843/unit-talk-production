@@ -12,9 +12,10 @@
  * @module agents/control
  */
 
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity, enforcePermission } from '@/lib/auth';
+import { Permission } from '@/lib/rbac';
 import { getSupabaseClient } from '@/lib/supabase';
 
 /**
@@ -69,77 +70,7 @@ interface LifecycleEventRow {
   timestamp: string;
 }
 
-/**
- * RBAC Roles for agent control
- */
-export type AgentControlRole = 'viewer' | 'operator' | 'admin' | 'super_admin';
-
-/**
- * Permission mapping
- */
-const ROLE_PERMISSIONS: Record<AgentControlRole, string[]> = {
-  viewer: ['view_agents', 'view_metrics'],
-  operator: [
-    'view_agents',
-    'view_metrics',
-    'view_lifecycle_events',
-    'pause_agent',
-    'resume_agent',
-    'stop_agent',
-    'drain_agent',
-  ],
-  admin: [
-    'view_agents',
-    'view_metrics',
-    'view_lifecycle_events',
-    'pause_agent',
-    'resume_agent',
-    'stop_agent',
-    'drain_agent',
-    'kill_agent',
-  ],
-  super_admin: [
-    'view_agents',
-    'view_metrics',
-    'view_lifecycle_events',
-    'pause_agent',
-    'resume_agent',
-    'stop_agent',
-    'drain_agent',
-    'kill_agent',
-    'emergency_stop_all',
-  ],
-};
-
-/**
- * Check if user has permission for action
- */
-function hasPermission(role: AgentControlRole, permission: string): boolean {
-  const permissions = ROLE_PERMISSIONS[role] || [];
-  return permissions.includes(permission);
-}
-
-/**
- * Get operator context from session
- * In production, this would come from auth middleware
- */
-async function getOperatorContext(): Promise<{
-  userId: string;
-  role: AgentControlRole;
-  correlationId: string;
-}> {
-  // For development/testing, default to operator role
-  // In production, this would be extracted from session/JWT
-  const cookieStore = await cookies();
-  const userRole = (cookieStore.get('user_role')?.value as AgentControlRole) || 'operator';
-  const userId = cookieStore.get('user_id')?.value || 'system-operator';
-
-  return {
-    userId,
-    role: userRole,
-    correlationId: `ctrl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-  };
-}
+// SPRINT-050: Auth migrated to canonical RBAC — see @/lib/auth + @/lib/rbac
 
 /**
  * Log audit event
@@ -148,8 +79,9 @@ async function auditLog(
   client: ReturnType<typeof getSupabaseClient>,
   action: string,
   agentId: string,
-  result: 'success' | 'failure' | 'denied',
-  operatorContext: Awaited<ReturnType<typeof getOperatorContext>>,
+  result: 'success' | 'failure',
+  operatorId: string,
+  correlationId: string,
   details?: Record<string, unknown>
 ): Promise<void> {
   if (!client) return;
@@ -159,10 +91,9 @@ async function auditLog(
       action: `agent_control.${action}`,
       resource_type: 'agent',
       resource_id: agentId,
-      actor_id: operatorContext.userId,
-      actor_role: operatorContext.role,
+      actor_id: operatorId,
       result,
-      correlation_id: operatorContext.correlationId,
+      correlation_id: correlationId,
       metadata: {
         ...details,
         timestamp: new Date().toISOString(),
@@ -198,18 +129,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Action is required' }, { status: 400 });
     }
 
-    // Get operator context
-    const operatorContext = await getOperatorContext();
-
-    // Map action to permission
-    const actionPermissions: Record<string, string> = {
-      pause: 'pause_agent',
-      resume: 'resume_agent',
-      stop: 'stop_agent',
-      drain: 'drain_agent',
-      kill_request: 'kill_agent',
-      kill_confirm: 'kill_agent',
-      emergency_stop: 'emergency_stop_all',
+    // SPRINT-050: Canonical RBAC enforcement
+    const actionPermissions: Record<string, Permission> = {
+      pause: Permission.CONTROL_AGENTS,
+      resume: Permission.CONTROL_AGENTS,
+      stop: Permission.CONTROL_AGENTS,
+      drain: Permission.CONTROL_AGENTS,
+      kill_request: Permission.EMERGENCY_CONTROLS,
+      kill_confirm: Permission.EMERGENCY_CONTROLS,
+      emergency_stop: Permission.EMERGENCY_CONTROLS,
     };
 
     const requiredPermission = actionPermissions[action];
@@ -220,21 +148,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check permission
-    if (!hasPermission(operatorContext.role, requiredPermission)) {
-      await auditLog(getSupabaseClient(), action, agentId || '*', 'denied', operatorContext, {
-        requiredPermission,
-      });
+    // Canonical permission check (returns 401/403 or null)
+    const denied = await enforcePermission(request, requiredPermission);
+    if (denied) return denied;
 
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Permission denied: ${requiredPermission} required (your role: ${operatorContext.role})`,
-          permissionDenied: true,
-        },
-        { status: 403 }
-      );
-    }
+    // Extract operator identity for downstream use
+    const { userId: operatorId } = getOperatorIdentity(request);
+    const correlationId = `ctrl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     const client = getSupabaseClient();
     if (!client) {
@@ -266,13 +186,13 @@ export async function POST(request: NextRequest) {
         const { data: rpcData, error } = await client.rpc('request_agent_state_change', {
           p_agent_id: agentId,
           p_desired_state: desiredState,
-          p_requested_by: operatorContext.userId,
+          p_requested_by: operatorId,
           p_reason: reason || `Operator ${action} command`,
-          p_correlation_id: operatorContext.correlationId,
+          p_correlation_id: correlationId,
         });
 
         if (error) {
-          await auditLog(client, action, agentId, 'failure', operatorContext, {
+          await auditLog(client, action, agentId, 'failure', operatorId, correlationId, {
             error: error.message,
           });
 
@@ -283,7 +203,7 @@ export async function POST(request: NextRequest) {
         const data = rpcData as unknown as StateChangeResponse | null;
 
         if (!data?.success) {
-          await auditLog(client, action, agentId, 'failure', operatorContext, {
+          await auditLog(client, action, agentId, 'failure', operatorId, correlationId, {
             error: data?.error || data?.action_required,
           });
 
@@ -294,7 +214,7 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        await auditLog(client, action, agentId, 'success', operatorContext, {
+        await auditLog(client, action, agentId, 'success', operatorId, correlationId, {
           previousState: data.previous_state,
           newState: data.new_state,
         });
@@ -330,13 +250,13 @@ export async function POST(request: NextRequest) {
 
         const { data: rpcData, error } = await client.rpc('create_kill_confirmation', {
           p_agent_id: agentId,
-          p_requested_by: operatorContext.userId,
+          p_requested_by: operatorId,
           p_reason: reason,
           p_validity_seconds: 60, // 60 second token validity
         });
 
         if (error) {
-          await auditLog(client, 'kill_request', agentId, 'failure', operatorContext, {
+          await auditLog(client, 'kill_request', agentId, 'failure', operatorId, correlationId, {
             error: error.message,
           });
 
@@ -346,7 +266,7 @@ export async function POST(request: NextRequest) {
         // Type assertion for RPC response (cast through unknown for Json type)
         const data = rpcData as unknown as KillConfirmationResponse | null;
 
-        await auditLog(client, 'kill_request', agentId, 'success', operatorContext, {
+        await auditLog(client, 'kill_request', agentId, 'success', operatorId, correlationId, {
           expiresAt: data?.expires_at,
         });
 
@@ -373,13 +293,21 @@ export async function POST(request: NextRequest) {
 
         const { data: rpcData, error } = await client.rpc('confirm_agent_kill', {
           p_confirmation_token: confirmationToken,
-          p_confirmed_by: operatorContext.userId,
+          p_confirmed_by: operatorId,
         });
 
         if (error) {
-          await auditLog(client, 'kill_confirm', agentId || 'unknown', 'failure', operatorContext, {
-            error: error.message,
-          });
+          await auditLog(
+            client,
+            'kill_confirm',
+            agentId || 'unknown',
+            'failure',
+            operatorId,
+            correlationId,
+            {
+              error: error.message,
+            }
+          );
 
           return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
@@ -388,9 +316,17 @@ export async function POST(request: NextRequest) {
         const data = rpcData as unknown as KillConfirmResponse | null;
 
         if (!data?.success) {
-          await auditLog(client, 'kill_confirm', agentId || 'unknown', 'failure', operatorContext, {
-            error: data?.error,
-          });
+          await auditLog(
+            client,
+            'kill_confirm',
+            agentId || 'unknown',
+            'failure',
+            operatorId,
+            correlationId,
+            {
+              error: data?.error,
+            }
+          );
 
           return NextResponse.json({
             success: false,
@@ -403,7 +339,8 @@ export async function POST(request: NextRequest) {
           'kill_confirm',
           data.agent_id || 'unknown',
           'success',
-          operatorContext,
+          operatorId,
+          correlationId,
           {
             killedAt: data.killed_at,
           }
@@ -432,9 +369,9 @@ export async function POST(request: NextRequest) {
             id: 1, // Global status uses numeric id=1
             emergency_stop: true,
             maintenance_mode: false,
-            maintenance_message: `Emergency stop: ${reason || 'No reason provided'} (by ${operatorContext.userId})`,
+            maintenance_message: `Emergency stop: ${reason || 'No reason provided'} (by ${operatorId})`,
             updated_at: new Date().toISOString(),
-            updated_by: operatorContext.userId,
+            updated_by: operatorId,
           });
 
           // Get all running agents
@@ -448,14 +385,14 @@ export async function POST(request: NextRequest) {
             await client.rpc('request_agent_state_change', {
               p_agent_id: agent.agent_id,
               p_desired_state: 'stopped',
-              p_requested_by: operatorContext.userId,
+              p_requested_by: operatorId,
               p_reason: `Emergency stop: ${reason || 'No reason provided'}`,
-              p_correlation_id: operatorContext.correlationId,
+              p_correlation_id: correlationId,
             });
             stoppedCount++;
           }
 
-          await auditLog(client, 'emergency_stop', '*', 'success', operatorContext, {
+          await auditLog(client, 'emergency_stop', '*', 'success', operatorId, correlationId, {
             reason,
             agentsStopped: stoppedCount,
           });
@@ -470,7 +407,7 @@ export async function POST(request: NextRequest) {
             latencyMs: Date.now() - startTime,
           });
         } catch (error) {
-          await auditLog(client, 'emergency_stop', '*', 'failure', operatorContext, {
+          await auditLog(client, 'emergency_stop', '*', 'failure', operatorId, correlationId, {
             error: error instanceof Error ? error.message : 'Unknown error',
           });
 
@@ -522,19 +459,9 @@ export async function GET(request: NextRequest) {
 
     console.log('📊 GET /api/agents/control', { agentId, includeMetrics, includeEvents });
 
-    const operatorContext = await getOperatorContext();
-
-    // Viewers can see agent status
-    if (!hasPermission(operatorContext.role, 'view_agents')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Permission denied: view_agents required',
-          permissionDenied: true,
-        },
-        { status: 403 }
-      );
-    }
+    // SPRINT-050: Canonical RBAC enforcement
+    const viewDenied = await enforcePermission(request, Permission.VIEW_METRICS);
+    if (viewDenied) return viewDenied;
 
     const client = getSupabaseClient();
     if (!client) {
@@ -572,7 +499,7 @@ export async function GET(request: NextRequest) {
       };
 
       // Include metrics if requested
-      if (includeMetrics && hasPermission(operatorContext.role, 'view_metrics')) {
+      if (includeMetrics) {
         const { data: metricsData } = await client
           .from('agent_metrics_snapshots')
           .select('*')
@@ -595,7 +522,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Include lifecycle events if requested
-      if (includeEvents && hasPermission(operatorContext.role, 'view_lifecycle_events')) {
+      if (includeEvents) {
         const { data: eventsData } = await client
           .from('agent_lifecycle_events')
           .select('*')

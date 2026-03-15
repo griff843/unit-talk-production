@@ -5,6 +5,7 @@ import { Send, Plus, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { PickForm } from './PickForm';
 import { useOpsSubmit } from './useOpsSubmit';
 
+import { PermissionGate } from '@/components/PermissionGate';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Permission } from '@/lib/rbac';
 
 // ============================================================================
 // SPRINT-OPS-SUBMIT-V2-071B: Operator Submit Page
@@ -98,7 +100,16 @@ function MainForm({ form }: { form: FormType }) {
         </Button>
         {form.ticketType === 'parlay' && <ParlayOddsInput form={form} />}
         <NotesInput form={form} />
-        <SubmitButton form={form} />
+        <PermissionGate
+          permission={Permission.RUN_BACKFILL}
+          fallback={
+            <Button disabled className="w-full" size="lg">
+              Submit Ticket (Not Authorized)
+            </Button>
+          }
+        >
+          <SubmitButton form={form} />
+        </PermissionGate>
       </CardContent>
     </Card>
   );

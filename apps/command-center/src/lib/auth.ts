@@ -11,7 +11,9 @@
  * SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+import { Permission, RBACService } from './rbac';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,4 +56,57 @@ export function requireOperatorIdentity(request: NextRequest): OperatorIdentity 
     return null;
   }
   return identity;
+}
+
+// ---------------------------------------------------------------------------
+// Route-level permission enforcement
+// ---------------------------------------------------------------------------
+
+/**
+ * Enforce identity + permission on an API route handler.
+ *
+ * Returns a NextResponse (401 or 403) if the check fails, or null if the
+ * caller is authorized. Usage:
+ *
+ *   const denied = await enforcePermission(request, Permission.FREEZE_SYSTEM);
+ *   if (denied) return denied;
+ *   // ... proceed with authorized logic
+ *
+ * SPRINT-050-LAYER3-PHASE10-CC-PERMISSION-ENFORCEMENT
+ */
+export async function enforcePermission(
+  request: NextRequest,
+  permission: Permission
+): Promise<NextResponse | null> {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json(
+      { error: 'Authentication required', code: 'AUTH_REQUIRED' },
+      { status: 401 }
+    );
+  }
+
+  const hasAccess = await RBACService.hasPermission(identity.userId, permission);
+  if (!hasAccess) {
+    await RBACService.logAudit({
+      actor: identity.userId,
+      actor_type: 'user',
+      action: 'UNAUTHORIZED_ACCESS',
+      resource_type: 'permission',
+      resource_id: permission,
+      payload: { path: request.nextUrl.pathname, method: request.method },
+      status: 'failure',
+      error_message: `User ${identity.userId} lacks permission: ${permission}`,
+    });
+    return NextResponse.json(
+      {
+        error: 'Insufficient permissions',
+        code: 'INSUFFICIENT_PERMISSIONS',
+        required_permission: permission,
+      },
+      { status: 403 }
+    );
+  }
+
+  return null; // authorized
 }
