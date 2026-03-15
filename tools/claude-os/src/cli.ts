@@ -40,6 +40,7 @@ import { captureGitEvidence } from './git-evidence.js';
 import { loadGovernance } from './governance-loader.js';
 import { startImplementation, checkImplementation } from './implementation-engine.js';
 import { loadIssue } from './issue-loader.js';
+import { checkLifecycle } from './lifecycle-checker.js';
 import { runRouterCli } from './llm-router.js';
 import { runAutopilotCycle, checkAutopilotFrozen } from './orchestrator.js';
 import { loadProfileById, loadProfileFromPath } from './profile-loader.js';
@@ -3055,6 +3056,97 @@ ${c.bold}Philosophy:${c.reset}
 }
 
 // ---------------------------------------------------------------------------
+// Command: lifecycle-status (SPRINT-CLAUDE-OS-LIFECYCLE-AUTOMATION-HARDENING)
+// ---------------------------------------------------------------------------
+
+function commandLifecycleStatus(args: Record<string, string | boolean | string[]>): void {
+  const sprint = args.sprint as string | undefined;
+  const dateOverride = args.date as string | undefined;
+  const jsonOutput = args.json === true;
+  const skipTagCheck = args['skip-tag-check'] === true;
+
+  if (!sprint) {
+    console.error(`${c.red}ERROR: --sprint <id> is required.${c.reset}`);
+    console.error('Usage: lifecycle-status --sprint SPRINT-044-...');
+    process.exit(1);
+  }
+
+  const result = checkLifecycle(sprint, { dateOverride, skipTagCheck });
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(result, null, 2));
+    const exitCode = result.overall === 'ACTION_REQUIRED' ? 1 : 0;
+    process.exit(exitCode);
+  }
+
+  // Human-readable output
+  const overallColor =
+    result.overall === 'COMPLETE'
+      ? c.green
+      : result.overall === 'IN_PROGRESS'
+        ? c.cyan
+        : result.overall === 'ACTION_REQUIRED'
+          ? c.red
+          : c.yellow;
+
+  console.log(`\n${c.bold}${c.cyan}CLAUDE OS — Sprint Lifecycle Status${c.reset}`);
+  console.log(`${c.bold}Sprint:${c.reset} ${sprint}`);
+  console.log(`${c.bold}Checked:${c.reset} ${result.checkedAt}`);
+  console.log(`${c.bold}Overall:${c.reset} ${overallColor}${result.overall}${c.reset}\n`);
+
+  console.log(`${c.bold}--- Lifecycle Gates ---${c.reset}`);
+
+  for (const dim of Object.values(result.checks)) {
+    const statusColor =
+      dim.status === 'PASS'
+        ? c.green
+        : dim.status === 'FAIL'
+          ? c.red
+          : dim.status === 'PENDING'
+            ? c.yellow
+            : c.dim;
+
+    const icon =
+      dim.status === 'PASS'
+        ? '✅'
+        : dim.status === 'FAIL'
+          ? '❌'
+          : dim.status === 'PENDING'
+            ? '⏳'
+            : '❓';
+
+    console.log(
+      `  ${icon} ${c.bold}${dim.label.padEnd(20)}${c.reset} ${statusColor}${dim.status}${c.reset}`
+    );
+    console.log(`     ${c.dim}${dim.detail}${c.reset}`);
+    if (dim.nextStep && dim.status !== 'PASS') {
+      const humanTag = dim.requiresHuman ? ` ${c.yellow}[human]${c.reset}` : '';
+      console.log(`     ${c.cyan}→ ${dim.nextStep}${c.reset}${humanTag}`);
+    }
+    console.log('');
+  }
+
+  if (result.nextSteps.length > 0) {
+    console.log(`${c.bold}--- Next Steps ---${c.reset}`);
+    for (const step of result.nextSteps) {
+      const humanTag = step.requiresHuman
+        ? ` ${c.yellow}(needs you)${c.reset}`
+        : ` ${c.dim}(auto-safe)${c.reset}`;
+      console.log(`  ${step.priority}. ${step.action}${humanTag}`);
+      if (step.command) {
+        console.log(`     ${c.dim}${step.command}${c.reset}`);
+      }
+    }
+    console.log('');
+  } else if (result.overall === 'COMPLETE') {
+    console.log(`${c.green}${c.bold}Sprint lifecycle complete. Nothing more to do.${c.reset}\n`);
+  }
+
+  const exitCode = result.overall === 'ACTION_REQUIRED' ? 1 : 0;
+  process.exit(exitCode);
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -3097,6 +3189,9 @@ function main(): void {
       break;
     case 'sprint':
       commandSprint(args);
+      break;
+    case 'lifecycle-status':
+      commandLifecycleStatus(args);
       break;
     case 'route':
       // LLM Routing Engine — emits a governed multi-LLM routing plan for /sprint-plan
