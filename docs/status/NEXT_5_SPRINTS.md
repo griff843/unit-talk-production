@@ -163,18 +163,22 @@ roadmap + Linear backlog
 
 ---
 
-## Sprint 1: SPRINT-046 — TBD
+## ~~Sprint 1: SPRINT-046-OPERATOR-AUDIT-TRAIL~~ ✅ COMPLETED (2026-03-14)
 
-**Priority**: TBD **Phase**: TBD **Linear**: TBD
+> Immutable `operator_audit_log` table with DB trigger rejecting UPDATE/DELETE;
+> `operatorAuditLog` middleware wired to all /ops and /admin routes;
+> `GET /ops/audit-log` query endpoint with pagination + filters; schema types
+> regenerated (35 tables); 7 new vitest; 933/933 vitest; PR #210.
 
-**Note**: Platform verified. Auth hardened. Schema synced. Next sprint
-candidates from RECOMMENDED_REMEDIATION_SPRINTS.md:
+---
 
-- SPRINT-046-RECOVERY-E2E-TESTS (P2 — integration tests for replay)
-- SPRINT-046-OPERATOR-AUDIT-TRAIL (P2 — audit logging for /ops)
-- SPRINT-046-TEST-COVERAGE-GAPS (P2 — AlertAgent + IngestionAgent tests)
-- Phase 4 advancement (edge ranking, alert automation)
-- COS-007 (sprint:close validation of LLM_ROUTING_DECISION.md)
+## Sprint 1: SPRINT-047-INGESTION-UNIT-COVERAGE-LOCK
+
+**Priority**: P2 **Phase**: L2 / Phase 7 — Reliability **Linear**: TBD
+
+**Scope**: Provider-independent unit tests for IngestionAgent (zero current
+coverage). Fixture-driven, offline-only. Covers normalization, validation,
+dedup, batch processing, error handling, adapter mapping, metrics.
 
 ---
 
@@ -198,7 +202,8 @@ candidates from RECOMMENDED_REMEDIATION_SPRINTS.md:
 | ~~1~~ | ~~PLATFORM-VERIFICATION-LOCK~~    | ~~P0~~   | ~~L2~~      | ~~Full platform verification audit~~ ✅ DONE          | TBD       |
 | ~~1~~ | ~~045-OPERATOR-AUTH-HARDENING~~   | ~~P1~~   | ~~L2/Sec~~  | ~~JWT auth on all /ops routes~~ ✅ DONE               | TBD       |
 | ~~1~~ | ~~045-SCHEMA-TYPE-SYNC~~          | ~~P1~~   | ~~Infra~~   | ~~Regenerate schema types (34 tables)~~ ✅ DONE       | TBD       |
-| 1     | SPRINT-046 TBD                    | TBD      | TBD         | Recovery E2E / Audit trail / Test gaps / Phase 4      | TBD       |
+| ~~1~~ | ~~046-OPERATOR-AUDIT-TRAIL~~      | ~~P2~~   | ~~L2/Sec~~  | ~~Immutable audit log + query endpoint~~ ✅ DONE      | TBD       |
+| 1     | 047-INGESTION-UNIT-COVERAGE-LOCK  | P2       | L2/Ph 7     | IngestionAgent unit tests (offline, fixture-driven)   | TBD       |
 
 **Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
 independent and can run in any order.
