@@ -92,7 +92,8 @@
     "recap:daily": "tsx src/scripts/recap/generateRecap.ts --mode=daily",
     "recap:weekly": "tsx src/scripts/recap/generateRecap.ts --mode=weekly",
     "clean": "rimraf dist",
-    "ops:db:preflight": "tsx src/scripts/ops/supabase-migration-preflight.ts"
+    "ops:db:preflight": "tsx src/scripts/ops/supabase-migration-preflight.ts",
+    "ops:list": "tsx src/scripts/ops/list-workflows.ts"
   },
   "dependencies": {
     "@unit-talk/config": "workspace:*",
