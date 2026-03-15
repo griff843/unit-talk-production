@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
@@ -389,7 +390,7 @@ export async function GET(request: NextRequest) {
   const span = UnitTalkTracing.startTemporalSpan('TemporalMonitoring', 'get_missed_schedules');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
 
     // Check permissions
     await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);
@@ -455,7 +456,7 @@ export async function POST(request: NextRequest) {
   const span = UnitTalkTracing.startTemporalSpan('TemporalMonitoring', 'resolve_missed_schedule');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
 
     // Require ops permissions to resolve issues
     await RBACService.requirePermission(userId, Permission.CONTROL_AGENTS);

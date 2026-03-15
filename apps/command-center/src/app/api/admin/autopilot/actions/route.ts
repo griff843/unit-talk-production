@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
   const span = UnitTalkTracing.startAgentSpan('admin', 'autopilot_action');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
 
     const body = await request.json();
     const { action, params } = body;
@@ -261,7 +262,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     UnitTalkTracing.recordError(span, error as Error);
 
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
     await RBACService.logAudit({
       actor: userId,
       actor_type: 'user',

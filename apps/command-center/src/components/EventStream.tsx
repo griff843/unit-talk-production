@@ -1,19 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import { formatDistanceToNow } from 'date-fns';
 import {
   Activity,
   AlertTriangle,
@@ -29,7 +16,22 @@ import {
   Eye,
   RotateCcw,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/lib/auth-context';
 
 interface PipelineEvent {
   id: string;
@@ -132,6 +134,8 @@ const SOURCE_CONFIGS = {
 
 export function EventStream({ className }: EventStreamProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const operatorId = user?.userId ?? 'anonymous';
 
   // State management
   const [events, setEvents] = useState<PipelineEvent[]>([]);
@@ -215,7 +219,7 @@ export function EventStream({ className }: EventStreamProps) {
 
       const response = await fetch(`/api/events?${searchParams}`, {
         headers: {
-          'x-user-id': 'command-center-user', // TODO: Get from auth context
+          'x-user-id': operatorId,
         },
       });
 
@@ -334,7 +338,7 @@ export function EventStream({ className }: EventStreamProps) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-user-id': 'command-center-user',
+            'x-user-id': operatorId,
           },
           body: JSON.stringify(replayData),
         });

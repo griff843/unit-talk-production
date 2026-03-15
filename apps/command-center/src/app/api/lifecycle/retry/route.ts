@@ -2,6 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity } from '@/lib/auth';
+
 /**
  * LIFECYCLE RETRY API PROXY
  * Sprint: POSTING-SETTLEMENT-EXACTNESS-040
@@ -49,7 +51,7 @@ export async function POST(request: NextRequest) {
         : `${getApiBaseUrl()}/ops/retry-posting`;
 
     // Get operator from request headers or use default
-    const operator = request.headers.get('x-user-id') || 'command-center-operator';
+    const { userId: operator } = getOperatorIdentity(request);
 
     // Proxy to API service
     const apiResponse = await fetch(endpoint, {

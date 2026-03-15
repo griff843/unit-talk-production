@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
+import { getOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
@@ -422,7 +423,7 @@ export async function GET(request: NextRequest) {
   const span = UnitTalkTracing.startAgentSpan('admin', 'get_autopilot_policy');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
     await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);
 
     const searchParams = request.nextUrl.searchParams;
@@ -525,7 +526,7 @@ export async function POST(request: NextRequest) {
   const span = UnitTalkTracing.startAgentSpan('admin', 'update_autopilot_policy');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
     const ipAddress = request.headers.get('x-forwarded-for') || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 

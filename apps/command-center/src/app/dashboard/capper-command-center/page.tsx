@@ -30,6 +30,7 @@ import {
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
+
 import type { RankedPlay, CCCResponse, EliminationReason } from '@/lib/ccc/rankingEngine';
 
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/lib/auth-context';
 
 // ============================================================================
 // TYPES
@@ -77,6 +79,9 @@ const ELIMINATION_LABELS: Record<EliminationReason, { label: string; icon: typeo
 // ============================================================================
 
 export default function CapperCommandCenterPage() {
+  const { user } = useAuth();
+  const operatorId = user?.userId ?? 'anonymous';
+
   // State
   const [data, setData] = useState<CCCResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,7 +146,7 @@ export default function CapperCommandCenterPage() {
             scoredLegId: play.scoredLegId,
             action,
             overrideReason: reason,
-            actorId: 'capper-user', // TODO: Replace with actual auth
+            actorId: operatorId,
             actorName: 'Capper',
             pFinal: play.pFinal,
             pMarketDevig: play.pMarketDevig,

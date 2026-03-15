@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
 
     // Check permissions for pipeline monitoring
     await RBACService.requirePermission(userId, Permission.VIEW_METRICS, {

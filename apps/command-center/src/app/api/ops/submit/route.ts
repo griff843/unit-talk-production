@@ -2,6 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity } from '@/lib/auth';
+
 /**
  * OPS SUBMIT API PROXY
  * Sprint: SPRINT-OPS-SUBMIT-V2-071B
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Get operator from request headers or use default
-    const operator = request.headers.get('x-user-id') || 'command-center-operator';
+    const { userId: operator } = getOperatorIdentity(request);
 
     // Proxy to API service
     const apiResponse = await fetch(`${getApiBaseUrl()}/ops/submit`, {
