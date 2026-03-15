@@ -1,7 +1,8 @@
 # Phase Status
 
-**Last Updated**: 2026-03-15 (SPRINT-051-LAYER3-PHASE9-SMARTFORM-UX-POLISH)
-**Source**: Linear initiatives + repo implementation + sprint closeouts
+**Last Updated**: 2026-03-15
+(SPRINT-052-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION) **Source**: Linear
+initiatives + repo implementation + sprint closeouts
 
 ---
 
@@ -337,10 +338,13 @@ automation, edge ranking feeds, market alerts, context/recap automation
 
 ### Assessment
 
-**PHASE 4 is 40% complete.** Discord bot fully verified and K8s-ready.
+**PHASE 4 is 45% complete.** Discord bot fully verified and K8s-ready.
 RecapAgent lifecycle-compliant with Temporal workflows and embed generation.
-AlertAgent live. Core automation infrastructure complete. Remaining: edge
-ranking feeds, full market alert automation, Temporal scheduling configuration.
+AlertAgent live. Core automation infrastructure complete. Operator workflow
+registry delivered (SPRINT-052): 18 curated workflows across 6 categories, GET
+/ops/workflows discovery endpoint, pnpm ops:list CLI (PR #230, UNI-87 Done).
+Remaining: edge ranking feeds, full market alert automation, Temporal scheduling
+configuration, workflow UI/batch operations (Phase 11 UX).
 
 ---
 
@@ -455,23 +459,22 @@ sprint:close now enforces routing evidence before closeout. Next Claude OS items
 
 ## Phase Summary
 
-| Phase                                  | Status  | Completion | Blocking Issues                                                                                              |
-| -------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure |
-| **Phase 2** — Intelligence Superiority | Done    | 100%       | ~~UNI-14~~ DONE (SPRINT-GITHUB-LINEAR-INTEGRATION, 2026-03-10)                                               |
-| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)              |
-| **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started |
-| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                           |
-| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; sprint:close now enforces LLM_ROUTING_DECISION.md gate (COS-007, PR #217)              |
+| Phase                                  | Status  | Completion | Blocking Issues                                                                                                                                   |
+| -------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure                                      |
+| **Phase 2** — Intelligence Superiority | Done    | 100%       | ~~UNI-14~~ DONE (SPRINT-GITHUB-LINEAR-INTEGRATION, 2026-03-10)                                                                                    |
+| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)                                                   |
+| **Phase 4** — Automation Supremacy     | Active  | 45%        | Discord bot + RecapAgent VERIFIED; workflow registry live (SPRINT-052); scheduling config external; edge ranking and alert automation not started |
+| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                                                                |
+| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; sprint:close now enforces LLM_ROUTING_DECISION.md gate (COS-007, PR #217)                                                   |
 
 **Current Platform Phase**: Layer 2 COMPLETE (Phases 6–8 all done). Layer 1
 COMPLETE. Phase 1 at 97%, Phase 2 at 100%, Phase 3 at 100%, Phase 4 at 40%.
 **Layer 3 started**: SPRINT-049 delivered auth identity foundation; SPRINT-050
-delivered permission enforcement — 3 routes enforced (agents/control,
-lifecycle/retry, ops/submit), 3 components gated (AgentControlPanel, ops-submit,
-StuckPicksPanel), 47 CC vitest tests (PR #224, UNI-85 Done); **SPRINT-051
-delivered Smart Form UX Polish (Phase 9)** — WCAG 2.1 AA accessibility
-remediation on BetSlipPanel, GamePickForm, ManualEntryForm;
-KeyboardShortcutsHelp component; 11 new tests (PR #227, UNI-86 Done). Next
-canonical work: Layer 3 / Phase 11 — Operator Workflow Foundation (SPRINT-052).
-See `docs/06_status/current_phase.md` for canonical layer/phase position.
+delivered permission enforcement (PR #224, UNI-85 Done); SPRINT-051 delivered
+Smart Form UX Polish — WCAG 2.1 AA accessibility, KeyboardShortcutsHelp (PR
+#227, UNI-86 Done); **SPRINT-052 delivered Operator Workflow Foundation
+(Phase 11)** — WorkflowRegistry with 18 entries, GET /ops/workflows, pnpm
+ops:list CLI (PR #230, UNI-87 Done). Next canonical work: SPRINT-053 (Governance
+Naming Convention) + SPRINT-054 (Replay Endpoint). See
+`docs/06_status/current_phase.md` for canonical layer/phase position.
