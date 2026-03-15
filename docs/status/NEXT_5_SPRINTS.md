@@ -1,207 +1,231 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-14 (SPRINT-047-INGESTION-UNIT-COVERAGE-LOCK)
-**Source**: Phase status + drift report + system gap analysis + risk engine
-roadmap + Linear backlog
+**Last Updated**: 2026-03-15 (SPRINT-048-TRUTH-RECONCILIATION-LAYER3-QUEUE)
+**Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
+backlog + codebase investigation
 
-> **PHASE NAMING NOTICE** (added 2026-03-13): "Phase" labels in this file use
-> the operational naming convention from `docs/status/PHASE_STATUS.md`. For
-> canonical sprint classification, consult
-> `docs/04_roadmap/layer_phase_execution_model.md`. The canonical Layer/Phase
-> equivalent is noted inline where applicable.
-
-> **Sprint queue refreshed 2026-03-10** after
-> SPRINT-PROMOTION-RUNTIME-ACTIVATION completion. Promotion VERIFIED. Focus
-> shifts to Phase 4 entry (Discord/Recaps), risk visibility, and test debt
-> cleanup.
+> **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
+> targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
+> See `docs/06_status/current_phase.md` for canonical layer/phase position.
 
 ---
 
-## ~~Sprint 1: SPRINT-RISK-BANKROLL-KELLY~~ ✅ COMPLETED (2026-03-10)
+## Sprint 1: SPRINT-COS-007-SPRINT-CLOSE-VALIDATION
 
-> Merged via PR #141. Tag: SPRINT-RISK-BANKROLL-KELLY (CI-minted). KellySizer
-> module, bankroll-aware sizing in RiskEngine, kelly_fraction: 0 replaced in
-> ProfessionalPropProcessor. 666/666 tests passing.
+**Priority**: P2 | **Phase**: Claude OS (Meta) | **Depends On**: None
 
----
+**Objective**: Add validation of `LLM_ROUTING_DECISION.md` to the `sprint:close`
+command so that sprint closeout enforces the presence and well-formedness of LLM
+routing artifacts.
 
-## ~~Sprint 1: SPRINT-RISK-EXPOSURE-CORRELATION~~ ✅ COMPLETED (2026-03-10)
+**Rationale**: COS-007 is the next Claude OS upgrade item. Small, mechanical,
+and closes the routing evidence gap. Completing it before Layer 3 sprints
+ensures all future sprints have routing discipline baked into the closeout gate.
 
-> Merged via PR #142. Tag: SPRINT-RISK-EXPOSURE-CORRELATION (CI-minted). Sport
-> exposure caps, CorrelationDetector, DrawdownTracker wired into RiskEngine.
-> Also completes the scope of Sprint 5 (RISK-DRAWDOWN-PROTECTION). 701/701 tests
-> passing.
+**Tasks**:
 
----
+1. Read `tools/claude-os/src/cli.ts` and the existing `sprint:close` command
+2. Add a validation step that checks for `LLM_ROUTING_DECISION.md` in the sprint
+   output directory
+3. Validate the file contains required fields: Sprint, Work type(s), Instance
+   mode, Lane assignments
+4. Fail the closeout with a clear error if the file is missing or malformed
+5. Add tests for the validation logic
 
-## ~~Sprint 1: SPRINT-OBSERVABILITY-BUILD-FIX~~ ✅ COMPLETED (2026-03-10)
+**Success Criteria**:
 
-> Merged via PR #146. Tag: SPRINT-OBSERVABILITY-BUILD-FIX (CI-minted).
-> Observability build verified PASS (DRIFT-M5 was pnpm Windows extraction issue
-> — `@opentelemetry/api` already declared). API + Command Center builds verified
-> PASS. Smart Form documented as pre-existing BROKEN. Lifecycle visibility
-> columns already fully implemented (no work needed). 701/701 tests passing.
-
----
-
-## ~~Sprint 1: SPRINT-PROMOTION-RUNTIME-ACTIVATION~~ ✅ COMPLETED (2026-03-10)
-
-> Merged via PR #149. Tag: SPRINT-PROMOTION-RUNTIME-ACTIVATION (CI-minted).
-> Enhanced runbook with staged activation (shadow→canary→prod), 12-var env
-> reference, 41 guard tests, monitoring checklist, rollback procedures.
-> Promotion: PARTIAL → VERIFIED. Vitest: 701 → 742.
+- `sprint:close` rejects closeout when `LLM_ROUTING_DECISION.md` is missing
+- `sprint:close` rejects closeout when required fields are absent
+- `sprint:close` passes when a well-formed routing decision exists
+- All existing gates continue to pass
+- Vitest suite remains clean
 
 ---
 
-## ~~Sprint 1: SPRINT-DISCORD-RECAP-VERIFICATION~~ ✅ COMPLETED (2026-03-10)
+## Sprint 2: SPRINT-049-LAYER3-PHASE10-CC-AUTH-INTEGRATION
 
-> Merged via PR #152. Tag: SPRINT-DISCORD-RECAP-VERIFICATION (CI-minted).
-> Discord Bot: UNVERIFIED → VERIFIED (37+ commands, 16 services, 6 health
-> endpoints, K8s-ready). RecapAgent: PARTIAL → VERIFIED (lifecycle-compliant,
-> Temporal workflows, embed generation). 101 new verification tests (81
-> recapUtils + 20 discordRouting). Vitest: 742 → 843.
+**Priority**: P1 | **Phase**: Layer 3 / Phase 10 — Command Center UX | **Depends
+On**: None
 
----
+**Objective**: Replace hardcoded user IDs across Command Center dashboards with
+proper auth context, and define operator permission scopes for role-based
+dashboard access.
 
-## ~~Sprint 1: SPRINT-LAYER1-PHASE5-E2E-CLOSURE~~ ✅ COMPLETED (2026-03-14)
+**Rationale**: Command Center has 25+ dashboard pages and advanced monitoring
+UI, but uses placeholder user IDs (`capper-user`, `command-center-user`)
+throughout. Auth context is a prerequisite for operator workflows (Phase 11) and
+replay completion. Highest-ROI Layer 3 entry point.
 
-> Shadow guardrails + fault suite wired into CI; R2 deterministic replay proves
-> full lifecycle traversal (SUBMITTED→GRADED→POSTED→SETTLED→RECAP, SHA-256
-> verified). Phase 5 COMPLETE. Layer 1 COMPLETE. Layer 2 now unblocked. Proof:
-> `out/sprints/SPRINT-LAYER1-PHASE5-E2E-CLOSURE/2026-03-14/`
+**Tasks**:
 
----
+1. Audit all Command Center API routes and pages for hardcoded user IDs
+2. Implement auth context provider (session-based or JWT) for Command Center
+3. Replace hardcoded `actorId`/`x-user-id` values with auth context
+4. Define role-based permission scopes (capper, analyst, admin) for dashboard
+   pages
+5. Add auth guard middleware to Command Center API routes
+6. Wire Temporal `startWorkflow` method in `/api/replay/route.ts` (currently
+   TODO)
 
-## ~~Sprint: SPRINT-CLAUDE-OS-UPGRADE-COS001-005~~ ✅ COS-001 DONE / COS-002–005 IN REVIEW (2026-03-14)
+**Success Criteria**:
 
-> COS-001 complete: MODEL_SELECTION.md, sprint-plan Model/Routing fields (UNI-64
-> Done). COS-002–005 in PR #170 on `sprint/claude-os-cos004-lane-model-rules`:
-> Linear sync automation (UNI-65), phase proof template + generator (UNI-66),
-> lane model rules (UNI-67), session baseline auto-trigger hook (UNI-68). PR
-> #169 is redundant (superseded by #170 — close before merging).
-
----
-
-## ~~Sprint 1: SPRINT-RISK-DASHBOARD-MONITORING~~ ✅ COMPLETED (2026-03-14)
-
-> `/api/risk/status` + `/api/risk/decisions` endpoints added;
-> `computeCorrelation` + `computeDrawdown` public methods on RiskEngine;
-> CorrelationPanel + DrawdownPanel in Command Center; DRIFT-L4 closed (false
-> positive); 898/898 vitest; PR #177, UNI-69 Done.
+- No hardcoded user IDs remain in Command Center pages or API routes
+- Auth context available via React context provider
+- Role-based access control defined (even if enforcement is soft initially)
+- Replay workflow endpoint functional (Temporal `startWorkflow` wired)
+- All builds pass, no type-check regressions
 
 ---
 
-## ~~Sprint 1: SPRINT-JEST-QUARANTINE-CLEANUP~~ ✅ COMPLETED (2026-03-14)
+## Sprint 3: SPRINT-050-LAYER3-PHASE9-SMARTFORM-UX-POLISH
 
-> All 58 quarantined Jest tests permanently deleted with documented rationale
-> (MANIFEST.md). DRIFT-L2 closed. CI/CD Pipeline: PARTIAL → VERIFIED. Jest:
-> 643/643 passing (35 suites, 0 quarantined). Vitest: 898/898 passing. PR merged
-> to main, tag SPRINT-JEST-QUARANTINE-CLEANUP minted by CI. UNI-70 Done.
+**Priority**: P2 | **Phase**: Layer 3 / Phase 9 — SmartForm UX | **Depends On**:
+None
 
----
+**Objective**: Polish the Smart Form pick submission UX with accessibility
+improvements, mobile-first refinements, and component extraction for
+maintainability.
 
-## ~~Sprint 1: SPRINT-041-MARKET-TYPE-EXPOSURE-CAPS~~ ✅ COMPLETED (2026-03-14)
+**Rationale**: Smart Form is functional (sportsbook-style manual entry, bet slip
+panel, keyboard shortcuts) but has not received UX polish since the initial
+build sprint. Large components (SportsbookManualEntry 64KB, PickWizard 41KB)
+need extraction. Mobile responsiveness and accessibility (WCAG 2.1 AA) not
+verified.
 
-> Market-type level exposure caps added to ExposureCalculator
-> (markets!inner(category) join + byMarketType aggregation + breach detection);
-> market_type_kelly_limit = 0.35 config seeded; MarketTypePanel + 3-col grid in
-> Command Center risk dashboard; Phase 3 → 100% complete. 5 new vitest tests;
-> 901/903 vitest; PR #185.
+**Tasks**:
 
----
+1. Audit Smart Form for WCAG 2.1 AA compliance (form labels, focus states, ARIA
+   attributes, color contrast)
+2. Test and fix mobile responsiveness at 375w, 768w, and 1024w breakpoints
+3. Extract LegCard and BetSlipPanel into smaller, composable components
+4. Document keyboard shortcuts (already implemented but undocumented)
+5. Improve form field validation error display (inline errors, field-level
+   feedback)
+6. Add Smart Form specific vitest tests for extracted components
 
-## ~~Sprint 1: SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE~~ ✅ COMPLETED (2026-03-14)
+**Success Criteria**:
 
-> Layer 2 / Phase 6 — Operator Control Plane. Added GET/PUT /ops/autopilot, POST
-> /ops/picks/:id/override, PUT /api/risk/config/:key; AutopilotGuard
-> persistMode() + setCanaryPercentage(); migration 20260314120000; 12 new vitest
-> tests; 910/910 vitest clean. PR #189.
-
----
-
-## ~~Sprint 1: SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING~~ ✅ COMPLETED (2026-03-14)
-
-> Layer 2 / Phase 7 — Reliability & Monitoring. SLO framework (4 SLOs + GET
-> /api/slo/status); GET /api/health/summary (HEALTHY/DEGRADED/CRITICAL);
-> PlatformThresholdEvaluator; SLO_DEFINITIONS.md + ON_CALL_RUNBOOK.md; 11 new
-> vitest tests; 921/921 vitest. PR #191.
-
----
-
-## ~~Sprint 1: SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY~~ ✅ COMPLETED (2026-03-14)
-
-> Layer 2 / Phase 8 — Recovery & Replay. POST /ops/recovery/replay + GET
-> /ops/recovery/replays; ops-recovery.ts route; JOURNAL_BACKUP_PROCEDURE.md;
-> ON_CALL_RUNBOOK.md Scenario 6; 5 new vitest tests; 926/926 vitest. Layer 2
-> 100% complete. PR #199, UNI-77 Done, tag
-> SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY.
+- Smart Form passes WCAG 2.1 AA audit for core submission flow
+- Responsive layout verified at 375w, 768w, 1024w
+- No component file exceeds 40KB after extraction
+- Keyboard shortcuts documented in accessible help panel
+- Smart Form build passes, no type-check regressions
 
 ---
 
-## ~~Sprint 1: SPRINT-LAYER2-PLATFORM-VERIFICATION-LOCK~~ ✅ COMPLETED (2026-03-14)
+## Sprint 4: SPRINT-051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION
 
-> Full platform verification audit after Layer 2 completion. 1,569 tests
-> passing. 19 findings (0 P0, 3 P1, 9 P2). All 8 subsystems VERIFIED. Platform
-> claims confirmed: observable, controllable, recoverable, deterministic.
+**Priority**: P1 | **Phase**: Layer 3 / Phase 11 — Workflow Optimization |
+**Depends On**: SPRINT-049 (CC auth context needed for operator identity)
+
+**Objective**: Build the foundation for operator workflow management: a unified
+CLI entry point, workflow registry for 50+ scripts, and a discoverability
+endpoint.
+
+**Rationale**: 50+ utility scripts exist in `apps/api/src/scripts/` with no
+registry, no help system, and no unified entry point. Operator routes are
+scattered across 5+ route files. This sprint creates the infrastructure that
+Phase 11 UX (workflow UI, batch operations) will build on.
+
+**Tasks**:
+
+1. Create a workflow registry that auto-discovers scripts in
+   `apps/api/src/scripts/` with metadata (name, description, parameters,
+   category)
+2. Build unified CLI entry point: `pnpm ops:<workflow>` commands mapping to
+   registered workflows
+3. Add `GET /api/ops/workflows` endpoint exposing the registry for Command
+   Center consumption
+4. Categorize existing scripts (ingestion, settlement, backfill, analysis,
+   health)
+5. Add `--help` support for each registered workflow
+6. Wire Temporal workflow triggers where applicable (feed ingestion, analytics)
+
+**Success Criteria**:
+
+- Workflow registry discovers and catalogs all scripts in
+  `apps/api/src/scripts/`
+- `pnpm ops:list` shows all available workflows with descriptions
+- `GET /api/ops/workflows` returns registry in JSON format
+- At least 10 scripts registered with metadata
+- All operator actions logged via `operatorAuditLog` middleware
+- All gates pass
 
 ---
 
-## ~~Sprint 1: SPRINT-045-OPERATOR-AUTH-HARDENING~~ ✅ COMPLETED (2026-03-14)
+## Sprint 5: SPRINT-052-GOVERNANCE-NAMING-CONVENTION
 
-> Weak "Bearer admin-\*" token auth replaced with JWT-based operatorAuth
-> middleware in 6 files (ops.ts, ops-control.ts, ops-recovery.ts, slo.ts,
-> risk.ts, api-server.ts). All gates pass: 1,569 tests, 0 TS errors, 0
-> single-writer violations.
+**Priority**: P2 | **Phase**: Meta (Governance) | **Depends On**: None
 
----
+**Objective**: Resolve DRIFT-H2 (sprint naming convention inconsistency) by
+establishing and documenting a canonical naming convention, then reconciling
+legacy git tags.
 
-## ~~Sprint 1: SPRINT-045-SCHEMA-TYPE-SYNC~~ ✅ COMPLETED (2026-03-14)
+**Rationale**: Legacy git tags use `SPRINT-<NAME>-###` numbering while recent
+sprints use descriptive names only (`SPRINT-PROMOTION-PIPELINE-ACTIVATION`).
+Cross-referencing sprints between git tags, Linear issues, and docs requires
+manual mapping. This is the highest-severity active drift item (HIGH).
 
-> Schema types regenerated: 21 → 34 tables. All V3 canonical tables + lifecycle
-> columns included. packages/shared-types/src/supabase.ts updated. All gates
-> pass.
+**Tasks**:
 
----
+1. Document the canonical sprint naming convention in
+   `docs/claude/SPRINT_NAMING_CONVENTION.md`
+2. Decide: keep descriptive-only names (current practice) or restore
+   `<NAME>-###` (legacy)
+3. Update `CLAUDE.md` sprint naming section to reference the canonical doc
+4. Create a mapping table of legacy numbered tags to their descriptive
+   equivalents
+5. Update `tools/governance/sprint-gate.js` to validate the chosen convention
+6. Update DRIFT_REPORT.md to resolve DRIFT-H2
 
-## ~~Sprint 1: SPRINT-046-OPERATOR-AUDIT-TRAIL~~ ✅ COMPLETED (2026-03-14)
+**Success Criteria**:
 
-> Immutable `operator_audit_log` table with DB trigger rejecting UPDATE/DELETE;
-> `operatorAuditLog` middleware wired to all /ops and /admin routes;
-> `GET /ops/audit-log` query endpoint with pagination + filters; schema types
-> regenerated (35 tables); 7 new vitest; 933/933 vitest; PR #210.
-
----
-
-## ~~Sprint 1: SPRINT-047-INGESTION-UNIT-COVERAGE-LOCK~~ ✅ COMPLETED (2026-03-14)
-
-> 45 provider-independent unit tests for IngestionAgent covering normalization,
-> validation, Zod schema, business rules, required fields, SGO adapter.
-> Fixture-driven, offline-only. Vitest: 978/978 (38 suites). PR #211.
+- Canonical naming convention documented and referenced from CLAUDE.md
+- Sprint gate validates name format
+- DRIFT-H2 resolved in DRIFT_REPORT.md
+- No code changes — governance docs + tooling only
 
 ---
 
 ## Summary
 
-| #     | Sprint                               | Priority | Phase       | Focus                                                 | Linear    |
-| ----- | ------------------------------------ | -------- | ----------- | ----------------------------------------------------- | --------- |
-| ~~1~~ | ~~RISK-BANKROLL-KELLY~~              | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                   | UNI-53    |
-| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~        | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE         | UNI-54    |
-| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~          | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE             | UNI-55    |
-| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~     | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                     | UNI-56    |
-| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~       | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE           | UNI-57    |
-| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~        | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE         | TBD       |
-| ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~     | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW    | UNI-64–68 |
-| ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~        | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE              | UNI-69    |
-| ~~1~~ | ~~JEST-QUARANTINE-CLEANUP~~          | ~~P2~~   | ~~L1/Ph 0~~ | ~~Delete quarantined tests, close DRIFT-L2~~ ✅ DONE  | UNI-70    |
-| ~~1~~ | ~~041-MARKET-TYPE-EXPOSURE-CAPS~~    | ~~P1~~   | ~~Ph 3~~    | ~~Market-type caps; Phase 3 → 100%~~ ✅ DONE          | UNI-72    |
-| ~~1~~ | ~~042-LAYER2-PHASE6-OPERATOR-CP~~    | ~~P1~~   | ~~L2/Ph 6~~ | ~~Operator control API + pick override~~ ✅ DONE      | TBD       |
-| ~~1~~ | ~~043-LAYER2-PHASE7-RELIABILITY~~    | ~~P1~~   | ~~L2/Ph 7~~ | ~~SLO framework + health summary + alerting~~ ✅ DONE | TBD       |
-| ~~1~~ | ~~044-LAYER2-PHASE8-RECOVERY~~       | ~~P1~~   | ~~L2/Ph 8~~ | ~~Recovery & Replay; Layer 2 100% complete~~ ✅ DONE  | UNI-77    |
-| ~~1~~ | ~~PLATFORM-VERIFICATION-LOCK~~       | ~~P0~~   | ~~L2~~      | ~~Full platform verification audit~~ ✅ DONE          | TBD       |
-| ~~1~~ | ~~045-OPERATOR-AUTH-HARDENING~~      | ~~P1~~   | ~~L2/Sec~~  | ~~JWT auth on all /ops routes~~ ✅ DONE               | TBD       |
-| ~~1~~ | ~~045-SCHEMA-TYPE-SYNC~~             | ~~P1~~   | ~~Infra~~   | ~~Regenerate schema types (34 tables)~~ ✅ DONE       | TBD       |
-| ~~1~~ | ~~046-OPERATOR-AUDIT-TRAIL~~         | ~~P2~~   | ~~L2/Sec~~  | ~~Immutable audit log + query endpoint~~ ✅ DONE      | TBD       |
-| ~~1~~ | ~~047-INGESTION-UNIT-COVERAGE-LOCK~~ | ~~P2~~   | ~~L2/Ph 7~~ | ~~IngestionAgent unit tests~~ ✅ DONE                 | TBD       |
+| #   | Sprint                                     | Priority | Phase     | Focus                                           | Linear | Blocked By |
+| --- | ------------------------------------------ | -------- | --------- | ----------------------------------------------- | ------ | ---------- |
+| 1   | COS-007-SPRINT-CLOSE-VALIDATION            | P2       | Claude OS | LLM routing artifact validation in sprint:close | TBD    | None       |
+| 2   | 049-LAYER3-PHASE10-CC-AUTH-INTEGRATION     | P1       | L3/Ph 10  | CC auth context + operator permissions          | TBD    | None       |
+| 3   | 050-LAYER3-PHASE9-SMARTFORM-UX-POLISH      | P2       | L3/Ph 9   | Accessibility, mobile, component extraction     | TBD    | None       |
+| 4   | 051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FNDTN | P1       | L3/Ph 11  | Workflow registry + CLI + discovery endpoint    | TBD    | Sprint 2   |
+| 5   | 052-GOVERNANCE-NAMING-CONVENTION           | P2       | Meta      | Resolve DRIFT-H2 naming inconsistency           | TBD    | None       |
 
-**Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
-independent and can run in any order.
+**Total estimated effort**: 5–8 days **Dependency chain**: Sprint 4 depends on
+Sprint 2 (auth context). All others are independent.
+
+---
+
+## Completed Sprint History
+
+<details>
+<summary>18 sprints completed (2026-03-10 through 2026-03-14) — click to expand</summary>
+
+| Sprint                           | Date       | PR   | Linear    | Layer/Phase |
+| -------------------------------- | ---------- | ---- | --------- | ----------- |
+| RISK-BANKROLL-KELLY              | 2026-03-10 | #141 | UNI-53    | Ph 3        |
+| RISK-EXPOSURE-CORRELATION        | 2026-03-10 | #142 | UNI-54    | Ph 3        |
+| OBSERVABILITY-BUILD-FIX          | 2026-03-10 | #146 | UNI-55    | Ph 1        |
+| PROMOTION-RUNTIME-ACTIVATION     | 2026-03-10 | #149 | UNI-56    | Ph 1→3      |
+| DISCORD-RECAP-VERIFICATION       | 2026-03-10 | #152 | UNI-57    | Ph 4        |
+| LAYER1-PHASE5-E2E-CLOSURE        | 2026-03-14 | #163 | —         | L1/Ph 5     |
+| CLAUDE-OS-UPGRADE-COS001-005     | 2026-03-14 | #170 | UNI-64–68 | Meta        |
+| RISK-DASHBOARD-MONITORING        | 2026-03-14 | #177 | UNI-69    | L2/Ph 7     |
+| JEST-QUARANTINE-CLEANUP          | 2026-03-14 | —    | UNI-70    | L1/Ph 0     |
+| 041-MARKET-TYPE-EXPOSURE-CAPS    | 2026-03-14 | #185 | UNI-72    | Ph 3        |
+| 042-LAYER2-PHASE6-OPERATOR-CP    | 2026-03-14 | #189 | —         | L2/Ph 6     |
+| 043-LAYER2-PHASE7-RELIABILITY    | 2026-03-14 | #191 | UNI-74    | L2/Ph 7     |
+| 044-LAYER2-PHASE8-RECOVERY       | 2026-03-14 | #199 | UNI-77    | L2/Ph 8     |
+| PLATFORM-VERIFICATION-LOCK       | 2026-03-14 | —    | —         | L2          |
+| 045-OPERATOR-AUTH-HARDENING      | 2026-03-14 | —    | —         | L2/Sec      |
+| 045-SCHEMA-TYPE-SYNC             | 2026-03-14 | —    | —         | Infra       |
+| 046-OPERATOR-AUDIT-TRAIL         | 2026-03-14 | #210 | —         | L2/Sec      |
+| 047-INGESTION-UNIT-COVERAGE-LOCK | 2026-03-14 | #211 | UNI-81    | L2/Ph 7     |
+
+</details>
