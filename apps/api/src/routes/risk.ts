@@ -8,11 +8,13 @@
  * GET /api/risk/events    → paginated risk_events
  * GET /api/risk/config    → current risk_engine_config values
  *
- * Auth: adminAuth (same as ops routes)
+ * Auth: operatorAuth (JWT in production, system operator in dev, E2E bypass in test)
  */
 
 import express, { Router } from 'express';
 
+import { operatorAuditLog } from '../middleware/operatorAuditLog';
+import { operatorAuth } from '../middleware/operatorAuth';
 import { RiskEngine } from '../services/risk/RiskEngine';
 import { supabase } from '../services/supabaseClient';
 import { createLogger } from '../utils/logger';
@@ -20,25 +22,10 @@ import { createLogger } from '../utils/logger';
 const logger = createLogger('RiskRouter');
 const router: Router = express.Router();
 
-// Simple admin auth (matches ops.ts pattern)
-const adminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (process.env.NODE_ENV === 'test' && req.headers['x-e2e-test'] === 'true') {
-    return next();
-  }
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
-    return res.status(401).json({
-      success: false,
-      error: 'Unauthorized - Admin access required',
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  next();
-};
-
-router.use(adminAuth);
+// SPRINT-045-OPERATOR-AUTH-HARDENING: Use JWT-based operatorAuth instead of weak admin token
+router.use(operatorAuth);
+// SPRINT-046-OPERATOR-AUDIT-TRAIL: Immutable audit log for all operator actions
+router.use(operatorAuditLog);
 
 /**
  * GET /api/risk/exposure

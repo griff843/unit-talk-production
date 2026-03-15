@@ -6,6 +6,8 @@ import express, { Express } from 'express';
 
 import { validateDbMode } from './config/dbMode';
 import { enforceFailClosedBoot } from './lib/enforcement';
+import { operatorAuditLog } from './middleware/operatorAuditLog';
+import { operatorAuth } from './middleware/operatorAuth';
 import healthRouter from './routes/health';
 import opsRouter from './routes/ops';
 import opsControlRouter from './routes/ops-control';
@@ -162,14 +164,10 @@ app.get('/health/provider', async (req, res) => {
   }
 });
 
-// Admin endpoints
-app.post('/admin/reload-secrets', async (req, res) => {
-  // Simple auth check
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+// Admin endpoints — SPRINT-045-OPERATOR-AUTH-HARDENING: Use JWT-based operatorAuth
+// SPRINT-046-OPERATOR-AUDIT-TRAIL: Immutable audit log for all operator actions
 
+app.post('/admin/reload-secrets', operatorAuth, operatorAuditLog, async (req, res) => {
   try {
     const { SecretDriftGuard } = await import('./agents/FeedAgent/secretDriftGuard');
     const secretGuard = new (SecretDriftGuard as any)();
@@ -183,13 +181,7 @@ app.post('/admin/reload-secrets', async (req, res) => {
   }
 });
 
-app.post('/admin/invalidate-cache', async (req, res) => {
-  // Simple auth check
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
+app.post('/admin/invalidate-cache', operatorAuth, operatorAuditLog, async (req, res) => {
   res.json({
     success: true,
     message: 'Cache invalidation is not implemented yet',
@@ -222,6 +214,7 @@ app.get('/', (_req, res) => {
       'POST /ops/settle',
       'GET /ops/unsettled',
       'POST /ops/recap',
+      'GET /ops/audit-log',
     ],
   });
 });

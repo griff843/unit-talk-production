@@ -5,7 +5,7 @@
  *
  * GET /api/slo/status → SLO attainment for 7-day rolling window
  *
- * Auth: adminAuth (Bearer admin-* token)
+ * Auth: operatorAuth (JWT in production, system operator in dev, E2E bypass in test)
  *
  * SLOs defined in docs/ops/SLO_DEFINITIONS.md
  */
@@ -13,29 +13,18 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import express, { Router } from 'express';
 
+import { operatorAuditLog } from '../middleware/operatorAuditLog';
+import { operatorAuth } from '../middleware/operatorAuth';
 import { supabase } from '../services/supabaseClient';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('SloRouter');
 const router: Router = express.Router();
 
-// Reuse admin auth pattern from ops.ts / risk.ts
-const adminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (process.env.NODE_ENV === 'test' && req.headers['x-e2e-test'] === 'true') {
-    return next();
-  }
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
-    return res.status(401).json({
-      success: false,
-      error: 'Unauthorized - Admin access required',
-      timestamp: new Date().toISOString(),
-    });
-  }
-  next();
-};
-
-router.use(adminAuth);
+// SPRINT-045-OPERATOR-AUTH-HARDENING: Use JWT-based operatorAuth instead of weak admin token
+router.use(operatorAuth);
+// SPRINT-046-OPERATOR-AUDIT-TRAIL: Immutable audit log for all operator actions
+router.use(operatorAuditLog);
 
 export type SloStatus = 'OK' | 'WARN' | 'BREACH';
 

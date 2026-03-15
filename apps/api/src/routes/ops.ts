@@ -12,6 +12,7 @@ import crypto from 'crypto';
 import { Connection, Client } from '@temporalio/client';
 import express, { Router } from 'express';
 
+import { operatorAuditLog } from '../middleware/operatorAuditLog';
 import {
   operatorAuth,
   requireOperatorRole,
@@ -24,30 +25,11 @@ const logger = createLogger('OpsRouter');
 const router: Router = express.Router();
 const env = getEnv();
 
-// Simple admin auth middleware
-const adminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const authHeader = req.headers.authorization;
-
-  // For E2E testing, allow bypass with specific header - ONLY in test environment
-  // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix HIGH-006 - E2E bypass in production
-  if (process.env.NODE_ENV === 'test' && req.headers['x-e2e-test'] === 'true') {
-    logger.info('E2E test bypass enabled (test environment only)');
-    return next();
-  }
-
-  if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
-    return res.status(401).json({
-      success: false,
-      error: 'Unauthorized - Admin access required',
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  next();
-};
-
-// Apply auth to all ops routes
-router.use(adminAuth);
+// SPRINT-045-OPERATOR-AUTH-HARDENING: Use JWT-based operatorAuth instead of weak admin token
+// operatorAuth validates JWT in production, allows system operator in dev, E2E bypass in test
+router.use(operatorAuth);
+// SPRINT-046-OPERATOR-AUDIT-TRAIL: Immutable audit log for all operator actions
+router.use(operatorAuditLog);
 
 // Add cache control for testing
 router.use((req, res, next) => {
@@ -2588,5 +2570,78 @@ router.post(
     }
   }
 );
+
+/**
+ * GET /ops/audit-log — Query operator audit trail
+ * Sprint: SPRINT-046-OPERATOR-AUDIT-TRAIL
+ *
+ * Query params:
+ *   operator_id  - filter by operator
+ *   action       - filter by action string (partial match)
+ *   from         - ISO date lower bound
+ *   to           - ISO date upper bound
+ *   limit        - max rows (default 50, max 200)
+ *   offset       - pagination offset (default 0)
+ */
+router.get('/audit-log', async (req: AuthenticatedRequest, res) => {
+  const correlationId = (req as any).correlationId || `audit-${Date.now()}`;
+  try {
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    const operatorId = req.query.operator_id as string | undefined;
+    const action = req.query.action as string | undefined;
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const limit = Math.min(parseInt((req.query.limit as string) || '50', 10), 200);
+    const offset = parseInt((req.query.offset as string) || '0', 10);
+
+    let query = supabaseClient
+      .from('operator_audit_log')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (operatorId) query = query.eq('operator_id', operatorId);
+    if (action) query = query.ilike('action', `%${action}%`);
+    if (from) query = query.gte('created_at', from);
+    if (to) query = query.lte('created_at', to);
+
+    const { data, count, error } = await query;
+
+    if (error) {
+      logger.error('Audit log query failed', { error: error.message, correlationId });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to query audit log',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        total: count || 0,
+        limit,
+        offset,
+      },
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Audit log endpoint error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
 
 export default router;
