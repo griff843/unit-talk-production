@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
+import { PermissionGate } from '@/components/PermissionGate';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { type LifecycleStage } from '@/lib/lifecycleDisplay';
+import { Permission } from '@/lib/rbac';
 
 interface StuckPick {
   pickId: string;
@@ -356,15 +358,22 @@ export function StuckPicksPanel() {
                             Failed
                           </span>
                         ) : canRetry ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => requestRetry(pick)}
-                            className="text-xs"
+                          <PermissionGate
+                            permission={Permission.REPLAY_WORKFLOWS}
+                            fallback={
+                              <span className="text-xs text-muted-foreground">View only</span>
+                            }
                           >
-                            <RotateCcw className="h-3 w-3 mr-1" />
-                            Retry
-                          </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => requestRetry(pick)}
+                              className="text-xs"
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" />
+                              Retry
+                            </Button>
+                          </PermissionGate>
                         ) : (
                           <span className="text-xs text-muted-foreground">Settlement</span>
                         )}

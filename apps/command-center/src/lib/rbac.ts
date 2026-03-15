@@ -455,15 +455,24 @@ export function getPermissionsForRole(role: Role): Permission[] {
 
 /**
  * React hook for client-side permission checking.
- * Returns permission evaluation helpers based on OPS role defaults.
- * Future: wire to AuthProvider context for real user role.
+ * Reads the operator's role from AuthProvider context. Falls back to OPS
+ * when no role is provided (backward compatible with Sprint 049 wiring).
  *
  * SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION
+ * SPRINT-050-LAYER3-PHASE10-CC-PERMISSION-ENFORCEMENT — wired to AuthProvider
  */
 export function usePermissions() {
-  const defaultRole = Role.OPS;
-  const permissions = ROLE_PERMISSIONS[defaultRole] || [];
+  // Import inline to avoid circular dependency (rbac ← auth-context)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { useAuth } = require('@/lib/auth-context');
+  const { user } = useAuth();
+
+  const role: Role =
+    user?.role && Object.values(Role).includes(user.role as Role) ? (user.role as Role) : Role.OPS;
+
+  const permissions = ROLE_PERMISSIONS[role] || [];
   return {
+    role,
     hasPermission: (permission: Permission) => permissions.includes(permission),
     requirePermission: (permission: Permission) => {
       if (!permissions.includes(permission)) {

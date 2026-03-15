@@ -2,7 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getOperatorIdentity } from '@/lib/auth';
+import { getOperatorIdentity, enforcePermission } from '@/lib/auth';
+import { Permission } from '@/lib/rbac';
 
 /**
  * LIFECYCLE RETRY API PROXY
@@ -22,6 +23,10 @@ function getApiBaseUrl(): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // SPRINT-050: Canonical RBAC enforcement
+    const denied = await enforcePermission(request, Permission.REPLAY_WORKFLOWS);
+    if (denied) return denied;
+
     const body = await request.json();
     const { pick_id, drift_mode, reason, retry_type } = body;
 

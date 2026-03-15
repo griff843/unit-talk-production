@@ -1,7 +1,8 @@
 # Phase Status
 
-**Last Updated**: 2026-03-15 (SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION)
-**Source**: Linear initiatives + repo implementation + sprint closeouts
+**Last Updated**: 2026-03-15
+(SPRINT-050-LAYER3-PHASE10-CC-PERMISSION-ENFORCEMENT) **Source**: Linear
+initiatives + repo implementation + sprint closeouts
 
 ---
 
@@ -466,9 +467,9 @@ sprint:close now enforces routing evidence before closeout. Next Claude OS items
 
 **Current Platform Phase**: Layer 2 COMPLETE (Phases 6–8 all done). Layer 1
 COMPLETE. Phase 1 at 97%, Phase 2 at 100%, Phase 3 at 100%, Phase 4 at 40%.
-**Layer 3 started**: SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION delivered auth
-identity foundation for Command Center (auth.ts, auth-context.tsx, RBAC
-CAPPER/ANALYST roles, 17 routes + 2 components updated, 29 vitest tests; PR
-#221, UNI-84 Done). Next canonical work: Layer 3 / Phase 9 — SmartForm UX or
-Phase 10 continuation. See `docs/06_status/current_phase.md` for canonical
-layer/phase position.
+**Layer 3 started**: SPRINT-049 delivered auth identity foundation; SPRINT-050
+delivered permission enforcement — 3 routes enforced (agents/control,
+lifecycle/retry, ops/submit), 3 components gated (AgentControlPanel, ops-submit,
+StuckPicksPanel), 47 CC vitest tests (PR #224, UNI-85 Done). Next canonical
+work: Layer 3 / Phase 9 — SmartForm UX or Phase 10/11 continuation. See
+`docs/06_status/current_phase.md` for canonical layer/phase position.
