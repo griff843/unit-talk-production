@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-14 (SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY)
+**Last Updated**: 2026-03-14 (SPRINT-CLAUDE-OS-LIFECYCLE-AUTOMATION-HARDENING)
 **Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -401,6 +401,17 @@ Tracking AI operator tooling improvements separate from product phases.
   never-delegate; Mode A default (backward compatible);
   `LLM_ROUTING_DECISION.md` evidence artifact; (UNI-76 Done)
 
+### Complete (SPRINT-CLAUDE-OS-LIFECYCLE-AUTOMATION-HARDENING, 2026-03-14)
+
+- **Lifecycle Hardening**: `tools/claude-os/src/lifecycle-checker.ts` (new) — 5
+  post-bundle lifecycle gates: proof_artifacts (file stat), bundle_verdict
+  (verdict.json), working_tree (git status --porcelain), tag_on_remote (git
+  ls-remote), status_sync (CURRENT_SYSTEM_STATUS.md grep); `checkLifecycle()`
+  - `resolveArtifactRoot()` exports; `lifecycle-status` CLI command with
+    human-readable + JSON output; exit code 1 on ACTION_REQUIRED; read-only, no
+    shared state mutation; architecture doc
+    `docs/02_architecture/claude_os_lifecycle_automation.md` (PR #201)
+
 ### Future
 
 - **COS-007 — sprint:close validation**: validate `LLM_ROUTING_DECISION.md`
@@ -411,8 +422,9 @@ Tracking AI operator tooling improvements separate from product phases.
 
 ### Assessment
 
-**Claude OS Upgrade: COS-001–006 all COMPLETE. COS-006 (LLM Routing Engine)
-merged 2026-03-14 (UNI-76 Done). Next: COS-007 sprint:close validation.**
+**Claude OS Upgrade: COS-001–006 all COMPLETE + Lifecycle Hardening complete.
+Post-bundle lifecycle now fully automated with single-command readout. Next:
+COS-007 sprint:close validation.**
 
 ---
 
@@ -425,7 +437,7 @@ merged 2026-03-14 (UNI-76 Done). Next: COS-007 sprint:close validation.**
 | **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)              |
 | **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started |
 | **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                           |
-| **Claude OS Upgrade**                  | Active  | 90%        | COS-001–006 Done; COS-007 (sprint:close validation) next                                                     |
+| **Claude OS Upgrade**                  | Active  | 95%        | COS-001–006 Done + Lifecycle Hardening done; COS-007 (sprint:close validation) next                          |
 
 **Current Platform Phase**: Layer 2 / Phase 8 COMPLETE — Layer 2 fully done.
 Phase 1 at 97%, Phase 4 advancing (40%); canonical Layer 1 / Phase 5 (Platform
