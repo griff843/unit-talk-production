@@ -128,7 +128,17 @@ Discord posting, receipt updates | | `settler` | Settlement operations | |
 
 ## 6. Sprint Protocol
 
-**Naming:** `SPRINT-<NAME>-###` (e.g., `SPRINT-LIFECYCLE-MIGRATION-038`)
+**Naming:** See `docs/claude/SPRINT_NAMING_CONVENTION.md` (canonical authority).
+
+Two patterns:
+
+- **Sequenced** (main queue): `SPRINT-NNN-DESCRIPTIVE-NAME` e.g.,
+  `SPRINT-053-GOVERNANCE-NAMING-CONVENTION`
+- **Non-sequenced** (governance/Claude OS): `SPRINT-DOMAIN-DESCRIPTOR` e.g.,
+  `SPRINT-COS-007-SPRINT-CLOSE-VALIDATION`
+
+> ⚠️ `SPRINT-<NAME>-###` (number at end) is the **legacy deprecated** pattern —
+> do not use for new sprints.
 
 **Proof Location:** `out/sprints/<SPRINT>/<YYYY-MM-DD>/`
 

@@ -65,6 +65,18 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
   implemented (UNI-11/12/13 were previously considered gaps but are complete)
 - **Resolved**: 2026-03-09
 
+### ~~DRIFT-H2: Sprint Naming Convention Inconsistency~~ ✅ RESOLVED
+
+- **Resolved by**: SPRINT-053-GOVERNANCE-NAMING-CONVENTION
+- **Evidence**: `docs/claude/SPRINT_NAMING_CONVENTION.md` created (canonical
+  doc); CLAUDE.md §6 updated to reference it; `sprint-gate.js` updated to read
+  from `NEXT_5_SPRINTS.md` (primary) + format validation; legacy tag mapping
+  table included in naming convention doc
+- **Canonical patterns**: Pattern A (`SPRINT-NNN-DESCRIPTIVE`), Pattern B
+  (`SPRINT-DOMAIN-DESCRIPTOR`); deprecated: number-at-end, letter-prefix,
+  `-COMPLETE` suffix
+- **Resolved**: 2026-03-15
+
 ### ~~DRIFT-H5: Verification Infrastructure Not Committed to Git~~ ✅ RESOLVED
 
 - **What**: Entire `apps/api/src/lib/verification/` directory (R1–R5 code) was
@@ -81,17 +93,7 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ### HIGH DRIFT
 
-#### DRIFT-H2: Sprint Naming Convention Inconsistency
-
-- **What**: Legacy git tags use `SPRINT-<NAME>-###` numbering; recent sprints
-  use descriptive names only
-- **Where**: Git tags vs Linear cycles
-- **Expected**: Consistent naming across both systems
-- **Actual**: Git: `SPRINT-044A`, `SPRINT-035A`; recent:
-  `SPRINT-PROMOTION-PIPELINE-ACTIVATION` (no number)
-- **Impact**: Cross-referencing sprints between systems requires manual mapping
-- **Severity**: **HIGH**
-- **Owner**: Governance tooling sprint (future)
+~~No active HIGH drift items.~~
 
 ---
 
@@ -184,22 +186,22 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ## DRIFT SUMMARY
 
-| Severity            | Count | Key Theme                                                           |
-| ------------------- | ----- | ------------------------------------------------------------------- |
-| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                   |
-| HIGH                | 1     | Naming convention inconsistency (DRIFT-H2)                          |
-| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                              |
-| LOW                 | 2     | Cycle overlap, deprecated references                                |
-| **ACTIVE TOTAL**    | **6** |                                                                     |
-| **Resolved/Closed** | 12    | C1, C2, C3, H1, H3, H4, H5, M-CONSENSUS, M3, M5, L2, L4 (false +ve) |
+| Severity            | Count | Key Theme                                                                 |
+| ------------------- | ----- | ------------------------------------------------------------------------- |
+| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                         |
+| HIGH                | **0** | ~~DRIFT-H2 resolved by SPRINT-053 (naming convention doc + gate update)~~ |
+| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                                    |
+| LOW                 | 2     | Cycle overlap, deprecated references                                      |
+| **ACTIVE TOTAL**    | **5** |                                                                           |
+| **Resolved/Closed** | 13    | C1, C2, C3, H1, H2, H3, H4, H5, M-CONSENSUS, M3, M5, L2, L4 (false +ve)   |
 
-**Drift Trend**: STABLE — no new drift items since 2026-03-14. 12 items
-resolved/closed total. Layer 2 completion verified; `current_phase.md` stale
-state corrected by SPRINT-048-TRUTH-RECONCILIATION-LAYER3-QUEUE. DRIFT-H2
-addressed by Sprint 5 in new queue (SPRINT-052-GOVERNANCE-NAMING-CONVENTION).
+**Drift Trend**: IMPROVING — 0 CRITICAL, 0 HIGH as of 2026-03-15. 13 items
+resolved/closed total. DRIFT-H2 resolved by SPRINT-053 (canonical naming
+convention documented, sprint-gate updated to NEXT_5_SPRINTS.md authority).
 
 **Top 3 Active Actions**:
 
-1. Resolve sprint naming convention inconsistency (DRIFT-H2) — Sprint 5 in queue
-2. Update roadmap sprint order doc (DRIFT-M1)
-3. Clean up deprecated table references in utility scripts (DRIFT-L3)
+1. Update roadmap sprint order doc (DRIFT-M1) — intelligence pipeline doc stale
+   at SPRINT-040
+2. Clean up deprecated table references in utility scripts (DRIFT-L3)
+3. Assign owners to Linear initiatives (DRIFT-M4)
