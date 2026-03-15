@@ -1,12 +1,17 @@
 # Current System Status
 
 **Last Updated**: 2026-03-15 **Audit Source**:
-SPRINT-051-LAYER3-PHASE9-SMARTFORM-UX-POLISH (WCAG 2.1 AA accessibility
-remediation on BetSlipPanel, GamePickForm, ManualEntryForm — aria-labels,
-htmlFor/id, role=alert+aria-live on ErrorBanner, role=status on loading; new
-KeyboardShortcutsHelp component surfacing 5 existing shortcuts; 11 new Jest
-tests; PR #227, UNI-86 Done; no subsystem status changes — accessibility
-attributes only) **Prior Audit Source**:
+SPRINT-052-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION (WorkflowRegistry module
+with 18 curated workflow entries across 6 categories; GET /ops/workflows + GET
+/ops/workflows/:name endpoints with operatorAuth + operatorAuditLog; pnpm
+ops:list CLI with risk-level coloring; 17 new vitest tests; 995/995 passing; PR
+#230, UNI-87 Done; no subsystem status changes — new discovery surface only)
+**Prior Audit Source**: SPRINT-051-LAYER3-PHASE9-SMARTFORM-UX-POLISH (WCAG 2.1
+AA accessibility remediation on BetSlipPanel, GamePickForm, ManualEntryForm —
+aria-labels, htmlFor/id, role=alert+aria-live on ErrorBanner, role=status on
+loading; new KeyboardShortcutsHelp component surfacing 5 existing shortcuts; 11
+new Jest tests; PR #227, UNI-86 Done; no subsystem status changes —
+accessibility attributes only) **Prior Audit Source**:
 SPRINT-050-LAYER3-PHASE10-CC-PERMISSION-ENFORCEMENT (enforcePermission()
 helper + PermissionGate component; agents/control migrated from custom cookie
 RBAC to canonical auth; lifecycle/retry + ops/submit RBAC gates added;

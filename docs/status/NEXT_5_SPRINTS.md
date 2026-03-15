@@ -1,8 +1,9 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-15 (SPRINT-051-LAYER3-PHASE9-SMARTFORM-UX-POLISH)
-**Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
-backlog + codebase investigation
+**Last Updated**: 2026-03-15
+(SPRINT-052-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION) **Source**: Phase
+status + drift report + Layer 3 scoping analysis + Claude OS backlog + codebase
+investigation
 
 > **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
 > targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
@@ -10,47 +11,7 @@ backlog + codebase investigation
 
 ---
 
-## Sprint 1: SPRINT-052-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION
-
-**Priority**: P1 | **Phase**: Layer 3 / Phase 11 — Workflow Optimization |
-**Depends On**: None (SPRINT-049 CC auth context delivered)
-
-**Objective**: Build the foundation for operator workflow management: a unified
-CLI entry point, workflow registry for 50+ scripts, and a discoverability
-endpoint.
-
-**Rationale**: 50+ utility scripts exist in `apps/api/src/scripts/` with no
-registry, no help system, and no unified entry point. Operator routes are
-scattered across 5+ route files. This sprint creates the infrastructure that
-Phase 11 UX (workflow UI, batch operations) will build on.
-
-**Tasks**:
-
-1. Create a workflow registry that auto-discovers scripts in
-   `apps/api/src/scripts/` with metadata (name, description, parameters,
-   category)
-2. Build unified CLI entry point: `pnpm ops:<workflow>` commands mapping to
-   registered workflows
-3. Add `GET /api/ops/workflows` endpoint exposing the registry for Command
-   Center consumption
-4. Categorize existing scripts (ingestion, settlement, backfill, analysis,
-   health)
-5. Add `--help` support for each registered workflow
-6. Wire Temporal workflow triggers where applicable (feed ingestion, analytics)
-
-**Success Criteria**:
-
-- Workflow registry discovers and catalogs all scripts in
-  `apps/api/src/scripts/`
-- `pnpm ops:list` shows all available workflows with descriptions
-- `GET /api/ops/workflows` returns registry in JSON format
-- At least 10 scripts registered with metadata
-- All operator actions logged via `operatorAuditLog` middleware
-- All gates pass
-
----
-
-## Sprint 2: SPRINT-053-GOVERNANCE-NAMING-CONVENTION
+## Sprint 1: SPRINT-053-GOVERNANCE-NAMING-CONVENTION
 
 **Priority**: P2 | **Phase**: Meta (Governance) | **Depends On**: None
 
@@ -84,7 +45,7 @@ manual mapping. This is the highest-severity active drift item (HIGH).
 
 ---
 
-## Sprint 3: SPRINT-054-LAYER3-PHASE10-REPLAY-ENDPOINT
+## Sprint 2: SPRINT-054-LAYER3-PHASE10-REPLAY-ENDPOINT
 
 **Priority**: P2 | **Phase**: Layer 3 / Phase 10 — Command Center UX | **Depends
 On**: None (SPRINT-049 auth context delivered)
@@ -117,21 +78,21 @@ Temporal workflow.
 
 ## Summary
 
-| #   | Sprint                                     | Priority | Phase    | Focus                                        | Linear | Blocked By |
-| --- | ------------------------------------------ | -------- | -------- | -------------------------------------------- | ------ | ---------- |
-| 1   | 052-LAYER3-PHASE11-OPERATOR-WORKFLOW-FNDTN | P1       | L3/Ph 11 | Workflow registry + CLI + discovery endpoint | TBD    | None       |
-| 2   | 053-GOVERNANCE-NAMING-CONVENTION           | P2       | Meta     | Resolve DRIFT-H2 naming inconsistency        | TBD    | None       |
-| 3   | 054-LAYER3-PHASE10-REPLAY-ENDPOINT         | P2       | L3/Ph 10 | Wire Temporal startWorkflow in replay route  | TBD    | None       |
+| #   | Sprint                             | Priority | Phase    | Focus                                       | Linear | Blocked By |
+| --- | ---------------------------------- | -------- | -------- | ------------------------------------------- | ------ | ---------- |
+| 1   | 053-GOVERNANCE-NAMING-CONVENTION   | P2       | Meta     | Resolve DRIFT-H2 naming inconsistency       | TBD    | None       |
+| 2   | 054-LAYER3-PHASE10-REPLAY-ENDPOINT | P2       | L3/Ph 10 | Wire Temporal startWorkflow in replay route | TBD    | None       |
 
-**Total estimated effort**: 3–5 days **Dependency chain**: All sprints are now
-independent — SPRINT-049 (auth context) completed and unblocked Sprints 1 and 3.
+**Total estimated effort**: 2–4 days **Dependency chain**: All sprints are now
+independent — SPRINT-049 (auth context) and SPRINT-052 (workflow registry)
+completed and available as foundations.
 
 ---
 
 ## Completed Sprint History
 
 <details>
-<summary>23 sprints completed (2026-03-10 through 2026-03-15) — click to expand</summary>
+<summary>24 sprints completed (2026-03-10 through 2026-03-15) — click to expand</summary>
 
 | Sprint                           | Date       | PR   | Linear    | Layer/Phase |
 | -------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -158,5 +119,6 @@ independent — SPRINT-049 (auth context) completed and unblocked Sprints 1 and 
 | 049-LAYER3-PHASE10-CC-AUTH-FNDTN | 2026-03-15 | #221 | UNI-84    | L3/Ph 10    |
 | 050-LAYER3-PHASE10-CC-PERM-ENF   | 2026-03-15 | #224 | UNI-85    | L3/Ph 10    |
 | 051-LAYER3-PHASE9-SMARTFORM-UX   | 2026-03-15 | #227 | UNI-86    | L3/Ph 9     |
+| 052-LAYER3-PHASE11-OP-WORKFLOW   | 2026-03-15 | #230 | UNI-87    | L3/Ph 11    |
 
 </details>
