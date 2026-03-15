@@ -1,8 +1,8 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-15 (SPRINT-053-GOVERNANCE-NAMING-CONVENTION)
-**Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
-backlog + codebase investigation
+**Last Updated**: 2026-03-15 (SPRINT-055-MCP-LAYER-PARITY-FIX) **Source**: Phase
+status + drift report + Layer 3 scoping analysis + Claude OS backlog + codebase
+investigation
 
 > **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
 > targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
@@ -85,5 +85,6 @@ SPRINT-053 (naming convention) all completed.
 | 051-LAYER3-PHASE9-SMARTFORM-UX   | 2026-03-15 | #227 | UNI-86    | L3/Ph 9     |
 | 052-LAYER3-PHASE11-OP-WORKFLOW   | 2026-03-15 | #230 | UNI-87    | L3/Ph 11    |
 | 053-GOVERNANCE-NAMING-CONVENTION | 2026-03-15 | #234 | UNI-88    | Meta        |
+| 055-MCP-LAYER-PARITY-FIX         | 2026-03-15 | #238 | TBD       | MCP/Infra   |
 
 </details>

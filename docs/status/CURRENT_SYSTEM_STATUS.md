@@ -1,10 +1,14 @@
 # Current System Status
 
-**Last Updated**: 2026-03-15 **Audit Source**:
-SPRINT-053-GOVERNANCE-NAMING-CONVENTION (canonical sprint naming convention doc
-created; CLAUDE.md §6 updated; sprint-gate.js reads from NEXT_5_SPRINTS.md;
-DRIFT-H2 resolved — 0 HIGH drift items; PR #234, UNI-88 Done; no subsystem
-status changes — governance only) **Prior Audit Source**:
+**Last Updated**: 2026-03-15 **Audit Source**: SPRINT-055-MCP-LAYER-PARITY-FIX
+(4 MCP packages committed to git for first time; mcp-state deriveStage aligned
+to canonical 10/10 parity; mcp-intelligence /api/risk → /api/risk/status;
+.mcp.json OPERATOR_TOKEN added; mcp-ops outbox conditional removed; MCP Layer:
+UNVERIFIED → VERIFIED; PR #238, tag SPRINT-055-MCP-LAYER-PARITY-FIX) **Prior
+Audit Source**: SPRINT-053-GOVERNANCE-NAMING-CONVENTION (canonical sprint naming
+convention doc created; CLAUDE.md §6 updated; sprint-gate.js reads from
+NEXT_5_SPRINTS.md; DRIFT-H2 resolved — 0 HIGH drift items; PR #234, UNI-88 Done;
+no subsystem status changes — governance only) **Prior Audit Source**:
 SPRINT-052-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION (WorkflowRegistry module
 18 entries 6 categories; GET /ops/workflows; pnpm ops:list CLI; 17 new vitest
 tests; PR #230, UNI-87 Done) **Prior Audit Source**:
@@ -135,6 +139,7 @@ COS-005 session baseline hook — COS-002–005 in PR #170, UNI-64–68)
 | Operator Audit Trail   | ACTIVE        | `operator_audit_log` table (immutable — UPDATE/DELETE rejected by trigger); `operatorAuditLog` middleware on all /ops + /admin routes; `GET /ops/audit-log` query endpoint with pagination + filters (SPRINT-046-OPERATOR-AUDIT-TRAIL, PR #210)                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Database Schema        | 75 migrations | Latest: Mar 14, 2026 (20260314180000_operator_audit_log.sql)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Claude OS Governance   | VERIFIED      | **COS-001–007 all DONE**; COS-007: `routing-decision-validator.ts` — `sprint:close` now gates on `LLM_ROUTING_DECISION.md` presence + 4 required fields (Sprint, Classifications, Instance mode, Lane assignments); 17 vitest tests; UNI-83 Done (PR #217, 2026-03-15); COS-006: LLM Routing Engine (`tools/claude-os/src/llm-router.ts`); `route` CLI; Step 4.5 in sprint-plan SKILL.md; LLM_ROUTING_DECISION.md evidence artifact; Lane 2/3/5 never-delegate; UNI-76 Done (PR #196); **Lifecycle Hardening**: `lifecycle-checker.ts` + `lifecycle-status` CLI — 5 post-bundle gates; **Finding Backlog Automation**: `finding-backlog.ts` + `findings` CLI — 4 converters, 18 triage rules, fingerprint dedup (PR #205) |
+| MCP Layer              | VERIFIED      | All 4 MCP servers committed to git (SPRINT-055, PR #238): `mcp-state` (query_picks, get_pick, get_lifecycle_stage, get_settlement_records), `mcp-intelligence` (compute_clv, compute_calibration, get_shadow_divergence, get_risk_metrics, run_strategy_simulation), `mcp-ops` (get_agent_health, get_outbox_depth, get_platform_health, get_operator_workflows, get_pipeline_status, get_slo_status), `mcp-decision` (get_llm_routing_decision, get_sprint_gate_status, get_finding_backlog, get_lifecycle_status); deriveStage parity 10/10; tsc exit 0 all 4 packages; `.mcp.json` OPERATOR_TOKEN wired                                                                                                                |
 
 ---
 
