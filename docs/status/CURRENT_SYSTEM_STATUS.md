@@ -1,71 +1,75 @@
 # Current System Status
 
 **Last Updated**: 2026-03-15 **Audit Source**:
-SPRINT-050-LAYER3-PHASE10-CC-PERMISSION-ENFORCEMENT (enforcePermission() helper
-
-- PermissionGate component; agents/control migrated from custom cookie RBAC to
-  canonical auth; lifecycle/retry + ops/submit RBAC gates added;
-  AgentControlPanel, ops-submit, StuckPicksPanel gated by PermissionGate; 47 CC
-  vitest tests; PR #224, UNI-85 Done) **Prior Audit Source**:
-  SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION (auth.ts + auth-context.tsx +
-  RBAC CAPPER/ANALYST roles; 17 API routes + 2 client components updated; all
-  placeholder identities eliminated; 29 CC vitest tests; CI
-  autopilot-policy-acceptance fix — @unit-talk/data-access build added; PR #221,
-  UNI-84 Done) **Prior Audit Source**: SPRINT-COS-007-SPRINT-CLOSE-VALIDATION
-  (COS-007: routing-decision-validator.ts added to sprint:close gate; 17 vitest
-  tests; 532/532 passing; Claude OS COS-001–007 all DONE; no subsystem status
-  changes) **Prior Audit Source**: SPRINT-047-INGESTION-UNIT-COVERAGE-LOCK (45
-  provider-independent unit tests for IngestionAgent covering normalization,
-  validation, Zod schema, business rules, SGO adapter; vitest 926→978/978 (38
-  suites); PR #211) **Prior Audit Source**: SPRINT-046-OPERATOR-AUDIT-TRAIL
-  (immutable operator_audit_log table + middleware wired to all /ops and /admin
-  routes + GET /ops/audit-log query endpoint; 7 new vitest; 933/933 vitest; PR
-  #210) **Prior Audit Sources**: SPRINT-LAYER2-PLATFORM-VERIFICATION-LOCK;
-  SPRINT-CLAUDE-OS-FINDING-BACKLOG-AUTOMATION;
-  SPRINT-CLAUDE-OS-LIFECYCLE-AUTOMATION-HARDENING;
-  SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY (Layer 2 / Phase 8 — Recovery &
-  Replay: POST /ops/recovery/replay + GET /ops/recovery/replays; ops-recovery.ts
-  route; JOURNAL_BACKUP_PROCEDURE.md; ON_CALL_RUNBOOK.md Scenario 6; 5 new
-  vitest tests; 926/926 vitest clean; Layer 2 100% complete; PR #199, UNI-77
-  Done); SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING (Layer 2 / Phase 7 —
-  SLO framework: GET /api/slo/status (4 SLOs); GET /api/health/summary
-  (HEALTHY/DEGRADED/CRITICAL); PlatformThresholdEvaluator (drawdown/outbox/SLO/
-  heartbeat alerts); docs/ops/SLO_DEFINITIONS.md + ON_CALL_RUNBOOK.md; 11 new
-  vitest tests; 921/921 vitest clean; PR #191);
-  SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE (Layer 2 / Phase 6 — operator
-  control API added: GET/PUT /ops/autopilot, POST /ops/picks/:id/override, PUT
-  /api/risk/config/:key; AutopilotGuard.persistMode() + setCanaryPercentage();
-  migration 20260314120000; 12 new vitest tests; 910/910 vitest clean; PR #189);
-  SPRINT-041-MARKET-TYPE-EXPOSURE-CAPS (market-type level exposure caps added to
-  RiskEngine + ExposureCalculator via markets.category join; MarketTypePanel in
-  Command Center risk dashboard; Phase 3 → 100%; 5 new vitest tests; 901/903
-  vitest (2 pre-existing failures in risk-integration.test.ts); PR #185);
-  SPRINT-DISCORD-GATEWAY-INTENTS-ENABLEMENT (GuildPresences intent removed —
-  gateway disconnection fixed; gatewayStatus.ts singleton added; health split
-  into discord_api + discord_gateway; deployment guide updated with explicit
-  intent table; PR #181, d31a33a3); SPRINT-JEST-QUARANTINE-CLEANUP (58
-  quarantined Jest tests permanently deleted; DRIFT-L2 closed; CI/CD Pipeline
-  PARTIAL→VERIFIED; Jest 643/643 passing 0 quarantined; UNI-70 Done);
-  SPRINT-RISK-DASHBOARD-MONITORING (correlation+drawdown panels added to CC risk
-  dashboard; GET /api/risk/status + /api/risk/decisions; 898/898 vitest;
-  DRIFT-L4 closed; PR #177, UNI-69 Done); SPRINT-DISCORD-PROMOTION-BAND-NULL-FIX
-  (promotion_band null bug fixed in GradingAgent; 4 approved picks backfilled;
-  35c700ad); SPRINT-DOCKER-COMPOSE-STARTUP-AUDIT (all 12 services verified
-  healthy; Discord posting root cause traced — promotion_band=null + external
-  feeds down; worker heartbeat false negative discovered);
-  SPRINT-FRONTEND-DOCKER-PERMANENT-HARDENING (manifest-first layer caching +
-  node:20 standardization across all 3 frontend Dockerfiles; discord-bot chown-R
-  eliminated; f0993ce7); SPRINT-DOCKER-SHARED-TYPES-TRUTH-SWEEP
-  (command-center + dashboard Docker builds restored — stale shared-types steps
-  removed from all 3 frontend Dockerfiles);
-  SPRINT-SMARTFORM-DOCKER-BUILD-TRUTH-FIX (Smart Form Docker build restored);
-  SPRINT-LAYER1-PHASE5-E2E-CLOSURE (R3 shadow guardrails + R4 fault suite wired
-  into CI; E2E lifecycle traversal proven; Phase 5 COMPLETE; Layer 1 COMPLETE);
-  SPRINT-DISCORD-WORKER-HEALTH-RESTORE (bcbc20f7);
-  SPRINT-VERIFICATION-GIT-COMMIT (a6f69276); SPRINT-CLAUDE-OS-UPGRADE-COS001-005
-  (COS-001 model routing formalization done; COS-002 Linear sync automation;
-  COS-003 phase advancement proof template + generator; COS-004 lane model
-  rules; COS-005 session baseline hook — COS-002–005 in PR #170, UNI-64–68)
+SPRINT-051-LAYER3-PHASE9-SMARTFORM-UX-POLISH (WCAG 2.1 AA accessibility
+remediation on BetSlipPanel, GamePickForm, ManualEntryForm — aria-labels,
+htmlFor/id, role=alert+aria-live on ErrorBanner, role=status on loading; new
+KeyboardShortcutsHelp component surfacing 5 existing shortcuts; 11 new Jest
+tests; PR #227, UNI-86 Done; no subsystem status changes — accessibility
+attributes only) **Prior Audit Source**:
+SPRINT-050-LAYER3-PHASE10-CC-PERMISSION-ENFORCEMENT (enforcePermission()
+helper + PermissionGate component; agents/control migrated from custom cookie
+RBAC to canonical auth; lifecycle/retry + ops/submit RBAC gates added;
+AgentControlPanel, ops-submit, StuckPicksPanel gated by PermissionGate; 47 CC
+vitest tests; PR #224, UNI-85 Done) **Prior Audit Source**:
+SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION (auth.ts + auth-context.tsx + RBAC
+CAPPER/ANALYST roles; 17 API routes + 2 client components updated; all
+placeholder identities eliminated; 29 CC vitest tests; CI
+autopilot-policy-acceptance fix — @unit-talk/data-access build added; PR #221,
+UNI-84 Done) **Prior Audit Source**: SPRINT-COS-007-SPRINT-CLOSE-VALIDATION
+(COS-007: routing-decision-validator.ts added to sprint:close gate; 17 vitest
+tests; 532/532 passing; Claude OS COS-001–007 all DONE; no subsystem status
+changes) **Prior Audit Source**: SPRINT-047-INGESTION-UNIT-COVERAGE-LOCK (45
+provider-independent unit tests for IngestionAgent covering normalization,
+validation, Zod schema, business rules, SGO adapter; vitest 926→978/978 (38
+suites); PR #211) **Prior Audit Source**: SPRINT-046-OPERATOR-AUDIT-TRAIL
+(immutable operator_audit_log table + middleware wired to all /ops and /admin
+routes + GET /ops/audit-log query endpoint; 7 new vitest; 933/933 vitest; PR
+#210) **Prior Audit Sources**: SPRINT-LAYER2-PLATFORM-VERIFICATION-LOCK;
+SPRINT-CLAUDE-OS-FINDING-BACKLOG-AUTOMATION;
+SPRINT-CLAUDE-OS-LIFECYCLE-AUTOMATION-HARDENING;
+SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY (Layer 2 / Phase 8 — Recovery & Replay:
+POST /ops/recovery/replay + GET /ops/recovery/replays; ops-recovery.ts route;
+JOURNAL_BACKUP_PROCEDURE.md; ON_CALL_RUNBOOK.md Scenario 6; 5 new vitest tests;
+926/926 vitest clean; Layer 2 100% complete; PR #199, UNI-77 Done);
+SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING (Layer 2 / Phase 7 — SLO
+framework: GET /api/slo/status (4 SLOs); GET /api/health/summary
+(HEALTHY/DEGRADED/CRITICAL); PlatformThresholdEvaluator (drawdown/outbox/SLO/
+heartbeat alerts); docs/ops/SLO_DEFINITIONS.md + ON_CALL_RUNBOOK.md; 11 new
+vitest tests; 921/921 vitest clean; PR #191);
+SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE (Layer 2 / Phase 6 — operator
+control API added: GET/PUT /ops/autopilot, POST /ops/picks/:id/override, PUT
+/api/risk/config/:key; AutopilotGuard.persistMode() + setCanaryPercentage();
+migration 20260314120000; 12 new vitest tests; 910/910 vitest clean; PR #189);
+SPRINT-041-MARKET-TYPE-EXPOSURE-CAPS (market-type level exposure caps added to
+RiskEngine + ExposureCalculator via markets.category join; MarketTypePanel in
+Command Center risk dashboard; Phase 3 → 100%; 5 new vitest tests; 901/903
+vitest (2 pre-existing failures in risk-integration.test.ts); PR #185);
+SPRINT-DISCORD-GATEWAY-INTENTS-ENABLEMENT (GuildPresences intent removed —
+gateway disconnection fixed; gatewayStatus.ts singleton added; health split into
+discord_api + discord_gateway; deployment guide updated with explicit intent
+table; PR #181, d31a33a3); SPRINT-JEST-QUARANTINE-CLEANUP (58 quarantined Jest
+tests permanently deleted; DRIFT-L2 closed; CI/CD Pipeline PARTIAL→VERIFIED;
+Jest 643/643 passing 0 quarantined; UNI-70 Done);
+SPRINT-RISK-DASHBOARD-MONITORING (correlation+drawdown panels added to CC risk
+dashboard; GET /api/risk/status + /api/risk/decisions; 898/898 vitest; DRIFT-L4
+closed; PR #177, UNI-69 Done); SPRINT-DISCORD-PROMOTION-BAND-NULL-FIX
+(promotion_band null bug fixed in GradingAgent; 4 approved picks backfilled;
+35c700ad); SPRINT-DOCKER-COMPOSE-STARTUP-AUDIT (all 12 services verified
+healthy; Discord posting root cause traced — promotion_band=null + external
+feeds down; worker heartbeat false negative discovered);
+SPRINT-FRONTEND-DOCKER-PERMANENT-HARDENING (manifest-first layer caching +
+node:20 standardization across all 3 frontend Dockerfiles; discord-bot chown-R
+eliminated; f0993ce7); SPRINT-DOCKER-SHARED-TYPES-TRUTH-SWEEP (command-center +
+dashboard Docker builds restored — stale shared-types steps removed from all 3
+frontend Dockerfiles); SPRINT-SMARTFORM-DOCKER-BUILD-TRUTH-FIX (Smart Form
+Docker build restored); SPRINT-LAYER1-PHASE5-E2E-CLOSURE (R3 shadow guardrails +
+R4 fault suite wired into CI; E2E lifecycle traversal proven; Phase 5 COMPLETE;
+Layer 1 COMPLETE); SPRINT-DISCORD-WORKER-HEALTH-RESTORE (bcbc20f7);
+SPRINT-VERIFICATION-GIT-COMMIT (a6f69276); SPRINT-CLAUDE-OS-UPGRADE-COS001-005
+(COS-001 model routing formalization done; COS-002 Linear sync automation;
+COS-003 phase advancement proof template + generator; COS-004 lane model rules;
+COS-005 session baseline hook — COS-002–005 in PR #170, UNI-64–68)
 
 ---
 
@@ -81,7 +85,7 @@ SPRINT-050-LAYER3-PHASE10-CC-PERMISSION-ENFORCEMENT (enforcePermission() helper
 | **Command Center**     | VERIFIED | READ-ONLY; health + ops-confidence + monitoring endpoints; Risk Engine dashboard with ExposureCard, DriftCard, EngineStatusCard, CorrelationPanel, DrawdownPanel, MarketTypePanel; live 3-col risk grid; `/api/risk/status` proxy + `/api/risk/decisions` proxy; **Auth foundation**: centralized `auth.ts` (getOperatorIdentity/requireOperatorIdentity/enforcePermission), `auth-context.tsx` (AuthProvider + useAuth), RBAC extended with CAPPER/ANALYST roles + roleHasPermission/getPermissionsForRole; all 17 API routes + 2 client components use auth helpers — 0 placeholder identities remain (SPRINT-049); **Permission enforcement**: agents/control migrated from custom cookie RBAC to canonical enforcePermission(); lifecycle/retry gated by REPLAY_WORKFLOWS; ops/submit gated by RUN_BACKFILL; PermissionGate component on AgentControlPanel (CONTROL_AGENTS + EMERGENCY_CONTROLS), ops-submit (RUN_BACKFILL), StuckPicksPanel (REPLAY_WORKFLOWS) (SPRINT-050, PR #224, UNI-85) | None                                                                                                                                                                                                                                                  |
 | **Analytics**          | VERIFIED | AnalyticsAgent + metrics server + CLV computation + loss attribution; CLV edge validation layer: `clvAnalyzer`, `edgeValidator`, `edgeCalibrator` (46 tests)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Needs runtime verification                                                                                                                                                                                                                            |
 | **Discord Bot**        | VERIFIED | Full-featured bot (37+ slash commands, 16 services, 6 health endpoints, K8s probes, Docker deployment, blue-green support); separate from DiscordPromotionAgent; fail-closed feature flags (safe-mode=true, discord-publish=false); 20 discordRouting tests (SPRINT-DISCORD-RECAP-VERIFICATION); GuildPresences intent removed — eliminates "Used disallowed intents" gateway disconnection; health split into `discord_api` (REST) + `discord_gateway` (WebSocket singleton); deployment guide updated with explicit intent table (SPRINT-DISCORD-GATEWAY-INTENTS-ENABLEMENT, PR #181)                                                                                                                                                                                                                                                                                                                                                                                                           | Runtime env config required (`DISCORD_TOKEN`, `DISCORD_MODE`); **Operator action required**: enable Server Members Intent + Message Content Intent in Discord Developer Portal → Bot → Privileged Gateway Intents, then restart discord-bot container |
-| **Smart Form**         | VERIFIED | Writes to `bridge_outbox` only; form validation complete; Docker build restored (SPRINT-SMARTFORM-DOCKER-BUILD-TRUTH-FIX)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | None                                                                                                                                                                                                                                                  |
+| **Smart Form**         | VERIFIED | Writes to `bridge_outbox` only; form validation complete; Docker build restored (SPRINT-SMARTFORM-DOCKER-BUILD-TRUTH-FIX); **WCAG 2.1 AA accessibility polish** (SPRINT-051, PR #227, UNI-86): aria-labels on all icon buttons, htmlFor/id on all form fields, role=alert+aria-live on ErrorBanner, role=status on loading state; `KeyboardShortcutsHelp` component surfacing 5 keyboard shortcuts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | None                                                                                                                                                                                                                                                  |
 | **Lifecycle Adapters** | VERIFIED | Core adapters complete; 0 violations, 0 allowlist entries (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | None                                                                                                                                                                                                                                                  |
 | **CI/CD Pipeline**     | VERIFIED | Reusable workflows + lifecycle gate + R3 shadow guardrails + R4 fault suite wired; vitest 926/926 CLEAN (36 suites — SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY, 2026-03-14); Jest 643/643 (35 suites, 0 quarantined — SPRINT-JEST-QUARANTINE-CLEANUP, 2026-03-14)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | None                                                                                                                                                                                                                                                  |
 | **Observability**      | VERIFIED | FM-2/FM-5/FM-9 closed; outbox depth + orphaned picks + worker heartbeat in /health; dead_letter quarantine + ops_worker_heartbeats applied (SPRINT-DISCORD-WORKER-HEALTH-RESTORE, bcbc20f7); `packages/observability` build verified PASS (SPRINT-OBSERVABILITY-BUILD-FIX); SLO attainment: `GET /api/slo/status` (4 SLOs — lifecycle 95%, Discord posting 98%, grading latency p50 <300s, settlement 99.5%); unified health: `GET /api/health/summary` (HEALTHY/DEGRADED/CRITICAL); `PlatformThresholdEvaluator` alerting (drawdown/outbox/SLO/heartbeat); `docs/ops/SLO_DEFINITIONS.md` + `ON_CALL_RUNBOOK.md` (6 scenarios incl. Scenario 6: Incident Recovery via Replay); incident recovery: `POST /ops/recovery/replay` + `GET /ops/recovery/replays`; `docs/ops/JOURNAL_BACKUP_PROCEDURE.md` (SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY, 2026-03-14)                                                                                                                                        | None                                                                                                                                                                                                                                                  |

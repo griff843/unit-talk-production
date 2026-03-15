@@ -1,8 +1,7 @@
 # Phase Status
 
-**Last Updated**: 2026-03-15
-(SPRINT-050-LAYER3-PHASE10-CC-PERMISSION-ENFORCEMENT) **Source**: Linear
-initiatives + repo implementation + sprint closeouts
+**Last Updated**: 2026-03-15 (SPRINT-051-LAYER3-PHASE9-SMARTFORM-UX-POLISH)
+**Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
 
@@ -470,6 +469,9 @@ COMPLETE. Phase 1 at 97%, Phase 2 at 100%, Phase 3 at 100%, Phase 4 at 40%.
 **Layer 3 started**: SPRINT-049 delivered auth identity foundation; SPRINT-050
 delivered permission enforcement — 3 routes enforced (agents/control,
 lifecycle/retry, ops/submit), 3 components gated (AgentControlPanel, ops-submit,
-StuckPicksPanel), 47 CC vitest tests (PR #224, UNI-85 Done). Next canonical
-work: Layer 3 / Phase 9 — SmartForm UX or Phase 10/11 continuation. See
-`docs/06_status/current_phase.md` for canonical layer/phase position.
+StuckPicksPanel), 47 CC vitest tests (PR #224, UNI-85 Done); **SPRINT-051
+delivered Smart Form UX Polish (Phase 9)** — WCAG 2.1 AA accessibility
+remediation on BetSlipPanel, GamePickForm, ManualEntryForm;
+KeyboardShortcutsHelp component; 11 new tests (PR #227, UNI-86 Done). Next
+canonical work: Layer 3 / Phase 11 — Operator Workflow Foundation (SPRINT-052).
+See `docs/06_status/current_phase.md` for canonical layer/phase position.

@@ -1,9 +1,8 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-15
-(SPRINT-050-LAYER3-PHASE10-CC-PERMISSION-ENFORCEMENT) **Source**: Phase status +
-drift report + Layer 3 scoping analysis + Claude OS backlog + codebase
-investigation
+**Last Updated**: 2026-03-15 (SPRINT-051-LAYER3-PHASE9-SMARTFORM-UX-POLISH)
+**Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
+backlog + codebase investigation
 
 > **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
 > targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
@@ -11,43 +10,7 @@ investigation
 
 ---
 
-## Sprint 1: SPRINT-050-LAYER3-PHASE9-SMARTFORM-UX-POLISH
-
-**Priority**: P2 | **Phase**: Layer 3 / Phase 9 — SmartForm UX | **Depends On**:
-None
-
-**Objective**: Polish the Smart Form pick submission UX with accessibility
-improvements, mobile-first refinements, and component extraction for
-maintainability.
-
-**Rationale**: Smart Form is functional (sportsbook-style manual entry, bet slip
-panel, keyboard shortcuts) but has not received UX polish since the initial
-build sprint. Large components (SportsbookManualEntry 64KB, PickWizard 41KB)
-need extraction. Mobile responsiveness and accessibility (WCAG 2.1 AA) not
-verified.
-
-**Tasks**:
-
-1. Audit Smart Form for WCAG 2.1 AA compliance (form labels, focus states, ARIA
-   attributes, color contrast)
-2. Test and fix mobile responsiveness at 375w, 768w, and 1024w breakpoints
-3. Extract LegCard and BetSlipPanel into smaller, composable components
-4. Document keyboard shortcuts (already implemented but undocumented)
-5. Improve form field validation error display (inline errors, field-level
-   feedback)
-6. Add Smart Form specific vitest tests for extracted components
-
-**Success Criteria**:
-
-- Smart Form passes WCAG 2.1 AA audit for core submission flow
-- Responsive layout verified at 375w, 768w, 1024w
-- No component file exceeds 40KB after extraction
-- Keyboard shortcuts documented in accessible help panel
-- Smart Form build passes, no type-check regressions
-
----
-
-## Sprint 2: SPRINT-051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION
+## Sprint 1: SPRINT-052-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION
 
 **Priority**: P1 | **Phase**: Layer 3 / Phase 11 — Workflow Optimization |
 **Depends On**: None (SPRINT-049 CC auth context delivered)
@@ -87,7 +50,7 @@ Phase 11 UX (workflow UI, batch operations) will build on.
 
 ---
 
-## Sprint 3: SPRINT-052-GOVERNANCE-NAMING-CONVENTION
+## Sprint 2: SPRINT-053-GOVERNANCE-NAMING-CONVENTION
 
 **Priority**: P2 | **Phase**: Meta (Governance) | **Depends On**: None
 
@@ -121,7 +84,7 @@ manual mapping. This is the highest-severity active drift item (HIGH).
 
 ---
 
-## Sprint 4: SPRINT-053-LAYER3-PHASE10-REPLAY-ENDPOINT
+## Sprint 3: SPRINT-054-LAYER3-PHASE10-REPLAY-ENDPOINT
 
 **Priority**: P2 | **Phase**: Layer 3 / Phase 10 — Command Center UX | **Depends
 On**: None (SPRINT-049 auth context delivered)
@@ -156,20 +119,19 @@ Temporal workflow.
 
 | #   | Sprint                                     | Priority | Phase    | Focus                                        | Linear | Blocked By |
 | --- | ------------------------------------------ | -------- | -------- | -------------------------------------------- | ------ | ---------- |
-| 1   | 050-LAYER3-PHASE9-SMARTFORM-UX-POLISH      | P2       | L3/Ph 9  | Accessibility, mobile, component extraction  | TBD    | None       |
-| 2   | 051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FNDTN | P1       | L3/Ph 11 | Workflow registry + CLI + discovery endpoint | TBD    | None       |
-| 3   | 052-GOVERNANCE-NAMING-CONVENTION           | P2       | Meta     | Resolve DRIFT-H2 naming inconsistency        | TBD    | None       |
-| 4   | 053-LAYER3-PHASE10-REPLAY-ENDPOINT         | P2       | L3/Ph 10 | Wire Temporal startWorkflow in replay route  | TBD    | None       |
+| 1   | 052-LAYER3-PHASE11-OPERATOR-WORKFLOW-FNDTN | P1       | L3/Ph 11 | Workflow registry + CLI + discovery endpoint | TBD    | None       |
+| 2   | 053-GOVERNANCE-NAMING-CONVENTION           | P2       | Meta     | Resolve DRIFT-H2 naming inconsistency        | TBD    | None       |
+| 3   | 054-LAYER3-PHASE10-REPLAY-ENDPOINT         | P2       | L3/Ph 10 | Wire Temporal startWorkflow in replay route  | TBD    | None       |
 
-**Total estimated effort**: 4–6 days **Dependency chain**: All sprints are now
-independent — SPRINT-049 (auth context) completed and unblocked Sprints 2 and 4.
+**Total estimated effort**: 3–5 days **Dependency chain**: All sprints are now
+independent — SPRINT-049 (auth context) completed and unblocked Sprints 1 and 3.
 
 ---
 
 ## Completed Sprint History
 
 <details>
-<summary>22 sprints completed (2026-03-10 through 2026-03-15) — click to expand</summary>
+<summary>23 sprints completed (2026-03-10 through 2026-03-15) — click to expand</summary>
 
 | Sprint                           | Date       | PR   | Linear    | Layer/Phase |
 | -------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -195,5 +157,6 @@ independent — SPRINT-049 (auth context) completed and unblocked Sprints 2 and 
 | COS-007-SPRINT-CLOSE-VALIDATION  | 2026-03-15 | #217 | UNI-83    | Claude OS   |
 | 049-LAYER3-PHASE10-CC-AUTH-FNDTN | 2026-03-15 | #221 | UNI-84    | L3/Ph 10    |
 | 050-LAYER3-PHASE10-CC-PERM-ENF   | 2026-03-15 | #224 | UNI-85    | L3/Ph 10    |
+| 051-LAYER3-PHASE9-SMARTFORM-UX   | 2026-03-15 | #227 | UNI-86    | L3/Ph 9     |
 
 </details>
