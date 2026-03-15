@@ -1,8 +1,7 @@
 # Phase Status
 
-**Last Updated**: 2026-03-15
-(SPRINT-052-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION) **Source**: Linear
-initiatives + repo implementation + sprint closeouts
+**Last Updated**: 2026-03-15 (SPRINT-053-GOVERNANCE-NAMING-CONVENTION)
+**Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
 
@@ -475,6 +474,8 @@ delivered permission enforcement (PR #224, UNI-85 Done); SPRINT-051 delivered
 Smart Form UX Polish — WCAG 2.1 AA accessibility, KeyboardShortcutsHelp (PR
 #227, UNI-86 Done); **SPRINT-052 delivered Operator Workflow Foundation
 (Phase 11)** — WorkflowRegistry with 18 entries, GET /ops/workflows, pnpm
-ops:list CLI (PR #230, UNI-87 Done). Next canonical work: SPRINT-053 (Governance
-Naming Convention) + SPRINT-054 (Replay Endpoint). See
-`docs/06_status/current_phase.md` for canonical layer/phase position.
+ops:list CLI (PR #230, UNI-87 Done); **SPRINT-053 delivered Governance Naming
+Convention** — DRIFT-H2 resolved, 0 HIGH drift items, canonical naming doc
+published (PR #234, UNI-88 Done). Next canonical work: SPRINT-054 (Layer 3 /
+Phase 10 — Replay Endpoint). See `docs/06_status/current_phase.md` for canonical
+layer/phase position.
