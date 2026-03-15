@@ -1,14 +1,19 @@
 # Current System Status
 
-**Last Updated**: 2026-03-15 **Audit Source**: SPRINT-056-OBSERVABILITY-SKILLS
-(4 observability skills: pipeline-health, pick-trace, slo-report, edge-check;
-all backed by verified MCP layer from SPRINT-055; no subsystem status changes —
-skills only; PR #243, UNI-90 Done, tag SPRINT-056-OBSERVABILITY-SKILLS) **Prior
-Audit Source**: SPRINT-055-MCP-LAYER-PARITY-FIX (4 MCP packages committed to git
-for first time; mcp-state deriveStage aligned to canonical 10/10 parity;
-mcp-intelligence /api/risk → /api/risk/status; .mcp.json OPERATOR_TOKEN added;
-mcp-ops outbox conditional removed; MCP Layer: UNVERIFIED → VERIFIED; PR #238,
-tag SPRINT-055-MCP-LAYER-PARITY-FIX) **Prior Audit Source**:
+**Last Updated**: 2026-03-15 **Audit Source**:
+SPRINT-057-CHATGPT-ENHANCEMENT-LAYER (ChatGPT Enhancement Layer:
+UNIT_TALK_SYSTEM_BRAIN.md, LLM_DECISION_PLAYBOOK.md, 4 AI scripts, pnpm
+ai:context, 4 prompt templates, 3 intelligence reviews; no subsystem status
+changes — docs/scripts only; PR #247, tag SPRINT-057-CHATGPT-ENHANCEMENT-LAYER)
+**Prior Audit Source**: SPRINT-056-OBSERVABILITY-SKILLS (4 observability skills:
+pipeline-health, pick-trace, slo-report, edge-check; all backed by verified MCP
+layer from SPRINT-055; no subsystem status changes — skills only; PR #243,
+UNI-90 Done, tag SPRINT-056-OBSERVABILITY-SKILLS) **Prior Audit Source**:
+SPRINT-055-MCP-LAYER-PARITY-FIX (4 MCP packages committed to git for first time;
+mcp-state deriveStage aligned to canonical 10/10 parity; mcp-intelligence
+/api/risk → /api/risk/status; .mcp.json OPERATOR_TOKEN added; mcp-ops outbox
+conditional removed; MCP Layer: UNVERIFIED → VERIFIED; PR #238, tag
+SPRINT-055-MCP-LAYER-PARITY-FIX) **Prior Audit Source**:
 SPRINT-053-GOVERNANCE-NAMING-CONVENTION (canonical sprint naming convention doc
 created; CLAUDE.md §6 updated; sprint-gate.js reads from NEXT_5_SPRINTS.md;
 DRIFT-H2 resolved — 0 HIGH drift items; PR #234, UNI-88 Done; no subsystem
