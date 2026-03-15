@@ -1,0 +1,39 @@
+{
+  "name": "@unit-talk/mcp-ops",
+  "version": "0.0.1",
+  "description": "MCP server exposing operator workflows, agent health, and control plane state for Unit Talk",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "mcp-ops": "dist/server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "start": "node dist/server.js",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "ops",
+    "operator",
+    "workflows",
+    "agent-health"
+  ],
+  "author": "Unit Talk Team",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*"
+  ]
+}
