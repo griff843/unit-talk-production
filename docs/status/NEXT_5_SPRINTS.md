@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-15 (SPRINT-055-MCP-LAYER-PARITY-FIX) **Source**: Phase
+**Last Updated**: 2026-03-15 (SPRINT-056-OBSERVABILITY-SKILLS) **Source**: Phase
 status + drift report + Layer 3 scoping analysis + Claude OS backlog + codebase
 investigation
 
@@ -86,5 +86,6 @@ SPRINT-053 (naming convention) all completed.
 | 052-LAYER3-PHASE11-OP-WORKFLOW   | 2026-03-15 | #230 | UNI-87    | L3/Ph 11    |
 | 053-GOVERNANCE-NAMING-CONVENTION | 2026-03-15 | #234 | UNI-88    | Meta        |
 | 055-MCP-LAYER-PARITY-FIX         | 2026-03-15 | #238 | UNI-89    | MCP/Infra   |
+| 056-OBSERVABILITY-SKILLS         | 2026-03-15 | #243 | UNI-90    | Skills/MCP  |
 
 </details>
