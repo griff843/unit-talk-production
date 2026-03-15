@@ -432,20 +432,24 @@ Tracking AI operator tooling improvements separate from product phases.
   `docs/02_architecture/claude_os_finding_backlog_automation.md`; closes the
   finding-discovery → work-item gap (PR #205)
 
+### Complete (COS-007 — sprint:close Routing Validation, 2026-03-15)
+
+- **COS-007 — sprint:close validation**: `routing-decision-validator.ts` — gate
+  in `commandSprintClose()` checks `LLM_ROUTING_DECISION.md` for Sprint,
+  Classifications, Instance mode, Lane assignments; 17 vitest tests; UNI-83 Done
+  (PR #217, 2026-03-15)
+
 ### Future
 
-- **COS-007 — sprint:close validation**: validate `LLM_ROUTING_DECISION.md`
-  exists and is well-formed during `sprint:close`
 - **COS-008 — Mode B task envelopes**: artifact bundle format for external LLM
   advisory lanes
 - **COS-009 — Mode B pilot**: ChatGPT-4o for Lane 4 docs advisory
 
 ### Assessment
 
-**Claude OS Upgrade: COS-001–006 all COMPLETE + Lifecycle Hardening + Finding
-Backlog Automation complete. Post-bundle lifecycle fully automated;
-findings-to-backlog pipeline closes the discovery gap. Next: COS-007
-sprint:close validation.**
+**Claude OS Upgrade: COS-001–007 all COMPLETE. Full governance batch closed.
+sprint:close now enforces routing evidence before closeout. Next Claude OS items
+(COS-008/009) are Mode B multi-LLM pilot work — not yet scheduled.**
 
 ---
 
@@ -458,7 +462,7 @@ sprint:close validation.**
 | **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)              |
 | **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started |
 | **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                           |
-| **Claude OS Upgrade**                  | Active  | 98%        | COS-001–006 + Lifecycle Hardening + Finding Backlog done; COS-007 (sprint:close validation) next             |
+| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; sprint:close now enforces LLM_ROUTING_DECISION.md gate (COS-007, PR #217)              |
 
 **Current Platform Phase**: Layer 2 COMPLETE (Phases 6–8 all done). Layer 1
 COMPLETE. Phase 1 at 97%, Phase 2 at 100%, Phase 3 at 100%, Phase 4 at 40%. Next
