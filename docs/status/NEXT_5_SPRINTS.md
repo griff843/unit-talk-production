@@ -85,6 +85,6 @@ SPRINT-053 (naming convention) all completed.
 | 051-LAYER3-PHASE9-SMARTFORM-UX   | 2026-03-15 | #227 | UNI-86    | L3/Ph 9     |
 | 052-LAYER3-PHASE11-OP-WORKFLOW   | 2026-03-15 | #230 | UNI-87    | L3/Ph 11    |
 | 053-GOVERNANCE-NAMING-CONVENTION | 2026-03-15 | #234 | UNI-88    | Meta        |
-| 055-MCP-LAYER-PARITY-FIX         | 2026-03-15 | #238 | TBD       | MCP/Infra   |
+| 055-MCP-LAYER-PARITY-FIX         | 2026-03-15 | #238 | UNI-89    | MCP/Infra   |
 
 </details>
