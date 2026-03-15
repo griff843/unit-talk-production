@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-15 (SPRINT-048-TRUTH-RECONCILIATION-LAYER3-QUEUE)
+**Last Updated**: 2026-03-15 (SPRINT-COS-007-SPRINT-CLOSE-VALIDATION)
 **Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
 backlog + codebase investigation
 
@@ -10,39 +10,7 @@ backlog + codebase investigation
 
 ---
 
-## Sprint 1: SPRINT-COS-007-SPRINT-CLOSE-VALIDATION
-
-**Priority**: P2 | **Phase**: Claude OS (Meta) | **Depends On**: None
-
-**Objective**: Add validation of `LLM_ROUTING_DECISION.md` to the `sprint:close`
-command so that sprint closeout enforces the presence and well-formedness of LLM
-routing artifacts.
-
-**Rationale**: COS-007 is the next Claude OS upgrade item. Small, mechanical,
-and closes the routing evidence gap. Completing it before Layer 3 sprints
-ensures all future sprints have routing discipline baked into the closeout gate.
-
-**Tasks**:
-
-1. Read `tools/claude-os/src/cli.ts` and the existing `sprint:close` command
-2. Add a validation step that checks for `LLM_ROUTING_DECISION.md` in the sprint
-   output directory
-3. Validate the file contains required fields: Sprint, Work type(s), Instance
-   mode, Lane assignments
-4. Fail the closeout with a clear error if the file is missing or malformed
-5. Add tests for the validation logic
-
-**Success Criteria**:
-
-- `sprint:close` rejects closeout when `LLM_ROUTING_DECISION.md` is missing
-- `sprint:close` rejects closeout when required fields are absent
-- `sprint:close` passes when a well-formed routing decision exists
-- All existing gates continue to pass
-- Vitest suite remains clean
-
----
-
-## Sprint 2: SPRINT-049-LAYER3-PHASE10-CC-AUTH-INTEGRATION
+## Sprint 1: SPRINT-049-LAYER3-PHASE10-CC-AUTH-INTEGRATION
 
 **Priority**: P1 | **Phase**: Layer 3 / Phase 10 — Command Center UX | **Depends
 On**: None
@@ -77,7 +45,7 @@ replay completion. Highest-ROI Layer 3 entry point.
 
 ---
 
-## Sprint 3: SPRINT-050-LAYER3-PHASE9-SMARTFORM-UX-POLISH
+## Sprint 2: SPRINT-050-LAYER3-PHASE9-SMARTFORM-UX-POLISH
 
 **Priority**: P2 | **Phase**: Layer 3 / Phase 9 — SmartForm UX | **Depends On**:
 None
@@ -113,10 +81,11 @@ verified.
 
 ---
 
-## Sprint 4: SPRINT-051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION
+## Sprint 3: SPRINT-051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION
 
 **Priority**: P1 | **Phase**: Layer 3 / Phase 11 — Workflow Optimization |
-**Depends On**: SPRINT-049 (CC auth context needed for operator identity)
+**Depends On**: SPRINT-049 (CC auth context needed for operator identity) |
+**Depends On**: Sprint 1
 
 **Objective**: Build the foundation for operator workflow management: a unified
 CLI entry point, workflow registry for 50+ scripts, and a discoverability
@@ -153,7 +122,7 @@ Phase 11 UX (workflow UI, batch operations) will build on.
 
 ---
 
-## Sprint 5: SPRINT-052-GOVERNANCE-NAMING-CONVENTION
+## Sprint 4: SPRINT-052-GOVERNANCE-NAMING-CONVENTION
 
 **Priority**: P2 | **Phase**: Meta (Governance) | **Depends On**: None
 
@@ -187,25 +156,57 @@ manual mapping. This is the highest-severity active drift item (HIGH).
 
 ---
 
+## Sprint 5: SPRINT-053-LAYER3-PHASE10-REPLAY-ENDPOINT
+
+**Priority**: P2 | **Phase**: Layer 3 / Phase 10 — Command Center UX | **Depends
+On**: SPRINT-049 (auth context needed for replay actor identity)
+
+**Objective**: Wire the Temporal `startWorkflow` call in `/api/replay/route.ts`
+(currently TODO) and connect replay triggers to the Command Center UI.
+
+**Rationale**: The replay endpoint was scaffolded in SPRINT-044-LAYER2-PHASE8
+but the Temporal `startWorkflow` method is still a TODO. With auth context from
+Sprint 1 available, this sprint completes the replay loop: CC UI → replay API →
+Temporal workflow.
+
+**Tasks**:
+
+1. Audit `apps/command-center/src/app/api/replay/route.ts` for the TODO
+2. Wire `startWorkflow` using the Temporal client (pattern from existing
+   workflow callers in `apps/api/`)
+3. Add actor identity from auth context to the workflow input
+4. Add a replay trigger button to the Command Center replay page
+5. Add vitest unit tests for the route handler
+
+**Success Criteria**:
+
+- Replay API accepts POST with replay params and starts a Temporal workflow
+- Actor identity is sourced from auth context (not hardcoded)
+- UI has a functional trigger button
+- All gates pass
+
+---
+
 ## Summary
 
-| #   | Sprint                                     | Priority | Phase     | Focus                                           | Linear | Blocked By |
-| --- | ------------------------------------------ | -------- | --------- | ----------------------------------------------- | ------ | ---------- |
-| 1   | COS-007-SPRINT-CLOSE-VALIDATION            | P2       | Claude OS | LLM routing artifact validation in sprint:close | TBD    | None       |
-| 2   | 049-LAYER3-PHASE10-CC-AUTH-INTEGRATION     | P1       | L3/Ph 10  | CC auth context + operator permissions          | TBD    | None       |
-| 3   | 050-LAYER3-PHASE9-SMARTFORM-UX-POLISH      | P2       | L3/Ph 9   | Accessibility, mobile, component extraction     | TBD    | None       |
-| 4   | 051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FNDTN | P1       | L3/Ph 11  | Workflow registry + CLI + discovery endpoint    | TBD    | Sprint 2   |
-| 5   | 052-GOVERNANCE-NAMING-CONVENTION           | P2       | Meta      | Resolve DRIFT-H2 naming inconsistency           | TBD    | None       |
+| #   | Sprint                                     | Priority | Phase    | Focus                                        | Linear | Blocked By |
+| --- | ------------------------------------------ | -------- | -------- | -------------------------------------------- | ------ | ---------- |
+| 1   | 049-LAYER3-PHASE10-CC-AUTH-INTEGRATION     | P1       | L3/Ph 10 | CC auth context + operator permissions       | TBD    | None       |
+| 2   | 050-LAYER3-PHASE9-SMARTFORM-UX-POLISH      | P2       | L3/Ph 9  | Accessibility, mobile, component extraction  | TBD    | None       |
+| 3   | 051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FNDTN | P1       | L3/Ph 11 | Workflow registry + CLI + discovery endpoint | TBD    | Sprint 1   |
+| 4   | 052-GOVERNANCE-NAMING-CONVENTION           | P2       | Meta     | Resolve DRIFT-H2 naming inconsistency        | TBD    | None       |
+| 5   | 053-LAYER3-PHASE9-REPLAY-ENDPOINT          | P2       | L3/Ph 10 | Wire Temporal startWorkflow in replay route  | TBD    | Sprint 1   |
 
-**Total estimated effort**: 5–8 days **Dependency chain**: Sprint 4 depends on
-Sprint 2 (auth context). All others are independent.
+**Total estimated effort**: 5–8 days **Dependency chain**: Sprint 3 depends on
+Sprint 1 (auth context). Sprint 5 depends on Sprint 1 (auth context for replay
+actor). All others are independent.
 
 ---
 
 ## Completed Sprint History
 
 <details>
-<summary>18 sprints completed (2026-03-10 through 2026-03-14) — click to expand</summary>
+<summary>20 sprints completed (2026-03-10 through 2026-03-15) — click to expand</summary>
 
 | Sprint                           | Date       | PR   | Linear    | Layer/Phase |
 | -------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -227,5 +228,7 @@ Sprint 2 (auth context). All others are independent.
 | 045-SCHEMA-TYPE-SYNC             | 2026-03-14 | —    | —         | Infra       |
 | 046-OPERATOR-AUDIT-TRAIL         | 2026-03-14 | #210 | —         | L2/Sec      |
 | 047-INGESTION-UNIT-COVERAGE-LOCK | 2026-03-14 | #211 | UNI-81    | L2/Ph 7     |
+| 048-TRUTH-RECONCILIATION-LAYER3  | 2026-03-15 | #215 | UNI-82    | Meta        |
+| COS-007-SPRINT-CLOSE-VALIDATION  | 2026-03-15 | #217 | UNI-83    | Claude OS   |
 
 </details>
