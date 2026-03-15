@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-14 (SPRINT-CLAUDE-OS-LIFECYCLE-AUTOMATION-HARDENING)
+**Last Updated**: 2026-03-14 (SPRINT-CLAUDE-OS-FINDING-BACKLOG-AUTOMATION)
 **Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -412,6 +412,20 @@ Tracking AI operator tooling improvements separate from product phases.
     shared state mutation; architecture doc
     `docs/02_architecture/claude_os_lifecycle_automation.md` (PR #201)
 
+### Complete (SPRINT-CLAUDE-OS-FINDING-BACKLOG-AUTOMATION, 2026-03-14)
+
+- **Finding Backlog Automation**: `tools/claude-os/src/finding-backlog.ts` (430
+  lines) — 4 converters (`convertFailureToFinding`,
+  `convertDriftSignalToFinding`, `convertVerdictToFindings`,
+  `convertLifecycleDimensionToFinding`); `NormalizedFinding` schema (P0–P4
+  severity, 6 sources, 4 routing actions); 18 triage rules (source+category →
+  severity+action); fingerprint dedup (sha1 12-char IDs, stable cross-sprint);
+  `generateFindingArtifacts()` → 5 markdown files (VERIFICATION_FINDINGS,
+  RECOMMENDED_REMEDIATION_SPRINTS, LINEAR_ISSUE_DRAFTS, FINDING_DECISION_LOG,
+  HANDOFF_SUMMARY); `findings` CLI command; architecture doc
+  `docs/02_architecture/claude_os_finding_backlog_automation.md`; closes the
+  finding-discovery → work-item gap (PR #205)
+
 ### Future
 
 - **COS-007 — sprint:close validation**: validate `LLM_ROUTING_DECISION.md`
@@ -422,9 +436,10 @@ Tracking AI operator tooling improvements separate from product phases.
 
 ### Assessment
 
-**Claude OS Upgrade: COS-001–006 all COMPLETE + Lifecycle Hardening complete.
-Post-bundle lifecycle now fully automated with single-command readout. Next:
-COS-007 sprint:close validation.**
+**Claude OS Upgrade: COS-001–006 all COMPLETE + Lifecycle Hardening + Finding
+Backlog Automation complete. Post-bundle lifecycle fully automated;
+findings-to-backlog pipeline closes the discovery gap. Next: COS-007
+sprint:close validation.**
 
 ---
 
@@ -437,7 +452,7 @@ COS-007 sprint:close validation.**
 | **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)              |
 | **Phase 4** — Automation Supremacy     | Active  | 40%        | Discord bot + RecapAgent VERIFIED; scheduling config external; edge ranking and alert automation not started |
 | **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                           |
-| **Claude OS Upgrade**                  | Active  | 95%        | COS-001–006 Done + Lifecycle Hardening done; COS-007 (sprint:close validation) next                          |
+| **Claude OS Upgrade**                  | Active  | 98%        | COS-001–006 + Lifecycle Hardening + Finding Backlog done; COS-007 (sprint:close validation) next             |
 
 **Current Platform Phase**: Layer 2 / Phase 8 COMPLETE — Layer 2 fully done.
 Phase 1 at 97%, Phase 4 advancing (40%); canonical Layer 1 / Phase 5 (Platform
