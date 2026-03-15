@@ -35,6 +35,11 @@ import {
 import { checkEligibility } from './eligibility-checker.js';
 import { generateEnvelope } from './envelope-generator.js';
 import { loadEnvelope, envelopeToRequest } from './envelope-loader.js';
+import {
+  analyzeSprintFindings,
+  generateFindingArtifacts,
+  printFindingBacklogResult,
+} from './finding-backlog.js';
 import { resolveRepoPath, fileExists } from './fs-utils.js';
 import { captureGitEvidence } from './git-evidence.js';
 import { loadGovernance } from './governance-loader.js';
@@ -103,6 +108,56 @@ const c = {
   bold: '\x1b[1m',
   dim: '\x1b[2m',
 };
+
+// ---------------------------------------------------------------------------
+// Command: findings
+// ---------------------------------------------------------------------------
+
+function commandFindings(args: Record<string, string | boolean | string[]>): void {
+  const sprint = args.sprint as string | undefined;
+  const dateOverride = args.date as string | undefined;
+  const jsonOutput = args.json === true;
+  const outDir = args.out as string | undefined;
+
+  if (!sprint) {
+    console.error(`${c.red}ERROR: --sprint <id> is required.${c.reset}`);
+    console.error(
+      'Usage: findings --sprint SPRINT-044-... [--out <dir>] [--json] [--date YYYY-MM-DD]'
+    );
+    process.exit(1);
+  }
+
+  console.log(`\n${c.bold}${c.cyan}CLAUDE OS — Finding Backlog Analysis${c.reset}`);
+  console.log(`${c.dim}Sprint: ${sprint}${c.reset}\n`);
+
+  const result = analyzeSprintFindings(sprint, [], dateOverride);
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(0);
+  }
+
+  printFindingBacklogResult(result);
+
+  // Write artifacts to output directory
+  const effectiveOutDir =
+    outDir ??
+    resolveRepoPath(
+      `out/sprints/${sprint}/${dateOverride ?? new Date().toISOString().slice(0, 10)}/findings`
+    );
+
+  generateFindingArtifacts(result, effectiveOutDir);
+
+  console.log(`${c.bold}Artifacts written to:${c.reset}`);
+  console.log(`  ${c.dim}${effectiveOutDir}/VERIFICATION_FINDINGS.md${c.reset}`);
+  console.log(`  ${c.dim}${effectiveOutDir}/RECOMMENDED_REMEDIATION_SPRINTS.md${c.reset}`);
+  console.log(`  ${c.dim}${effectiveOutDir}/LINEAR_ISSUE_DRAFTS.md${c.reset}`);
+  console.log(`  ${c.dim}${effectiveOutDir}/FINDING_DECISION_LOG.md${c.reset}`);
+  console.log(`  ${c.dim}${effectiveOutDir}/HANDOFF_SUMMARY.md${c.reset}`);
+  console.log('');
+
+  process.exit(0);
+}
 
 // ---------------------------------------------------------------------------
 // Argument Parsing
@@ -3192,6 +3247,9 @@ function main(): void {
       break;
     case 'lifecycle-status':
       commandLifecycleStatus(args);
+      break;
+    case 'findings':
+      commandFindings(args);
       break;
     case 'route':
       // LLM Routing Engine — emits a governed multi-LLM routing plan for /sprint-plan
