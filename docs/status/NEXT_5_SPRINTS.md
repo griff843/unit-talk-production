@@ -87,6 +87,6 @@ SPRINT-053 (naming convention) all completed.
 | 053-GOVERNANCE-NAMING-CONVENTION | 2026-03-15 | #234 | UNI-88    | Meta        |
 | 055-MCP-LAYER-PARITY-FIX         | 2026-03-15 | #238 | UNI-89    | MCP/Infra   |
 | 056-OBSERVABILITY-SKILLS         | 2026-03-15 | #243 | UNI-90    | Skills/MCP  |
-| 057-CHATGPT-ENHANCEMENT-LAYER    | 2026-03-15 | #247 | TBD       | AI/Docs     |
+| 057-CHATGPT-ENHANCEMENT-LAYER    | 2026-03-15 | #247 | UNI-91    | AI/Docs     |
 
 </details>
