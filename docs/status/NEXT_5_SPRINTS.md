@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-15 (SPRINT-COS-007-SPRINT-CLOSE-VALIDATION)
+**Last Updated**: 2026-03-15 (SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION)
 **Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
 backlog + codebase investigation
 
@@ -10,42 +10,7 @@ backlog + codebase investigation
 
 ---
 
-## Sprint 1: SPRINT-049-LAYER3-PHASE10-CC-AUTH-INTEGRATION
-
-**Priority**: P1 | **Phase**: Layer 3 / Phase 10 — Command Center UX | **Depends
-On**: None
-
-**Objective**: Replace hardcoded user IDs across Command Center dashboards with
-proper auth context, and define operator permission scopes for role-based
-dashboard access.
-
-**Rationale**: Command Center has 25+ dashboard pages and advanced monitoring
-UI, but uses placeholder user IDs (`capper-user`, `command-center-user`)
-throughout. Auth context is a prerequisite for operator workflows (Phase 11) and
-replay completion. Highest-ROI Layer 3 entry point.
-
-**Tasks**:
-
-1. Audit all Command Center API routes and pages for hardcoded user IDs
-2. Implement auth context provider (session-based or JWT) for Command Center
-3. Replace hardcoded `actorId`/`x-user-id` values with auth context
-4. Define role-based permission scopes (capper, analyst, admin) for dashboard
-   pages
-5. Add auth guard middleware to Command Center API routes
-6. Wire Temporal `startWorkflow` method in `/api/replay/route.ts` (currently
-   TODO)
-
-**Success Criteria**:
-
-- No hardcoded user IDs remain in Command Center pages or API routes
-- Auth context available via React context provider
-- Role-based access control defined (even if enforcement is soft initially)
-- Replay workflow endpoint functional (Temporal `startWorkflow` wired)
-- All builds pass, no type-check regressions
-
----
-
-## Sprint 2: SPRINT-050-LAYER3-PHASE9-SMARTFORM-UX-POLISH
+## Sprint 1: SPRINT-050-LAYER3-PHASE9-SMARTFORM-UX-POLISH
 
 **Priority**: P2 | **Phase**: Layer 3 / Phase 9 — SmartForm UX | **Depends On**:
 None
@@ -81,11 +46,10 @@ verified.
 
 ---
 
-## Sprint 3: SPRINT-051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION
+## Sprint 2: SPRINT-051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION
 
 **Priority**: P1 | **Phase**: Layer 3 / Phase 11 — Workflow Optimization |
-**Depends On**: SPRINT-049 (CC auth context needed for operator identity) |
-**Depends On**: Sprint 1
+**Depends On**: None (SPRINT-049 CC auth context delivered)
 
 **Objective**: Build the foundation for operator workflow management: a unified
 CLI entry point, workflow registry for 50+ scripts, and a discoverability
@@ -122,7 +86,7 @@ Phase 11 UX (workflow UI, batch operations) will build on.
 
 ---
 
-## Sprint 4: SPRINT-052-GOVERNANCE-NAMING-CONVENTION
+## Sprint 3: SPRINT-052-GOVERNANCE-NAMING-CONVENTION
 
 **Priority**: P2 | **Phase**: Meta (Governance) | **Depends On**: None
 
@@ -156,10 +120,10 @@ manual mapping. This is the highest-severity active drift item (HIGH).
 
 ---
 
-## Sprint 5: SPRINT-053-LAYER3-PHASE10-REPLAY-ENDPOINT
+## Sprint 4: SPRINT-053-LAYER3-PHASE10-REPLAY-ENDPOINT
 
 **Priority**: P2 | **Phase**: Layer 3 / Phase 10 — Command Center UX | **Depends
-On**: SPRINT-049 (auth context needed for replay actor identity)
+On**: None (SPRINT-049 auth context delivered)
 
 **Objective**: Wire the Temporal `startWorkflow` call in `/api/replay/route.ts`
 (currently TODO) and connect replay triggers to the Command Center UI.
@@ -191,22 +155,20 @@ Temporal workflow.
 
 | #   | Sprint                                     | Priority | Phase    | Focus                                        | Linear | Blocked By |
 | --- | ------------------------------------------ | -------- | -------- | -------------------------------------------- | ------ | ---------- |
-| 1   | 049-LAYER3-PHASE10-CC-AUTH-INTEGRATION     | P1       | L3/Ph 10 | CC auth context + operator permissions       | TBD    | None       |
-| 2   | 050-LAYER3-PHASE9-SMARTFORM-UX-POLISH      | P2       | L3/Ph 9  | Accessibility, mobile, component extraction  | TBD    | None       |
-| 3   | 051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FNDTN | P1       | L3/Ph 11 | Workflow registry + CLI + discovery endpoint | TBD    | Sprint 1   |
-| 4   | 052-GOVERNANCE-NAMING-CONVENTION           | P2       | Meta     | Resolve DRIFT-H2 naming inconsistency        | TBD    | None       |
-| 5   | 053-LAYER3-PHASE9-REPLAY-ENDPOINT          | P2       | L3/Ph 10 | Wire Temporal startWorkflow in replay route  | TBD    | Sprint 1   |
+| 1   | 050-LAYER3-PHASE9-SMARTFORM-UX-POLISH      | P2       | L3/Ph 9  | Accessibility, mobile, component extraction  | TBD    | None       |
+| 2   | 051-LAYER3-PHASE11-OPERATOR-WORKFLOW-FNDTN | P1       | L3/Ph 11 | Workflow registry + CLI + discovery endpoint | TBD    | None       |
+| 3   | 052-GOVERNANCE-NAMING-CONVENTION           | P2       | Meta     | Resolve DRIFT-H2 naming inconsistency        | TBD    | None       |
+| 4   | 053-LAYER3-PHASE10-REPLAY-ENDPOINT         | P2       | L3/Ph 10 | Wire Temporal startWorkflow in replay route  | TBD    | None       |
 
-**Total estimated effort**: 5–8 days **Dependency chain**: Sprint 3 depends on
-Sprint 1 (auth context). Sprint 5 depends on Sprint 1 (auth context for replay
-actor). All others are independent.
+**Total estimated effort**: 4–6 days **Dependency chain**: All sprints are now
+independent — SPRINT-049 (auth context) completed and unblocked Sprints 2 and 4.
 
 ---
 
 ## Completed Sprint History
 
 <details>
-<summary>20 sprints completed (2026-03-10 through 2026-03-15) — click to expand</summary>
+<summary>21 sprints completed (2026-03-10 through 2026-03-15) — click to expand</summary>
 
 | Sprint                           | Date       | PR   | Linear    | Layer/Phase |
 | -------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -230,5 +192,6 @@ actor). All others are independent.
 | 047-INGESTION-UNIT-COVERAGE-LOCK | 2026-03-14 | #211 | UNI-81    | L2/Ph 7     |
 | 048-TRUTH-RECONCILIATION-LAYER3  | 2026-03-15 | #215 | UNI-82    | Meta        |
 | COS-007-SPRINT-CLOSE-VALIDATION  | 2026-03-15 | #217 | UNI-83    | Claude OS   |
+| 049-LAYER3-PHASE10-CC-AUTH-FNDTN | 2026-03-15 | #221 | UNI-84    | L3/Ph 10    |
 
 </details>
