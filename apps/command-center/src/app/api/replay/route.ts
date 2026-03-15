@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity, requireOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
@@ -51,12 +52,12 @@ export async function POST(request: NextRequest) {
   const span = UnitTalkTracing.startTemporalSpan('command-center', 'replay-operation');
 
   try {
-    const userId = request.headers.get('x-user-id');
+    const identity = requireOperatorIdentity(request);
     const userAgent = request.headers.get('user-agent');
     const clientIP =
       request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
 
-    if (!userId) {
+    if (!identity) {
       return NextResponse.json(
         {
           error: 'Authentication required',
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+    const userId = identity.userId;
 
     // Check permissions with audit logging
     await RBACService.requirePermission(userId, Permission.REPLAY_WORKFLOWS, {
@@ -153,10 +155,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
-    if (!userId) {
+    const identity = requireOperatorIdentity(request);
+    if (!identity) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const userId = identity.userId;
 
     await RBACService.requirePermission(userId, Permission.REPLAY_WORKFLOWS);
 
@@ -191,10 +194,11 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
-    if (!userId) {
+    const identity = requireOperatorIdentity(request);
+    if (!identity) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const userId = identity.userId;
 
     await RBACService.requirePermission(userId, Permission.REPLAY_WORKFLOWS);
 

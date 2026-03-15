@@ -17,7 +17,24 @@ const dbClient = supabase as any;
 // TYPES & INTERFACES
 // =============================================================================
 
+/**
+ * Command Center roles.
+ *
+ * Role hierarchy (least → most privileged):
+ *   CAPPER → ANALYST → VIEWER → OPS → ADMIN
+ *
+ * Scope mapping:
+ *   CAPPER  — View own picks/performance dashboards
+ *   ANALYST — CAPPER + view logs, traces, events, analytics
+ *   VIEWER  — ANALYST + general dashboard views (legacy, equivalent to ANALYST)
+ *   OPS     — VIEWER + agent control, queue management, backfill, replay
+ *   ADMIN   — OPS + safe mode, freeze, user management, system config, emergency
+ *
+ * SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION
+ */
 export enum Role {
+  CAPPER = 'CAPPER',
+  ANALYST = 'ANALYST',
   VIEWER = 'VIEWER',
   OPS = 'OPS',
   ADMIN = 'ADMIN',
@@ -83,18 +100,21 @@ export interface AuditEvent {
 // =============================================================================
 
 // Define base permissions for each role without circular references
-const VIEWER_PERMISSIONS: Permission[] = [
-  Permission.VIEW_DASHBOARD,
-  Permission.VIEW_METRICS,
+const CAPPER_PERMISSIONS: Permission[] = [Permission.VIEW_DASHBOARD, Permission.VIEW_METRICS];
+
+const ANALYST_PERMISSIONS: Permission[] = [
+  ...CAPPER_PERMISSIONS,
   Permission.VIEW_LOGS,
+  Permission.VIEW_TRACES,
   Permission.VIEW_EVENTS,
 ];
+
+const VIEWER_PERMISSIONS: Permission[] = [...ANALYST_PERMISSIONS];
 
 const OPS_PERMISSIONS: Permission[] = [
   // All viewer permissions
   ...VIEWER_PERMISSIONS,
   // Operational permissions
-  Permission.VIEW_TRACES,
   Permission.CONTROL_AGENTS,
   Permission.MANAGE_QUEUES,
   Permission.RUN_BACKFILL,
@@ -113,6 +133,8 @@ const ADMIN_PERMISSIONS: Permission[] = [
 ];
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+  [Role.CAPPER]: CAPPER_PERMISSIONS,
+  [Role.ANALYST]: ANALYST_PERMISSIONS,
   [Role.VIEWER]: VIEWER_PERMISSIONS,
   [Role.OPS]: OPS_PERMISSIONS,
   [Role.ADMIN]: ADMIN_PERMISSIONS,
@@ -411,18 +433,42 @@ export function rbacMiddleware(requiredPermission: Permission) {
 }
 
 /**
- * React hook for client-side permission checking
+ * Evaluate whether a given role has a specific permission.
+ * Pure function — no DB calls. Useful for client-side permission checks.
+ *
+ * SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION
+ */
+export function roleHasPermission(role: Role, permission: Permission): boolean {
+  const perms = ROLE_PERMISSIONS[role];
+  return perms ? perms.includes(permission) : false;
+}
+
+/**
+ * Get all permissions granted to a given role.
+ * Pure function — no DB calls.
+ *
+ * SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION
+ */
+export function getPermissionsForRole(role: Role): Permission[] {
+  return ROLE_PERMISSIONS[role] || [];
+}
+
+/**
+ * React hook for client-side permission checking.
+ * Returns permission evaluation helpers based on OPS role defaults.
+ * Future: wire to AuthProvider context for real user role.
+ *
+ * SPRINT-049-LAYER3-PHASE10-CC-AUTH-FOUNDATION
  */
 export function usePermissions() {
-  // This would be implemented in the React components
-  // For now, just export the structure
+  const defaultRole = Role.OPS;
+  const permissions = ROLE_PERMISSIONS[defaultRole] || [];
   return {
-    hasPermission: (permission: Permission) => {
-      // Implementation would check current user permissions
-      return false;
-    },
+    hasPermission: (permission: Permission) => permissions.includes(permission),
     requirePermission: (permission: Permission) => {
-      // Implementation would throw or redirect if no permission
+      if (!permissions.includes(permission)) {
+        throw new Error(`Missing permission: ${permission}`);
+      }
     },
     userRole: null as UserRole | null,
     loading: false,

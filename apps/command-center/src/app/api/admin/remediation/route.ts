@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
+import { getOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
@@ -414,7 +415,7 @@ export async function GET(request: NextRequest) {
   const span = UnitTalkTracing.startAgentSpan('admin', 'get_remediation_dashboard');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
 
     // Require view dashboard permission
     await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);
@@ -517,7 +518,7 @@ export async function POST(request: NextRequest) {
   const span = UnitTalkTracing.startAgentSpan('admin', 'remediation_action');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
     const userAgent = request.headers.get('user-agent') || 'unknown';
     const ipAddress = request.headers.get('x-forwarded-for') || 'unknown';
 
@@ -654,7 +655,7 @@ export async function PUT(request: NextRequest) {
   const span = UnitTalkTracing.startAgentSpan('admin', 'update_playbook');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
 
     // Require system config permission
     await RBACService.requirePermission(userId, Permission.SYSTEM_CONFIG);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity, requireOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
@@ -45,10 +46,10 @@ export async function GET(request: NextRequest) {
   const span = UnitTalkTracing.startTemporalSpan('command-center', 'fetch-events');
 
   try {
-    const userId = request.headers.get('x-user-id');
+    const identity = requireOperatorIdentity(request);
     const clientIP = request.headers.get('x-forwarded-for') || 'unknown';
 
-    if (!userId) {
+    if (!identity) {
       return NextResponse.json(
         {
           error: 'Authentication required',
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+    const userId = identity.userId;
 
     // Check permissions
     await RBACService.requirePermission(userId, Permission.VIEW_EVENTS, {
@@ -134,10 +136,11 @@ export async function POST(request: NextRequest) {
   const span = UnitTalkTracing.startTemporalSpan('command-center', 'stream-events');
 
   try {
-    const userId = request.headers.get('x-user-id');
-    if (!userId) {
+    const identity = requireOperatorIdentity(request);
+    if (!identity) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const userId = identity.userId;
 
     await RBACService.requirePermission(userId, Permission.VIEW_EVENTS);
 

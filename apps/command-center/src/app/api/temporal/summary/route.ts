@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
@@ -436,7 +437,7 @@ export async function GET(request: NextRequest) {
   const span = UnitTalkTracing.startTemporalSpan('TemporalMonitoring', 'get_summary');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
 
     // Check permissions - viewers can see temporal health
     await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);

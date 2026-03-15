@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
@@ -614,7 +615,7 @@ export async function GET(request: NextRequest) {
   const span = UnitTalkTracing.startAgentSpan('exposure', 'get_analysis');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
 
     // Check permissions
     await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);
@@ -691,7 +692,7 @@ export async function POST(request: NextRequest) {
   const span = UnitTalkTracing.startAgentSpan('exposure', 'create_snapshot');
 
   try {
-    const userId = request.headers.get('x-user-id') || 'system';
+    const { userId } = getOperatorIdentity(request);
 
     // Require ops permissions to create snapshots
     await RBACService.requirePermission(userId, Permission.CONTROL_AGENTS);

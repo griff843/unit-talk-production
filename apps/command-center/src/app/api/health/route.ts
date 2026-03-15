@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getOperatorIdentity } from '@/lib/auth';
 import { validateSupabaseEndpoint, CANONICAL_SUPABASE_HOST } from '@/lib/env';
 import { RBACService, Permission } from '@/lib/rbac';
 import { getRedisClient } from '@/lib/redis';
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
 
   try {
-    const userId = request.headers.get('x-user-id') || 'anonymous';
+    const { userId } = getOperatorIdentity(request);
     const detailed = request.nextUrl.searchParams.get('detailed') === 'true';
 
     // Check if user wants detailed health check (requires permissions)
