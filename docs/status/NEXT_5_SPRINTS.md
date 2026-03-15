@@ -138,36 +138,67 @@ roadmap + Linear backlog
 
 ---
 
-## Sprint 1: SPRINT-045 — TBD
+## ~~Sprint 1: SPRINT-LAYER2-PLATFORM-VERIFICATION-LOCK~~ ✅ COMPLETED (2026-03-14)
+
+> Full platform verification audit after Layer 2 completion. 1,569 tests
+> passing. 19 findings (0 P0, 3 P1, 9 P2). All 8 subsystems VERIFIED. Platform
+> claims confirmed: observable, controllable, recoverable, deterministic.
+
+---
+
+## ~~Sprint 1: SPRINT-045-OPERATOR-AUTH-HARDENING~~ ✅ COMPLETED (2026-03-14)
+
+> Weak "Bearer admin-\*" token auth replaced with JWT-based operatorAuth
+> middleware in 6 files (ops.ts, ops-control.ts, ops-recovery.ts, slo.ts,
+> risk.ts, api-server.ts). All gates pass: 1,569 tests, 0 TS errors, 0
+> single-writer violations.
+
+---
+
+## ~~Sprint 1: SPRINT-045-SCHEMA-TYPE-SYNC~~ ✅ COMPLETED (2026-03-14)
+
+> Schema types regenerated: 21 → 34 tables. All V3 canonical tables + lifecycle
+> columns included. packages/shared-types/src/supabase.ts updated. All gates
+> pass.
+
+---
+
+## Sprint 1: SPRINT-046 — TBD
 
 **Priority**: TBD **Phase**: TBD **Linear**: TBD
 
-**Note**: Layer 2 is complete. SPRINT-045 is next. Run `/sprint-plan` to
-determine scope. Candidates: Phase 4 — Automation Supremacy (edge ranking feeds,
-full market alert automation, Temporal scheduling config), COS-007 (sprint:close
-validation of LLM_ROUTING_DECISION.md), or Phase 1/Layer 1 closure gap work (E2E
-smoke test, Smart Form Windows build).
+**Note**: Platform verified. Auth hardened. Schema synced. Next sprint
+candidates from RECOMMENDED_REMEDIATION_SPRINTS.md:
+
+- SPRINT-046-RECOVERY-E2E-TESTS (P2 — integration tests for replay)
+- SPRINT-046-OPERATOR-AUDIT-TRAIL (P2 — audit logging for /ops)
+- SPRINT-046-TEST-COVERAGE-GAPS (P2 — AlertAgent + IngestionAgent tests)
+- Phase 4 advancement (edge ranking, alert automation)
+- COS-007 (sprint:close validation of LLM_ROUTING_DECISION.md)
 
 ---
 
 ## Summary
 
-| #     | Sprint                            | Priority | Phase       | Focus                                                         | Linear    |
-| ----- | --------------------------------- | -------- | ----------- | ------------------------------------------------------------- | --------- |
-| ~~1~~ | ~~RISK-BANKROLL-KELLY~~           | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                           | UNI-53    |
-| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~     | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE                 | UNI-54    |
-| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~       | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE                     | UNI-55    |
-| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~  | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                             | UNI-56    |
-| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~    | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE                   | UNI-57    |
-| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~     | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE                 | TBD       |
-| ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~  | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW            | UNI-64–68 |
-| ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~     | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE                      | UNI-69    |
-| ~~1~~ | ~~JEST-QUARANTINE-CLEANUP~~       | ~~P2~~   | ~~L1/Ph 0~~ | ~~Delete quarantined tests, close DRIFT-L2~~ ✅ DONE          | UNI-70    |
-| ~~1~~ | ~~041-MARKET-TYPE-EXPOSURE-CAPS~~ | ~~P1~~   | ~~Ph 3~~    | ~~Market-type caps; Phase 3 → 100%~~ ✅ DONE                  | UNI-72    |
-| ~~1~~ | ~~042-LAYER2-PHASE6-OPERATOR-CP~~ | ~~P1~~   | ~~L2/Ph 6~~ | ~~Operator control API + pick override~~ ✅ DONE              | TBD       |
-| ~~1~~ | ~~043-LAYER2-PHASE7-RELIABILITY~~ | ~~P1~~   | ~~L2/Ph 7~~ | ~~SLO framework + health summary + alerting~~ ✅ DONE         | TBD       |
-| ~~1~~ | ~~044-LAYER2-PHASE8-RECOVERY~~    | ~~P1~~   | ~~L2/Ph 8~~ | ~~Recovery & Replay; Layer 2 100% complete~~ ✅ DONE          | UNI-77    |
-| 1     | SPRINT-045 TBD                    | TBD      | TBD         | Define via /sprint-plan (Phase 4 / COS-007 / Phase 1 closure) | TBD       |
+| #     | Sprint                            | Priority | Phase       | Focus                                                 | Linear    |
+| ----- | --------------------------------- | -------- | ----------- | ----------------------------------------------------- | --------- |
+| ~~1~~ | ~~RISK-BANKROLL-KELLY~~           | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                   | UNI-53    |
+| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~     | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE         | UNI-54    |
+| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~       | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE             | UNI-55    |
+| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~  | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                     | UNI-56    |
+| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~    | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE           | UNI-57    |
+| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~     | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE         | TBD       |
+| ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~  | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW    | UNI-64–68 |
+| ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~     | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE              | UNI-69    |
+| ~~1~~ | ~~JEST-QUARANTINE-CLEANUP~~       | ~~P2~~   | ~~L1/Ph 0~~ | ~~Delete quarantined tests, close DRIFT-L2~~ ✅ DONE  | UNI-70    |
+| ~~1~~ | ~~041-MARKET-TYPE-EXPOSURE-CAPS~~ | ~~P1~~   | ~~Ph 3~~    | ~~Market-type caps; Phase 3 → 100%~~ ✅ DONE          | UNI-72    |
+| ~~1~~ | ~~042-LAYER2-PHASE6-OPERATOR-CP~~ | ~~P1~~   | ~~L2/Ph 6~~ | ~~Operator control API + pick override~~ ✅ DONE      | TBD       |
+| ~~1~~ | ~~043-LAYER2-PHASE7-RELIABILITY~~ | ~~P1~~   | ~~L2/Ph 7~~ | ~~SLO framework + health summary + alerting~~ ✅ DONE | TBD       |
+| ~~1~~ | ~~044-LAYER2-PHASE8-RECOVERY~~    | ~~P1~~   | ~~L2/Ph 8~~ | ~~Recovery & Replay; Layer 2 100% complete~~ ✅ DONE  | UNI-77    |
+| ~~1~~ | ~~PLATFORM-VERIFICATION-LOCK~~    | ~~P0~~   | ~~L2~~      | ~~Full platform verification audit~~ ✅ DONE          | TBD       |
+| ~~1~~ | ~~045-OPERATOR-AUTH-HARDENING~~   | ~~P1~~   | ~~L2/Sec~~  | ~~JWT auth on all /ops routes~~ ✅ DONE               | TBD       |
+| ~~1~~ | ~~045-SCHEMA-TYPE-SYNC~~          | ~~P1~~   | ~~Infra~~   | ~~Regenerate schema types (34 tables)~~ ✅ DONE       | TBD       |
+| 1     | SPRINT-046 TBD                    | TBD      | TBD         | Recovery E2E / Audit trail / Test gaps / Phase 4      | TBD       |
 
 **Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
 independent and can run in any order.

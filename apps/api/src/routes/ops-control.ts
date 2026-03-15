@@ -7,38 +7,25 @@
  * PUT  /ops/autopilot          → set mode at runtime + persist to DB
  * POST /ops/picks/:id/override → manual pick override via operator_override lifecycle role
  *
- * Auth: adminAuth (Bearer admin-* token)
+ * Auth: operatorAuth (JWT in production, system operator in dev, E2E bypass in test)
  */
 
 import express, { Router } from 'express';
 
 import { autopilotGuard, AutopilotMode } from '../lib/AutopilotGuard';
 import { lifecycleUpdate } from '../lib/lifecycle/write-adapter';
+import { operatorAuditLog } from '../middleware/operatorAuditLog';
+import { operatorAuth } from '../middleware/operatorAuth';
 import { supabase } from '../services/supabaseClient';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('OpsControl');
 const router: Router = express.Router();
 
-// Auth middleware — matches ops.ts and risk.ts pattern
-const adminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (process.env.NODE_ENV === 'test' && req.headers['x-e2e-test'] === 'true') {
-    return next();
-  }
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
-    return res.status(401).json({
-      success: false,
-      error: 'Unauthorized - Admin access required',
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  next();
-};
-
-router.use(adminAuth);
+// SPRINT-045-OPERATOR-AUTH-HARDENING: Use JWT-based operatorAuth instead of weak admin token
+router.use(operatorAuth);
+// SPRINT-046-OPERATOR-AUDIT-TRAIL: Immutable audit log for all operator actions
+router.use(operatorAuditLog);
 
 const VALID_AUTOPILOT_MODES: AutopilotMode[] = ['off', 'log_only', 'canary', 'prod'];
 

@@ -1,7 +1,8 @@
 # Phase Status
 
-**Last Updated**: 2026-03-14 (SPRINT-CLAUDE-OS-FINDING-BACKLOG-AUTOMATION)
-**Source**: Linear initiatives + repo implementation + sprint closeouts
+**Last Updated**: 2026-03-14 (SPRINT-045-OPERATOR-AUTH-HARDENING +
+SPRINT-045-SCHEMA-TYPE-SYNC) **Source**: Linear initiatives + repo
+implementation + sprint closeouts
 
 ---
 
@@ -80,9 +81,13 @@ enforce canonical state, deterministic outbox, settlement immutability
   quarantined — SPRINT-JEST-QUARANTINE-CLEANUP, 2026-03-14)
 - Smart Form build pre-existing BROKEN on Windows (Next.js 14.2.35 pnpm
   extraction)
-- Shadow mode (R3) and fault injection (R4) CI integration pending (code
-  verified, not yet wired into CI pipeline)
+- Shadow mode (R3) and fault injection (R4) CI integration: ✅ WIRED
+  (SPRINT-LAYER1-PHASE5-E2E-CLOSURE)
 - E2E smoke test suite (full-lifecycle pick proof) pending
+- Operator auth hardened: JWT-based operatorAuth on all /ops routes
+  (SPRINT-045-OPERATOR-AUTH-HARDENING)
+- Schema types synced: 34 tables with lifecycle columns
+  (SPRINT-045-SCHEMA-TYPE-SYNC)
 
 ### Assessment
 

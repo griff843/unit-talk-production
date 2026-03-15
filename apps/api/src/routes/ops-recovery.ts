@@ -6,7 +6,7 @@
  * POST /ops/recovery/replay  → run deterministic replay from a journal file
  * GET  /ops/recovery/replays → list recent replay proof bundles
  *
- * Auth: adminAuth (Bearer admin-* token)
+ * Auth: operatorAuth (JWT in production, system operator in dev, E2E bypass in test)
  */
 
 import { existsSync, readdirSync, statSync } from 'fs';
@@ -25,6 +25,8 @@ import {
   ReplaySettlementAdapter,
   VirtualEventClock,
 } from '../lib/verification';
+import { operatorAuditLog } from '../middleware/operatorAuditLog';
+import { operatorAuth } from '../middleware/operatorAuth';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('OpsRecovery');
@@ -33,25 +35,10 @@ const router: Router = express.Router();
 // Repo root — route file is at apps/api/src/routes/, repo root is 4 levels up
 const REPO_ROOT = resolve(__dirname, '../../../..');
 
-// Auth middleware — same pattern as ops-control.ts
-const adminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (process.env.NODE_ENV === 'test' && req.headers['x-e2e-test'] === 'true') {
-    return next();
-  }
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
-    return res.status(401).json({
-      success: false,
-      error: 'Unauthorized - Admin access required',
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  next();
-};
-
-router.use(adminAuth);
+// SPRINT-045-OPERATOR-AUTH-HARDENING: Use JWT-based operatorAuth instead of weak admin token
+router.use(operatorAuth);
+// SPRINT-046-OPERATOR-AUDIT-TRAIL: Immutable audit log for all operator actions
+router.use(operatorAuditLog);
 
 /**
  * POST /ops/recovery/replay
