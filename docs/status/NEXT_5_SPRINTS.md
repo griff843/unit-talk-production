@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-14 (SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY)
+**Last Updated**: 2026-03-14 (SPRINT-047-INGESTION-UNIT-COVERAGE-LOCK)
 **Source**: Phase status + drift report + system gap analysis + risk engine
 roadmap + Linear backlog
 
@@ -172,38 +172,36 @@ roadmap + Linear backlog
 
 ---
 
-## Sprint 1: SPRINT-047-INGESTION-UNIT-COVERAGE-LOCK
+## ~~Sprint 1: SPRINT-047-INGESTION-UNIT-COVERAGE-LOCK~~ ✅ COMPLETED (2026-03-14)
 
-**Priority**: P2 **Phase**: L2 / Phase 7 — Reliability **Linear**: TBD
-
-**Scope**: Provider-independent unit tests for IngestionAgent (zero current
-coverage). Fixture-driven, offline-only. Covers normalization, validation,
-dedup, batch processing, error handling, adapter mapping, metrics.
+> 45 provider-independent unit tests for IngestionAgent covering normalization,
+> validation, Zod schema, business rules, required fields, SGO adapter.
+> Fixture-driven, offline-only. Vitest: 978/978 (38 suites). PR #211.
 
 ---
 
 ## Summary
 
-| #     | Sprint                            | Priority | Phase       | Focus                                                 | Linear    |
-| ----- | --------------------------------- | -------- | ----------- | ----------------------------------------------------- | --------- |
-| ~~1~~ | ~~RISK-BANKROLL-KELLY~~           | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                   | UNI-53    |
-| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~     | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE         | UNI-54    |
-| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~       | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE             | UNI-55    |
-| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~  | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                     | UNI-56    |
-| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~    | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE           | UNI-57    |
-| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~     | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE         | TBD       |
-| ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~  | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW    | UNI-64–68 |
-| ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~     | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE              | UNI-69    |
-| ~~1~~ | ~~JEST-QUARANTINE-CLEANUP~~       | ~~P2~~   | ~~L1/Ph 0~~ | ~~Delete quarantined tests, close DRIFT-L2~~ ✅ DONE  | UNI-70    |
-| ~~1~~ | ~~041-MARKET-TYPE-EXPOSURE-CAPS~~ | ~~P1~~   | ~~Ph 3~~    | ~~Market-type caps; Phase 3 → 100%~~ ✅ DONE          | UNI-72    |
-| ~~1~~ | ~~042-LAYER2-PHASE6-OPERATOR-CP~~ | ~~P1~~   | ~~L2/Ph 6~~ | ~~Operator control API + pick override~~ ✅ DONE      | TBD       |
-| ~~1~~ | ~~043-LAYER2-PHASE7-RELIABILITY~~ | ~~P1~~   | ~~L2/Ph 7~~ | ~~SLO framework + health summary + alerting~~ ✅ DONE | TBD       |
-| ~~1~~ | ~~044-LAYER2-PHASE8-RECOVERY~~    | ~~P1~~   | ~~L2/Ph 8~~ | ~~Recovery & Replay; Layer 2 100% complete~~ ✅ DONE  | UNI-77    |
-| ~~1~~ | ~~PLATFORM-VERIFICATION-LOCK~~    | ~~P0~~   | ~~L2~~      | ~~Full platform verification audit~~ ✅ DONE          | TBD       |
-| ~~1~~ | ~~045-OPERATOR-AUTH-HARDENING~~   | ~~P1~~   | ~~L2/Sec~~  | ~~JWT auth on all /ops routes~~ ✅ DONE               | TBD       |
-| ~~1~~ | ~~045-SCHEMA-TYPE-SYNC~~          | ~~P1~~   | ~~Infra~~   | ~~Regenerate schema types (34 tables)~~ ✅ DONE       | TBD       |
-| ~~1~~ | ~~046-OPERATOR-AUDIT-TRAIL~~      | ~~P2~~   | ~~L2/Sec~~  | ~~Immutable audit log + query endpoint~~ ✅ DONE      | TBD       |
-| 1     | 047-INGESTION-UNIT-COVERAGE-LOCK  | P2       | L2/Ph 7     | IngestionAgent unit tests (offline, fixture-driven)   | TBD       |
+| #     | Sprint                               | Priority | Phase       | Focus                                                 | Linear    |
+| ----- | ------------------------------------ | -------- | ----------- | ----------------------------------------------------- | --------- |
+| ~~1~~ | ~~RISK-BANKROLL-KELLY~~              | ~~P1~~   | ~~Ph 3~~    | ~~Bankroll + Kelly sizing~~ ✅ DONE                   | UNI-53    |
+| ~~1~~ | ~~RISK-EXPOSURE-CORRELATION~~        | ~~P1~~   | ~~Ph 3~~    | ~~Exposure + correlation + drawdown~~ ✅ DONE         | UNI-54    |
+| ~~1~~ | ~~OBSERVABILITY-BUILD-FIX~~          | ~~P1~~   | ~~Ph 1~~    | ~~Build verification + DRIFT-M5~~ ✅ DONE             | UNI-55    |
+| ~~1~~ | ~~PROMOTION-RUNTIME-ACTIVATION~~     | ~~P1~~   | ~~Ph 1→3~~  | ~~Runbook + guard tests~~ ✅ DONE                     | UNI-56    |
+| ~~1~~ | ~~DISCORD-RECAP-VERIFICATION~~       | ~~P2~~   | ~~Ph 4~~    | ~~Discord bot + RecapAgent verify~~ ✅ DONE           | UNI-57    |
+| ~~1~~ | ~~LAYER1-PHASE5-E2E-CLOSURE~~        | ~~P1~~   | ~~L1/Ph 5~~ | ~~Shadow/fault CI + E2E smoke proof~~ ✅ DONE         | TBD       |
+| ~~–~~ | ~~CLAUDE-OS-UPGRADE-COS001-005~~     | ~~P1~~   | ~~Meta~~    | ~~COS-001 done; COS-002–005 in PR #170~~ ⏳ REVIEW    | UNI-64–68 |
+| ~~1~~ | ~~RISK-DASHBOARD-MONITORING~~        | ~~P1~~   | ~~L2/Ph 7~~ | ~~Risk dashboard + audit trail~~ ✅ DONE              | UNI-69    |
+| ~~1~~ | ~~JEST-QUARANTINE-CLEANUP~~          | ~~P2~~   | ~~L1/Ph 0~~ | ~~Delete quarantined tests, close DRIFT-L2~~ ✅ DONE  | UNI-70    |
+| ~~1~~ | ~~041-MARKET-TYPE-EXPOSURE-CAPS~~    | ~~P1~~   | ~~Ph 3~~    | ~~Market-type caps; Phase 3 → 100%~~ ✅ DONE          | UNI-72    |
+| ~~1~~ | ~~042-LAYER2-PHASE6-OPERATOR-CP~~    | ~~P1~~   | ~~L2/Ph 6~~ | ~~Operator control API + pick override~~ ✅ DONE      | TBD       |
+| ~~1~~ | ~~043-LAYER2-PHASE7-RELIABILITY~~    | ~~P1~~   | ~~L2/Ph 7~~ | ~~SLO framework + health summary + alerting~~ ✅ DONE | TBD       |
+| ~~1~~ | ~~044-LAYER2-PHASE8-RECOVERY~~       | ~~P1~~   | ~~L2/Ph 8~~ | ~~Recovery & Replay; Layer 2 100% complete~~ ✅ DONE  | UNI-77    |
+| ~~1~~ | ~~PLATFORM-VERIFICATION-LOCK~~       | ~~P0~~   | ~~L2~~      | ~~Full platform verification audit~~ ✅ DONE          | TBD       |
+| ~~1~~ | ~~045-OPERATOR-AUTH-HARDENING~~      | ~~P1~~   | ~~L2/Sec~~  | ~~JWT auth on all /ops routes~~ ✅ DONE               | TBD       |
+| ~~1~~ | ~~045-SCHEMA-TYPE-SYNC~~             | ~~P1~~   | ~~Infra~~   | ~~Regenerate schema types (34 tables)~~ ✅ DONE       | TBD       |
+| ~~1~~ | ~~046-OPERATOR-AUDIT-TRAIL~~         | ~~P2~~   | ~~L2/Sec~~  | ~~Immutable audit log + query endpoint~~ ✅ DONE      | TBD       |
+| ~~1~~ | ~~047-INGESTION-UNIT-COVERAGE-LOCK~~ | ~~P2~~   | ~~L2/Ph 7~~ | ~~IngestionAgent unit tests~~ ✅ DONE                 | TBD       |
 
 **Total estimated effort**: 3-5 days **Dependency chain**: All sprints are
 independent and can run in any order.
