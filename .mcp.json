@@ -42,6 +42,40 @@
     "terminal": {
       "command": "cmd",
       "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-shell"]
+    },
+    "unit-talk-ops": {
+      "command": "cmd",
+      "args": ["/c", "node", "packages/mcp-ops/dist/server.js"],
+      "env": {
+        "API_BASE_URL": "${API_BASE_URL}",
+        "SUPABASE_URL": "${SUPABASE_URL}",
+        "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}",
+        "OPERATOR_TOKEN": "${OPERATOR_TOKEN}"
+      }
+    },
+    "unit-talk-state": {
+      "command": "cmd",
+      "args": ["/c", "node", "packages/mcp-state/dist/server.js"],
+      "env": {
+        "SUPABASE_URL": "${SUPABASE_URL}",
+        "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}"
+      }
+    },
+    "unit-talk-intelligence": {
+      "command": "cmd",
+      "args": ["/c", "node", "packages/mcp-intelligence/dist/server.js"],
+      "env": {
+        "API_BASE_URL": "${API_BASE_URL}",
+        "SUPABASE_URL": "${SUPABASE_URL}",
+        "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}"
+      }
+    },
+    "unit-talk-decision": {
+      "command": "cmd",
+      "args": ["/c", "node", "packages/mcp-decision/dist/server.js"],
+      "env": {
+        "REPO_ROOT": "${REPO_ROOT}"
+      }
     }
   }
 }
