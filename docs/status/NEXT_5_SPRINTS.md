@@ -1,9 +1,8 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-15
-(SPRINT-052-LAYER3-PHASE11-OPERATOR-WORKFLOW-FOUNDATION) **Source**: Phase
-status + drift report + Layer 3 scoping analysis + Claude OS backlog + codebase
-investigation
+**Last Updated**: 2026-03-15 (SPRINT-053-GOVERNANCE-NAMING-CONVENTION)
+**Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
+backlog + codebase investigation
 
 > **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
 > targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
@@ -11,41 +10,7 @@ investigation
 
 ---
 
-## Sprint 1: SPRINT-053-GOVERNANCE-NAMING-CONVENTION
-
-**Priority**: P2 | **Phase**: Meta (Governance) | **Depends On**: None
-
-**Objective**: Resolve DRIFT-H2 (sprint naming convention inconsistency) by
-establishing and documenting a canonical naming convention, then reconciling
-legacy git tags.
-
-**Rationale**: Legacy git tags use `SPRINT-<NAME>-###` numbering while recent
-sprints use descriptive names only (`SPRINT-PROMOTION-PIPELINE-ACTIVATION`).
-Cross-referencing sprints between git tags, Linear issues, and docs requires
-manual mapping. This is the highest-severity active drift item (HIGH).
-
-**Tasks**:
-
-1. Document the canonical sprint naming convention in
-   `docs/claude/SPRINT_NAMING_CONVENTION.md`
-2. Decide: keep descriptive-only names (current practice) or restore
-   `<NAME>-###` (legacy)
-3. Update `CLAUDE.md` sprint naming section to reference the canonical doc
-4. Create a mapping table of legacy numbered tags to their descriptive
-   equivalents
-5. Update `tools/governance/sprint-gate.js` to validate the chosen convention
-6. Update DRIFT_REPORT.md to resolve DRIFT-H2
-
-**Success Criteria**:
-
-- Canonical naming convention documented and referenced from CLAUDE.md
-- Sprint gate validates name format
-- DRIFT-H2 resolved in DRIFT_REPORT.md
-- No code changes — governance docs + tooling only
-
----
-
-## Sprint 2: SPRINT-054-LAYER3-PHASE10-REPLAY-ENDPOINT
+## Sprint 1: SPRINT-054-LAYER3-PHASE10-REPLAY-ENDPOINT
 
 **Priority**: P2 | **Phase**: Layer 3 / Phase 10 — Command Center UX | **Depends
 On**: None (SPRINT-049 auth context delivered)
@@ -80,19 +45,18 @@ Temporal workflow.
 
 | #   | Sprint                             | Priority | Phase    | Focus                                       | Linear | Blocked By |
 | --- | ---------------------------------- | -------- | -------- | ------------------------------------------- | ------ | ---------- |
-| 1   | 053-GOVERNANCE-NAMING-CONVENTION   | P2       | Meta     | Resolve DRIFT-H2 naming inconsistency       | TBD    | None       |
-| 2   | 054-LAYER3-PHASE10-REPLAY-ENDPOINT | P2       | L3/Ph 10 | Wire Temporal startWorkflow in replay route | TBD    | None       |
+| 1   | 054-LAYER3-PHASE10-REPLAY-ENDPOINT | P2       | L3/Ph 10 | Wire Temporal startWorkflow in replay route | TBD    | None       |
 
-**Total estimated effort**: 2–4 days **Dependency chain**: All sprints are now
-independent — SPRINT-049 (auth context) and SPRINT-052 (workflow registry)
-completed and available as foundations.
+**Total estimated effort**: 1–2 days **Dependency chain**: All sprints are now
+independent — SPRINT-049 (auth context), SPRINT-052 (workflow registry), and
+SPRINT-053 (naming convention) all completed.
 
 ---
 
 ## Completed Sprint History
 
 <details>
-<summary>24 sprints completed (2026-03-10 through 2026-03-15) — click to expand</summary>
+<summary>25 sprints completed (2026-03-10 through 2026-03-15) — click to expand</summary>
 
 | Sprint                           | Date       | PR   | Linear    | Layer/Phase |
 | -------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -120,5 +84,6 @@ completed and available as foundations.
 | 050-LAYER3-PHASE10-CC-PERM-ENF   | 2026-03-15 | #224 | UNI-85    | L3/Ph 10    |
 | 051-LAYER3-PHASE9-SMARTFORM-UX   | 2026-03-15 | #227 | UNI-86    | L3/Ph 9     |
 | 052-LAYER3-PHASE11-OP-WORKFLOW   | 2026-03-15 | #230 | UNI-87    | L3/Ph 11    |
+| 053-GOVERNANCE-NAMING-CONVENTION | 2026-03-15 | #234 | UNI-88    | Meta        |
 
 </details>
