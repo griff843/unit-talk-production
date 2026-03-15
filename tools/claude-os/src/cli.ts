@@ -52,6 +52,7 @@ import { loadProfileById, loadProfileFromPath } from './profile-loader.js';
 import { generatePromptPack } from './prompt-pack-generator.js';
 import { scanIssueQueue, selectNextIssue } from './queue-manager.js';
 import { validateAllReceipts } from './receipt-validator.js';
+import { validateRoutingDecision } from './routing-decision-validator.js';
 import { resolveBlastRadius } from './scope-resolver.js';
 import { assembleSprintPlan, assembleSprintPlanWithProfile } from './sprint-planner.js';
 import {
@@ -2350,6 +2351,29 @@ function commandSprintClose(args: Record<string, string | boolean | string[]>): 
       }
       if (jsonOutput)
         console.log(JSON.stringify({ error: 'receipt_validation_failed', validation }, null, 2));
+      process.exit(1);
+    }
+  }
+
+  // LLM routing decision gate — runs BEFORE authority lock release
+  // Skipped when --force is set (same as receipt validation gate)
+  if (!force) {
+    const routingValidation = validateRoutingDecision(state.sprint_id);
+    if (!routingValidation.valid) {
+      console.error(
+        `${c.red}ERROR: LLM routing decision validation failed — cannot close sprint.${c.reset}`
+      );
+      for (const err of routingValidation.errors) {
+        console.error(`  ${c.red}→ ${err}${c.reset}`);
+      }
+      if (jsonOutput)
+        console.log(
+          JSON.stringify(
+            { error: 'routing_decision_validation_failed', errors: routingValidation.errors },
+            null,
+            2
+          )
+        );
       process.exit(1);
     }
   }
