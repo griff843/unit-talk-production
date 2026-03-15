@@ -122,19 +122,34 @@ function LegItem({ leg, onRemove, onUpdate }: LegItemProps) {
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500 uppercase">{leg.sport}</span>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleSave}>
-                <Check className="h-3 w-3 text-green-600" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={handleSave}
+                aria-label="Save leg edits"
+              >
+                <Check className="h-3 w-3 text-green-600" aria-hidden="true" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCancel}>
-                <X className="h-3 w-3 text-gray-400" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={handleCancel}
+                aria-label="Cancel leg edits"
+              >
+                <X className="h-3 w-3 text-gray-400" aria-hidden="true" />
               </Button>
             </div>
           </div>
           <p className="text-sm font-medium truncate">{leg.player_name || leg.team}</p>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs text-gray-500">Line</label>
+              <label htmlFor={`edit-line-${leg.id}`} className="text-xs text-gray-500">
+                Line
+              </label>
               <Input
+                id={`edit-line-${leg.id}`}
                 type="number"
                 step="0.5"
                 value={editLine}
@@ -144,8 +159,11 @@ function LegItem({ leg, onRemove, onUpdate }: LegItemProps) {
               />
             </div>
             <div className="flex-1">
-              <label className="text-xs text-gray-500">Odds</label>
+              <label htmlFor={`edit-odds-${leg.id}`} className="text-xs text-gray-500">
+                Odds
+              </label>
               <Input
+                id={`edit-odds-${leg.id}`}
                 value={editOdds}
                 onChange={e => setEditOdds(e.target.value)}
                 className="h-8 text-sm"
@@ -188,16 +206,18 @@ function LegItem({ leg, onRemove, onUpdate }: LegItemProps) {
               size="icon"
               className="h-7 w-7 text-gray-400 hover:text-blue-600"
               onClick={() => setIsEditing(true)}
+              aria-label={`Edit ${buildSelectionString(leg)}`}
             >
-              <Edit2 className="h-3.5 w-3.5" />
+              <Edit2 className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-gray-400 hover:text-red-600"
               onClick={onRemove}
+              aria-label={`Remove ${buildSelectionString(leg)}`}
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           </div>
         </div>
