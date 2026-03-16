@@ -5,6 +5,7 @@ import {
   BarChart3,
   Bot,
   FileCheck,
+  GitBranch,
   Users,
   Zap,
   Target,
@@ -54,6 +55,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'PicksHQ', href: '/dashboard/picks', icon: Target },
       { name: 'Grading HQ', href: '/dashboard/grading', icon: Timer },
       { name: 'Replay', href: '/dashboard/replay', icon: RefreshCw },
+      { name: 'Workflows', href: '/dashboard/workflows', icon: GitBranch },
     ],
   },
   {
