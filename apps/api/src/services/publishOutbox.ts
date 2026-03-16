@@ -126,7 +126,7 @@ export async function enqueueForPublish(
       status: 'pending',
       dedupe_key: dedupeKey,
       payload_hash: payloadHash,
-      tenant_id: params.tenantId ?? 'default',
+      tenant_id: params.tenantId ?? null,
       attempts: 0,
       max_attempts: 3,
       metadata: {
