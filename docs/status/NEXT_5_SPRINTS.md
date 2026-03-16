@@ -1,8 +1,8 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-16 (SPRINT-059-AI-OS-WAVE2-AGENTS) **Source**: Phase
-status + drift report + Layer 3 scoping analysis + Claude OS backlog + codebase
-investigation
+**Last Updated**: 2026-03-16 (SPRINT-060-LAYER3-PHASE11-CC-WORKFLOW-MANAGEMENT)
+**Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
+backlog + codebase investigation
 
 > **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
 > targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
@@ -31,7 +31,7 @@ SPRINT-054 Replay Endpoint — all done).
 ## Completed Sprint History
 
 <details>
-<summary>27 sprints completed (2026-03-10 through 2026-03-16) — click to expand</summary>
+<summary>28 sprints completed (2026-03-10 through 2026-03-16) — click to expand</summary>
 
 | Sprint                             | Date       | PR   | Linear    | Layer/Phase |
 | ---------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -66,5 +66,6 @@ SPRINT-054 Replay Endpoint — all done).
 | 054-LAYER3-PHASE10-REPLAY-ENDPOINT | 2026-03-15 | #252 | UNI-92    | L3/Ph 10    |
 | 058-LAYER3-PHASE10-CC-HEALTH-DASH  | 2026-03-15 | #255 | UNI-93    | L3/Ph 10    |
 | 059-AI-OS-WAVE2-AGENTS             | 2026-03-16 | #259 | UNI-94    | AI OS       |
+| 060-LAYER3-PHASE11-CC-WORKFLOW     | 2026-03-16 | #262 | UNI-95    | L3/Ph 11    |
 
 </details>
