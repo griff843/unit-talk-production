@@ -341,14 +341,15 @@ async function handleGradingReplay(
   // Trigger Temporal workflow for batch processing
   try {
     const { temporalService } = await import('@/lib/temporal');
-
-    // TODO: Implement startWorkflow method in temporalService
-    console.log(`Starting replay workflow: ${replayId}`, {
-      originalEventIds: events.map(e => e.id),
-      replayReason: criteria.reason,
-      batchSize: criteria.batchSize || 5,
-      userId,
-    });
+    await temporalService.startWorkflow('replayGradingWorkflow', replayId, [
+      {
+        originalEventIds: events.map(e => e.id),
+        replayReason: criteria.reason,
+        actorId: userId,
+        batchSize: criteria.batchSize || 5,
+        priority: criteria.priority || 'normal',
+      },
+    ]);
   } catch (temporalError) {
     console.warn(
       'Failed to start Temporal workflow, events will be processed by BridgeWorker:',
@@ -430,14 +431,14 @@ async function handleAlertReemission(
   // Trigger Temporal workflow
   try {
     const { temporalService } = await import('@/lib/temporal');
-
-    // TODO: Implement startWorkflow method in temporalService
-    console.log(`Starting alert reemission workflow: ${replayId}`, {
-      gradingEventIds: gradingEvents.map(e => e.id),
-      alertTypes: criteria.alertTypes,
-      reemissionReason: criteria.reason,
-      userId,
-    });
+    await temporalService.startWorkflow('alertReemissionWorkflow', replayId, [
+      {
+        gradingEventIds: gradingEvents.map(e => e.id),
+        alertTypes: criteria.alertTypes,
+        reemissionReason: criteria.reason,
+        actorId: userId,
+      },
+    ]);
   } catch (temporalError) {
     console.warn(
       'Failed to start Temporal workflow, events will be processed by BridgeWorker:',

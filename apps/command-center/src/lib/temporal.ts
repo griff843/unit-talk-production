@@ -94,6 +94,34 @@ class TemporalService {
     }
   }
 
+  async startWorkflow(
+    workflowType: string,
+    workflowId: string,
+    args: unknown[]
+  ): Promise<{ workflowId: string; runId: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/workflows`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'start', workflowType, workflowId, args }),
+      });
+
+      const result: ApiResponse<{ workflowId: string; runId: string }> = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to start workflow');
+      }
+
+      console.log(`✅ Started workflow via API: ${workflowId}`);
+      return result.data!;
+    } catch (error) {
+      console.error(`❌ Failed to start workflow ${workflowType} (${workflowId}):`, error);
+      throw error;
+    }
+  }
+
   async terminateWorkflow(
     workflowId: string,
     reason: string = 'Manual termination from Command Center'
