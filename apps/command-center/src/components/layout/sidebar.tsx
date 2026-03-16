@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Activity,
   BarChart3,
   Bot,
   FileCheck,
@@ -19,6 +20,7 @@ import {
   Wifi,
   Layers,
   Gavel,
+  RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -51,6 +53,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'Settlement', href: '/dashboard/settlement', icon: Gavel },
       { name: 'PicksHQ', href: '/dashboard/picks', icon: Target },
       { name: 'Grading HQ', href: '/dashboard/grading', icon: Timer },
+      { name: 'Replay', href: '/dashboard/replay', icon: RefreshCw },
     ],
   },
   {
@@ -61,6 +64,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'API Health', href: '/dashboard/api-health', icon: Wifi },
       { name: 'Events Stream', href: '/dashboard/events', icon: Layers },
       { name: 'Risk Engine', href: '/dashboard/risk', icon: Shield },
+      { name: 'Platform Health', href: '/dashboard/health', icon: Activity },
     ],
   },
   {
