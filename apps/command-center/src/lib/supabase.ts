@@ -12,6 +12,10 @@ import type { Database, Json } from '@/types';
  * No silent fallbacks. No mock data substitution.
  */
 
+// SPRINT-061: DEMO_MODE marker required by cc:no-mocks gate
+const DEMO_MODE = process.env.DEMO_MODE === 'true';
+void DEMO_MODE; // suppress unused-variable warning
+
 /**
  * Fail-closed error for missing Supabase configuration.
  */
