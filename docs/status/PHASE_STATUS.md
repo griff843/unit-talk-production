@@ -1,7 +1,7 @@
 # Phase Status
 
-**Last Updated**: 2026-03-15 (SPRINT-053-GOVERNANCE-NAMING-CONVENTION)
-**Source**: Linear initiatives + repo implementation + sprint closeouts
+**Last Updated**: 2026-03-16 (SPRINT-059-AI-OS-WAVE2-AGENTS) **Source**: Linear
+initiatives + repo implementation + sprint closeouts
 
 ---
 
@@ -442,6 +442,19 @@ Tracking AI operator tooling improvements separate from product phases.
   Classifications, Instance mode, Lane assignments; 17 vitest tests; UNI-83 Done
   (PR #217, 2026-03-15)
 
+### Complete (SPRINT-059-AI-OS-WAVE2-AGENTS, 2026-03-16)
+
+- **Wave 2 Skills + Agents**: `incident-triage` skill (production triage with
+  P0–P4 severity taxonomy, 9-class classifier, finding-backlog integration);
+  `scoring-audit` skill (calibration/band/CLV/shadow audit, MCP intelligence
+  tools, promotion_band=null failure mode); `intelligence-scoring-specialist`
+  agent (Unit Talk-Specific — owns scoring, calibration, CLV, grading, R3/R4/R5
+  verification); `temporal-workflow-guardian` agent (Adapter-Based — owns
+  Temporal execution, WorkflowRegistry, replay endpoint); AI OS Skills Layer:
+  **7 operational skills** total; AI_BOOTSTRAP_READINESS_CHECKLIST +
+  AI_ENHANCEMENT_REMAINING_WORK_MAP updated to reflect Wave 2 complete (PR #259,
+  2026-03-16)
+
 ### Future
 
 - **COS-008 — Mode B task envelopes**: artifact bundle format for external LLM
@@ -450,9 +463,13 @@ Tracking AI operator tooling improvements separate from product phases.
 
 ### Assessment
 
-**Claude OS Upgrade: COS-001–007 all COMPLETE. Full governance batch closed.
-sprint:close now enforces routing evidence before closeout. Next Claude OS items
-(COS-008/009) are Mode B multi-LLM pilot work — not yet scheduled.**
+**Claude OS Upgrade: COS-001–007 all COMPLETE + Wave 2 Skills COMPLETE
+(2026-03-16). sprint:close now enforces routing evidence before closeout. 7
+operational skills: system-status, sprint-plan (Wave 1); agent-health,
+prompt-compose, discord-diagnose, incident-triage, scoring-audit (Wave 2 — 5
+skills across SPRINT-058 wave + SPRINT-059). Next Claude OS items (COS-008/009)
+are Mode B multi-LLM pilot work — not yet scheduled. Wave 3 skills
+(temporal-health, schema-drift, architecture-boundary-audit) in queue.**
 
 ---
 
@@ -465,7 +482,7 @@ sprint:close now enforces routing evidence before closeout. Next Claude OS items
 | **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)                                                   |
 | **Phase 4** — Automation Supremacy     | Active  | 45%        | Discord bot + RecapAgent VERIFIED; workflow registry live (SPRINT-052); scheduling config external; edge ranking and alert automation not started |
 | **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                                                                |
-| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; sprint:close now enforces LLM_ROUTING_DECISION.md gate (COS-007, PR #217)                                                   |
+| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; Wave 2 skills COMPLETE (7 operational); sprint:close enforces LLM_ROUTING_DECISION.md gate (COS-007); SPRINT-059 2026-03-16 |
 
 **Current Platform Phase**: Layer 2 COMPLETE (Phases 6–8 all done). Layer 1
 COMPLETE. Phase 1 at 97%, Phase 2 at 100%, Phase 3 at 100%, Phase 4 at 40%.
@@ -483,5 +500,9 @@ dashboard at /dashboard/replay, 61/61 CC tests passing (PR #252, 2026-03-15);
 /api/health/summary + GET /api/slo/status CC proxy routes, /dashboard/health
 page (platform status card HEALTHY/DEGRADED/CRITICAL + 4-SLO attainment grid),
 sidebar Replay + Platform Health nav, 73/73 CC tests passing (PR #255,
-2026-03-15, UNI-93 Done). Next canonical work: run /sprint-plan. See
-`docs/06_status/current_phase.md` for canonical layer/phase position.
+2026-03-15, UNI-93 Done); **SPRINT-059 delivered AI OS Wave 2 Skills + Agents**
+— incident-triage, scoring-audit skills + intelligence-scoring-specialist,
+temporal-workflow-guardian agents; 7 operational skills total; AI OS docs
+updated; Lane 4 docs-only sprint (PR #259, 2026-03-16). Next canonical work: run
+/sprint-plan. See `docs/06_status/current_phase.md` for canonical layer/phase
+position.
