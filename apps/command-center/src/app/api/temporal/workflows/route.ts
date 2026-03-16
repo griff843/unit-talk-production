@@ -3,8 +3,8 @@
  * Moves Temporal client from frontend to backend for security
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import { Client, Connection } from '@temporalio/client';
+import { NextRequest, NextResponse } from 'next/server';
 
 export interface WorkflowInfo {
   workflowId: string;
@@ -117,6 +117,29 @@ class ServerTemporalService {
     return summary;
   }
 
+  async startWorkflow(
+    workflowType: string,
+    workflowId: string,
+    args: unknown[]
+  ): Promise<{ workflowId: string; runId: string }> {
+    if (!this.client) {
+      await this.connect();
+    }
+
+    try {
+      const handle = await this.client!.workflow.start(workflowType, {
+        taskQueue: process.env.TEMPORAL_TASK_QUEUE || 'default',
+        workflowId,
+        args,
+      });
+      console.log(`✅ Started workflow: ${workflowId} (type: ${workflowType})`);
+      return { workflowId: handle.workflowId, runId: handle.firstExecutionRunId };
+    } catch (error) {
+      console.error(`❌ Failed to start workflow ${workflowType} (${workflowId}):`, error);
+      throw error;
+    }
+  }
+
   async terminateWorkflow(
     workflowId: string,
     reason: string = 'Manual termination from Command Center'
@@ -193,10 +216,29 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, workflowId, reason } = body;
+    const { action, workflowId, reason, workflowType, args } = body;
 
     switch (action) {
-      case 'terminate':
+      case 'start': {
+        if (!workflowType || !workflowId) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'workflowType and workflowId are required for start action',
+            },
+            { status: 400 }
+          );
+        }
+
+        const startResult = await serverTemporalService.startWorkflow(
+          workflowType,
+          workflowId,
+          args ?? []
+        );
+        return NextResponse.json({ success: true, data: startResult });
+      }
+
+      case 'terminate': {
         if (!workflowId) {
           return NextResponse.json(
             {
@@ -207,8 +249,9 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const success = await serverTemporalService.terminateWorkflow(workflowId, reason);
-        return NextResponse.json({ success, data: { terminated: success } });
+        const terminated = await serverTemporalService.terminateWorkflow(workflowId, reason);
+        return NextResponse.json({ success: terminated, data: { terminated } });
+      }
 
       default:
         return NextResponse.json(
