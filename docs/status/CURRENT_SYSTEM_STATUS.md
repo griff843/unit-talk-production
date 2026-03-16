@@ -1,6 +1,29 @@
 # Current System Status
 
-**Last Updated**: 2026-03-16 **Audit Source**:
+**Last Updated**: 2026-03-16 **Audit Source**: SPRINT-066-SCORING-CERTIFICATION
+(V2 scoring pipeline exercised for first time: computeScoreV2 +
+evaluatePromotion with 3 scenarios (S-tier HARD promote, A-tier SOFT promote,
+D-tier no-promote). Root cause fixed: computeScoreV2 never populated
+featureSnapshotId/featureVectorHash — CONSTITUTIONAL Gate 7 silently blocked ALL
+promotions. Fix: SHA-256 featureVectorHash + deterministic UUID
+featureSnapshotId added. All 8 promotion gates exercised. GAP-L1-01 CLOSED.
+GAP-L1-02 CLOSED. L1 matrix: 3 PASS, 8 PARTIAL, 2 FAIL (was 5P/5F). API vitest:
+1000→1025. Proof: out/sprints/SPRINT-066-SCORING-CERTIFICATION/.) **Prior Audit
+Source**: SPRINT-065-LAYER1-COMPLETION-VERIFICATION (Layer 1 certification
+audit: Layer 1 is NOT COMPLETE (PARTIALLY CERTIFIED). 3 of 13 exit requirements
+PASS, 5 PARTIAL, 5 FAIL. Scoring pipeline never exercised. RecapAgent
+non-functional (wrong column names). Full lifecycle E2E path never traversed.
+See LAYER1_EXIT_REQUIREMENTS.md.) **Prior Audit Source**:
+SPRINT-064-SETTLEMENT-LIFECYCLE-FIX (Settlement runtime proven:
+lifecycleSettle() POSTED→SETTLED at runtime. DEFECT-8/9 INVALID. New
+DEFECT-10–13. Lifecycle proof matrix: 52.5% PASS, 20% PARTIAL, 27.5% FAIL.)
+**Prior Audit Source**: SPRINT-063-LIFECYCLE-TRUTH-RESTORATION (Lifecycle truth
+audit: transport certified PASS (4 Discord posts), settlement NOT CERTIFIED
+(external data dep + RecapAgent schema mismatch), scoring NOT CERTIFIED (Optimal
+API down, manual tier/band), replay infrastructure PARTIAL (R2 not integrated
+into API endpoint). See LIFECYCLE_PROOF_MATRIX.md and
+LIFECYCLE_TRUTH_GAP_MEMO.md for full evidence. SPRINT-062 PARTIAL — 5 schema
+defects fixed, 3 open defects remain.) **Prior Audit Source**:
 SPRINT-061-LAYER3-PHASE10-CC-ALERT-DASHBOARD (GET /ops/alerts API route; CC
 proxy /api/alerts (force-dynamic, requireOperatorIdentity, 503 fallback);
 /dashboard/alerts page — grouped by severity critical→warning→info, empty state;
@@ -180,20 +203,20 @@ COS-005 session baseline hook — COS-002–005 in PR #170, UNI-64–68)
 
 ## Agent Status
 
-| Agent                 | Lifecycle Compliant | Active | Notes                                                                                                                                                                                                                                                                      |
-| --------------------- | ------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GradingAgent          | YES                 | YES    | Uses `lifecycleInsert()` with `promoter` role; RiskEngine pre-flight gate (fail-closed); passes sizing inputs (winProb + decimalOdds) to RiskEngine; `promotion_band='HARD'` fallback set for all promoted picks — no null writes (SPRINT-DISCORD-PROMOTION-BAND-NULL-FIX) |
-| SettlementAgent       | YES                 | YES    | Uses `lifecycleSettle()` with `settler` role                                                                                                                                                                                                                               |
-| DiscordPromotionAgent | YES                 | YES    | Uses `atomicClaimForPost()`; L988-993 bypass removed (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                                                                                                                     |
-| RecapAgent            | YES                 | YES    | Uses `lifecycleUpdate()`                                                                                                                                                                                                                                                   |
-| IngestionAgent        | N/A                 | YES    | Writes to `provider_offers` (different table)                                                                                                                                                                                                                              |
-| FeedAgent             | N/A                 | YES    | Writes to `provider_offers`/`raw_props`                                                                                                                                                                                                                                    |
-| AlertAgent            | YES                 | YES    | Migrated to `lifecycleUpdate()` (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                                                                                                                                          |
-| AnalyticsAgent        | N/A                 | YES    | Read-only analytics                                                                                                                                                                                                                                                        |
-| NotificationAgent     | N/A                 | YES    | Notifications only                                                                                                                                                                                                                                                         |
-| PlayerEnrichmentAgent | N/A                 | YES    | Reads participants                                                                                                                                                                                                                                                         |
-| AuditAgent            | N/A                 | YES    | Audit trail only                                                                                                                                                                                                                                                           |
-| OperatorAgent         | N/A                 | YES    | Manual operations                                                                                                                                                                                                                                                          |
+| Agent                 | Lifecycle Compliant | Active     | Notes                                                                                                                                                                                                                                                                      |
+| --------------------- | ------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GradingAgent          | YES                 | YES        | Uses `lifecycleInsert()` with `promoter` role; RiskEngine pre-flight gate (fail-closed); passes sizing inputs (winProb + decimalOdds) to RiskEngine; `promotion_band='HARD'` fallback set for all promoted picks — no null writes (SPRINT-DISCORD-PROMOTION-BAND-NULL-FIX) |
+| SettlementAgent       | YES                 | UNVERIFIED | Uses `lifecycleSettle()` with `settler` role — NOT runtime-proven (SPRINT-063: no completed games in test window, external data dependency)                                                                                                                                |
+| DiscordPromotionAgent | YES                 | YES        | Uses `atomicClaimForPost()`; L988-993 bypass removed (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                                                                                                                     |
+| RecapAgent            | YES                 | BROKEN     | Queries nonexistent columns (`play_status`, `outcome`) — NON-FUNCTIONAL (SPRINT-063 audit: recapService.ts:95-99)                                                                                                                                                          |
+| IngestionAgent        | N/A                 | YES        | Writes to `provider_offers` (different table)                                                                                                                                                                                                                              |
+| FeedAgent             | N/A                 | YES        | Writes to `provider_offers`/`raw_props`                                                                                                                                                                                                                                    |
+| AlertAgent            | YES                 | YES        | Migrated to `lifecycleUpdate()` (SPRINT-SINGLE-WRITER-COMPLETION)                                                                                                                                                                                                          |
+| AnalyticsAgent        | N/A                 | YES        | Read-only analytics                                                                                                                                                                                                                                                        |
+| NotificationAgent     | N/A                 | YES        | Notifications only                                                                                                                                                                                                                                                         |
+| PlayerEnrichmentAgent | N/A                 | YES        | Reads participants                                                                                                                                                                                                                                                         |
+| AuditAgent            | N/A                 | YES        | Audit trail only                                                                                                                                                                                                                                                           |
+| OperatorAgent         | N/A                 | YES        | Manual operations                                                                                                                                                                                                                                                          |
 
 ---
 
@@ -225,9 +248,15 @@ COS-005 session baseline hook — COS-002–005 in PR #170, UNI-64–68)
                     ┌────────────▼──┐  ┌────▼───────────┐
                     │ Discord       │  │ Settlement     │
                     │ Promotion     │  │ Agent          │
-                    │ (WIRED/GATED) │  │ (VERIFIED)     │
+                    │ (WIRED/GATED) │  │ (UNVERIFIED)   │
                     └───────────────┘  └────────────────┘
 ```
+
+> **SPRINT-063 LIFECYCLE TRUTH RESTORATION NOTE** (2026-03-16): Settlement and
+> Recap are UNVERIFIED. Full lifecycle certification requires at least one pick
+> to traverse SUBMIT → SCORE → POST → SETTLE → RECAP. See
+> `docs/status/LIFECYCLE_PROOF_MATRIX.md` and
+> `docs/status/LIFECYCLE_TRUTH_GAP_MEMO.md` for evidence.
 
 ---
 

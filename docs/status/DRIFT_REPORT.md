@@ -1,7 +1,7 @@
 # Drift Report
 
 **Sprint**: SPRINT-PLATFORM-TRUTH-AUDIT (original) / Updated:
-SPRINT-048-TRUTH-RECONCILIATION-LAYER3-QUEUE **Date**: 2026-03-15 **Sources
+SPRINT-063-LIFECYCLE-TRUTH-RESTORATION **Date**: 2026-03-16 **Sources
 Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ---
@@ -93,7 +93,44 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ### HIGH DRIFT
 
-~~No active HIGH drift items.~~
+#### DRIFT-H6: Lifecycle Certification Gap — Recap NOT Operational (Scoring PARTIAL, Settlement RESOLVED)
+
+- **What**: SPRINT-062 E2E truth audit proved transport (submit→post) but could
+  not certify settlement, scoring, or recap. SPRINT-064 proved settlement.
+  SPRINT-066 exercised scoring pipeline (V2 pipeline certified with synthetic
+  data).
+- **Settlement status**: **PARTIALLY RESOLVED** by SPRINT-064. lifecycleSettle()
+  runtime-proven. SettlementAgent automatic trigger not tested (requires
+  game_results from external API). manual_settle_pick() RPC broken (DEFECT-11).
+- **Scoring status**: **PARTIALLY RESOLVED** by SPRINT-066. computeScoreV2 +
+  evaluatePromotion exercised. CONSTITUTIONAL Gate 7 defect fixed
+  (featureSnapshotId
+  - featureVectorHash now generated). All 8 promotion gates proven satisfiable.
+    Remaining: live provider_offers round-trip not tested; SCORING_ENGINE_V2 not
+    wired in production agents.
+- **Remaining**: RecapAgent queries nonexistent DB columns (`play_status`,
+  `outcome`). Full E2E path (submit→score→post→settle→recap) never traversed.
+- **Where**: `apps/api/src/agents/RecapAgent/recapService.ts:95-99`
+- **Evidence**: `docs/status/LIFECYCLE_PROOF_MATRIX.md`,
+  `out/sprints/SPRINT-066-SCORING-CERTIFICATION/2026-03-16/SPRINT_CLOSEOUT_REPORT.md`
+- **Impact**: Cannot claim full lifecycle certification until RecapAgent is
+  repaired and full E2E path is traversed.
+- **Severity**: **HIGH**
+- **Owner**: SPRINT-067-RECAP-SCHEMA-FIX + SPRINT-068-E2E-LIFECYCLE-CERT
+- **Added**: SPRINT-063, 2026-03-16 | **Updated**: SPRINT-066, 2026-03-16
+
+#### DRIFT-H7: Embed Contract Defects — 5 Discord Output Issues
+
+- **What**: Discord embeds leak `build:unknown` and `env:development` in
+  footers, show inconsistent capper fields, fail silently on headshot lookups,
+  and leak raw SNAKE_CASE enums in pick titles.
+- **Where**: `apps/api/src/lib/buildInfo.ts`,
+  `apps/api/src/services/pickPresentationBuilder.ts`,
+  `apps/api/src/agents/DiscordPromotionAgent/index.ts`
+- **Evidence**: `docs/audits/SPRINT-063_EMBED_CONTRACT_AUDIT.md`
+- **Severity**: **HIGH** (user-facing data quality)
+- **Owner**: SPRINT-070-EMBED-CONTRACT-FIX
+- **Added**: SPRINT-063-LIFECYCLE-TRUTH-RESTORATION, 2026-03-16
 
 ---
 
@@ -186,22 +223,23 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ## DRIFT SUMMARY
 
-| Severity            | Count | Key Theme                                                                 |
-| ------------------- | ----- | ------------------------------------------------------------------------- |
-| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                         |
-| HIGH                | **0** | ~~DRIFT-H2 resolved by SPRINT-053 (naming convention doc + gate update)~~ |
-| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                                    |
-| LOW                 | 2     | Cycle overlap, deprecated references                                      |
-| **ACTIVE TOTAL**    | **5** |                                                                           |
-| **Resolved/Closed** | 13    | C1, C2, C3, H1, H2, H3, H4, H5, M-CONSENSUS, M3, M5, L2, L4 (false +ve)   |
+| Severity            | Count | Key Theme                                                               |
+| ------------------- | ----- | ----------------------------------------------------------------------- |
+| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                       |
+| HIGH                | **2** | DRIFT-H6: lifecycle certification gap; DRIFT-H7: embed defects          |
+| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                                  |
+| LOW                 | 2     | Cycle overlap, deprecated references                                    |
+| **ACTIVE TOTAL**    | **7** |                                                                         |
+| **Resolved/Closed** | 13    | C1, C2, C3, H1, H2, H3, H4, H5, M-CONSENSUS, M3, M5, L2, L4 (false +ve) |
 
-**Drift Trend**: IMPROVING — 0 CRITICAL, 0 HIGH as of 2026-03-15. 13 items
-resolved/closed total. DRIFT-H2 resolved by SPRINT-053 (canonical naming
-convention documented, sprint-gate updated to NEXT_5_SPRINTS.md authority).
+**Drift Trend**: IMPROVING — 0 CRITICAL, **2 HIGH** as of 2026-03-16. SPRINT-066
+resolved scoring portion of DRIFT-H6 (V2 pipeline exercised, CONSTITUTIONAL
+gates satisfied, GAP-L1-01/02 closed). Remaining: RecapAgent column fix + full
+E2E path.
 
 **Top 3 Active Actions**:
 
-1. Update roadmap sprint order doc (DRIFT-M1) — intelligence pipeline doc stale
-   at SPRINT-040
-2. Clean up deprecated table references in utility scripts (DRIFT-L3)
-3. Assign owners to Linear initiatives (DRIFT-M4)
+1. **Recap schema fix** (DRIFT-H6) — SPRINT-067-RECAP-SCHEMA-FIX
+2. **Full E2E lifecycle certification** (DRIFT-H6) —
+   SPRINT-068-E2E-LIFECYCLE-CERT (after 067)
+3. **Embed contract defects** (DRIFT-H7) — SPRINT-070-EMBED-CONTRACT-FIX

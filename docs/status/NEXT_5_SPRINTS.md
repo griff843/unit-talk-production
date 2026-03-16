@@ -1,37 +1,44 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-16 (SPRINT-061-LAYER3-PHASE10-CC-ALERT-DASHBOARD)
-**Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
-backlog + codebase investigation
+**Last Updated**: 2026-03-16 (SPRINT-066-SCORING-CERTIFICATION) **Source**:
+SPRINT-066 certification + LAYER1_EXIT_REQUIREMENTS.md + drift report
 
-> **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
-> targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
-> See `docs/06_status/current_phase.md` for canonical layer/phase position.
+> **Layer 1 NOT COMPLETE**: SPRINT-066 exercised scoring pipeline (R04/R05/R06
+> FAIL→PARTIAL). RecapAgent still non-functional (wrong column names). Full
+> lifecycle E2E path never traversed. Sprint queue targets Layer 1 closure. See
+> `docs/status/LAYER1_EXIT_REQUIREMENTS.md` for full requirements matrix.
 
 ---
 
 ## Sprint Queue
 
-> **Sprint 1 slot is vacant.** SPRINT-061 completed 2026-03-16. Run
-> `/sprint-plan` to select the next sprint from the roadmap.
+> **SPRINT-066-SCORING-CERTIFICATION** completed 2026-03-16 (Lane 1 + 3).
+> computeScoreV2 exercised. CONSTITUTIONAL gates 7+8 satisfied. GAP-L1-01/02
+> closed. L1: 3P/8P/2F (was 3P/5P/5F). API vitest 1025. Next: recap fix.
 
-## Summary
+| #   | Sprint                            | Priority | Phase | Focus                                                                               | Blocked By |
+| --- | --------------------------------- | -------- | ----- | ----------------------------------------------------------------------------------- | ---------- |
+| 1   | SPRINT-067-RECAP-SCHEMA-FIX       | P0       | L1    | Fix RecapAgent column refs (play_status→status); verify recap against settled picks | None       |
+| 2   | SPRINT-068-E2E-LIFECYCLE-CERT     | P0       | L1    | One pick: submit→score→post→settle→recap (Layer 1 exit proof)                       | 067        |
+| 3   | SPRINT-069-SETTLEMENT-RPC-REPAIR  | P1       | L2    | Fix manual_settle_pick RPC (7 missing DB objs) + attach guard trigger               | None       |
+| 4   | SPRINT-070-EMBED-CONTRACT-FIX     | P2       | L3    | Fix 5 embed defects (build:unknown, enum leak)                                      | None       |
+| 5   | SPRINT-071-SCORING-ENGINE-V2-WIRE | P1       | L1    | Set SCORING_ENGINE_V2 env in production agents; full live-data scoring round-trip   | 068        |
 
-| #   | Sprint | Priority | Phase | Focus                         | Linear | Blocked By |
-| --- | ------ | -------- | ----- | ----------------------------- | ------ | ---------- |
-| 1   | TBD    | —        | —     | Run /sprint-plan to determine | —      | None       |
-
-**Dependency chain**: All Layer 1 and Layer 2 sprints COMPLETE. Layer 3 in
-progress (SPRINT-049 auth, SPRINT-050 permissions, SPRINT-051 Smart Form UX,
-SPRINT-052 Operator Workflow Foundation, SPRINT-053 Naming Convention,
-SPRINT-054 Replay Endpoint — all done).
+**Dependency chain**: **Layer 1 is NOT complete.** Recap broken. Full E2E path
+never traversed. Sprint queue targets Layer 1 closure first. Sprints 1-2 are the
+minimum remaining Layer 1 exit path. Sprint 3 (settlement RPC) is Layer 2
+quality work. Sprint 4 (embed fix) is Layer 3. Sprint 5 (live scoring wire)
+completes the scoring chain with real provider_offers data. **LIFECYCLE
+CERTIFICATION**: Transport PASS (submit→post), Settlement PASS
+(harness-bounded), Scoring PARTIAL (synthetic data). Recap and full E2E NOT
+certified.
 
 ---
 
 ## Completed Sprint History
 
 <details>
-<summary>33 sprints completed (2026-03-10 through 2026-03-16) — click to expand</summary>
+<summary>39 sprints completed (2026-03-10 through 2026-03-16) — click to expand</summary>
 
 | Sprint                             | Date       | PR   | Linear    | Layer/Phase |
 | ---------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -68,5 +75,10 @@ SPRINT-054 Replay Endpoint — all done).
 | 059-AI-OS-WAVE2-AGENTS             | 2026-03-16 | #259 | UNI-94    | AI OS       |
 | 060-LAYER3-PHASE11-CC-WORKFLOW     | 2026-03-16 | #262 | UNI-95    | L3/Ph 11    |
 | 061-LAYER3-PHASE10-CC-ALERT-DASH   | 2026-03-16 | #265 | UNI-96    | L3/Ph 10    |
+| 062-FULL-LIFECYCLE-E2E-TRUTH-AUDIT | 2026-03-16 | #269 | —         | Audit       |
+| 063-LIFECYCLE-TRUTH-RESTORATION    | 2026-03-16 | —    | —         | Audit/Docs  |
+| 064-SETTLEMENT-LIFECYCLE-FIX       | 2026-03-16 | —    | —         | Audit/L1    |
+| 065-LAYER1-COMPLETION-VERIFICATION | 2026-03-16 | —    | UNI-97    | Audit/L1    |
+| 066-SCORING-CERTIFICATION          | 2026-03-16 | —    | UNI-98    | L1/Ph 2     |
 
 </details>
