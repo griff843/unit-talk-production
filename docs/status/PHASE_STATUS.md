@@ -476,6 +476,8 @@ Smart Form UX Polish — WCAG 2.1 AA accessibility, KeyboardShortcutsHelp (PR
 (Phase 11)** — WorkflowRegistry with 18 entries, GET /ops/workflows, pnpm
 ops:list CLI (PR #230, UNI-87 Done); **SPRINT-053 delivered Governance Naming
 Convention** — DRIFT-H2 resolved, 0 HIGH drift items, canonical naming doc
-published (PR #234, UNI-88 Done). Next canonical work: SPRINT-054 (Layer 3 /
-Phase 10 — Replay Endpoint). See `docs/06_status/current_phase.md` for canonical
-layer/phase position.
+published (PR #234, UNI-88 Done); **SPRINT-054 delivered Replay Endpoint (Layer
+3 / Phase 10)** — Temporal startWorkflow wired in /api/replay, operator replay
+dashboard at /dashboard/replay, 61/61 CC tests passing (PR #252, 2026-03-15).
+Next canonical work: run /sprint-plan. See `docs/06_status/current_phase.md` for
+canonical layer/phase position.
