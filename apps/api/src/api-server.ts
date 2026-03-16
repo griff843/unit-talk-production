@@ -10,6 +10,7 @@ import { operatorAuditLog } from './middleware/operatorAuditLog';
 import { operatorAuth } from './middleware/operatorAuth';
 import healthRouter from './routes/health';
 import opsRouter from './routes/ops';
+import opsAlertsRouter from './routes/ops-alerts';
 import opsControlRouter from './routes/ops-control';
 import opsDiscordRoutingRouter from './routes/ops-discord-routing';
 import opsRecoveryRouter from './routes/ops-recovery';
@@ -103,6 +104,8 @@ app.use('/ops', opsControlRouter);
 app.use('/ops', opsRecoveryRouter);
 // SPRINT-052: Workflow registry discovery endpoint
 app.use('/ops', opsWorkflowsRouter);
+// SPRINT-061: Alert discovery endpoint
+app.use('/ops', opsAlertsRouter);
 app.use('/version', versionRouter);
 app.use('/api/version', versionRouter);
 // RISK-ENGINE-FOUNDATION-001: Risk telemetry API

@@ -3,6 +3,7 @@
 import {
   Activity,
   BarChart3,
+  Bell,
   Bot,
   FileCheck,
   GitBranch,
@@ -67,6 +68,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'Events Stream', href: '/dashboard/events', icon: Layers },
       { name: 'Risk Engine', href: '/dashboard/risk', icon: Shield },
       { name: 'Platform Health', href: '/dashboard/health', icon: Activity },
+      { name: 'Alerts', href: '/dashboard/alerts', icon: Bell },
     ],
   },
   {
