@@ -10,6 +10,8 @@
  * Created: 2026-01-29 (Tranche 3, Stage 3 — Scoring Rebuild)
  */
 
+import { createHash } from 'crypto';
+
 import { getSportWeights } from '../../../scoring/config/weights';
 
 import {
@@ -176,12 +178,32 @@ export function computeScoreV2(features: GradingFeatureSet): ComputeScoreV2Resul
   // Step 6: Determine tier
   const tier = canonicalTier({ score, edge, risk });
 
+  // Step 7: Generate feature vector hash for reproducibility (DATA-MOAT-V3-INTEGRATION-001)
+  // Required for CONSTITUTIONAL Gate 7 in promotionPolicy.evaluatePromotion().
+  // Deterministic: same input features → same hash. No randomness.
+  const vectorData = vector.map(v => ({
+    name: v.entry.name,
+    raw: v.raw,
+    present: v.present,
+    excluded: v.excluded,
+  }));
+  const featureVectorHash = createHash('sha256').update(JSON.stringify(vectorData)).digest('hex');
+
+  // Derive a deterministic snapshot ID (UUID v4-format) from the vector hash.
+  // In production, this would be the DB row ID of the stored feature_snapshot record.
+  // Here it's derived from the hash so the function stays deterministic.
+  const h32 = featureVectorHash.slice(0, 32);
+  const yNibble = ((parseInt(h32.charAt(16), 16) & 0x3) | 0x8).toString(16);
+  const featureSnapshotId = `${h32.slice(0, 8)}-${h32.slice(8, 12)}-4${h32.slice(13, 16)}-${yNibble}${h32.slice(17, 20)}-${h32.slice(20, 32)}`;
+
   return {
     score: Math.round(score * 100) / 100,
     tier,
     ev,
     breakdown,
     feature_audit,
+    featureSnapshotId,
+    featureVectorHash,
   };
 }
 
