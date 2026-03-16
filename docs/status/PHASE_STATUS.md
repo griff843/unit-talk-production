@@ -478,6 +478,10 @@ ops:list CLI (PR #230, UNI-87 Done); **SPRINT-053 delivered Governance Naming
 Convention** — DRIFT-H2 resolved, 0 HIGH drift items, canonical naming doc
 published (PR #234, UNI-88 Done); **SPRINT-054 delivered Replay Endpoint (Layer
 3 / Phase 10)** — Temporal startWorkflow wired in /api/replay, operator replay
-dashboard at /dashboard/replay, 61/61 CC tests passing (PR #252, 2026-03-15).
-Next canonical work: run /sprint-plan. See `docs/06_status/current_phase.md` for
-canonical layer/phase position.
+dashboard at /dashboard/replay, 61/61 CC tests passing (PR #252, 2026-03-15);
+**SPRINT-058 delivered Platform Health Dashboard (Layer 3 / Phase 10)** — GET
+/api/health/summary + GET /api/slo/status CC proxy routes, /dashboard/health
+page (platform status card HEALTHY/DEGRADED/CRITICAL + 4-SLO attainment grid),
+sidebar Replay + Platform Health nav, 73/73 CC tests passing (PR #255,
+2026-03-15, UNI-93 Done). Next canonical work: run /sprint-plan. See
+`docs/06_status/current_phase.md` for canonical layer/phase position.
