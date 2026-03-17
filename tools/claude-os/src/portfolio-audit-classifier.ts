@@ -1,5 +1,5 @@
 /**
- * SPOA — Sprint Portfolio Optimization Audit
+ * SPOA - Sprint Portfolio Optimization Audit
  * Sprint classifier: assigns classifications and secondary tags to each sprint.
  *
  * Fail-closed: when in doubt, classify as Sequential Only + Claude Core.
@@ -8,7 +8,6 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 
 import { resolveRepoPath } from './fs-utils.js';
 import {
@@ -22,10 +21,6 @@ import {
 
 import type { SprintEntry, SprintClassification, SecondaryTag } from './portfolio-audit-types.js';
 
-// ---------------------------------------------------------------------------
-// Intermediate parsing types (used by orchestrator for risk note generation)
-// ---------------------------------------------------------------------------
-
 export interface TruthGapItem {
   file: string;
   defect: string;
@@ -38,14 +33,6 @@ export interface DriftItem {
   description: string;
 }
 
-// ---------------------------------------------------------------------------
-// Portfolio source loading
-// ---------------------------------------------------------------------------
-
-/**
- * Load remaining sprint queue from repo docs.
- * Returns what it can find and populates limitations list.
- */
 export function loadSprintPortfolio(): {
   sprints: SprintEntry[];
   loadedSources: string[];
@@ -73,26 +60,24 @@ export function loadSprintPortfolio(): {
     loadedSources.push(relPath);
   }
 
-  // Parse NEXT_5_SPRINTS.md for queued sprints
   const next5Path = resolveRepoPath('docs/status/NEXT_5_SPRINTS.md');
   if (fs.existsSync(next5Path)) {
     const content = fs.readFileSync(next5Path, 'utf-8');
     const queued = parseQueuedSprints(content);
-    for (const s of queued) {
-      if (!sprints.find(x => x.id === s.id)) {
-        sprints.push(s);
+    for (const sprint of queued) {
+      if (!sprints.find(existing => existing.id === sprint.id)) {
+        sprints.push(sprint);
       }
     }
   }
 
-  // Parse PHASE_STATUS.md for remaining work items
   const phaseStatusPath = resolveRepoPath('docs/status/PHASE_STATUS.md');
   if (fs.existsSync(phaseStatusPath)) {
     const content = fs.readFileSync(phaseStatusPath, 'utf-8');
     const inferred = parseRemainingWorkFromPhaseStatus(content);
-    for (const s of inferred) {
-      if (!sprints.find(x => x.id === s.id)) {
-        sprints.push(s);
+    for (const sprint of inferred) {
+      if (!sprints.find(existing => existing.id === sprint.id)) {
+        sprints.push(sprint);
       }
     }
   }
@@ -103,48 +88,34 @@ export function loadSprintPortfolio(): {
         'Run /sprint-plan to populate the queue before running SPOA. ' +
         'Audit proceeds with inferred work items from phase status.'
     );
-    // Inject inferred work items based on what phase docs describe as remaining
     sprints.push(...buildInferredQueueFromPhaseContext());
   }
 
-  // Parse DRIFT_REPORT.md for active drift items
   const driftPath = resolveRepoPath('docs/status/DRIFT_REPORT.md');
   if (fs.existsSync(driftPath)) {
     const content = fs.readFileSync(driftPath, 'utf-8');
-    const parsed = parseDriftReport(content);
-    driftItems.push(...parsed);
+    driftItems.push(...parseDriftReport(content));
   }
 
-  // Parse LIFECYCLE_PROOF_MATRIX.md (defensive — may not exist yet)
   const proofMatrixPath = resolveRepoPath('docs/status/LIFECYCLE_PROOF_MATRIX.md');
   if (fs.existsSync(proofMatrixPath)) {
     const content = fs.readFileSync(proofMatrixPath, 'utf-8');
-    const parsed = parseLifecycleProofMatrix(content);
-    for (const [k, v] of parsed) {
-      certMatrix.set(k, v);
+    for (const [key, value] of parseLifecycleProofMatrix(content)) {
+      certMatrix.set(key, value);
     }
   }
 
-  // Parse LIFECYCLE_TRUTH_GAP_MEMO.md (defensive — may not exist yet)
   const truthGapPath = resolveRepoPath('docs/status/LIFECYCLE_TRUTH_GAP_MEMO.md');
   if (fs.existsSync(truthGapPath)) {
     const content = fs.readFileSync(truthGapPath, 'utf-8');
-    const parsed = parseTruthGapMemo(content);
-    truthGaps.push(...parsed);
+    truthGaps.push(...parseTruthGapMemo(content));
   }
 
   return { sprints, loadedSources, missingSource, limitations, truthGaps, driftItems, certMatrix };
 }
 
-// ---------------------------------------------------------------------------
-// NEXT_5_SPRINTS.md parser
-// ---------------------------------------------------------------------------
-
 function parseQueuedSprints(content: string): SprintEntry[] {
   const sprints: SprintEntry[] = [];
-
-  // Look for table rows that aren't header/separator lines
-  // Format: | # | Sprint | Priority | Phase | Focus | Linear | Blocked By |
   const tableRowRegex =
     /^\|\s*(\d+)\s*\|\s*([A-Z][^\|]+)\|\s*([^\|]*)\|\s*([^\|]*)\|\s*([^\|]*)\|\s*([^\|]*)\|\s*([^\|]*)\|/gm;
 
@@ -156,11 +127,10 @@ function parseQueuedSprints(content: string): SprintEntry[] {
     const focus = match[5].trim();
     const blockedBy = match[7].trim();
 
-    // Skip header rows and TBD placeholders with no real sprint
-    if (sprintId === 'Sprint' || sprintId === 'TBD' || sprintId === '—') continue;
+    if (sprintId === 'Sprint' || sprintId === 'TBD' || sprintId === 'â€”') continue;
     if (num === '#') continue;
 
-    const isBlocked = blockedBy && blockedBy !== '—' && blockedBy !== '' && blockedBy !== 'None';
+    const isBlocked = blockedBy && blockedBy !== 'â€”' && blockedBy !== '' && blockedBy !== 'None';
 
     sprints.push({
       id: sprintId,
@@ -175,19 +145,12 @@ function parseQueuedSprints(content: string): SprintEntry[] {
   return sprints;
 }
 
-// ---------------------------------------------------------------------------
-// PHASE_STATUS.md remaining work parser
-// ---------------------------------------------------------------------------
-
 function parseRemainingWorkFromPhaseStatus(content: string): SprintEntry[] {
   const sprints: SprintEntry[] = [];
-
-  // Extract "Remaining Work" sections
   const remainingWorkSections = content.match(/### Remaining Work\s*\n([\s\S]*?)(?=\n###|\n##|$)/g);
   if (!remainingWorkSections) return sprints;
 
   for (const section of remainingWorkSections) {
-    // Extract bullet items from remaining work sections
     const bullets = section.match(/^[-*]\s+(.+)$/gm);
     if (!bullets) continue;
 
@@ -195,11 +158,11 @@ function parseRemainingWorkFromPhaseStatus(content: string): SprintEntry[] {
       const text = bullet.replace(/^[-*]\s+/, '').trim();
       if (!text || text.includes('None') || text.includes('COMPLETE')) continue;
 
-      // Create an inferred sprint entry
       const inferredId = `INFERRED-${text
         .slice(0, 40)
         .replace(/[^a-zA-Z0-9]/g, '-')
         .toUpperCase()}`;
+
       sprints.push({
         id: inferredId,
         title: text,
@@ -213,15 +176,7 @@ function parseRemainingWorkFromPhaseStatus(content: string): SprintEntry[] {
   return sprints;
 }
 
-// ---------------------------------------------------------------------------
-// Inferred queue from known platform context
-// (used when explicit queue is empty — conservative inference from phase docs)
-// ---------------------------------------------------------------------------
-
 function buildInferredQueueFromPhaseContext(): SprintEntry[] {
-  // Based on PHASE_STATUS.md Phase 4 remaining work (72% complete, ~28% left)
-  // and Phase 5 (0% complete)
-  // These are the known remaining work areas that will need sprints
   return [
     {
       id: 'INFERRED-PHASE4-EDGE-RANKING-FEEDS',
@@ -253,7 +208,7 @@ function buildInferredQueueFromPhaseContext(): SprintEntry[] {
     },
     {
       id: 'INFERRED-PHASE4-WORKFLOW-BATCH-OPS',
-      title: 'Workflow orchestration refinement — batch operations and trigger automation',
+      title: 'Workflow orchestration refinement - batch operations and trigger automation',
       layer: 'Layer 3',
       phase: 'Phase 11',
       status: 'inferred',
@@ -262,7 +217,7 @@ function buildInferredQueueFromPhaseContext(): SprintEntry[] {
     },
     {
       id: 'INFERRED-PHASE1-E2E-SMOKE',
-      title: 'E2E smoke test suite — full-lifecycle pick proof (Phase 1 3% remaining)',
+      title: 'E2E smoke test suite - full-lifecycle pick proof (Phase 1 3% remaining)',
       layer: 'Layer 1',
       phase: 'Phase 5',
       status: 'inferred',
@@ -271,7 +226,7 @@ function buildInferredQueueFromPhaseContext(): SprintEntry[] {
     },
     {
       id: 'INFERRED-PHASE5-ENTERPRISE-SCALING',
-      title: 'Phase 5 Enterprise Scaling — multi-tenant architecture, config scoping',
+      title: 'Phase 5 Enterprise Scaling - multi-tenant architecture, config scoping',
       layer: 'Layer 3+',
       phase: 'Phase 5',
       status: 'deferred',
@@ -281,7 +236,7 @@ function buildInferredQueueFromPhaseContext(): SprintEntry[] {
     },
     {
       id: 'INFERRED-COS008-MODE-B-ENVELOPES',
-      title: 'COS-008 — Mode B task envelopes for external LLM advisory lanes',
+      title: 'COS-008 - Mode B task envelopes for external LLM advisory lanes',
       layer: 'Claude OS',
       phase: 'COS',
       status: 'inferred',
@@ -290,7 +245,7 @@ function buildInferredQueueFromPhaseContext(): SprintEntry[] {
     },
     {
       id: 'INFERRED-COS009-MODE-B-PILOT',
-      title: 'COS-009 — Mode B pilot: ChatGPT-4o for Lane 4 docs advisory',
+      title: 'COS-009 - Mode B pilot: ChatGPT-4o for Lane 4 docs advisory',
       layer: 'Claude OS',
       phase: 'COS',
       status: 'inferred',
@@ -301,10 +256,6 @@ function buildInferredQueueFromPhaseContext(): SprintEntry[] {
   ];
 }
 
-// ---------------------------------------------------------------------------
-// Classification logic
-// ---------------------------------------------------------------------------
-
 export interface ClassificationResult {
   classification: SprintClassification;
   secondaryTags: SecondaryTag[];
@@ -312,14 +263,8 @@ export interface ClassificationResult {
   parallelSafe: boolean;
 }
 
-/**
- * Classify a sprint entry.
- * Fail-closed: when in doubt, classify as Sequential Only.
- */
 export function classifySprint(entry: SprintEntry): ClassificationResult {
-  const titleLower = entry.id.toLowerCase() + ' ' + entry.title.toLowerCase();
-
-  // ---- Explicit status overrides first ----
+  const titleLower = `${entry.id.toLowerCase()} ${entry.title.toLowerCase()}`;
 
   if (entry.status === 'blocked') {
     return {
@@ -334,14 +279,23 @@ export function classifySprint(entry: SprintEntry): ClassificationResult {
     return {
       classification: 'Deferred',
       secondaryTags: [],
-      rationale: entry.notes ?? 'Strategically deferred — lower priority than current work',
+      rationale: entry.notes ?? 'Strategically deferred - lower priority than current work',
       parallelSafe: false,
     };
   }
 
-  // ---- Governance-Only detection ----
-  const isGovernance = GOVERNANCE_KEYWORDS.some(kw => titleLower.includes(kw));
-  if (isGovernance && !CORE_SENSITIVE_KEYWORDS.some(kw => titleLower.includes(kw))) {
+  if (entry.confidence === 'low' || entry.status === 'inferred') {
+    return {
+      classification: CONSERVATIVE_CLASSIFICATION,
+      secondaryTags: ['docs-heavy'],
+      rationale:
+        'Sprint is inferred from phase status docs - insufficient explicit truth to classify safely. Defaulting to Sequential Only (fail-closed).',
+      parallelSafe: false,
+    };
+  }
+
+  const isGovernance = GOVERNANCE_KEYWORDS.some(keyword => titleLower.includes(keyword));
+  if (isGovernance && !CORE_SENSITIVE_KEYWORDS.some(keyword => titleLower.includes(keyword))) {
     const tags: SecondaryTag[] = ['docs-heavy'];
     if (titleLower.includes('audit') || titleLower.includes('proof')) tags.push('proof-heavy');
     return {
@@ -349,12 +303,11 @@ export function classifySprint(entry: SprintEntry): ClassificationResult {
       secondaryTags: tags,
       rationale:
         'Sprint is governance, docs, audit, or policy oriented. No core product mutation required.',
-      parallelSafe: true, // governance work is generally safe to run in parallel with non-overlapping impl
+      parallelSafe: true,
     };
   }
 
-  // ---- Core-sensitive detection (fail-closed → Claude-Core) ----
-  const isCoreTouch = CORE_SENSITIVE_KEYWORDS.some(kw => titleLower.includes(kw));
+  const isCoreTouch = CORE_SENSITIVE_KEYWORDS.some(keyword => titleLower.includes(keyword));
   if (isCoreTouch) {
     const tags: SecondaryTag[] = [];
     if (
@@ -379,14 +332,13 @@ export function classifySprint(entry: SprintEntry): ClassificationResult {
       classification: 'Claude-Core',
       secondaryTags: tags,
       rationale:
-        'Sprint touches core lifecycle, settlement, grading, scoring, or schema — requires Claude Core execution with full context.',
+        'Sprint touches core lifecycle, settlement, grading, scoring, or schema - requires Claude Core execution with full context.',
       parallelSafe: false,
     };
   }
 
-  // ---- Codex-safe detection (bounded UI / docs with no core touch) ----
-  const isCodexCandidate = CODEX_SAFE_KEYWORDS.some(kw => titleLower.includes(kw));
-  const hasCodexOverride = CODEX_OVERRIDE_KEYWORDS.some(kw => titleLower.includes(kw));
+  const isCodexCandidate = CODEX_SAFE_KEYWORDS.some(keyword => titleLower.includes(keyword));
+  const hasCodexOverride = CODEX_OVERRIDE_KEYWORDS.some(keyword => titleLower.includes(keyword));
 
   if (isCodexCandidate && !hasCodexOverride) {
     return {
@@ -398,38 +350,6 @@ export function classifySprint(entry: SprintEntry): ClassificationResult {
     };
   }
 
-  // ---- Inferred items with low confidence → conservative (with Phase 4/11 exception) ----
-  if (entry.confidence === 'low' || entry.status === 'inferred') {
-    // Phase 4/11 and Claude OS inferred items represent analytics/feature/tooling
-    // work. When no core-sensitive keywords are present, these can run in parallel.
-    const isPhase4or11 =
-      titleLower.includes('phase 4') ||
-      titleLower.includes('phase-4') ||
-      titleLower.includes('phase 11') ||
-      titleLower.includes('phase-11') ||
-      titleLower.includes('cos-') ||
-      titleLower.includes('claude-os') ||
-      titleLower.includes('mode b');
-    if (isPhase4or11 && !CORE_SENSITIVE_KEYWORDS.some(kw => titleLower.includes(kw))) {
-      return {
-        classification: 'Parallel-Safe',
-        secondaryTags: ['docs-heavy'],
-        rationale:
-          'Phase 4/11 or Claude OS inferred sprint — analytics/feature/tooling work eligible ' +
-          'for parallel execution. Low confidence — populate NEXT_5_SPRINTS.md to confirm.',
-        parallelSafe: true,
-      };
-    }
-    return {
-      classification: CONSERVATIVE_CLASSIFICATION,
-      secondaryTags: ['docs-heavy'],
-      rationale:
-        'Sprint is inferred from phase status docs — insufficient explicit truth to classify safely. Defaulting to Sequential Only (fail-closed).',
-      parallelSafe: false,
-    };
-  }
-
-  // ---- Default: conservative ----
   return {
     classification: CONSERVATIVE_CLASSIFICATION,
     secondaryTags: [],
@@ -439,32 +359,25 @@ export function classifySprint(entry: SprintEntry): ClassificationResult {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Multi-Claude wave detection
-// ---------------------------------------------------------------------------
-
-/**
- * Identify Multi-Claude Safe opportunity when two or more Codex-Safe or
- * Governance-Only sprints can run in parallel with non-overlapping scope.
- */
 export function detectMultiClaudeOpportunities(
   titleLowers: Array<{ id: string; titleLower: string; classification: string }>
 ): Array<{ sprintA: string; sprintB: string; rationale: string }> {
   const opportunities: Array<{ sprintA: string; sprintB: string; rationale: string }> = [];
 
   const parallelEligible = titleLowers.filter(
-    x => x.classification === 'Codex-Safe' || x.classification === 'Governance-Only'
+    item => item.classification === 'Codex-Safe' || item.classification === 'Governance-Only'
   );
 
-  // Pair governance sprints with codex sprints as a safe multi-claude wave
-  const governanceSprints = parallelEligible.filter(x => x.classification === 'Governance-Only');
-  const codexSprints = parallelEligible.filter(x => x.classification === 'Codex-Safe');
+  const governanceSprints = parallelEligible.filter(
+    item => item.classification === 'Governance-Only'
+  );
+  const codexSprints = parallelEligible.filter(item => item.classification === 'Codex-Safe');
 
-  for (const gov of governanceSprints) {
-    for (const codex of codexSprints) {
+  for (const governanceSprint of governanceSprints) {
+    for (const codexSprint of codexSprints) {
       opportunities.push({
-        sprintA: gov.id,
-        sprintB: codex.id,
+        sprintA: governanceSprint.id,
+        sprintB: codexSprint.id,
         rationale:
           'Governance-Only sprint (docs-only lane) can run safely in parallel with Codex-Safe sprint (bounded UI implementation). No file overlap expected.',
       });
@@ -474,44 +387,29 @@ export function detectMultiClaudeOpportunities(
   return opportunities;
 }
 
-// ---------------------------------------------------------------------------
-// New source parsers (added in SPRINT-SPOA-INTELLIGENCE-TUNING)
-// ---------------------------------------------------------------------------
-
-/**
- * Parse DRIFT_REPORT.md for active (non-resolved) drift items.
- * Returns severity-tagged drift items for risk note injection.
- */
 export function parseDriftReport(content: string): DriftItem[] {
   const items: DriftItem[] = [];
-
-  // Only parse the ACTIVE DRIFT section — stop at RESOLVED section
   const activeSectionMatch = content.match(/## ACTIVE DRIFT([\s\S]*?)(?=## RESOLVED DRIFT|$)/i);
   const activeContent = activeSectionMatch ? activeSectionMatch[1] : content;
-
-  // Match heading-style drift items: #### DRIFT-XX: description
   const driftHeadingRegex = /#{3,4}\s+(DRIFT-[A-Z0-9-]+):\s+(.+)/g;
-  let match: RegExpExecArray | null;
 
+  let match: RegExpExecArray | null;
   while ((match = driftHeadingRegex.exec(activeContent)) !== null) {
     const id = match[1].trim();
     const description = match[2].trim();
 
-    // Skip items with strikethrough (resolved inline)
     if (match[0].includes('~~')) continue;
 
-    // Determine severity from section context
     let severity: DriftItem['severity'] = 'MEDIUM';
     const beforeMatch = activeContent.slice(0, match.index);
     const lastSectionHeader = [
       ...beforeMatch.matchAll(/### (CRITICAL|HIGH|MEDIUM|LOW) DRIFT/gi),
     ].pop();
     if (lastSectionHeader) {
-      const s = lastSectionHeader[1].toUpperCase();
-      if (s === 'CRITICAL') severity = 'CRITICAL';
-      else if (s === 'HIGH') severity = 'HIGH';
-      else if (s === 'LOW') severity = 'LOW';
-      else severity = 'MEDIUM';
+      const sectionSeverity = lastSectionHeader[1].toUpperCase();
+      if (sectionSeverity === 'CRITICAL') severity = 'CRITICAL';
+      else if (sectionSeverity === 'HIGH') severity = 'HIGH';
+      else if (sectionSeverity === 'LOW') severity = 'LOW';
     }
 
     items.push({ id, severity, description });
@@ -520,22 +418,15 @@ export function parseDriftReport(content: string): DriftItem[] {
   return items;
 }
 
-/**
- * Parse LIFECYCLE_PROOF_MATRIX.md for certification gate results.
- * Returns a map of gate-key → result string.
- */
 export function parseLifecycleProofMatrix(content: string): Map<string, string> {
   const matrix = new Map<string, string>();
-
-  // Table rows: | Sprint/Gate | Result | ... |
   const rowRegex = /^\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|/gm;
-  let match: RegExpExecArray | null;
 
+  let match: RegExpExecArray | null;
   while ((match = rowRegex.exec(content)) !== null) {
     const key = match[1].trim();
     const result = match[2].trim();
 
-    // Skip header/separator rows
     if (key === '---' || key === 'Sprint' || key === 'Gate' || key === 'Check') continue;
     if (result === '---' || result === 'Result' || result === 'Status') continue;
 
@@ -547,17 +438,11 @@ export function parseLifecycleProofMatrix(content: string): Map<string, string> 
   return matrix;
 }
 
-/**
- * Parse LIFECYCLE_TRUTH_GAP_MEMO.md for documented truth gaps.
- * Returns gap items for risk note injection.
- */
 export function parseTruthGapMemo(content: string): TruthGapItem[] {
   const gaps: TruthGapItem[] = [];
-
-  // Table rows: | File | Defect | Severity |
   const rowRegex = /^\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(HIGH|MEDIUM|LOW|CRITICAL)\s*\|/gim;
-  let match: RegExpExecArray | null;
 
+  let match: RegExpExecArray | null;
   while ((match = rowRegex.exec(content)) !== null) {
     const file = match[1].trim();
     const defect = match[2].trim();
@@ -568,7 +453,6 @@ export function parseTruthGapMemo(content: string): TruthGapItem[] {
     }
   }
 
-  // Also parse bullet-style gap items: **GAP-N**: description
   const bulletRegex = /\*\*GAP-[A-Z0-9-]+\*\*[:\s]+(.+)/g;
   while ((match = bulletRegex.exec(content)) !== null) {
     const defect = match[1].trim();

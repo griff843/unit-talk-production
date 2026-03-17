@@ -155,6 +155,8 @@ export interface PortfolioAuditResult {
   trigger: string;
   inputSources: string[];
   sprints: ClassifiedSprint[];
+  conservativeMode: boolean;
+  conservativeModeReason?: string;
   recommendedNextSprint?: string;
   rankedNextSprints?: RankedSprintCandidate[];
   parallelOpportunities: ParallelizationEntry[];
