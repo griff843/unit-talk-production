@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
 
 /**
@@ -28,6 +29,10 @@ interface TestResponse {
 }
 
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body: TestRequest = await request.json();
     const { modelId, prompt } = body;

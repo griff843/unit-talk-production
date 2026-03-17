@@ -9,6 +9,7 @@ import {
   getPerformanceMetrics,
 } from './databaseMetrics';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { MetricType } from '@/types/analytics';
 
 /**
@@ -19,6 +20,10 @@ import { MetricType } from '@/types/analytics';
 
 // GET /api/analytics - Get analytics data and metrics
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const params = parseRequestParams(request);
     console.log('[CC] GET /api/analytics', params);

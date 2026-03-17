@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { action, serviceId, parameters } = await request.json();
 
@@ -157,7 +164,11 @@ async function handleServiceControl(serviceId: string, parameters: any) {
   });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // Return current operational status
     const { data: recentLogs } = await supabase

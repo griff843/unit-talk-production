@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { getSupabaseClient } from '@/lib/supabase';
 
 interface ProviderUsage {
@@ -64,6 +65,10 @@ interface CreditUsageResponse {
  * - days: Number of days to look back for daily usage (default: 7, max: 30)
  */
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const startTime = Date.now();
   const correlationId = `credit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
