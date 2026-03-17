@@ -1,8 +1,8 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-17 (SPRINT-075-LAYER3-PHASE10-CC-CAPPER-DASHBOARD)
-**Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
-backlog + codebase investigation
+**Last Updated**: 2026-03-17 (SPRINT-SPOA-INTELLIGENCE-TUNING) **Source**: Phase
+status + drift report + Layer 3 scoping analysis + Claude OS backlog + codebase
+investigation
 
 > **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
 > targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
@@ -31,7 +31,7 @@ SPRINT-054 Replay Endpoint — all done).
 ## Completed Sprint History
 
 <details>
-<summary>36 sprints completed (2026-03-10 through 2026-03-17) — click to expand</summary>
+<summary>37 sprints completed (2026-03-10 through 2026-03-17) — click to expand</summary>
 
 | Sprint                             | Date       | PR   | Linear    | Layer/Phase |
 | ---------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -71,5 +71,6 @@ SPRINT-054 Replay Endpoint — all done).
 | 072-SCORING-CERTIFICATION          | 2026-03-16 | #280 | UNI-104   | L1/Cert     |
 | 073-PROMOTION-WIRING-CERTIFICATION | 2026-03-17 | #280 | UNI-105   | L1/Cert     |
 | 074-LAYER3-PHASE10-CC-PICK-MGMT    | 2026-03-17 | —    | UNI-106   | L3/Ph 10    |
+| SPOA-INTELLIGENCE-TUNING           | 2026-03-17 | #302 | UNI-114   | Claude OS   |
 
 </details>
