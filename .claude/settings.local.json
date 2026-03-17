@@ -48,7 +48,10 @@
       "Bash(tee:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat\\(e2e-smoke\\): add lifecycle smoke automation with freeze hardening\n\nSPRINT-E2E-SMOKE-AUTOMATION-005:\n- Fix env var bug in autopilot-freeze.ts:71 \\(LOCAL_FILE_STATE\\)\n- Add AutopilotFrozenError typed exception\n- Add hard fail-closed freeze guards to all lifecycle adapters\n- Create e2e-smoke orchestrator covering canonical lifecycle\n- Wire smoke-test-verify job to CI pipeline\n- Add e2e:smoke:full script to package.json\n- Export autopilot-freeze functions from shared-utils\n- Fix shared-utils build config \\(noEmit: false\\)\n- Add documentation at docs/ops/E2E_SMOKE_AUTOMATION.md\n\nCanonical lifecycle traced:\nSmart Form → bridge_outbox → BridgeWorker → unified_picks → Grading → Discord\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git tag:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(pnpm session:baseline:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npm run:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
