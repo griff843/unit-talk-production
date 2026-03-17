@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
-import { getOperatorIdentity } from '@/lib/auth';
+import { getOperatorIdentity, requireOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
@@ -408,6 +408,10 @@ function remediationNotEnabledResponse(): NextResponse {
  * Get remediation dashboard data: playbooks, executions, stats
  */
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   if (!isRemediationEnabled()) {
     return remediationNotEnabledResponse();
   }
@@ -511,6 +515,10 @@ export async function GET(request: NextRequest) {
  * Trigger a playbook execution or approve a pending remediation
  */
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   if (!isRemediationEnabled()) {
     return remediationNotEnabledResponse();
   }
@@ -648,6 +656,10 @@ export async function POST(request: NextRequest) {
  * Update playbook configuration
  */
 export async function PUT(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   if (!isRemediationEnabled()) {
     return remediationNotEnabledResponse();
   }

@@ -7,7 +7,9 @@
  * Returns live aggregated risk state: exposure, drift, correlation, drawdown.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+import { requireOperatorIdentity } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +17,11 @@ const API_URL =
   process.env.INTERNAL_API_URL || process.env.API_SERVICE_URL || 'http://localhost:3010';
 const ADMIN_TOKEN = process.env.INTERNAL_API_TOKEN || 'Bearer admin-internal';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const res = await fetch(`${API_URL}/api/risk/status`, {
       headers: {

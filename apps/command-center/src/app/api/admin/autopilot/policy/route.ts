@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
-import { getOperatorIdentity } from '@/lib/auth';
+import { getOperatorIdentity, requireOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
@@ -415,6 +415,10 @@ function autopilotNotEnabledResponse(): NextResponse {
  * Get policy configuration, decisions, and statistics
  */
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   if (!isAutopilotEnabled()) {
     return autopilotNotEnabledResponse();
   }
@@ -518,6 +522,10 @@ export async function GET(request: NextRequest) {
  * Update policy settings (mode, freezes)
  */
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   if (!isAutopilotEnabled()) {
     return autopilotNotEnabledResponse();
   }

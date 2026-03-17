@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
 
 /**
@@ -39,6 +40,10 @@ interface AuditQuery {
 
 // GET /api/audit - Get audit trail logs
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
 
@@ -163,6 +168,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/audit - Create audit log entry
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
 
