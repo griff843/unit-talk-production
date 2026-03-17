@@ -1,7 +1,7 @@
 # Drift Report
 
 **Sprint**: SPRINT-PLATFORM-TRUTH-AUDIT (original) / Updated:
-SPRINT-048-TRUTH-RECONCILIATION-LAYER3-QUEUE **Date**: 2026-03-15 **Sources
+SPRINT-063-LIFECYCLE-TRUTH-RESTORATION **Date**: 2026-03-16 **Sources
 Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ---
@@ -87,13 +87,36 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
   2026-03-13T23:51:52Z)
 - **Resolved**: 2026-03-13
 
+### ~~DRIFT-H6: Lifecycle Certification Gap~~ ✅ RESOLVED
+
+- **What**: Full lifecycle E2E path never traversed; RecapService
+  schema+status-query mismatch
+- **Resolved by**: SPRINT-068-E2E-LIFECYCLE-CERT (+ SPRINT-067 schema fix,
+  SPRINT-066 scoring, SPRINT-064 settlement)
+- **Evidence**: Full lifecycle traversed:
+  SUBMIT→SCORE→PROMOTE→POST→SETTLE→RECAP. 6/6 phases PASS. L1-R13: CERTIFIED.
+  Layer 1: 4P/9P/0F. RecapService status query fixed. Proof:
+  `out/sprints/SPRINT-068-E2E-LIFECYCLE-CERT/2026-03-16/proofs/proof_harness_output.json`
+- **Resolved**: 2026-03-16
+
 ---
 
 ## ACTIVE DRIFT
 
 ### HIGH DRIFT
 
-~~No active HIGH drift items.~~
+#### DRIFT-H7: Embed Contract Defects — 5 Discord Output Issues
+
+- **What**: Discord embeds leak `build:unknown` and `env:development` in
+  footers, show inconsistent capper fields, fail silently on headshot lookups,
+  and leak raw SNAKE_CASE enums in pick titles.
+- **Where**: `apps/api/src/lib/buildInfo.ts`,
+  `apps/api/src/services/pickPresentationBuilder.ts`,
+  `apps/api/src/agents/DiscordPromotionAgent/index.ts`
+- **Evidence**: `docs/audits/SPRINT-063_EMBED_CONTRACT_AUDIT.md`
+- **Severity**: **HIGH** (user-facing data quality)
+- **Owner**: SPRINT-070-EMBED-CONTRACT-FIX
+- **Added**: SPRINT-063-LIFECYCLE-TRUTH-RESTORATION, 2026-03-16
 
 ---
 
@@ -186,22 +209,21 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ## DRIFT SUMMARY
 
-| Severity            | Count | Key Theme                                                                 |
-| ------------------- | ----- | ------------------------------------------------------------------------- |
-| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                         |
-| HIGH                | **0** | ~~DRIFT-H2 resolved by SPRINT-053 (naming convention doc + gate update)~~ |
-| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                                    |
-| LOW                 | 2     | Cycle overlap, deprecated references                                      |
-| **ACTIVE TOTAL**    | **5** |                                                                           |
-| **Resolved/Closed** | 13    | C1, C2, C3, H1, H2, H3, H4, H5, M-CONSENSUS, M3, M5, L2, L4 (false +ve)   |
+| Severity            | Count | Key Theme                                                                   |
+| ------------------- | ----- | --------------------------------------------------------------------------- |
+| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                           |
+| HIGH                | **1** | DRIFT-H7: embed defects                                                     |
+| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                                      |
+| LOW                 | 2     | Cycle overlap, deprecated references                                        |
+| **ACTIVE TOTAL**    | **6** |                                                                             |
+| **Resolved/Closed** | 14    | C1, C2, C3, H1, H2, H3, H4, H5, H6, M-CONSENSUS, M3, M5, L2, L4 (false +ve) |
 
-**Drift Trend**: IMPROVING — 0 CRITICAL, 0 HIGH as of 2026-03-15. 13 items
-resolved/closed total. DRIFT-H2 resolved by SPRINT-053 (canonical naming
-convention documented, sprint-gate updated to NEXT_5_SPRINTS.md authority).
+**Drift Trend**: IMPROVING — 0 CRITICAL, **1 HIGH** as of 2026-03-16. SPRINT-068
+resolved DRIFT-H6: full lifecycle E2E path certified (R13: FAIL→CERTIFIED, Layer
+1: 4P/9P/0F). DRIFT-H6 fully closed.
 
 **Top 3 Active Actions**:
 
-1. Update roadmap sprint order doc (DRIFT-M1) — intelligence pipeline doc stale
-   at SPRINT-040
-2. Clean up deprecated table references in utility scripts (DRIFT-L3)
-3. Assign owners to Linear initiatives (DRIFT-M4)
+1. **Embed contract defects** (DRIFT-H7) — SPRINT-070-EMBED-CONTRACT-FIX
+2. **Settlement RPC repair** (quality) — SPRINT-069-SETTLEMENT-RPC-REPAIR
+3. **Roadmap sprint order mismatch** (DRIFT-M1) — future status-sync sprint

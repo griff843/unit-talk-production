@@ -174,32 +174,32 @@ describe('calculateStreak', () => {
   it('all pushes → none/0', () => {
     expect(
       calculateStreak([
-        { outcome: 'push', created_at: '2026-01-01' },
-        { outcome: 'push', created_at: '2026-01-02' },
+        { settlement_result: 'push', created_at: '2026-01-01' },
+        { settlement_result: 'push', created_at: '2026-01-02' },
       ])
     ).toEqual({ type: 'none', length: 0 });
   });
   it('3 consecutive wins → win/3', () => {
     const picks = [
-      { outcome: 'win', created_at: '2026-01-03' },
-      { outcome: 'win', created_at: '2026-01-02' },
-      { outcome: 'win', created_at: '2026-01-01' },
+      { settlement_result: 'win', created_at: '2026-01-03' },
+      { settlement_result: 'win', created_at: '2026-01-02' },
+      { settlement_result: 'win', created_at: '2026-01-01' },
     ];
     expect(calculateStreak(picks)).toEqual({ type: 'win', length: 3 });
   });
   it('loss breaks win streak', () => {
     const picks = [
-      { outcome: 'win', created_at: '2026-01-03' },
-      { outcome: 'loss', created_at: '2026-01-02' },
-      { outcome: 'win', created_at: '2026-01-01' },
+      { settlement_result: 'win', created_at: '2026-01-03' },
+      { settlement_result: 'loss', created_at: '2026-01-02' },
+      { settlement_result: 'win', created_at: '2026-01-01' },
     ];
     expect(calculateStreak(picks)).toEqual({ type: 'win', length: 1 });
   });
   it('ignores pending picks', () => {
     const picks = [
-      { outcome: 'pending', created_at: '2026-01-04' },
-      { outcome: 'loss', created_at: '2026-01-03' },
-      { outcome: 'loss', created_at: '2026-01-02' },
+      { settlement_result: 'pending', created_at: '2026-01-04' },
+      { settlement_result: 'loss', created_at: '2026-01-03' },
+      { settlement_result: 'loss', created_at: '2026-01-02' },
     ];
     expect(calculateStreak(picks)).toEqual({ type: 'loss', length: 2 });
   });

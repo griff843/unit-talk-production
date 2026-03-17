@@ -4,7 +4,8 @@ import { EmbedBuilder } from 'discord.js';
 import { UnifiedPick } from '../../types/picks';
 
 function formatPickLine(pick: UnifiedPick): string {
-  const emoji = pick.outcome === 'win' ? '✅' : pick.outcome === 'loss' ? '❌' : '⏳';
+  const emoji =
+    pick.settlement_result === 'win' ? '✅' : pick.settlement_result === 'loss' ? '❌' : '⏳';
   const units = pick.units || 1;
   const matchup = pick.matchup || `${pick.team_name || ''}`;
   const line = `${pick.player_name || matchup} ${pick.market_type || ''} ${pick.line || ''}`;
@@ -29,10 +30,10 @@ function getStats(picks: UnifiedPick[]) {
   let units = 0;
 
   for (const pick of picks) {
-    if (pick.outcome === 'win') {
+    if (pick.settlement_result === 'win') {
       wins++;
       units += pick.units || 1;
-    } else if (pick.outcome === 'loss') {
+    } else if (pick.settlement_result === 'loss') {
       losses++;
       units -= pick.units || 1;
     }
