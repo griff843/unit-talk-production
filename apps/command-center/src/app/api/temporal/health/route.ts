@@ -3,8 +3,12 @@
  * Provides health monitoring without exposing client to frontend
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import { Client, Connection } from '@temporalio/client';
+import { NextRequest, NextResponse } from 'next/server';
+
+import { requireOperatorIdentity } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 class TemporalHealthService {
   private client: Client | null = null;
@@ -57,6 +61,10 @@ class TemporalHealthService {
 const healthService = new TemporalHealthService();
 
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const healthResult = await healthService.isHealthy();
 

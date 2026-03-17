@@ -2,6 +2,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+
 /**
  * OPS PICKS ACTION PROXY
  * Sprint: SPRINT-023B-CC-WRITE-BAN-ENFORCEMENT
@@ -21,6 +25,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; action: string }> }
 ) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { id, action } = await params;
     const body = await request.json();

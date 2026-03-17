@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+import { requireOperatorIdentity } from '@/lib/auth';
 import { redisClient } from '@/lib/redis';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Redis API Endpoint
@@ -8,6 +12,10 @@ import { redisClient } from '@/lib/redis';
 
 // GET /api/redis - Test Redis connection and get status
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
@@ -96,6 +104,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/redis - Set cache values or perform operations
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { action, key, value, ttl } = body;
@@ -231,6 +243,10 @@ export async function POST(request: NextRequest) {
 
 // DELETE /api/redis - Clear cache or perform cleanup operations
 export async function DELETE(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const pattern = searchParams.get('pattern') || '*';
