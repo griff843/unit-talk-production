@@ -1,17 +1,22 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity, no-unused-vars, no-return-await, no-console */
+import { computeFeatureVectorHash } from '../../../lib/featureHash';
 import { getScoringConfig, getSportWeights } from '../../../scoring/config/weights';
 import { clvTrackingService } from '../../../services/clv/CLVTrackingService';
 import { deviggingService } from '../../../services/devigging/DeviggingService';
 import { GradingFeatureSet } from '../../../types/GradingFeatureSet';
 
 import { canaryDecide } from './canaryRouter';
-import { computeScoreV2 } from './computeScoreV2';
+import { computeScoreV2, type ComputeScoreV2Result } from './computeScoreV2';
 import { logDrift } from './driftLogger';
 import { enhancedScoringEngine, EnhancedScoringResult } from './enhancedScoringEngine';
 import { FeatureEngineer } from './featureEngineer';
 import { MLModelManager } from './mlModelManager';
 import { PerformanceAnalyzer } from './performanceAnalyzer';
-import { evaluatePromotion, parsePromotionPolicyConfig } from './promotionPolicy';
+import {
+  evaluatePromotion,
+  parsePromotionPolicyConfig,
+  type ProbabilityPrimitives,
+} from './promotionPolicy';
 import { RiskManager } from './riskManager';
 // Tranche 2, Stage 1 (2026-01-29): Canonical tier determination
 import { type Tier, canonicalTier } from './TierScale';
@@ -330,14 +335,17 @@ export class SyndicateGradingEngine {
         v2Result: v2,
       });
       // Tranche 7→10: Evaluate promotion policy for V2 result and persist band
+      // SPRINT-073-PROMOTION-WIRING-CERTIFICATION: Inject metadata before promotion evaluation
       const promoCfg = parsePromotionPolicyConfig();
       let promotionBand: string | undefined;
       if (promoCfg.policyEnabled) {
+        const { v2WithMeta, probability } = this.buildPromotionMetadata(features, v2);
         const pd = evaluatePromotion(
-          v2,
+          v2WithMeta,
           features.sport || 'NBA',
           features.propId || 'unknown',
-          promoCfg
+          promoCfg,
+          probability
         );
         promotionBand = pd.band;
         // eslint-disable-next-line no-console
@@ -647,13 +655,17 @@ export class SyndicateGradingEngine {
             v2Result: v2Shadow,
           });
           // Tranche 7: Shadow promotion policy evaluation (log only, never promotes in shadow)
+          // SPRINT-073-PROMOTION-WIRING-CERTIFICATION: Inject metadata for accurate shadow logging
           const promoCfg = parsePromotionPolicyConfig();
           if (promoCfg.policyEnabled) {
+            const { v2WithMeta: v2ShadowMeta, probability: shadowProbability } =
+              this.buildPromotionMetadata(features, v2Shadow);
             const pd = evaluatePromotion(
-              v2Shadow,
+              v2ShadowMeta,
               features.sport || 'NBA',
               features.propId || 'unknown',
-              promoCfg
+              promoCfg,
+              shadowProbability
             );
             // eslint-disable-next-line no-console
             console.log(
@@ -2007,6 +2019,72 @@ export class SyndicateGradingEngine {
       console.warn('CLV tracking failed for', features.propId, error);
       // Don't fail the whole grading if CLV tracking fails
     }
+  }
+
+  /**
+   * SPRINT-073-PROMOTION-WIRING-CERTIFICATION: Build promotion metadata.
+   *
+   * Injects featureSnapshotId, featureVectorHash, and ProbabilityPrimitives
+   * into the V2 result before promotion evaluation.
+   *
+   * Architecture: Metadata injection belongs in the orchestration layer (gradingEngine),
+   * not in the pure scoring function (computeScoreV2). This preserves separation of
+   * concerns — computeScoreV2 remains a pure mathematical transform.
+   */
+  private buildPromotionMetadata(
+    features: GradingFeatureSet,
+    v2: ComputeScoreV2Result
+  ): { v2WithMeta: ComputeScoreV2Result; probability: ProbabilityPrimitives } {
+    // Compute deterministic feature vector hash (SHA-256, key-sorted for stability)
+    const featureVectorHash = computeFeatureVectorHash(
+      features as unknown as Record<string, unknown>
+    );
+
+    // Derive featureSnapshotId as UUID-format string from first 128 bits of hash
+    const featureSnapshotId = [
+      featureVectorHash.slice(0, 8),
+      featureVectorHash.slice(8, 12),
+      featureVectorHash.slice(12, 16),
+      featureVectorHash.slice(16, 20),
+      featureVectorHash.slice(20, 32),
+    ].join('-');
+
+    // Augment V2 result with required promotion metadata (Gate 7)
+    const v2WithMeta: ComputeScoreV2Result = { ...v2, featureSnapshotId, featureVectorHash };
+
+    // Build ProbabilityPrimitives from available feature data (Gate 8)
+    const pFinal = this.calculateModelProbability(features);
+
+    // pMarketDevig: devigged implied probability from market odds
+    // market.odds is a required field on GradingFeatureSet
+    const entryOdds = features.odds ?? features.market.odds;
+    const pImplied =
+      entryOdds < 0 ? Math.abs(entryOdds) / (Math.abs(entryOdds) + 100) : 100 / (entryOdds + 100);
+    // Simple proportional devig: remove ~5% vig from single-sided implied probability
+    const pMarketDevig = Math.max(0.1, Math.min(0.9, pImplied / 1.05));
+
+    // edgeFinal must equal pFinal - pMarketDevig (±0.001 per validateProbabilityPrimitives)
+    const edgeFinal = Math.round((pFinal - pMarketDevig) * 10000) / 10000;
+
+    // uncertaintyFinal derived from data quality completeness
+    //   completeness=1.0 → uncertainty≈0.20 (< HARD_MAX 0.25 → HARD eligible)
+    //   completeness=0.5 → uncertainty≈0.325 (< SOFT_MAX 0.40 → SOFT eligible)
+    //   completeness=0.0 → uncertainty=0.45 (> SOFT_MAX → blocked)
+    const completeness = features.dataQuality.completeness;
+    const uncertaintyFinal = Math.max(0.05, Math.min(0.45, 0.45 - completeness * 0.25));
+
+    // clvForecast from closing line value (convert from percent to decimal)
+    const clvForecast = (features.closingLineValue ?? 0) / 100;
+
+    const probability: ProbabilityPrimitives = {
+      pFinal,
+      uncertaintyFinal,
+      pMarketDevig,
+      edgeFinal,
+      clvForecast,
+    };
+
+    return { v2WithMeta, probability };
   }
 
   /**
