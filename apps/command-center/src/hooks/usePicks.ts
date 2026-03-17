@@ -100,6 +100,10 @@ export interface Pick {
   market_type?: string;
   risk?: string;
   notes?: string;
+  /** Promotion decision from GradingEngine: 'HARD' | 'SOFT' | 'NO_POST' */
+  promotion_band?: string | null;
+  /** Composite scoring output from computeScoreV2 */
+  professional_score?: number | null;
 }
 
 export interface PickStats {
@@ -148,6 +152,8 @@ export function usePicks() {
           settlement_status,
           tier,
           sport,
+          promotion_band,
+          professional_score,
           created_at,
           users!unified_picks_user_id_fkey (
             username,
@@ -198,6 +204,9 @@ export function usePicks() {
           player_name: extractPlayerFromSelection(selection),
           line: selection,
           market_type: 'player_prop',
+          promotion_band: pick.promotion_band ?? null,
+          professional_score:
+            pick.professional_score != null ? Number(pick.professional_score) : null,
         };
       });
 
