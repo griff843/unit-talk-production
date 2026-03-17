@@ -1,6 +1,6 @@
 # Layer 1 Exit Requirements Matrix
 
-**Sprint**: SPRINT-066-SCORING-CERTIFICATION (updated from SPRINT-065) **Date**:
+**Sprint**: SPRINT-067-RECAP-SCHEMA-FIX (updated from SPRINT-066) **Date**:
 2026-03-16 **Authority**: Derived from
 `docs/04_roadmap/layer_phase_execution_model.md` §2 +
 `docs/contracts/PICK_LIFECYCLE_CONTRACT.md`
@@ -117,14 +117,14 @@
 
 ### L1-R10: Recap/Stat Generation from Settled Truth
 
-| Field               | Value                                                                                                                                                                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Requirement**     | RecapAgent generates daily/weekly/monthly recaps from settled picks                                                                                                                                                            |
-| **Why It Matters**  | Recap closes the information loop — operators and users see results.                                                                                                                                                           |
-| **Evidence Source** | RecapAgent queries `play_status` column which DOES NOT EXIST on unified_picks. Correct column is `status`. Every recap method (daily, weekly, monthly, parlay, micro) will throw Supabase "column not found" error at runtime. |
-| **Current Status**  | **FAIL**                                                                                                                                                                                                                       |
-| **Maturity**        | **DESIGNED** (code exists but is non-functional due to wrong column names)                                                                                                                                                     |
-| **Blocker**         | RecapAgent uses `play_status` (7 references across recapService.ts and index.ts). Must be changed to `status`. Also references `outcome` which should be `settlement_result`.                                                  |
+| Field               | Value                                                                                                                                                                                                                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Requirement**     | RecapAgent generates daily/weekly/monthly recaps from settled picks                                                                                                                                                                                                                                                   |
+| **Why It Matters**  | Recap closes the information loop — operators and users see results.                                                                                                                                                                                                                                                  |
+| **Evidence Source** | SPRINT-067: All `play_status` → `status` and `outcome` → `settlement_result` column refs corrected in recapService.ts, embedBuilder.ts, recapUtils.ts, index.ts. UnifiedPick type updated. 1025/1025 vitest pass. Commit: 6607dd56. Runtime certification (live DB round-trip with settled picks) pending SPRINT-068. |
+| **Current Status**  | **PARTIAL**                                                                                                                                                                                                                                                                                                           |
+| **Maturity**        | **IMPLEMENTED** (schema corrected; runtime not yet certified against live settled picks)                                                                                                                                                                                                                              |
+| **Blocker**         | Runtime certification requires settled picks in DB (depends on SPRINT-068 E2E path).                                                                                                                                                                                                                                  |
 
 ### L1-R11: Replay/Simulation/Certification Support
 
@@ -174,16 +174,17 @@
 | L1-R07 | Discord Publish Path          | **PASS**    | CERTIFIED    |
 | L1-R08 | Settlement Path               | **PARTIAL** | VERIFIED     |
 | L1-R09 | Idempotency and Immutability  | **PARTIAL** | VERIFIED     |
-| L1-R10 | Recap/Stat Generation         | **FAIL**    | DESIGNED     |
+| L1-R10 | Recap/Stat Generation         | **PARTIAL** | IMPLEMENTED  |
 | L1-R11 | Replay/Simulation Support     | **PARTIAL** | IMPLEMENTED  |
 | L1-R12 | Observability/Traceability    | **PARTIAL** | VERIFIED     |
 | L1-R13 | Full Lifecycle E2E Path       | **FAIL**    | NOT ACHIEVED |
 
-**Totals**: 3 PASS, 8 PARTIAL, 2 FAIL out of 13 requirements.
+**Totals**: 3 PASS, 9 PARTIAL, 1 FAIL out of 13 requirements.
+
+**SPRINT-067 delta**: R10 moved FAIL→PARTIAL (RecapAgent schema corrected).
 
 **SPRINT-066 delta**: R04, R05, R06 moved FAIL→PARTIAL (scoring pipeline
 exercised, CONSTITUTIONAL gates satisfied).
 
-**Layer 1 Verdict**: **NOT COMPLETE** — Recap (R10) and full E2E (R13) remain
-FAIL. SPRINT-067 (recap schema fix) and SPRINT-068 (E2E cert) are the remaining
-exit blockers.
+**Layer 1 Verdict**: **NOT COMPLETE** — Full E2E path (R13) remains FAIL.
+SPRINT-068-E2E-LIFECYCLE-CERT is the sole remaining Layer 1 exit blocker.

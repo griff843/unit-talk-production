@@ -1,19 +1,25 @@
 # Current System Status
 
-**Last Updated**: 2026-03-16 **Audit Source**: SPRINT-066-SCORING-CERTIFICATION
-(V2 scoring pipeline exercised for first time: computeScoreV2 +
-evaluatePromotion with 3 scenarios (S-tier HARD promote, A-tier SOFT promote,
-D-tier no-promote). Root cause fixed: computeScoreV2 never populated
-featureSnapshotId/featureVectorHash — CONSTITUTIONAL Gate 7 silently blocked ALL
-promotions. Fix: SHA-256 featureVectorHash + deterministic UUID
-featureSnapshotId added. All 8 promotion gates exercised. GAP-L1-01 CLOSED.
-GAP-L1-02 CLOSED. L1 matrix: 3 PASS, 8 PARTIAL, 2 FAIL (was 5P/5F). API vitest:
-1000→1025. Proof: out/sprints/SPRINT-066-SCORING-CERTIFICATION/.) **Prior Audit
-Source**: SPRINT-065-LAYER1-COMPLETION-VERIFICATION (Layer 1 certification
-audit: Layer 1 is NOT COMPLETE (PARTIALLY CERTIFIED). 3 of 13 exit requirements
-PASS, 5 PARTIAL, 5 FAIL. Scoring pipeline never exercised. RecapAgent
-non-functional (wrong column names). Full lifecycle E2E path never traversed.
-See LAYER1_EXIT_REQUIREMENTS.md.) **Prior Audit Source**:
+**Last Updated**: 2026-03-16 **Audit Source**: SPRINT-067-RECAP-SCHEMA-FIX
+(RecapAgent column refs corrected: play_status→status,
+outcome→settlement_result. 6 files updated: recapService.ts, embedBuilder.ts,
+recapUtils.ts, index.ts, recapUtils.test.ts, types/picks.ts. UnifiedPick
+interface updated. RecapAgent will no longer throw Supabase "column not found"
+errors. L1 R10: FAIL→PARTIAL. API vitest: 1025/1025. Commit: 6607dd56. UNI-99
+Done.) **Prior Audit Source**: SPRINT-066-SCORING-CERTIFICATION (V2 scoring
+pipeline exercised for first time: computeScoreV2 + evaluatePromotion with 3
+scenarios (S-tier HARD promote, A-tier SOFT promote, D-tier no-promote). Root
+cause fixed: computeScoreV2 never populated featureSnapshotId/featureVectorHash
+— CONSTITUTIONAL Gate 7 silently blocked ALL promotions. Fix: SHA-256
+featureVectorHash + deterministic UUID featureSnapshotId added. All 8 promotion
+gates exercised. GAP-L1-01 CLOSED. GAP-L1-02 CLOSED. L1 matrix: 3 PASS, 8
+PARTIAL, 2 FAIL (was 5P/5F). API vitest: 1000→1025. Proof:
+out/sprints/SPRINT-066-SCORING-CERTIFICATION/.) **Prior Audit Source**:
+SPRINT-065-LAYER1-COMPLETION-VERIFICATION (Layer 1 certification audit: Layer 1
+is NOT COMPLETE (PARTIALLY CERTIFIED). 3 of 13 exit requirements PASS, 5
+PARTIAL, 5 FAIL. Scoring pipeline never exercised. RecapAgent non-functional
+(wrong column names). Full lifecycle E2E path never traversed. See
+LAYER1_EXIT_REQUIREMENTS.md.) **Prior Audit Source**:
 SPRINT-064-SETTLEMENT-LIFECYCLE-FIX (Settlement runtime proven:
 lifecycleSettle() POSTED→SETTLED at runtime. DEFECT-8/9 INVALID. New
 DEFECT-10–13. Lifecycle proof matrix: 52.5% PASS, 20% PARTIAL, 27.5% FAIL.)

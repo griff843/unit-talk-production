@@ -108,16 +108,17 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
   - featureVectorHash now generated). All 8 promotion gates proven satisfiable.
     Remaining: live provider_offers round-trip not tested; SCORING_ENGINE_V2 not
     wired in production agents.
-- **Remaining**: RecapAgent queries nonexistent DB columns (`play_status`,
-  `outcome`). Full E2E path (submit→score→post→settle→recap) never traversed.
-- **Where**: `apps/api/src/agents/RecapAgent/recapService.ts:95-99`
+- **Remaining**: Full E2E path (submit→score→post→settle→recap) never traversed.
+  RecapAgent schema corrected by SPRINT-067 (play_status→status,
+  outcome→settlement_result). Runtime certification pending.
+- **Where**: Full lifecycle path not yet exercised end-to-end
 - **Evidence**: `docs/status/LIFECYCLE_PROOF_MATRIX.md`,
-  `out/sprints/SPRINT-066-SCORING-CERTIFICATION/2026-03-16/SPRINT_CLOSEOUT_REPORT.md`
-- **Impact**: Cannot claim full lifecycle certification until RecapAgent is
-  repaired and full E2E path is traversed.
+  `out/sprints/SPRINT-067-RECAP-SCHEMA-FIX/2026-03-16/SPRINT_CLOSEOUT_REPORT.md`
+- **Impact**: Cannot claim full lifecycle certification until full E2E path is
+  traversed with runtime traces at every stage.
 - **Severity**: **HIGH**
-- **Owner**: SPRINT-067-RECAP-SCHEMA-FIX + SPRINT-068-E2E-LIFECYCLE-CERT
-- **Added**: SPRINT-063, 2026-03-16 | **Updated**: SPRINT-066, 2026-03-16
+- **Owner**: SPRINT-068-E2E-LIFECYCLE-CERT
+- **Added**: SPRINT-063, 2026-03-16 | **Updated**: SPRINT-067, 2026-03-16
 
 #### DRIFT-H7: Embed Contract Defects — 5 Discord Output Issues
 
@@ -232,14 +233,14 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 | **ACTIVE TOTAL**    | **7** |                                                                         |
 | **Resolved/Closed** | 13    | C1, C2, C3, H1, H2, H3, H4, H5, M-CONSENSUS, M3, M5, L2, L4 (false +ve) |
 
-**Drift Trend**: IMPROVING — 0 CRITICAL, **2 HIGH** as of 2026-03-16. SPRINT-066
-resolved scoring portion of DRIFT-H6 (V2 pipeline exercised, CONSTITUTIONAL
-gates satisfied, GAP-L1-01/02 closed). Remaining: RecapAgent column fix + full
-E2E path.
+**Drift Trend**: IMPROVING — 0 CRITICAL, **2 HIGH** as of 2026-03-16. SPRINT-067
+resolved recap schema portion of DRIFT-H6 (RecapAgent column refs corrected,
+R10: FAIL→PARTIAL). Sole remaining FAIL: R13 (full E2E). One sprint remaining to
+close DRIFT-H6.
 
 **Top 3 Active Actions**:
 
-1. **Recap schema fix** (DRIFT-H6) — SPRINT-067-RECAP-SCHEMA-FIX
-2. **Full E2E lifecycle certification** (DRIFT-H6) —
-   SPRINT-068-E2E-LIFECYCLE-CERT (after 067)
-3. **Embed contract defects** (DRIFT-H7) — SPRINT-070-EMBED-CONTRACT-FIX
+1. **Full E2E lifecycle certification** (DRIFT-H6) —
+   SPRINT-068-E2E-LIFECYCLE-CERT
+2. **Embed contract defects** (DRIFT-H7) — SPRINT-070-EMBED-CONTRACT-FIX
+3. **Settlement RPC repair** (quality) — SPRINT-069-SETTLEMENT-RPC-REPAIR
