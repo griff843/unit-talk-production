@@ -12,7 +12,9 @@
 import fs from 'fs';
 import path from 'path';
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+import { requireOperatorIdentity } from '@/lib/auth';
 
 interface QuarantineEntry {
   file_path: string;
@@ -42,7 +44,11 @@ interface GovernanceManifest {
   temporary_waiver?: TemporaryWaiver;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const correlationId = `quarantine-${Date.now()}`;
 
   try {

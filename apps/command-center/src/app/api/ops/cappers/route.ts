@@ -1,6 +1,10 @@
 'use server';
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+import { requireOperatorIdentity } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * OPS CAPPERS API PROXY
@@ -16,7 +20,11 @@ function getApiBaseUrl(): string {
   return process.env.API_SERVICE_URL || 'http://localhost:3000';
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // Proxy to API service
     const apiResponse = await fetch(`${getApiBaseUrl()}/ops/cappers`, {
