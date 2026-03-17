@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-17 (SPRINT-079-LAYER3-PHASE10-CC-SETTLEMENT-CONSOLE)
+**Last Updated**: 2026-03-17 (SPRINT-080-LAYER3-PHASE10-CC-RECAP-DASHBOARD)
 **Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -384,6 +384,14 @@ automation, edge ranking feeds, market alerts, context/recap automation
   reject, 200 RPC success (verifies manual_settle_pick args); makeChain() fluent
   Supabase mock helper; CC: 174/174 passing; cc:no-mocks PASSED; lifecycle gate:
   0 violations; UNI-111 Done
+- **Recap Dashboard (SPRINT-080, PR #296, 2026-03-17)**: /dashboard/recaps page
+  — mode selector (daily/weekly/monthly), Generate Recap trigger, headline stats
+  grid (total settled, wins, losses, win rate), PROMOTE/DEMOTE/HOLD decision
+  card with reasons list; Recaps nav entry added to sidebar Operations section;
+  6 vitest tests for POST /api/ops-recap (400 missing mode, 400 invalid mode,
+  200 daily HOLD, 200 weekly PROMOTE, 200 monthly DEMOTE, 503 db unavailable);
+  fixed pre-existing TS1261 casing error in layout.tsx; CC: 133/133 passing;
+  cc:no-mocks PASSED; lifecycle gate: 0 violations; UNI-112 Done
 
 ### Remaining Work
 
@@ -395,7 +403,7 @@ automation, edge ranking feeds, market alerts, context/recap automation
 
 ### Assessment
 
-**PHASE 4 is 68% complete.** Discord bot fully verified and K8s-ready.
+**PHASE 4 is 70% complete.** Discord bot fully verified and K8s-ready.
 RecapAgent lifecycle-compliant with Temporal workflows and embed generation.
 AlertAgent live. Core automation infrastructure complete. Operator workflow
 registry delivered (SPRINT-052): 18 curated workflows across 6 categories, GET
@@ -422,8 +430,12 @@ filter, timeline drawer; 8 new vitest tests; 171/171 CC passing (PR #290,
 UNI-110 Done, 2026-03-17). Settlement Console test coverage delivered
 (SPRINT-079): 11 vitest tests for GET+POST /api/settlement (all auth,
 validation, RPC, and 503 branches); 174/174 CC passing (PR #293, UNI-111 Done,
-2026-03-17). Remaining: edge ranking feeds, full market alert automation,
-Temporal scheduling configuration, workflow batch operations.
+2026-03-17). Recap Dashboard delivered (SPRINT-080): /dashboard/recaps page with
+mode selector, Generate Recap trigger, headline stats + PROMOTE/DEMOTE/HOLD
+decision card; Recaps nav entry added to sidebar; 6 vitest tests for POST
+/api/ops-recap; CC: 133/133 passing (PR #296, UNI-112 Done, 2026-03-17).
+Remaining: edge ranking feeds, full market alert automation, Temporal scheduling
+configuration, workflow batch operations.
 
 ---
 
