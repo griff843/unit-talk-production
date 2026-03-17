@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-16 (SPRINT-061-LAYER3-PHASE10-CC-ALERT-DASHBOARD)
+**Last Updated**: 2026-03-17 (SPRINT-073-PROMOTION-WIRING-CERTIFICATION)
 **Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -528,6 +528,13 @@ risk badges, invocation snippets; Workflows nav; 78/78 CC tests passing (PR
 #262, UNI-95 Done, 2026-03-16); **SPRINT-061 delivered Alerts Dashboard (Layer 3
 / Phase 10)** — GET /ops/alerts API route + CC proxy + /dashboard/alerts page
 grouped by severity critical→warning→info; Bell nav; DEMO_MODE gate fix; API:
-1000/1000; CC: 84/84 tests passing (PR #265, UNI-96 Done, 2026-03-16). Next
-canonical work: run /sprint-plan. See `docs/06_status/current_phase.md` for
-canonical layer/phase position.
+1000/1000; CC: 84/84 tests passing (PR #265, UNI-96 Done, 2026-03-16);
+**SPRINT-072 certified scoring pipeline** —
+computeScoreV2/canonicalTier/evaluatePromotion 23-point harness; CONSTITUTIONAL
+gates 7+8 verified fail-closed; 1041/1041 vitest (PR #280, UNI-104 Done,
+2026-03-16); **SPRINT-073 certified promotion wiring** —
+buildPromotionMetadata() injected into GradingEngine V2+shadow paths; Gates 7+8
+unblocked at runtime; fail-closed preserved; 1061/1061 vitest (commits
+4df4dd90+bf1351b8, UNI-105 Done, 2026-03-17). Next canonical work: run
+/sprint-plan. See `docs/06_status/current_phase.md` for canonical layer/phase
+position.
