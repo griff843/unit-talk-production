@@ -1,19 +1,18 @@
 /**
- * CC Proxy: GET /api/capper-performance → API /api/cappers
+ * CC Proxy: GET /api/picks → API /api/picks
  *
- * SPRINT-075-LAYER3-PHASE10-CC-CAPPER-DASHBOARD
+ * SPRINT-074-LAYER3-PHASE10-CC-PICK-MANAGEMENT
  * Layer/Phase: Layer 3 / Phase 10 — Command Center UX
  *
- * Proxies capper performance stats (win rate, ROI, streak) from the API
- * service to the Command Center frontend. Replaces an earlier implementation
- * that read Supabase directly without auth (forbidden for read-only CC service).
+ * Proxies the picks list (with promotion_band, professional_score) from the
+ * API service to the Command Center frontend. Supports optional query params:
+ *   - sport: filter by sport
+ *   - workflow_stage: filter by stage
+ *   - limit: max rows (default 100)
+ *   - hours: restrict to last N hours
  *
  * Auth: requireOperatorIdentity (JWT) — no unauthenticated access.
  * CC MUST NOT write to any business table — read-only proxy only.
- *
- * Supported query params forwarded upstream:
- *   ?window=<days>      rolling window (default 10)
- *   ?capper_id=<uuid>   filter to one capper
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
@@ -34,9 +33,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = request.nextUrl;
-    const upstream = new URL(`${API_URL}/api/cappers`);
+    const upstream = new URL(`${API_URL}/api/picks`);
 
-    for (const param of ['window', 'capper_id']) {
+    // Forward supported query params
+    for (const param of ['sport', 'workflow_stage', 'limit', 'hours']) {
       const val = searchParams.get(param);
       if (val !== null) {
         upstream.searchParams.set(param, val);
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: 'PROXY_ERROR',
         message: err instanceof Error ? err.message : 'Upstream unavailable',
-        data: { cappers: [] },
+        data: { picks: [] },
       },
       { status: 503 }
     );

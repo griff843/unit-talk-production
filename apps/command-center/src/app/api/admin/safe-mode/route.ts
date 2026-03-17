@@ -5,10 +5,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getOperatorIdentity } from '@/lib/auth';
+import { getOperatorIdentity, requireOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
+
+export const dynamic = 'force-dynamic';
 
 // =============================================================================
 // SAFE MODE CONFIGURATION
@@ -163,6 +165,10 @@ class SafeModeService {
  * Get current safe mode status
  */
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const span = UnitTalkTracing.startAgentSpan('admin', 'get_safe_mode_status');
 
   try {
@@ -200,6 +206,10 @@ export async function GET(request: NextRequest) {
  * Enable or disable safe mode
  */
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const span = UnitTalkTracing.startAgentSpan('admin', 'toggle_safe_mode');
 
   try {

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { dbOperations, SecurityEvent, supabase } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Security Events API Endpoint
@@ -10,6 +13,10 @@ import { dbOperations, SecurityEvent, supabase } from '@/lib/supabase';
 
 // GET /api/security - Get security events with filtering and pagination
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('id');
@@ -135,6 +142,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/security - Create new security event or perform action
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { action, eventId, ...eventData } = body;
@@ -278,6 +289,10 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/security - Update security event
 export async function PUT(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('id');
@@ -338,6 +353,10 @@ export async function PUT(request: NextRequest) {
 
 // DELETE /api/security - Delete security event
 export async function DELETE(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('id');

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { agentMonitor } from '@/lib/agentMonitoring';
+import { requireOperatorIdentity } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Agent Health Check API Endpoint
@@ -8,6 +12,10 @@ import { agentMonitor } from '@/lib/agentMonitoring';
 
 // GET /api/agents/health - Get health status of all agents or specific agent
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const agentName = searchParams.get('agent');
@@ -140,6 +148,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/agents/health - Start/stop monitoring or trigger health check
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { action, agent, interval } = body;

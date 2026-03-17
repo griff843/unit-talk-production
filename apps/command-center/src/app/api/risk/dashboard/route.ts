@@ -9,13 +9,18 @@
  * Queries risk tables directly via Supabase (read-only, matches CCC pattern).
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const eventsLimit = Math.min(parseInt(searchParams.get('events_limit') ?? '', 10) || 20, 100);

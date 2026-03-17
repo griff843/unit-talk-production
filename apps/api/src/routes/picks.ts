@@ -107,6 +107,103 @@ router.get('/recent', async (req, res) => {
 });
 
 /**
+ * GET /api/picks - Get picks list for Command Center (with promotion data)
+ *
+ * SPRINT-074-LAYER3-PHASE10-CC-PICK-MANAGEMENT
+ * Returns unified_picks rows enriched with promotion_band and professional_score.
+ * Supports filtering by workflow_stage, sport, limit, and hours.
+ */
+router.get('/', async (req, res) => {
+  const correlationId = `picks-list-${Date.now()}`;
+
+  try {
+    const { sport, workflow_stage, limit = 100, hours } = req.query;
+
+    logger.info('Fetching picks list', {
+      correlationId,
+      sport,
+      workflow_stage,
+      limit: Number(limit),
+      hours: hours !== undefined ? Number(hours) : undefined,
+    });
+
+    let query = supabaseClient
+      .from('unified_picks')
+      .select(
+        `
+        id,
+        user_id,
+        selection,
+        odds,
+        confidence,
+        workflow_stage,
+        settlement_status,
+        tier,
+        sport,
+        promotion_band,
+        professional_score,
+        created_at,
+        users!unified_picks_user_id_fkey (username, discord_id, tier, capper_tier)
+      `
+      )
+      .order('created_at', { ascending: false })
+      .limit(Number(limit));
+
+    if (hours !== undefined) {
+      const hoursAgo = new Date(Date.now() - Number(hours) * 60 * 60 * 1000).toISOString();
+      query = query.gte('created_at', hoursAgo);
+    }
+
+    if (sport && typeof sport === 'string') {
+      query = query.eq('sport', sport.toLowerCase());
+    }
+
+    if (workflow_stage && typeof workflow_stage === 'string') {
+      query = query.eq('workflow_stage', workflow_stage);
+    }
+
+    const { data: picks, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    const response = {
+      success: true,
+      data: picks || [],
+      metadata: {
+        count: picks?.length || 0,
+        sport: sport || 'all',
+        workflow_stage: workflow_stage || 'all',
+        timestamp: new Date().toISOString(),
+        correlationId,
+      },
+    };
+
+    logger.info('Picks list fetched successfully', {
+      correlationId,
+      count: picks?.length || 0,
+    });
+
+    res.json(response);
+  } catch (error) {
+    logger.error('Failed to fetch picks list', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch picks list',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
  * GET /api/picks/stats - Get pick statistics for dashboard
  */
 router.get('/stats', async (req, res) => {

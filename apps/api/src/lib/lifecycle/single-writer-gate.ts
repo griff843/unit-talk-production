@@ -75,6 +75,10 @@ const ALLOWED_PATTERNS = [
   /scripts[/\\]backfill-/,
   // Canary webhook test scripts
   /scripts[/\\]discord-canary-/,
+  // Settlement/scoring harness scripts (dev test utilities, not production write path)
+  // SPRINT-071-PICK-POSTING-REPAIR: analogous to smoke/backfill exemptions
+  /scripts[/\\].*-harness/,
+  /scripts[/\\].*-certification-harness/,
 ];
 
 /**

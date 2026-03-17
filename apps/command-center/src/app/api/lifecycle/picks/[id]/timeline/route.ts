@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { deriveLifecycleStage, buildTimeline, type LifecycleStage } from '@/lib/lifecycleDisplay';
 import { createClient } from '@/lib/supabase';
 
@@ -47,6 +48,10 @@ interface PickRecord {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { id } = await params;
 

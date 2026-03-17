@@ -74,6 +74,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Analytics',
     items: [
+      { name: 'Cappers', href: '/dashboard/cappers', icon: Users },
       { name: 'SmartForm', href: '/dashboard/smartform', icon: FileCheck },
       { name: 'LLM Tasks', href: '/dashboard/tasks', icon: Zap },
       { name: 'Analytics', href: '/dashboard/analytics', icon: TrendingUp },
