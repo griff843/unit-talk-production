@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-17 (SPRINT-080-LAYER3-PHASE10-CC-RECAP-DASHBOARD)
+**Last Updated**: 2026-03-17 (SPRINT-081-LAYER3-PHASE10-CC-REALTIME-DASHBOARD)
 **Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -392,6 +392,14 @@ automation, edge ranking feeds, market alerts, context/recap automation
   200 daily HOLD, 200 weekly PROMOTE, 200 monthly DEMOTE, 503 db unavailable);
   fixed pre-existing TS1261 casing error in layout.tsx; CC: 133/133 passing;
   cc:no-mocks PASSED; lifecycle gate: 0 violations; UNI-112 Done
+- **Real-time Dashboard (SPRINT-081, PR #299, 2026-03-17)**: GET
+  /api/realtime-edge — live unified_picks lifecycle stage counts
+  (submitted/graded/promoted/posted/settled/void/other + total) + agent_health
+  summary (total/healthy/warning/error/stale with >5min heartbeat stale
+  detection); /dashboard/real-time page — auto-refresh every 30s,
+  setInterval-driven, 7 color-coded stage cards + agent pulse row; Real-time nav
+  entry added to sidebar Monitoring section; 6 vitest tests; CC: 133/133
+  passing; cc:no-mocks PASSED; lifecycle gate: 0 violations; UNI-113 Done
 
 ### Remaining Work
 
@@ -403,7 +411,7 @@ automation, edge ranking feeds, market alerts, context/recap automation
 
 ### Assessment
 
-**PHASE 4 is 70% complete.** Discord bot fully verified and K8s-ready.
+**PHASE 4 is 72% complete.** Discord bot fully verified and K8s-ready.
 RecapAgent lifecycle-compliant with Temporal workflows and embed generation.
 AlertAgent live. Core automation infrastructure complete. Operator workflow
 registry delivered (SPRINT-052): 18 curated workflows across 6 categories, GET
@@ -434,8 +442,11 @@ validation, RPC, and 503 branches); 174/174 CC passing (PR #293, UNI-111 Done,
 mode selector, Generate Recap trigger, headline stats + PROMOTE/DEMOTE/HOLD
 decision card; Recaps nav entry added to sidebar; 6 vitest tests for POST
 /api/ops-recap; CC: 133/133 passing (PR #296, UNI-112 Done, 2026-03-17).
-Remaining: edge ranking feeds, full market alert automation, Temporal scheduling
-configuration, workflow batch operations.
+Real-time Dashboard delivered (SPRINT-081): GET /api/realtime-edge with live
+lifecycle stage counts + agent health pulse; /dashboard/real-time auto-refresh
+30s; Real-time nav in Monitoring sidebar; 6 vitest tests; CC: 133/133 passing
+(PR #299, UNI-113 Done, 2026-03-17). Remaining: edge ranking feeds, full market
+alert automation, Temporal scheduling configuration, workflow batch operations.
 
 ---
 

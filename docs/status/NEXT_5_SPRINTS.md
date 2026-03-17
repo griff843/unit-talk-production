@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-17 (SPRINT-080-LAYER3-PHASE10-CC-RECAP-DASHBOARD)
+**Last Updated**: 2026-03-17 (SPRINT-081-LAYER3-PHASE10-CC-REALTIME-DASHBOARD)
 **Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
 backlog + codebase investigation
 
@@ -31,7 +31,7 @@ SPRINT-054 Replay Endpoint — all done).
 ## Completed Sprint History
 
 <details>
-<summary>42 sprints completed (2026-03-10 through 2026-03-17) — click to expand</summary>
+<summary>43 sprints completed (2026-03-10 through 2026-03-17) — click to expand</summary>
 
 | Sprint                              | Date       | PR   | Linear    | Layer/Phase |
 | ----------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -77,5 +77,6 @@ SPRINT-054 Replay Endpoint — all done).
 | 078-LAYER3-PHASE10-CC-LIFECYCLE-MON | 2026-03-17 | #290 | UNI-110   | L3/Ph 10    |
 | 079-LAYER3-PHASE10-CC-SETTLEMENT    | 2026-03-17 | #293 | UNI-111   | L3/Ph 10    |
 | 080-LAYER3-PHASE10-CC-RECAP-DASH    | 2026-03-17 | #296 | UNI-112   | L3/Ph 10    |
+| 081-LAYER3-PHASE10-CC-REALTIME-DASH | 2026-03-17 | #299 | UNI-113   | L3/Ph 10    |
 
 </details>
