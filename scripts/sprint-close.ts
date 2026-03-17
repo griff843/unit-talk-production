@@ -33,7 +33,8 @@ const REQUIRED_ARTIFACTS = [
 ];
 
 // Artifacts that may have variable names (glob patterns)
-const REQUIRED_PATTERNS = [/^proof_typecheck.*\.txt$/, /^proof_verify.*\.txt$/];
+const REQUIRED_TYPECHECK_PATTERN = /^proof_typecheck.*\.txt$/;
+const REQUIRED_SCOPED_VERIFY_PATTERN = /^proof_verify.*\.txt$/;
 
 interface ValidationResult {
   artifact: string;
@@ -55,7 +56,7 @@ function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
   let sprintId = '';
   let date: string | null = null;
-  let lane = 'ops-submit';
+  let lane = 'full';
   let validateOnly = false;
   let phase: number | null = null;
   let linearIssue: string | null = null;
@@ -184,7 +185,7 @@ function listDirectory(dir: string, prefix: string, inventory: string[]): void {
   }
 }
 
-function validateArtifacts(proofsDir: string): ValidationResult[] {
+function validateArtifacts(proofsDir: string, lane: string): ValidationResult[] {
   const results: ValidationResult[] = [];
   const existingFiles = fs.existsSync(proofsDir) ? fs.readdirSync(proofsDir) : [];
 
@@ -198,7 +199,12 @@ function validateArtifacts(proofsDir: string): ValidationResult[] {
     });
   }
 
-  for (const pattern of REQUIRED_PATTERNS) {
+  const requiredPatterns = [REQUIRED_TYPECHECK_PATTERN];
+  if (lane !== 'full') {
+    requiredPatterns.push(REQUIRED_SCOPED_VERIFY_PATTERN);
+  }
+
+  for (const pattern of requiredPatterns) {
     const matches = existingFiles.filter(f => pattern.test(f));
     const found = matches.length > 0;
     results.push({
@@ -269,7 +275,7 @@ function runVerificationLane(lane: string): boolean {
         cmd = 'npm run type-check && npm run test';
         break;
       default:
-        cmd = 'npm run verify:ops-submit';
+        throw new Error(`Unsupported verification lane: ${lane}`);
     }
 
     console.log(`Running: ${cmd}`);
@@ -357,7 +363,7 @@ function main(): void {
     REQUIRED_ARTIFACTS.push(`proof_phase_advancement_${phase}.txt`);
   }
 
-  const results = validateArtifacts(proofsDir);
+  const results = validateArtifacts(proofsDir, lane);
   const allFound = printComplianceTable(sprintId, targetDate, results);
 
   if (!allFound) {

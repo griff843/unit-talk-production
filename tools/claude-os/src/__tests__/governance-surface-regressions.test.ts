@@ -8,7 +8,8 @@ import { classifySprint } from '../portfolio-audit-classifier.js';
 import { loadProfileById } from '../profile-loader.js';
 import { deriveScopeContract, validateFileAgainstScope } from '../scope-contract.js';
 
-import type { TaskEnvelope, ProjectProfile, SprintEntry } from '../types.js';
+import type { SprintEntry } from '../portfolio-audit-types.js';
+import type { TaskEnvelope, ProjectProfile } from '../types.js';
 
 const THIS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(THIS_DIR, '..', '..', '..', '..');

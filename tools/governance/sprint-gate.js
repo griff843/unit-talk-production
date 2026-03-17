@@ -26,15 +26,24 @@ const ROADMAP_PATH = path.resolve(
 
 /**
  * Parse Sprint 1 from NEXT_5_SPRINTS.md.
- * Looks for a line matching: ## Sprint 1: SPRINT-...
+ * Returns queue metadata so vacant slots can fail closed instead of falling back.
  */
-function getNextSprintFromQueue() {
+function getQueueState() {
   if (!fs.existsSync(NEXT_SPRINTS_PATH)) {
-    return null;
+    return { status: 'missing', sprint: null };
   }
+
   const text = fs.readFileSync(NEXT_SPRINTS_PATH, 'utf8');
   const match = text.match(/^## Sprint 1:\s+(SPRINT-[\w-]+)/m);
-  return match ? match[1].trim() : null;
+  if (match) {
+    return { status: 'locked', sprint: match[1].trim() };
+  }
+
+  if (/Sprint 1 slot is vacant/i.test(text)) {
+    return { status: 'vacant', sprint: null };
+  }
+
+  return { status: 'unparseable', sprint: null };
 }
 
 /**
@@ -71,9 +80,17 @@ function validateNameFormat(name) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const next = getNextSprintFromQueue() || getNextSprintFromRoadmap();
+const queueState = getQueueState();
+const next = queueState.status === 'locked' ? queueState.sprint : getNextSprintFromRoadmap();
 
-if (!next) {
+if (queueState.status === 'vacant') {
+  console.error('[SPRINT GATE] FAIL: Sprint 1 queue slot is explicitly vacant.');
+  console.error('  Queue authority: docs/status/NEXT_5_SPRINTS.md');
+  console.error('  Action: run /sprint-plan and lock the next sprint before proceeding.');
+  process.exit(1);
+}
+
+if (!next || queueState.status === 'unparseable') {
   console.error('[SPRINT GATE] FAIL: could not determine locked next sprint.');
   console.error('  Checked: docs/status/NEXT_5_SPRINTS.md (Sprint 1 line)');
   console.error('  Checked: docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md');
@@ -84,9 +101,8 @@ const requested = process.argv[2];
 
 if (!requested) {
   console.log('[SPRINT GATE] PASS');
-  const source = getNextSprintFromQueue()
-    ? 'NEXT_5_SPRINTS.md'
-    : 'INTELLIGENCE_PIPELINE_SPRINT_ORDER.md';
+  const source =
+    queueState.status === 'locked' ? 'NEXT_5_SPRINTS.md' : 'INTELLIGENCE_PIPELINE_SPRINT_ORDER.md';
   console.log(`Next locked sprint: ${next}  (source: ${source})`);
   process.exit(0);
 }
