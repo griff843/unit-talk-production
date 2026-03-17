@@ -77,6 +77,18 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
   `-COMPLETE` suffix
 - **Resolved**: 2026-03-15
 
+### ~~DRIFT-H7: Discord Embed Contract Defects~~ ✅ RESOLVED
+
+- **What**: 5 embed quality defects: `build:unknown`/`env:development` footer
+  leakage; inconsistent capper visibility across 3 embed builders; silent
+  headshot lookup failures; raw SNAKE_CASE enum leakage (`THREE_POINTERS` etc.)
+- **Resolved by**: SPRINT-070-EMBED-CONTRACT-FIX
+- **Evidence**: `buildProductionFooter()` filters unknown/dev values; all 3
+  embed builders suppress 'Unit Talk' capper; `getThumbnailUrl()` logs warn on
+  failure; `STAT_TYPE_DISPLAY_MAP` expanded + `snakeToTitleCase` fallback; PR
+  #276, UNI-102
+- **Resolved**: 2026-03-16
+
 ### ~~DRIFT-H5: Verification Infrastructure Not Committed to Git~~ ✅ RESOLVED
 
 - **What**: Entire `apps/api/src/lib/verification/` directory (R1–R5 code) was
@@ -186,16 +198,16 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ## DRIFT SUMMARY
 
-| Severity            | Count | Key Theme                                                                 |
-| ------------------- | ----- | ------------------------------------------------------------------------- |
-| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                         |
-| HIGH                | **0** | ~~DRIFT-H2 resolved by SPRINT-053 (naming convention doc + gate update)~~ |
-| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                                    |
-| LOW                 | 2     | Cycle overlap, deprecated references                                      |
-| **ACTIVE TOTAL**    | **5** |                                                                           |
-| **Resolved/Closed** | 13    | C1, C2, C3, H1, H2, H3, H4, H5, M-CONSENSUS, M3, M5, L2, L4 (false +ve)   |
+| Severity            | Count | Key Theme                                                                   |
+| ------------------- | ----- | --------------------------------------------------------------------------- |
+| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                           |
+| HIGH                | **0** | ~~DRIFT-H2 resolved by SPRINT-053 (naming convention doc + gate update)~~   |
+| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                                      |
+| LOW                 | 2     | Cycle overlap, deprecated references                                        |
+| **ACTIVE TOTAL**    | **5** |                                                                             |
+| **Resolved/Closed** | 14    | C1, C2, C3, H1, H2, H3, H4, H5, H7, M-CONSENSUS, M3, M5, L2, L4 (false +ve) |
 
-**Drift Trend**: IMPROVING — 0 CRITICAL, 0 HIGH as of 2026-03-15. 13 items
+**Drift Trend**: IMPROVING — 0 CRITICAL, 0 HIGH as of 2026-03-16. 14 items
 resolved/closed total. DRIFT-H2 resolved by SPRINT-053 (canonical naming
 convention documented, sprint-gate updated to NEXT_5_SPRINTS.md authority).
 
