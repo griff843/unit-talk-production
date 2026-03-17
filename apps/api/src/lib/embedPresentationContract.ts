@@ -277,7 +277,19 @@ export function validateProductionEmbed(embed: any): ProductionValidationResult 
  */
 export function buildProductionFooter(gauntletRunId?: string): string {
   const buildInfo = getBuildInfo('embed-builder');
-  const parts = [`build:${buildInfo.commitShort}`, `env:${buildInfo.environment}`];
+  const parts: string[] = [];
+
+  // SPRINT-070-EMBED-CONTRACT-FIX Defect 1: suppress 'build:unknown' — only include
+  // when a real SHA is available (set via GIT_COMMIT_SHORT build arg)
+  if (buildInfo.commitShort && buildInfo.commitShort !== 'unknown') {
+    parts.push(`build:${buildInfo.commitShort}`);
+  }
+
+  // SPRINT-070-EMBED-CONTRACT-FIX Defect 2: suppress 'env:development' — only show
+  // non-default environments (production/staging) to avoid leaking local dev context
+  if (buildInfo.environment && buildInfo.environment !== 'development') {
+    parts.push(`env:${buildInfo.environment}`);
+  }
 
   if (gauntletRunId) {
     parts.push(`run:${gauntletRunId}`);

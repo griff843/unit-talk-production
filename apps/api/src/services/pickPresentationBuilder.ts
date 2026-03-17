@@ -515,8 +515,13 @@ async function getThumbnailUrl(pick: UnifiedPickRow): Promise<string> {
             return headshotUrl;
           }
         }
-      } catch {
-        // Ignore lookup errors, fall through to team logo
+      } catch (err) {
+        // SPRINT-070-EMBED-CONTRACT-FIX Defect 4: log headshot lookup failures for observability
+        console.warn('[pickPresentationBuilder] headshot lookup failed', {
+          player_name: pick.player_name,
+          sport,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 
@@ -553,6 +558,7 @@ const STAT_TYPE_DISPLAY_MAP: Record<string, string> = {
   trb: 'REB',
   '3pm': '3PM',
   three_pointers_made: '3PM',
+  three_pointers: '3PM',
   threes: '3PM',
   stl: 'STL',
   steals: 'STL',
@@ -572,12 +578,46 @@ const STAT_TYPE_DISPLAY_MAP: Record<string, string> = {
   double_double: 'DD',
   td: 'TD',
   triple_double: 'TD',
+  // SPRINT-070-EMBED-CONTRACT-FIX Defect 5: legacy feed provider formats
+  player_points: 'PTS',
+  player_rebounds: 'REB',
+  player_assists: 'AST',
+  player_steals: 'STL',
+  player_blocks: 'BLK',
+  player_turnovers: 'TO',
+  player_threes: '3PM',
+  over_unders: 'O/U',
+  hits_runs_rbis: 'H+R+RBI',
+  strikeouts: 'K',
+  earned_runs: 'ER',
+  hits_allowed: 'H',
+  total_bases: 'TB',
+  passing_yards: 'Pass Yds',
+  rushing_yards: 'Rush Yds',
+  receiving_yards: 'Rec Yds',
+  touchdowns: 'TD',
+  receptions: 'Rec',
+  completions: 'Comp',
+  interceptions: 'INT',
+  sacks: 'Sacks',
 };
+
+/**
+ * Convert SNAKE_CASE or snake_case to Title Case as a human-readable fallback.
+ * e.g. THREE_POINTERS → Three Pointers, over_unders → Over Unders
+ */
+function snakeToTitleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
 
 function normalizeStatType(statType: string | undefined | null): string {
   if (!statType) return '';
   const lower = statType.toLowerCase().trim();
-  return STAT_TYPE_DISPLAY_MAP[lower] || statType.toUpperCase();
+  // SPRINT-070-EMBED-CONTRACT-FIX Defect 5: use Title Case fallback instead of raw .toUpperCase()
+  return STAT_TYPE_DISPLAY_MAP[lower] || snakeToTitleCase(statType);
 }
 
 // ---- SELECTION PARSING (EMBED-TRUTH-FIX-031) ----
