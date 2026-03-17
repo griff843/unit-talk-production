@@ -95,7 +95,7 @@ export class RecapService {
         .select('*')
         .gte('created_at', `${date}T00:00:00Z`)
         .lt('created_at', `${date}T23:59:59Z`)
-        .in('status', ['settled', 'graded'])
+        .in('status', ['won', 'lost', 'push', 'void', 'settled', 'graded'])
         .not('settlement_result', 'is', null);
 
       if (error) {
@@ -142,7 +142,7 @@ export class RecapService {
         .select('*')
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDate}T23:59:59Z`)
-        .in('status', ['settled', 'graded'])
+        .in('status', ['won', 'lost', 'push', 'void', 'settled', 'graded'])
         .not('settlement_result', 'is', null);
 
       if (error) {
@@ -174,7 +174,7 @@ export class RecapService {
         .select('*')
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDate}T23:59:59Z`)
-        .in('status', ['settled', 'graded'])
+        .in('status', ['won', 'lost', 'push', 'void', 'settled', 'graded'])
         .not('settlement_result', 'is', null);
 
       if (error) {
