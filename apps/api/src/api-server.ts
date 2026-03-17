@@ -8,6 +8,7 @@ import { validateDbMode } from './config/dbMode';
 import { enforceFailClosedBoot } from './lib/enforcement';
 import { operatorAuditLog } from './middleware/operatorAuditLog';
 import { operatorAuth } from './middleware/operatorAuth';
+import cappersRouter from './routes/cappers';
 import healthRouter from './routes/health';
 import opsRouter from './routes/ops';
 import opsAlertsRouter from './routes/ops-alerts';
@@ -92,6 +93,8 @@ app.use((req, res, next) => {
 app.use('/api/smart-form', smartFormRouter);
 app.use('/api/health', healthRouter);
 app.use('/api/picks', picksRouter);
+// SPRINT-075: Capper performance stats
+app.use('/api/cappers', cappersRouter);
 // SPRINT-094A: Status endpoint first (no auth required for monitoring)
 app.use('/ops', opsStatusRouter);
 // SPRINT-093: Discord routing status
