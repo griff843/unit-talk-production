@@ -993,7 +993,10 @@ async function resetPostingOnFailure(pickId: string, reason: string): Promise<vo
       supabase,
       pickId,
       { posted_to_discord: false, promotion_posted_at: null },
-      { writerRole: 'poster', skipTransitionValidation: true }
+      // SPRINT-071-PICK-POSTING-REPAIR: use operator_override — posted_to_discord is
+      // immutableAfterSet, so poster role can't reset it. operator_override bypasses
+      // immutability for recovery operations (assertImmutability L427 returns early).
+      { writerRole: 'operator_override', skipTransitionValidation: true }
     );
 
     if (!updateResult.success) {
@@ -1193,44 +1196,59 @@ async function processCapperPicks(): Promise<number> {
           'Shadow mode — skipped capper parlay post'
         );
       } else {
-        const messageId = await postParlayToDiscord(allLegs);
-        const publishLatencyMs = Date.now() - requestStartTime;
+        // SPRINT-071-PICK-POSTING-REPAIR: Wrap post block so any thrown exception
+        // resets all claimed legs rather than leaving them stuck.
+        try {
+          const messageId = await postParlayToDiscord(allLegs);
+          const publishLatencyMs = Date.now() - requestStartTime;
 
-        // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
-        if (!isValidDiscordSnowflake(messageId)) {
-          logger.error(
-            { betSlipId, messageId, legCount: allLegs.length },
-            'REAL-DISCORD-RECEIPT-049: Parlay post failed - invalid Discord ID'
-          );
-          // Reset all legs since Discord call failed
+          // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
+          if (!isValidDiscordSnowflake(messageId)) {
+            logger.error(
+              { betSlipId, messageId, legCount: allLegs.length },
+              'REAL-DISCORD-RECEIPT-049: Parlay post failed - invalid Discord ID'
+            );
+            // Reset all legs since Discord call failed
+            for (const leg of allLegs) {
+              await resetPostingOnFailure(leg.id, `Parlay post returned invalid ID: ${messageId}`);
+              // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
+              await updateExecutionTelemetryFailed(supabase, {
+                pickId: leg.id,
+                errorMessage: `Parlay post returned invalid ID: ${messageId}`,
+                executionNotes: 'PARLAY_DISCORD_POST_FAILED',
+              });
+            }
+            continue;
+          }
+
+          // Confirm post and persist receipt on ALL legs with valid snowflake
           for (const leg of allLegs) {
-            await resetPostingOnFailure(leg.id, `Parlay post returned invalid ID: ${messageId}`);
-            // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
-            await updateExecutionTelemetryFailed(supabase, {
+            await confirmPostWithReceipt(leg.id, messageId);
+            await persistDiscordReceipt(leg.id, {
+              poster: 'DiscordPromotionAgent',
+              channel_id: `capper-thread:${capper}`,
+              message_id: messageId,
+              ticket_type: 'parlay',
+              leg_count: allLegs.length,
+            });
+            // EXECUTION-TELEMETRY-ACTIVATION-003: Update with receipt
+            await updateExecutionTelemetryPublished(supabase, {
               pickId: leg.id,
-              errorMessage: `Parlay post returned invalid ID: ${messageId}`,
-              executionNotes: 'PARLAY_DISCORD_POST_FAILED',
+              discordMessageId: messageId!,
+              publishLatencyMs,
             });
           }
+        } catch (postErr) {
+          // SPRINT-071-PICK-POSTING-REPAIR: Exception after parlay claim — reset all legs
+          const reason = postErr instanceof Error ? postErr.message : String(postErr);
+          logger.error(
+            { betSlipId, legCount: allLegs.length, capper, error: reason },
+            'SPRINT-071: parlay post threw exception after claim — resetting all legs'
+          );
+          for (const leg of allLegs) {
+            await resetPostingOnFailure(leg.id, `Exception during parlay post: ${reason}`);
+          }
           continue;
-        }
-
-        // Confirm post and persist receipt on ALL legs with valid snowflake
-        for (const leg of allLegs) {
-          await confirmPostWithReceipt(leg.id, messageId);
-          await persistDiscordReceipt(leg.id, {
-            poster: 'DiscordPromotionAgent',
-            channel_id: `capper-thread:${capper}`,
-            message_id: messageId,
-            ticket_type: 'parlay',
-            leg_count: allLegs.length,
-          });
-          // EXECUTION-TELEMETRY-ACTIVATION-003: Update with receipt
-          await updateExecutionTelemetryPublished(supabase, {
-            pickId: leg.id,
-            discordMessageId: messageId!,
-            publishLatencyMs,
-          });
         }
       }
       processedCount += allLegs.length;
@@ -1257,54 +1275,68 @@ async function processCapperPicks(): Promise<number> {
       if (isPromotionShadowMode()) {
         logger.info({ id: pick.id, capper, origin: 'capper' }, 'Shadow mode — skipped capper post');
       } else {
-        // SPRINT-023-PRODUCTION-SURFACE-LOCK: Outbox-first publishing
-        const outbox = await enqueuePickToOutbox(pick, `capper-thread:${capper}`);
-        if (outbox.alreadyPosted) {
-          logger.info({ pickId: pick.id }, 'OUTBOX-023: Already posted per outbox — skipping');
-          continue;
-        }
+        // SPRINT-071-PICK-POSTING-REPAIR: Wrap post block so any thrown exception
+        // triggers resetPostingOnFailure rather than leaving pick stuck with
+        // posted_to_discord=true and no Discord message.
+        try {
+          // SPRINT-023-PRODUCTION-SURFACE-LOCK: Outbox-first publishing
+          const outbox = await enqueuePickToOutbox(pick, `capper-thread:${capper}`);
+          if (outbox.alreadyPosted) {
+            logger.info({ pickId: pick.id }, 'OUTBOX-023: Already posted per outbox — skipping');
+            continue;
+          }
 
-        const messageId = await postEliteCardToDiscord(pick);
-        const singlePublishLatencyMs = Date.now() - singleRequestStartTime;
+          const messageId = await postEliteCardToDiscord(pick);
+          const singlePublishLatencyMs = Date.now() - singleRequestStartTime;
 
-        // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
-        if (!isValidDiscordSnowflake(messageId)) {
-          logger.error(
-            { pickId: pick.id, messageId },
-            'REAL-DISCORD-RECEIPT-049: Single pick post failed - invalid Discord ID'
-          );
-          await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
-          await recordOutboxFailure(
-            outbox.outboxId,
-            'INVALID_DISCORD_ID',
-            `Post returned invalid ID: ${messageId}`
-          );
-          // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
-          await updateExecutionTelemetryFailed(supabase, {
-            pickId: pick.id,
-            errorMessage: `Post returned invalid ID: ${messageId}`,
-            executionNotes: 'SINGLE_DISCORD_POST_FAILED',
+          // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
+          if (!isValidDiscordSnowflake(messageId)) {
+            logger.error(
+              { pickId: pick.id, messageId },
+              'REAL-DISCORD-RECEIPT-049: Single pick post failed - invalid Discord ID'
+            );
+            await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
+            await recordOutboxFailure(
+              outbox.outboxId,
+              'INVALID_DISCORD_ID',
+              `Post returned invalid ID: ${messageId}`
+            );
+            // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
+            await updateExecutionTelemetryFailed(supabase, {
+              pickId: pick.id,
+              errorMessage: `Post returned invalid ID: ${messageId}`,
+              executionNotes: 'SINGLE_DISCORD_POST_FAILED',
+            });
+            continue;
+          }
+
+          // OUTBOX-023: Record receipt in outbox BEFORE confirming on pick
+          await recordOutboxReceipt(outbox.outboxId, messageId!);
+
+          await confirmPostWithReceipt(pick.id, messageId);
+          await persistDiscordReceipt(pick.id, {
+            poster: 'DiscordPromotionAgent',
+            channel_id: `capper-thread:${capper}`,
+            message_id: messageId,
+            ticket_type: 'single',
+            leg_count: 1,
           });
+          // EXECUTION-TELEMETRY-ACTIVATION-003: Update with receipt
+          await updateExecutionTelemetryPublished(supabase, {
+            pickId: pick.id,
+            discordMessageId: messageId!,
+            publishLatencyMs: singlePublishLatencyMs,
+          });
+        } catch (postErr) {
+          // SPRINT-071-PICK-POSTING-REPAIR: Exception after claim — reset so pick is retryable
+          const reason = postErr instanceof Error ? postErr.message : String(postErr);
+          logger.error(
+            { pickId: pick.id, capper, error: reason },
+            'SPRINT-071: capper pick post threw exception after claim — resetting'
+          );
+          await resetPostingOnFailure(pick.id, `Exception during post: ${reason}`);
           continue;
         }
-
-        // OUTBOX-023: Record receipt in outbox BEFORE confirming on pick
-        await recordOutboxReceipt(outbox.outboxId, messageId!);
-
-        await confirmPostWithReceipt(pick.id, messageId);
-        await persistDiscordReceipt(pick.id, {
-          poster: 'DiscordPromotionAgent',
-          channel_id: `capper-thread:${capper}`,
-          message_id: messageId,
-          ticket_type: 'single',
-          leg_count: 1,
-        });
-        // EXECUTION-TELEMETRY-ACTIVATION-003: Update with receipt
-        await updateExecutionTelemetryPublished(supabase, {
-          pickId: pick.id,
-          discordMessageId: messageId!,
-          publishLatencyMs: singlePublishLatencyMs,
-        });
       }
       processedCount += 1;
     }
@@ -1359,52 +1391,65 @@ async function processSystemPicks(): Promise<number> {
     if (isPromotionShadowMode()) {
       logger.info({ id: pick.id, origin: 'system' }, 'Shadow mode — skipped system post');
     } else {
-      // SPRINT-023-PRODUCTION-SURFACE-LOCK: Outbox-first publishing
-      const outbox = await enqueuePickToOutbox(pick, 'system-picks');
-      if (outbox.alreadyPosted) {
-        logger.info({ pickId: pick.id }, 'OUTBOX-023: Already posted per outbox — skipping');
-        continue;
-      }
+      // SPRINT-071-PICK-POSTING-REPAIR: Wrap post block so any thrown exception
+      // triggers resetPostingOnFailure rather than leaving pick stuck.
+      try {
+        // SPRINT-023-PRODUCTION-SURFACE-LOCK: Outbox-first publishing
+        const outbox = await enqueuePickToOutbox(pick, 'system-picks');
+        if (outbox.alreadyPosted) {
+          logger.info({ pickId: pick.id }, 'OUTBOX-023: Already posted per outbox — skipping');
+          continue;
+        }
 
-      const messageId = await postEliteCardToDiscord(pick);
-      const publishLatencyMs = Date.now() - requestStartTime;
+        const messageId = await postEliteCardToDiscord(pick);
+        const publishLatencyMs = Date.now() - requestStartTime;
 
-      // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
-      if (!isValidDiscordSnowflake(messageId)) {
-        logger.error(
-          { pickId: pick.id, messageId },
-          'REAL-DISCORD-RECEIPT-049: System pick post failed - invalid Discord ID'
-        );
-        await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
-        await recordOutboxFailure(
-          outbox.outboxId,
-          'INVALID_DISCORD_ID',
-          `Post returned invalid ID: ${messageId}`
-        );
-        // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
-        await updateExecutionTelemetryFailed(supabase, {
-          pickId: pick.id,
-          errorMessage: `Post returned invalid ID: ${messageId}`,
-          executionNotes: 'SYSTEM_DISCORD_POST_FAILED',
+        // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
+        if (!isValidDiscordSnowflake(messageId)) {
+          logger.error(
+            { pickId: pick.id, messageId },
+            'REAL-DISCORD-RECEIPT-049: System pick post failed - invalid Discord ID'
+          );
+          await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
+          await recordOutboxFailure(
+            outbox.outboxId,
+            'INVALID_DISCORD_ID',
+            `Post returned invalid ID: ${messageId}`
+          );
+          // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
+          await updateExecutionTelemetryFailed(supabase, {
+            pickId: pick.id,
+            errorMessage: `Post returned invalid ID: ${messageId}`,
+            executionNotes: 'SYSTEM_DISCORD_POST_FAILED',
+          });
+          continue;
+        }
+
+        // OUTBOX-023: Record receipt in outbox BEFORE confirming on pick
+        await recordOutboxReceipt(outbox.outboxId, messageId!);
+
+        await confirmPostWithReceipt(pick.id, messageId);
+        await persistDiscordReceipt(pick.id, {
+          poster: 'DiscordPromotionAgent',
+          channel_id: 'system-picks',
+          message_id: messageId,
         });
+        // EXECUTION-TELEMETRY-ACTIVATION-003: Update with receipt
+        await updateExecutionTelemetryPublished(supabase, {
+          pickId: pick.id,
+          discordMessageId: messageId!,
+          publishLatencyMs,
+        });
+      } catch (postErr) {
+        // SPRINT-071-PICK-POSTING-REPAIR: Exception after claim — reset so pick is retryable
+        const reason = postErr instanceof Error ? postErr.message : String(postErr);
+        logger.error(
+          { pickId: pick.id, error: reason },
+          'SPRINT-071: system pick post threw exception after claim — resetting'
+        );
+        await resetPostingOnFailure(pick.id, `Exception during post: ${reason}`);
         continue;
       }
-
-      // OUTBOX-023: Record receipt in outbox BEFORE confirming on pick
-      await recordOutboxReceipt(outbox.outboxId, messageId!);
-
-      await confirmPostWithReceipt(pick.id, messageId);
-      await persistDiscordReceipt(pick.id, {
-        poster: 'DiscordPromotionAgent',
-        channel_id: 'system-picks',
-        message_id: messageId,
-      });
-      // EXECUTION-TELEMETRY-ACTIVATION-003: Update with receipt
-      await updateExecutionTelemetryPublished(supabase, {
-        pickId: pick.id,
-        discordMessageId: messageId!,
-        publishLatencyMs,
-      });
     }
     processedCount += 1;
   }
@@ -1452,52 +1497,65 @@ async function processLegacyPicks(): Promise<number> {
     if (isPromotionShadowMode()) {
       logger.info({ id: pick.id, band: pick.promotion_band }, 'Shadow mode — skipped legacy post');
     } else {
-      // SPRINT-023-PRODUCTION-SURFACE-LOCK: Outbox-first publishing
-      const outbox = await enqueuePickToOutbox(pick, 'legacy-picks');
-      if (outbox.alreadyPosted) {
-        logger.info({ pickId: pick.id }, 'OUTBOX-023: Already posted per outbox — skipping');
-        continue;
-      }
+      // SPRINT-071-PICK-POSTING-REPAIR: Wrap post block so any thrown exception
+      // triggers resetPostingOnFailure rather than leaving pick stuck.
+      try {
+        // SPRINT-023-PRODUCTION-SURFACE-LOCK: Outbox-first publishing
+        const outbox = await enqueuePickToOutbox(pick, 'legacy-picks');
+        if (outbox.alreadyPosted) {
+          logger.info({ pickId: pick.id }, 'OUTBOX-023: Already posted per outbox — skipping');
+          continue;
+        }
 
-      const messageId = await postEliteCardToDiscord(pick);
-      const publishLatencyMs = Date.now() - requestStartTime;
+        const messageId = await postEliteCardToDiscord(pick);
+        const publishLatencyMs = Date.now() - requestStartTime;
 
-      // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
-      if (!isValidDiscordSnowflake(messageId)) {
-        logger.error(
-          { pickId: pick.id, messageId },
-          'REAL-DISCORD-RECEIPT-049: Legacy pick post failed - invalid Discord ID'
-        );
-        await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
-        await recordOutboxFailure(
-          outbox.outboxId,
-          'INVALID_DISCORD_ID',
-          `Post returned invalid ID: ${messageId}`
-        );
-        // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
-        await updateExecutionTelemetryFailed(supabase, {
-          pickId: pick.id,
-          errorMessage: `Post returned invalid ID: ${messageId}`,
-          executionNotes: 'LEGACY_DISCORD_POST_FAILED',
+        // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
+        if (!isValidDiscordSnowflake(messageId)) {
+          logger.error(
+            { pickId: pick.id, messageId },
+            'REAL-DISCORD-RECEIPT-049: Legacy pick post failed - invalid Discord ID'
+          );
+          await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
+          await recordOutboxFailure(
+            outbox.outboxId,
+            'INVALID_DISCORD_ID',
+            `Post returned invalid ID: ${messageId}`
+          );
+          // EXECUTION-TELEMETRY-ACTIVATION-003: Record failure
+          await updateExecutionTelemetryFailed(supabase, {
+            pickId: pick.id,
+            errorMessage: `Post returned invalid ID: ${messageId}`,
+            executionNotes: 'LEGACY_DISCORD_POST_FAILED',
+          });
+          continue;
+        }
+
+        // OUTBOX-023: Record receipt in outbox BEFORE confirming on pick
+        await recordOutboxReceipt(outbox.outboxId, messageId!);
+
+        await confirmPostWithReceipt(pick.id, messageId);
+        await persistDiscordReceipt(pick.id, {
+          poster: 'DiscordPromotionAgent',
+          channel_id: 'legacy-picks',
+          message_id: messageId,
         });
+        // EXECUTION-TELEMETRY-ACTIVATION-003: Update with receipt
+        await updateExecutionTelemetryPublished(supabase, {
+          pickId: pick.id,
+          discordMessageId: messageId!,
+          publishLatencyMs,
+        });
+      } catch (postErr) {
+        // SPRINT-071-PICK-POSTING-REPAIR: Exception after claim — reset so pick is retryable
+        const reason = postErr instanceof Error ? postErr.message : String(postErr);
+        logger.error(
+          { pickId: pick.id, error: reason },
+          'SPRINT-071: legacy pick post threw exception after claim — resetting'
+        );
+        await resetPostingOnFailure(pick.id, `Exception during post: ${reason}`);
         continue;
       }
-
-      // OUTBOX-023: Record receipt in outbox BEFORE confirming on pick
-      await recordOutboxReceipt(outbox.outboxId, messageId!);
-
-      await confirmPostWithReceipt(pick.id, messageId);
-      await persistDiscordReceipt(pick.id, {
-        poster: 'DiscordPromotionAgent',
-        channel_id: 'legacy-picks',
-        message_id: messageId,
-      });
-      // EXECUTION-TELEMETRY-ACTIVATION-003: Update with receipt
-      await updateExecutionTelemetryPublished(supabase, {
-        pickId: pick.id,
-        discordMessageId: messageId!,
-        publishLatencyMs,
-      });
     }
     processedCount += 1;
   }

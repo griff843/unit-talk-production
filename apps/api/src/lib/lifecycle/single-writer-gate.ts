@@ -75,6 +75,9 @@ const ALLOWED_PATTERNS = [
   /scripts[/\\]backfill-/,
   // Canary webhook test scripts
   /scripts[/\\]discord-canary-/,
+  // Settlement/scoring harness scripts (dev test utilities, not production write path)
+  /scripts[/\\].*-harness/,
+  /scripts[/\\].*-certification-harness/,
 ];
 
 /**

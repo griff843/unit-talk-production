@@ -1,14 +1,19 @@
 # Current System Status
 
-**Last Updated**: 2026-03-16 **Audit Source**:
-SPRINT-061-LAYER3-PHASE10-CC-ALERT-DASHBOARD (GET /ops/alerts API route; CC
-proxy /api/alerts (force-dynamic, requireOperatorIdentity, 503 fallback);
-/dashboard/alerts page — grouped by severity critical→warning→info, empty state;
-Bell nav entry (Monitoring section); supabase.ts DEMO_MODE gate fix (unblocks
-all CC PRs); 5 new API vitest + 6 new CC vitest; API: 1000/1000 passing; CC:
-84/84 passing; build PASS; PR #265, UNI-96 Done, 2026-03-16) **Prior Audit
-Source**: SPRINT-060-LAYER3-PHASE11-CC-WORKFLOW-MANAGEMENT (Workflow Registry
-dashboard: GET /api/ops/workflows CC proxy route; /dashboard/workflows page —
+**Last Updated**: 2026-03-16 **Audit Source**: SPRINT-071-PICK-POSTING-REPAIR
+(DEFECT-7 fixed: resetPostingOnFailure now uses operator_override to bypass
+immutableAfterSet on posted_to_discord; try-catch added to all 4 posting paths
+so exceptions trigger reset instead of leaving picks stuck; single-writer-gate
+harness exemption added; 1000/1000 vitest; gate PASS; PR #278, UNI-103 Done,
+2026-03-16) **Prior Audit Source**: SPRINT-061-LAYER3-PHASE10-CC-ALERT-DASHBOARD
+(GET /ops/alerts API route; CC proxy /api/alerts (force-dynamic,
+requireOperatorIdentity, 503 fallback); /dashboard/alerts page — grouped by
+severity critical→warning→info, empty state; Bell nav entry (Monitoring
+section); supabase.ts DEMO_MODE gate fix (unblocks all CC PRs); 5 new API
+vitest + 6 new CC vitest; API: 1000/1000 passing; CC: 84/84 passing; build PASS;
+PR #265, UNI-96 Done, 2026-03-16) **Prior Prior Audit Source**:
+SPRINT-060-LAYER3-PHASE11-CC-WORKFLOW-MANAGEMENT (Workflow Registry dashboard:
+GET /api/ops/workflows CC proxy route; /dashboard/workflows page —
 WorkflowRegistry 18 entries/6 categories grouped by category with risk badges +
 invocation snippets; Workflows nav entry (GitBranch); 5 new vitest tests; CC:
 78/78 passing; build PASS; PR #262, UNI-95 Done, 2026-03-16) **Prior Audit
