@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-17 (SPRINT-073-PROMOTION-WIRING-CERTIFICATION)
+**Last Updated**: 2026-03-17 (SPRINT-074-LAYER3-PHASE10-CC-PICK-MANAGEMENT)
 **Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
 backlog + codebase investigation
 
@@ -31,7 +31,7 @@ SPRINT-054 Replay Endpoint — all done).
 ## Completed Sprint History
 
 <details>
-<summary>35 sprints completed (2026-03-10 through 2026-03-17) — click to expand</summary>
+<summary>36 sprints completed (2026-03-10 through 2026-03-17) — click to expand</summary>
 
 | Sprint                             | Date       | PR   | Linear    | Layer/Phase |
 | ---------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -70,5 +70,6 @@ SPRINT-054 Replay Endpoint — all done).
 | 061-LAYER3-PHASE10-CC-ALERT-DASH   | 2026-03-16 | #265 | UNI-96    | L3/Ph 10    |
 | 072-SCORING-CERTIFICATION          | 2026-03-16 | #280 | UNI-104   | L1/Cert     |
 | 073-PROMOTION-WIRING-CERTIFICATION | 2026-03-17 | #280 | UNI-105   | L1/Cert     |
+| 074-LAYER3-PHASE10-CC-PICK-MGMT    | 2026-03-17 | —    | UNI-106   | L3/Ph 10    |
 
 </details>

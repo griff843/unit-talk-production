@@ -1,6 +1,12 @@
 # Current System Status
 
 **Last Updated**: 2026-03-17 **Audit Source**:
+SPRINT-074-LAYER3-PHASE10-CC-PICK-MANAGEMENT (GET /api/picks API endpoint with
+promotion_band + professional_score; CC proxy /api/picks (force-dynamic,
+requireOperatorIdentity, query param forwarding, 503 fallback); Pick interface +
+usePicks.ts extended with promotion columns; 10 new CC vitest tests; CC: 94/94
+passing; lifecycle gate: 0 violations; commits d5affb11 + 7cf4bf1d, UNI-106
+Done, 2026-03-17) **Prior Audit Source**:
 SPRINT-073-PROMOTION-WIRING-CERTIFICATION (buildPromotionMetadata() injected
 featureSnapshotId + featureVectorHash + ProbabilityPrimitives before
 evaluatePromotion(); Gates 7+8 unblocked — valid S/A-tier picks now pass
