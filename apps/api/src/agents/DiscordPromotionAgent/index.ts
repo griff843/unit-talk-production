@@ -327,16 +327,20 @@ function buildParlayEmbed(legs: any[]) {
   const footer = buildProductionFooter();
 
   // EMBED-FIX-031: Removed "Sports" field - redundant with matchup info
+  // SPRINT-070-EMBED-CONTRACT-FIX Defect 3: hide 'Unit Talk' capper (matches buildEmbedFromPresentation)
+  const parlayFields: Array<{ name: string; value: string; inline: boolean }> = [
+    { name: 'Legs', value: legsText, inline: false },
+    { name: 'Total Odds', value: `${formatOdds(totalOdds)}`, inline: true },
+    { name: 'Units', value: formatUnit(totalUnits), inline: true },
+    { name: 'Tier', value: `${highestTier}-Tier`, inline: true },
+  ];
+  if (capper && capper !== 'Unit Talk') {
+    parlayFields.push({ name: 'Capper', value: capper, inline: true });
+  }
   return {
     title: `🔥 ${legs.length}-Leg Parlay`,
     color: highestTier === 'S' ? 0xff5252 : highestTier === 'A' ? 0x66bb6a : 0xfbc02d,
-    fields: [
-      { name: 'Legs', value: legsText, inline: false },
-      { name: 'Total Odds', value: `${formatOdds(totalOdds)}`, inline: true },
-      { name: 'Units', value: formatUnit(totalUnits), inline: true },
-      { name: 'Tier', value: `${highestTier}-Tier`, inline: true },
-      { name: 'Capper', value: capper, inline: true },
-    ],
+    fields: parlayFields,
     footer: { text: footer },
   };
 }
@@ -407,18 +411,22 @@ function buildEliteEmbed(pick: any) {
   const footer = buildProductionFooter();
 
   // PARLAY-DISCORD-FIX-001: Legacy parlay detection (now handled upstream)
+  // SPRINT-070-EMBED-CONTRACT-FIX Defect 3: hide 'Unit Talk' capper (matches buildEmbedFromPresentation)
   if (Array.isArray(pick.legs) && pick.legs.length > 1) {
     const contextLine = [sport, matchup, gameTime].filter(Boolean).join(' • ');
+    const legacyParlayFields: Array<{ name: string; value: string; inline: boolean }> = [
+      { name: 'Odds', value: `${formatOdds(pick.odds)}`, inline: true },
+      { name: 'Units', value: formatUnit(pick.unit_size), inline: true },
+      { name: 'Tier', value: `${pick.tier || 'N/A'}-Tier`, inline: true },
+    ];
+    if (capper && capper !== 'Unit Talk') {
+      legacyParlayFields.push({ name: 'Capper', value: capper, inline: true });
+    }
     return {
       title: `🔥 ${pick.legs.length}-Leg Parlay`,
       color: 0xff5252,
       image: { url: 'attachment://pick.png' },
-      fields: [
-        { name: 'Odds', value: `${formatOdds(pick.odds)}`, inline: true },
-        { name: 'Units', value: formatUnit(pick.unit_size), inline: true },
-        { name: 'Tier', value: `${pick.tier || 'N/A'}-Tier`, inline: true },
-        { name: 'Capper', value: capper, inline: true },
-      ],
+      fields: legacyParlayFields,
       description: contextLine ? `${contextLine}` : undefined,
       footer: { text: footer },
     };
@@ -432,20 +440,24 @@ function buildEliteEmbed(pick: any) {
 
   // DISCORD-UX-OVERHAUL-001: Removed direction field, using new title format
   // This legacy path is only for fallback - main path uses buildEmbedFromPresentation
+  // SPRINT-070-EMBED-CONTRACT-FIX Defect 3: hide 'Unit Talk' capper (matches buildEmbedFromPresentation)
   const pickDetails = formatPickDetails(pick);
+  const eliteFields: Array<{ name: string; value: string; inline: boolean }> = [
+    { name: 'Selection', value: pickDetails, inline: false },
+    { name: 'Odds', value: `${formatOdds(pick.odds)}`, inline: true },
+    { name: 'Market', value: marketType, inline: true },
+    { name: 'Units', value: formatUnit(pick.unit_size), inline: true },
+  ];
+  if (capper && capper !== 'Unit Talk') {
+    eliteFields.push({ name: 'Capper', value: capper, inline: true });
+  }
+  eliteFields.push({ name: 'Tier', value: `${pick.tier || 'N/A'}-Tier`, inline: true });
 
   return {
     title: '🎯 PICK ALERT',
     color: pick.tier === 'S' ? 0x4fc3f7 : pick.tier === 'A' ? 0x66bb6a : 0xfbc02d,
     image: { url: 'attachment://pick.png' },
-    fields: [
-      { name: 'Selection', value: pickDetails, inline: false },
-      { name: 'Odds', value: `${formatOdds(pick.odds)}`, inline: true },
-      { name: 'Market', value: marketType, inline: true },
-      { name: 'Units', value: formatUnit(pick.unit_size), inline: true },
-      { name: 'Capper', value: capper, inline: true },
-      { name: 'Tier', value: `${pick.tier || 'N/A'}-Tier`, inline: true },
-    ],
+    fields: eliteFields,
     description: contextLine,
     footer: { text: footer },
   };

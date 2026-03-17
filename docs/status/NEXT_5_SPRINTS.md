@@ -1,8 +1,8 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-16 (SPRINT-061-LAYER3-PHASE10-CC-ALERT-DASHBOARD)
-**Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
-backlog + codebase investigation
+**Last Updated**: 2026-03-16 (SPRINT-070-EMBED-CONTRACT-FIX) **Source**: Phase
+status + drift report + Layer 3 scoping analysis + Claude OS backlog + codebase
+investigation
 
 > **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
 > targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
@@ -31,7 +31,7 @@ SPRINT-054 Replay Endpoint — all done).
 ## Completed Sprint History
 
 <details>
-<summary>33 sprints completed (2026-03-10 through 2026-03-16) — click to expand</summary>
+<summary>35 sprints completed (2026-03-10 through 2026-03-16) — click to expand</summary>
 
 | Sprint                             | Date       | PR   | Linear    | Layer/Phase |
 | ---------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -68,5 +68,7 @@ SPRINT-054 Replay Endpoint — all done).
 | 059-AI-OS-WAVE2-AGENTS             | 2026-03-16 | #259 | UNI-94    | AI OS       |
 | 060-LAYER3-PHASE11-CC-WORKFLOW     | 2026-03-16 | #262 | UNI-95    | L3/Ph 11    |
 | 061-LAYER3-PHASE10-CC-ALERT-DASH   | 2026-03-16 | #265 | UNI-96    | L3/Ph 10    |
+| 069-SETTLEMENT-RPC-REPAIR          | 2026-03-16 | #275 | UNI-101   | Fix/Infra   |
+| 070-EMBED-CONTRACT-FIX             | 2026-03-16 | #276 | UNI-102   | Fix         |
 
 </details>
