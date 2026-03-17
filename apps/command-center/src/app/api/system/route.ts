@@ -2,7 +2,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * System Configuration API Endpoint
@@ -37,6 +40,10 @@ interface SystemStatus {
 
 // GET /api/system - Get system configuration and status
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
@@ -140,6 +147,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/system - Update system configuration or execute system commands
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { action, config, key, value, category } = body;

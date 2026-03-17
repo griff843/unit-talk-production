@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { systemMetrics } from '@/lib/systemMetrics';
+
+import { requireOperatorIdentity } from '@/lib/auth';
 import { redisClient } from '@/lib/redis';
+import { systemMetrics } from '@/lib/systemMetrics';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * System Metrics API Endpoint
@@ -9,6 +13,10 @@ import { redisClient } from '@/lib/redis';
 
 // GET /api/system/metrics - Get current system metrics
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const format = searchParams.get('format') || 'json';
@@ -101,6 +109,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/system/metrics - Store metrics or trigger collection
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { action, interval } = body;

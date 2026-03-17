@@ -1,6 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+
+import { requireOperatorIdentity } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 interface RecentPromotionRow {
   unified_pick_id: string;
@@ -19,6 +23,10 @@ interface RecentPromotionRow {
 }
 
 export async function GET(req: NextRequest) {
+  const identity = requireOperatorIdentity(req);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const supabase = createRouteHandlerClient(
       { cookies },
