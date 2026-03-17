@@ -5899,6 +5899,62 @@ export type Database = {
           },
         ];
       };
+      settlement_audit_log: {
+        Row: {
+          action_type: string;
+          changed_by: string;
+          created_at: string;
+          id: string;
+          idempotency_key: string;
+          new_hash: string;
+          new_settlement: Json;
+          pick_id: string;
+          prev_hash: string | null;
+          prev_settlement: Json | null;
+          prop_settlement_id: string | null;
+          reason: string | null;
+          trace_id: string | null;
+        };
+        Insert: {
+          action_type: string;
+          changed_by?: string;
+          created_at?: string;
+          id?: string;
+          idempotency_key: string;
+          new_hash: string;
+          new_settlement: Json;
+          pick_id: string;
+          prev_hash?: string | null;
+          prev_settlement?: Json | null;
+          prop_settlement_id?: string | null;
+          reason?: string | null;
+          trace_id?: string | null;
+        };
+        Update: {
+          action_type?: string;
+          changed_by?: string;
+          created_at?: string;
+          id?: string;
+          idempotency_key?: string;
+          new_hash?: string;
+          new_settlement?: Json;
+          pick_id?: string;
+          prev_hash?: string | null;
+          prev_settlement?: Json | null;
+          prop_settlement_id?: string | null;
+          reason?: string | null;
+          trace_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'settlement_audit_log_pick_id_fkey';
+            columns: ['pick_id'];
+            isOneToOne: false;
+            referencedRelation: 'unified_picks';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       smart_tickets: {
         Row: {
           bet_slip_id: string;
@@ -6677,9 +6733,13 @@ export type Database = {
           selection_team_id: string | null;
           selection_type: string | null;
           settled_at: string | null;
+          settlement_frozen: boolean | null;
+          settlement_hash: string | null;
           settlement_result: string | null;
           settlement_source: string | null;
           settlement_status: string | null;
+          settlement_version: number | null;
+          freeze_enforced_at: string | null;
           sharp_fade: boolean | null;
           side: string;
           source: string | null;
@@ -6787,9 +6847,13 @@ export type Database = {
           selection_team_id?: string | null;
           selection_type?: string | null;
           settled_at?: string | null;
+          settlement_frozen?: boolean | null;
+          settlement_hash?: string | null;
           settlement_result?: string | null;
           settlement_source?: string | null;
           settlement_status?: string | null;
+          settlement_version?: number | null;
+          freeze_enforced_at?: string | null;
           sharp_fade?: boolean | null;
           side?: string;
           source?: string | null;
@@ -6897,9 +6961,13 @@ export type Database = {
           selection_team_id?: string | null;
           selection_type?: string | null;
           settled_at?: string | null;
+          settlement_frozen?: boolean | null;
+          settlement_hash?: string | null;
           settlement_result?: string | null;
           settlement_source?: string | null;
           settlement_status?: string | null;
+          settlement_version?: number | null;
+          freeze_enforced_at?: string | null;
           sharp_fade?: boolean | null;
           side?: string;
           source?: string | null;
@@ -9883,6 +9951,7 @@ export type RawPropsRow = Database['public']['Tables']['raw_props']['Row'];
 export type SmartTicketsRow = Database['public']['Tables']['smart_tickets']['Row'];
 export type AgentHealthRow = Database['public']['Tables']['agent_health']['Row'];
 export type PropSettlementsRow = Database['public']['Tables']['prop_settlements']['Row'];
+export type SettlementAuditLogRow = Database['public']['Tables']['settlement_audit_log']['Row'];
 export type AuditLogRow = Database['public']['Tables']['audit_log']['Row'];
 export type ClosingSnapshotsRow = Database['public']['Tables']['closing_snapshots']['Row'];
 
