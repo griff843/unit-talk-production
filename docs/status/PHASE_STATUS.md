@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-17 (SPRINT-074-LAYER3-PHASE10-CC-PICK-MANAGEMENT)
+**Last Updated**: 2026-03-17 (SPRINT-075-LAYER3-PHASE10-CC-CAPPER-DASHBOARD)
 **Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -366,7 +366,7 @@ automation, edge ranking feeds, market alerts, context/recap automation
 
 ### Assessment
 
-**PHASE 4 is 55% complete.** Discord bot fully verified and K8s-ready.
+**PHASE 4 is 60% complete.** Discord bot fully verified and K8s-ready.
 RecapAgent lifecycle-compliant with Temporal workflows and embed generation.
 AlertAgent live. Core automation infrastructure complete. Operator workflow
 registry delivered (SPRINT-052): 18 curated workflows across 6 categories, GET
@@ -376,8 +376,15 @@ Workflow Registry UI delivered (SPRINT-060): CC dashboard at
 badges + invocation snippets (PR #262, UNI-95 Done). Alerts Dashboard delivered
 (SPRINT-061): GET /ops/alerts API route, CC proxy /api/alerts, /dashboard/alerts
 page grouped by severity critical→warning→info, Bell nav, DEMO_MODE gate fix (PR
-#265, UNI-96 Done). Remaining: edge ranking feeds, full market alert automation,
-Temporal scheduling configuration, workflow batch operations.
+#265, UNI-96 Done). PicksHQ promotion data delivered (SPRINT-074): Pick
+interface + CC proxy extended with promotion_band + professional_score;
+/api/picks endpoint; CC: 94/94 passing (PR UNI-106 Done). Capper Performance
+Dashboard delivered (SPRINT-075): GET /api/cappers aggregating rollup + streak
+views; /dashboard/cappers sortable table (tier badge, ROI coloring, streak,
+window selector 7/10/30d); auth gap fixed in capper-performance proxy; CC:
+104/104 passing (UNI-107 Done, 2026-03-17). Remaining: edge ranking feeds, full
+market alert automation, Temporal scheduling configuration, workflow batch
+operations.
 
 ---
 
