@@ -229,6 +229,88 @@ function usePicksModal() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Sub-hook: batch selection + bulk action                            */
+/*  SPRINT-082-LAYER3-PHASE11-CC-BATCH-PICK-OPERATIONS                */
+/* ------------------------------------------------------------------ */
+
+export type BatchAction = 'promote' | 'reject' | 'requeue';
+
+async function doBatchAction(
+  selectedIds: Set<string>,
+  action: BatchAction,
+  setLoading: (v: boolean) => void,
+  clearSelection: () => void,
+  refresh: () => void
+) {
+  if (selectedIds.size === 0) return;
+  setLoading(true);
+  try {
+    const res = await fetch('/api/picks/batch-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pickIds: [...selectedIds], action }),
+    });
+    const json = (await res.json()) as {
+      success: boolean;
+      data?: { succeeded: string[]; failed: { id: string; error: string }[] };
+      error?: string;
+    };
+    if (json.success && json.data) {
+      const { succeeded, failed } = json.data;
+      toast.success(`Batch ${action}: ${succeeded.length} succeeded`, {
+        description: failed.length > 0 ? `${failed.length} failed — see console` : undefined,
+      });
+      if (failed.length > 0) {
+        console.warn('[BatchAction] failed picks:', failed);
+      }
+    } else {
+      toast.error('Batch action failed', { description: json.error ?? 'Unknown error' });
+    }
+    clearSelection();
+    refresh();
+  } catch (err) {
+    toast.error('Batch action error', {
+      description: err instanceof Error ? err.message : 'Network error',
+    });
+  } finally {
+    setLoading(false);
+  }
+}
+
+function usePicksBatchSelection(refreshPicks: () => void) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchLoading, setBatchLoading] = useState(false);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback((ids: string[]) => {
+    setSelectedIds(new Set(ids));
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBatchAction = useCallback(
+    (action: BatchAction) =>
+      doBatchAction(selectedIds, action, setBatchLoading, clearSelection, refreshPicks),
+    [selectedIds, clearSelection, refreshPicks]
+  );
+
+  return { selectedIds, toggleSelect, selectAll, clearSelection, batchLoading, handleBatchAction };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main hook                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -237,6 +319,7 @@ export function usePicksPage() {
   const filters = usePicksFilters();
   const actions = usePicksActions(approvePick, rejectPick);
   const modal = usePicksModal();
+  const batch = usePicksBatchSelection(refreshPicks);
   const filteredPicks = applyFilters(picks, {
     tab: filters.selectedTab,
     sport: filters.selectedSport,
@@ -256,6 +339,7 @@ export function usePicksPage() {
     filters,
     ...actions,
     ...modal,
+    ...batch,
     handleExport,
   };
 }

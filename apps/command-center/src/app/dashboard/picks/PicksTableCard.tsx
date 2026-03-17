@@ -1,9 +1,22 @@
 'use client';
 
-import { Eye, ThumbsUp, ThumbsDown, RefreshCw, Target, BarChart3, Layers } from 'lucide-react';
+import {
+  Eye,
+  ThumbsUp,
+  ThumbsDown,
+  RefreshCw,
+  Target,
+  BarChart3,
+  Layers,
+  CheckSquare,
+  XSquare,
+  RotateCcw,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
+import type { BatchAction } from './usePicksPage';
 import type { Pick } from '@/hooks/usePicks';
+
 
 import { CLVChart } from '@/components/charts/CLVChart';
 import { ComboPlayBuilder } from '@/components/charts/ComboPlayBuilder';
@@ -35,6 +48,13 @@ interface PicksTableCardProps {
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
   onShowDetails: (pick: Pick) => void;
+  // Batch selection (SPRINT-082)
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onSelectAll: (ids: string[]) => void;
+  onClearSelection: () => void;
+  onBatchAction: (action: BatchAction) => void;
+  batchLoading: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -50,6 +70,12 @@ export function PicksTableCard({
   onApprove,
   onReject,
   onShowDetails,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
+  onClearSelection,
+  onBatchAction,
+  batchLoading,
 }: PicksTableCardProps) {
   return (
     <Card>
@@ -69,6 +95,12 @@ export function PicksTableCard({
             onApprove={onApprove}
             onReject={onReject}
             onShowDetails={onShowDetails}
+            selectedIds={selectedIds}
+            onToggleSelect={onToggleSelect}
+            onSelectAll={onSelectAll}
+            onClearSelection={onClearSelection}
+            onBatchAction={onBatchAction}
+            batchLoading={batchLoading}
           />
           <TabsContent value="clv" className="mt-6">
             <CLVChart picks={picks} />
@@ -129,15 +161,44 @@ function DataTabContent({
   onApprove,
   onReject,
   onShowDetails,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
+  onClearSelection,
+  onBatchAction,
+  batchLoading,
 }: Omit<PicksTableCardProps, 'picks' | 'onTabChange'>) {
   if (!DATA_TABS.has(selectedTab)) return null;
 
+  const allSelected = filteredPicks.length > 0 && filteredPicks.every(p => selectedIds.has(p.id));
+
   return (
     <TabsContent value={selectedTab} className="mt-6">
+      {selectedIds.size > 0 && (
+        <BatchToolbar
+          count={selectedIds.size}
+          loading={batchLoading}
+          onPromote={() => onBatchAction('promote')}
+          onReject={() => onBatchAction('reject')}
+          onRequeue={() => onBatchAction('requeue')}
+          onClear={onClearSelection}
+        />
+      )}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  aria-label="Select all"
+                  checked={allSelected}
+                  onChange={() =>
+                    allSelected ? onClearSelection() : onSelectAll(filteredPicks.map(p => p.id))
+                  }
+                  className="cursor-pointer"
+                />
+              </TableHead>
               <TableHead>Capper</TableHead>
               <TableHead>Sport</TableHead>
               <TableHead>Pick Details</TableHead>
@@ -158,6 +219,8 @@ function DataTabContent({
                 onApprove={onApprove}
                 onReject={onReject}
                 onShowDetails={onShowDetails}
+                selected={selectedIds.has(pick.id)}
+                onToggleSelect={onToggleSelect}
               />
             ))}
           </TableBody>
@@ -165,6 +228,64 @@ function DataTabContent({
       </div>
       {filteredPicks.length === 0 && <EmptyState />}
     </TabsContent>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Batch toolbar (shown when picks are selected)                      */
+/* ------------------------------------------------------------------ */
+
+interface BatchToolbarProps {
+  count: number;
+  loading: boolean;
+  onPromote: () => void;
+  onReject: () => void;
+  onRequeue: () => void;
+  onClear: () => void;
+}
+
+function BatchToolbar({
+  count,
+  loading,
+  onPromote,
+  onReject,
+  onRequeue,
+  onClear,
+}: BatchToolbarProps) {
+  return (
+    <div className="flex items-center gap-2 mb-3 px-2 py-2 rounded-md bg-muted border text-sm">
+      <span className="font-medium">{count} selected</span>
+      <div className="flex items-center gap-1 ml-auto">
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-green-600 hover:text-green-700"
+          onClick={onPromote}
+          disabled={loading}
+        >
+          <CheckSquare className="h-4 w-4 mr-1" />
+          Promote
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-red-600 hover:text-red-700"
+          onClick={onReject}
+          disabled={loading}
+        >
+          <XSquare className="h-4 w-4 mr-1" />
+          Reject
+        </Button>
+        <Button variant="outline" size="sm" onClick={onRequeue} disabled={loading}>
+          <RotateCcw className="h-4 w-4 mr-1" />
+          Requeue
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onClear} disabled={loading}>
+          Clear
+        </Button>
+        {loading && <RefreshCw className="h-4 w-4 animate-spin ml-1 text-muted-foreground" />}
+      </div>
+    </div>
   );
 }
 
@@ -178,11 +299,33 @@ interface PickRowProps {
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
   onShowDetails: (pick: Pick) => void;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
 }
 
-function PickTableRow({ pick, actionLoading, onApprove, onReject, onShowDetails }: PickRowProps) {
+function PickTableRow({
+  pick,
+  actionLoading,
+  onApprove,
+  onReject,
+  onShowDetails,
+  selected,
+  onToggleSelect,
+}: PickRowProps) {
   return (
-    <TableRow>
+    <TableRow
+      data-selected={selected || undefined}
+      className={selected ? 'bg-muted/50' : undefined}
+    >
+      <TableCell>
+        <input
+          type="checkbox"
+          aria-label={`Select pick ${pick.id}`}
+          checked={selected}
+          onChange={() => onToggleSelect(pick.id)}
+          className="cursor-pointer"
+        />
+      </TableCell>
       <TableCell className="font-medium">{pick.capper}</TableCell>
       <TableCell>
         <Badge variant="outline">{pick.sport}</Badge>
