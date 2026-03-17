@@ -22,8 +22,11 @@ import * as path from 'path';
 const WORKSPACE_ROOT = path.resolve(__dirname, '..');
 const SPRINTS_DIR = path.join(WORKSPACE_ROOT, 'out', 'sprints');
 
-// Required artifacts for every sprint
-const REQUIRED_ARTIFACTS = [
+export const VALID_LANES = ['full', 'ops-submit', 'api'] as const;
+export type VerificationLane = (typeof VALID_LANES)[number];
+export const SCOPED_LANES = new Set<VerificationLane>(['ops-submit', 'api']);
+
+export const REQUIRED_ARTIFACTS = [
   'proof_git_status.txt',
   'proof_fetch_main.txt',
   'proof_rebase_or_merge_main.txt',
@@ -32,42 +35,44 @@ const REQUIRED_ARTIFACTS = [
   'proof_proof_inventory.txt',
 ];
 
-// Artifacts that may have variable names (glob patterns)
-const REQUIRED_PATTERNS = [/^proof_typecheck.*\.txt$/, /^proof_verify.*\.txt$/];
+export const REQUIRED_PATTERNS_ALWAYS = [/^proof_typecheck.*\.txt$/];
+export const REQUIRED_PATTERNS_SCOPED = [/^proof_verify.*\.txt$/];
 
-interface ValidationResult {
+export interface ValidationResult {
   artifact: string;
   required: boolean;
   found: boolean;
   path: string | null;
 }
 
-interface ParsedArgs {
+export interface ParsedArgs {
   sprintId: string;
   date: string | null;
   lane: string;
+  laneProvided: boolean;
   validateOnly: boolean;
   phase: number | null;
   linearIssue: string | null;
 }
 
-function parseArgs(): ParsedArgs {
-  const args = process.argv.slice(2);
+export function parseArgs(argv = process.argv.slice(2)): ParsedArgs {
   let sprintId = '';
   let date: string | null = null;
-  let lane = 'ops-submit';
+  let lane = 'full';
+  let laneProvided = false;
   let validateOnly = false;
   let phase: number | null = null;
   let linearIssue: string | null = null;
 
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    const nextArg = args[i + 1];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    const nextArg = argv[i + 1];
     if (arg === '--date' && nextArg) {
       date = nextArg;
       i++;
     } else if (arg === '--lane' && nextArg) {
       lane = nextArg;
+      laneProvided = true;
       i++;
     } else if (arg === '--phase' && nextArg) {
       phase = parseInt(nextArg, 10);
@@ -82,10 +87,14 @@ function parseArgs(): ParsedArgs {
     }
   }
 
-  return { sprintId, date, lane, validateOnly, phase, linearIssue };
+  return { sprintId, date, lane, laneProvided, validateOnly, phase, linearIssue };
 }
 
-function validatePhaseProofContent(proofsDir: string, phase: number): boolean {
+export function isValidLane(lane: string): lane is VerificationLane {
+  return VALID_LANES.includes(lane as VerificationLane);
+}
+
+export function validatePhaseProofContent(proofsDir: string, phase: number): boolean {
   const filename = `proof_phase_advancement_${phase}.txt`;
   const filePath = path.join(proofsDir, filename);
 
@@ -129,7 +138,7 @@ function validatePhaseProofContent(proofsDir: string, phase: number): boolean {
   return false;
 }
 
-function findLatestDateFolder(sprintDir: string): string | null {
+export function findLatestDateFolder(sprintDir: string): string | null {
   if (!fs.existsSync(sprintDir)) {
     return null;
   }
@@ -144,7 +153,7 @@ function findLatestDateFolder(sprintDir: string): string | null {
   return dateFolders[0] || null;
 }
 
-function generateProofInventory(proofsDir: string): string {
+export function generateProofInventory(proofsDir: string): string {
   const inventory: string[] = [];
   inventory.push('============================================================');
   inventory.push('PROOF INVENTORY');
@@ -163,7 +172,7 @@ function generateProofInventory(proofsDir: string): string {
   return inventory.join('\n');
 }
 
-function listDirectory(dir: string, prefix: string, inventory: string[]): void {
+export function listDirectory(dir: string, prefix: string, inventory: string[]): void {
   if (!fs.existsSync(dir)) return;
 
   const entries = fs
@@ -184,11 +193,29 @@ function listDirectory(dir: string, prefix: string, inventory: string[]): void {
   }
 }
 
-function validateArtifacts(proofsDir: string): ValidationResult[] {
+function renderPatternLabel(pattern: RegExp): string {
+  return pattern.source.replace(/\^|\$|\.\*/g, '*');
+}
+
+export function validateArtifacts(
+  proofsDir: string,
+  lane: VerificationLane,
+  phase: number | null = null
+): ValidationResult[] {
   const results: ValidationResult[] = [];
   const existingFiles = fs.existsSync(proofsDir) ? fs.readdirSync(proofsDir) : [];
+  const requiredArtifacts = [...REQUIRED_ARTIFACTS];
 
-  for (const artifact of REQUIRED_ARTIFACTS) {
+  if (phase !== null) {
+    requiredArtifacts.push(`proof_phase_advancement_${phase}.txt`);
+  }
+
+  const requiredPatterns = [...REQUIRED_PATTERNS_ALWAYS];
+  if (SCOPED_LANES.has(lane)) {
+    requiredPatterns.push(...REQUIRED_PATTERNS_SCOPED);
+  }
+
+  for (const artifact of requiredArtifacts) {
     const found = existingFiles.includes(artifact);
     results.push({
       artifact,
@@ -198,11 +225,11 @@ function validateArtifacts(proofsDir: string): ValidationResult[] {
     });
   }
 
-  for (const pattern of REQUIRED_PATTERNS) {
+  for (const pattern of requiredPatterns) {
     const matches = existingFiles.filter(f => pattern.test(f));
     const found = matches.length > 0;
     results.push({
-      artifact: pattern.source.replace(/\^|\$|\.\*/g, '*'),
+      artifact: renderPatternLabel(pattern),
       required: true,
       found,
       path: found ? `proofs/${matches[0]}` : null,
@@ -212,7 +239,7 @@ function validateArtifacts(proofsDir: string): ValidationResult[] {
   return results;
 }
 
-function printComplianceTable(
+export function printComplianceTable(
   sprintId: string,
   date: string,
   results: ValidationResult[]
@@ -251,7 +278,7 @@ function printComplianceTable(
   return allFound;
 }
 
-function runVerificationLane(lane: string): boolean {
+export function runVerificationLane(lane: VerificationLane): boolean {
   console.log('\n' + '='.repeat(60));
   console.log(`🔧 RUNNING VERIFICATION LANE: ${lane}`);
   console.log('='.repeat(60));
@@ -268,8 +295,6 @@ function runVerificationLane(lane: string): boolean {
       case 'full':
         cmd = 'npm run type-check && npm run test';
         break;
-      default:
-        cmd = 'npm run verify:ops-submit';
     }
 
     console.log(`Running: ${cmd}`);
@@ -282,7 +307,7 @@ function runVerificationLane(lane: string): boolean {
   }
 }
 
-function validateSprintDirectory(sprintId: string): string | null {
+export function validateSprintDirectory(sprintId: string): string | null {
   const sprintDir = path.join(SPRINTS_DIR, sprintId);
   if (!fs.existsSync(sprintDir)) {
     console.error(`\n❌ Sprint directory not found: ${sprintDir}`);
@@ -292,7 +317,7 @@ function validateSprintDirectory(sprintId: string): string | null {
   return sprintDir;
 }
 
-function findDateDirectory(sprintDir: string, date: string | null): string | null {
+export function findDateDirectory(sprintDir: string, date: string | null): string | null {
   const targetDate = date || findLatestDateFolder(sprintDir);
   if (!targetDate) {
     console.error(`\n❌ No date folder found in: ${sprintDir}`);
@@ -302,19 +327,32 @@ function findDateDirectory(sprintDir: string, date: string | null): string | nul
   return targetDate;
 }
 
-function main(): void {
-  const { sprintId, date, lane, validateOnly, phase, linearIssue } = parseArgs();
+export function main(): void {
+  const { sprintId, date, lane, laneProvided, validateOnly, phase, linearIssue } = parseArgs();
 
   if (!sprintId) {
     console.error(
-      'Usage: npm run sprint:close -- <SPRINT-ID> [--date YYYY-MM-DD] [--lane ops-submit|api|full] [--phase N] [--linear UNI-N]'
+      'Usage: npm run sprint:close -- <SPRINT-ID> [--date YYYY-MM-DD] [--lane full|ops-submit|api] [--phase N] [--linear UNI-N]'
     );
+    process.exit(1);
+  }
+
+  if (!isValidLane(lane)) {
+    console.error(`[SPRINT CLOSE] FAIL: Unknown lane "${lane}".`);
+    console.error(`  Valid lanes: ${VALID_LANES.join(', ')}`);
+    console.error(`  Use: npm run sprint:close -- <SPRINT-ID> --lane <${VALID_LANES.join('|')}>`);
     process.exit(1);
   }
 
   console.log('🛡️  SPRINT CLOSEOUT VALIDATOR');
   console.log(`   Sprint ID: ${sprintId}`);
   console.log(`   Mode: ${validateOnly ? 'VALIDATE ONLY' : 'FULL CLOSEOUT'}`);
+  if (!laneProvided) {
+    console.log('No --lane flag provided. Defaulting to full verification (type-check + test).');
+  } else if (SCOPED_LANES.has(lane)) {
+    console.log(`Scoped lane selected: ${lane}`);
+    console.log('Per governance contract §5, this lane must be documented in SPRINT_PLAN.md.');
+  }
   if (phase !== null) {
     console.log(`   Phase claim: ${phase} (phase advancement proof required)`);
   }
@@ -352,12 +390,7 @@ function main(): void {
   fs.writeFileSync(inventoryPath, inventory);
   console.log(`   Written: ${inventoryPath}`);
 
-  // If phase claim, add proof_phase_advancement_<N>.txt to required artifacts
-  if (phase !== null) {
-    REQUIRED_ARTIFACTS.push(`proof_phase_advancement_${phase}.txt`);
-  }
-
-  const results = validateArtifacts(proofsDir);
+  const results = validateArtifacts(proofsDir, lane, phase);
   const allFound = printComplianceTable(sprintId, targetDate, results);
 
   if (!allFound) {
@@ -365,7 +398,6 @@ function main(): void {
     process.exit(1);
   }
 
-  // Phase proof content validation (in addition to presence check)
   if (phase !== null) {
     const contentValid = validatePhaseProofContent(proofsDir, phase);
     if (!contentValid) {
@@ -377,7 +409,6 @@ function main(): void {
 
   console.log('\n✅ SPRINT CLOSEOUT VALIDATION PASSED');
 
-  // COS-002: Linear sync (runs after all gates pass, gracefully skips if no API key)
   if (linearIssue && !validateOnly) {
     console.log(`\n🔗 Running Linear sync for ${linearIssue}...`);
     try {
@@ -387,7 +418,6 @@ function main(): void {
         { cwd: WORKSPACE_ROOT, stdio: 'inherit' }
       );
     } catch {
-      // Non-fatal — linear sync failure does not fail the closeout
       console.warn('   ⚠️  Linear sync failed (non-fatal). Run manually:');
       console.warn(`   npm run sprint:linear-sync -- --issue ${linearIssue} --sprint ${sprintId}`);
     }
@@ -396,4 +426,6 @@ function main(): void {
   process.exit(0);
 }
 
-main();
+if (require.main === module) {
+  main();
+}

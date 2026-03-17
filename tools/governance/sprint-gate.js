@@ -1,17 +1,13 @@
 #!/usr/bin/env node
 /**
- * Sprint Gate — SPRINT-053-GOVERNANCE-NAMING-CONVENTION
+ * Sprint Gate - SPRINT-053-GOVERNANCE-NAMING-CONVENTION
  *
- * Validates that the requested sprint matches the locked next sprint.
- *
- * Authority order:
- *   1. docs/status/NEXT_5_SPRINTS.md  — Sprint 1 line (current queue, primary)
- *   2. docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md  — legacy fallback
- *      (covers SPRINT-031 through SPRINT-040 intelligence pipeline sprints)
+ * Validates that the requested sprint matches the locked next sprint from
+ * docs/status/NEXT_5_SPRINTS.md, which is the sole runtime queue authority.
  *
  * Usage:
- *   pnpm sprint:gate                          # show current next sprint
- *   node tools/governance/sprint-gate.js <SPRINT-ID>  # validate specific sprint
+ *   pnpm sprint:gate
+ *   node tools/governance/sprint-gate.js <SPRINT-ID>
  */
 
 const fs = require('fs');
@@ -19,37 +15,23 @@ const path = require('path');
 
 const NEXT_SPRINTS_PATH = path.resolve(process.cwd(), 'docs/status/NEXT_5_SPRINTS.md');
 
-const ROADMAP_PATH = path.resolve(
-  process.cwd(),
-  'docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md'
-);
-
 /**
  * Parse Sprint 1 from NEXT_5_SPRINTS.md.
  * Looks for a line matching: ## Sprint 1: SPRINT-...
  */
 function getNextSprintFromQueue() {
   if (!fs.existsSync(NEXT_SPRINTS_PATH)) {
-    return null;
+    return { type: 'file_missing' };
   }
+
   const text = fs.readFileSync(NEXT_SPRINTS_PATH, 'utf8');
   const match = text.match(/^## Sprint 1:\s+(SPRINT-[\w-]+)/m);
-  return match ? match[1].trim() : null;
-}
 
-/**
- * Parse "Next Sprint (LOCKED)" from INTELLIGENCE_PIPELINE_SPRINT_ORDER.md.
- * Legacy fallback for intelligence pipeline sprints (SPRINT-031 to SPRINT-040).
- */
-function getNextSprintFromRoadmap() {
-  if (!fs.existsSync(ROADMAP_PATH)) {
-    return null;
+  if (!match) {
+    return { type: 'vacant' };
   }
-  const text = fs.readFileSync(ROADMAP_PATH, 'utf8');
-  const nextSection =
-    text.split('## Next Sprint (LOCKED)')[1]?.split('## Future Sprint Order')[0] || '';
-  const match = nextSection.match(/###\s+(SPRINT-[0-9A-Z-]+)/);
-  return match ? match[1] : null;
+
+  return { type: 'locked', sprint: match[1].trim() };
 }
 
 /**
@@ -69,43 +51,52 @@ function validateNameFormat(name) {
   return { valid: true };
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+const next = getNextSprintFromQueue();
+const requested = process.argv[2];
 
-const next = getNextSprintFromQueue() || getNextSprintFromRoadmap();
-
-if (!next) {
-  console.error('[SPRINT GATE] FAIL: could not determine locked next sprint.');
-  console.error('  Checked: docs/status/NEXT_5_SPRINTS.md (Sprint 1 line)');
-  console.error('  Checked: docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md');
+if (next.type === 'file_missing') {
+  console.error('[SPRINT GATE] FAIL: docs/status/NEXT_5_SPRINTS.md is missing.');
+  console.error('  Create docs/status/NEXT_5_SPRINTS.md first.');
+  console.error('  Format: ## Sprint 1: SPRINT-<NAME>');
   process.exit(1);
 }
 
-const requested = process.argv[2];
+if (next.type === 'vacant') {
+  if (!requested) {
+    console.log('[SPRINT GATE] QUEUE VACANT');
+    console.log('  Sprint 1 slot is not locked.');
+    console.log('  Run /sprint-plan to select the next sprint, then update:');
+    console.log('    docs/status/NEXT_5_SPRINTS.md (Sprint 1 line)');
+    console.log('  Format: ## Sprint 1: SPRINT-<NAME>');
+    process.exit(0);
+  }
+
+  console.error('[SPRINT GATE] FAIL: Sprint 1 slot is vacant — no sprint is locked.');
+  console.error(`  Cannot validate "${requested}" against an empty queue.`);
+  console.error('  Populate docs/status/NEXT_5_SPRINTS.md Sprint 1 before running sprint gate.');
+  console.error('  Format: ## Sprint 1: SPRINT-<NAME>');
+  process.exit(1);
+}
 
 if (!requested) {
   console.log('[SPRINT GATE] PASS');
-  const source = getNextSprintFromQueue()
-    ? 'NEXT_5_SPRINTS.md'
-    : 'INTELLIGENCE_PIPELINE_SPRINT_ORDER.md';
-  console.log(`Next locked sprint: ${next}  (source: ${source})`);
+  console.log(`Next locked sprint: ${next.sprint}  (source: docs/status/NEXT_5_SPRINTS.md)`);
   process.exit(0);
 }
 
-// Validate name format
 const formatCheck = validateNameFormat(requested);
 if (!formatCheck.valid) {
-  console.error(`[SPRINT GATE] FAIL: sprint name format invalid — ${formatCheck.reason}`);
+  console.error(`[SPRINT GATE] FAIL: sprint name format invalid - ${formatCheck.reason}`);
   console.error(`  Received: "${requested}"`);
   console.error('  See docs/claude/SPRINT_NAMING_CONVENTION.md for valid patterns.');
   process.exit(1);
 }
 
-// Validate sprint order
-if (requested !== next) {
+if (requested !== next.sprint) {
   console.error(
     `[SPRINT GATE] FAIL: requested sprint "${requested}" is not the locked next sprint.`
   );
-  console.error(`[SPRINT GATE] Allowed next sprint: "${next}"`);
+  console.error(`[SPRINT GATE] Allowed next sprint: "${next.sprint}"`);
   console.error('  Update docs/status/NEXT_5_SPRINTS.md if the queue has changed.');
   process.exit(1);
 }
