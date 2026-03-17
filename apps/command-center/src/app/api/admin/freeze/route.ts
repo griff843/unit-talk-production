@@ -5,10 +5,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getOperatorIdentity } from '@/lib/auth';
+import { getOperatorIdentity, requireOperatorIdentity } from '@/lib/auth';
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
+
+export const dynamic = 'force-dynamic';
 
 // =============================================================================
 // FREEZE CONFIGURATION
@@ -274,6 +276,10 @@ class FreezeService {
  * Get current freeze status and impact
  */
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const span = UnitTalkTracing.startAgentSpan('admin', 'get_freeze_status');
 
   try {
@@ -317,6 +323,10 @@ export async function GET(request: NextRequest) {
  * Enable or disable system freeze
  */
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const span = UnitTalkTracing.startAgentSpan('admin', 'toggle_freeze');
 
   try {

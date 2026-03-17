@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { agentMonitor } from '@/lib/agentMonitoring';
+import { requireOperatorIdentity } from '@/lib/auth';
 import { redisClient } from '@/lib/redis';
 import { Agent, getSupabaseClient } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Agent Status API Endpoint
@@ -11,6 +14,10 @@ import { Agent, getSupabaseClient } from '@/lib/supabase';
  */
 
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const agentId = searchParams.get('id');
@@ -237,6 +244,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/agents/status - Bulk status update or health check trigger
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { action, agents } = body;

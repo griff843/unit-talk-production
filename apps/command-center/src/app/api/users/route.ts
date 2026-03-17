@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import type { Json } from '@/types/database';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { dbOperations, User, supabase } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Users API Endpoint
@@ -12,6 +15,10 @@ import { dbOperations, User, supabase } from '@/lib/supabase';
 
 // GET /api/users - Get all users or specific user by ID
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('id');
@@ -65,6 +72,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/users - Create new user
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
 
@@ -152,6 +163,10 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/users - Update existing user
 export async function PUT(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('id');
@@ -211,6 +226,10 @@ export async function PUT(request: NextRequest) {
 
 // DELETE /api/users - Delete user (soft delete by setting status to inactive)
 export async function DELETE(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('id');

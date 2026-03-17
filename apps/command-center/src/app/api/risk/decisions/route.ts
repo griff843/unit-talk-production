@@ -9,6 +9,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
+
 export const dynamic = 'force-dynamic';
 
 const API_URL =
@@ -16,6 +18,10 @@ const API_URL =
 const ADMIN_TOKEN = process.env.INTERNAL_API_TOKEN || 'Bearer admin-internal';
 
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // Forward all query params to the API
     const { searchParams } = new URL(request.url);

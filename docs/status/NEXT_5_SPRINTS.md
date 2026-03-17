@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-16 (SPRINT-061-LAYER3-PHASE10-CC-ALERT-DASHBOARD)
+**Last Updated**: 2026-03-17 (SPRINT-075-LAYER3-PHASE10-CC-CAPPER-DASHBOARD)
 **Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
 backlog + codebase investigation
 
@@ -31,7 +31,7 @@ SPRINT-054 Replay Endpoint — all done).
 ## Completed Sprint History
 
 <details>
-<summary>33 sprints completed (2026-03-10 through 2026-03-16) — click to expand</summary>
+<summary>36 sprints completed (2026-03-10 through 2026-03-17) — click to expand</summary>
 
 | Sprint                             | Date       | PR   | Linear    | Layer/Phase |
 | ---------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -68,5 +68,8 @@ SPRINT-054 Replay Endpoint — all done).
 | 059-AI-OS-WAVE2-AGENTS             | 2026-03-16 | #259 | UNI-94    | AI OS       |
 | 060-LAYER3-PHASE11-CC-WORKFLOW     | 2026-03-16 | #262 | UNI-95    | L3/Ph 11    |
 | 061-LAYER3-PHASE10-CC-ALERT-DASH   | 2026-03-16 | #265 | UNI-96    | L3/Ph 10    |
+| 072-SCORING-CERTIFICATION          | 2026-03-16 | #280 | UNI-104   | L1/Cert     |
+| 073-PROMOTION-WIRING-CERTIFICATION | 2026-03-17 | #280 | UNI-105   | L1/Cert     |
+| 074-LAYER3-PHASE10-CC-PICK-MGMT    | 2026-03-17 | —    | UNI-106   | L3/Ph 10    |
 
 </details>

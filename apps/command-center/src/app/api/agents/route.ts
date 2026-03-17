@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { agentMonitor } from '@/lib/agentMonitoring';
+import { requireOperatorIdentity } from '@/lib/auth';
 import { redisClient } from '@/lib/redis';
 import { dbOperations, Agent, getSupabaseClient } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Agents API Endpoint
@@ -12,6 +15,10 @@ import { dbOperations, Agent, getSupabaseClient } from '@/lib/supabase';
 
 // GET /api/agents - Get all agents or specific agent by ID
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const agentId = searchParams.get('id');
@@ -200,6 +207,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/agents - Create new agent or trigger agent action
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { action, agentId, agentName, ...agentData } = body;
@@ -355,6 +366,10 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/agents - Update agent configuration or status
 export async function PUT(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const agentId = searchParams.get('id');
