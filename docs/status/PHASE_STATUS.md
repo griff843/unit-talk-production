@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-17 (SPRINT-073-PROMOTION-WIRING-CERTIFICATION)
+**Last Updated**: 2026-03-17 (SPRINT-074-LAYER3-PHASE10-CC-PICK-MANAGEMENT)
 **Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -82,6 +82,16 @@ enforce canonical state, deterministic outbox, settlement immutability
   extraction)
 - Shadow mode (R3) and fault injection (R4) CI integration: ✅ WIRED
   (SPRINT-LAYER1-PHASE5-E2E-CLOSURE)
+- **Scoring pipeline certification (SPRINT-072, 2026-03-16)**: computeScoreV2 /
+  canonicalTier / evaluatePromotion certified via 41 vitest tests + 23-point
+  harness; CONSTITUTIONAL gates 7+8 verified fail-closed; 1041/1041 vitest; PR
+  #280, UNI-104 Done
+- **Promotion wiring certification (SPRINT-073, 2026-03-17)**:
+  buildPromotionMetadata() injected featureSnapshotId + featureVectorHash +
+  ProbabilityPrimitives before evaluatePromotion(); CONSTITUTIONAL Gates 7+8
+  unblocked — valid S/A-tier picks now pass promotion at runtime; fail-closed
+  preserved; 20 new tests; 1061/1061 vitest; commits 4df4dd90 + bf1351b8,
+  UNI-105 Done
 - E2E smoke test suite (full-lifecycle pick proof) pending
 - Operator auth hardened: JWT-based operatorAuth on all /ops routes
   (SPRINT-045-OPERATOR-AUTH-HARDENING)
@@ -339,6 +349,12 @@ automation, edge ranking feeds, market alerts, context/recap automation
   critical→warning→info with empty state; Bell nav entry in Monitoring section;
   supabase.ts DEMO_MODE gate fix (unblocks all CC PRs); 5 new API vitest + 6 new
   CC vitest; API: 1000/1000 passing; CC: 84/84 passing
+- **PicksHQ Promotion Data (SPRINT-074, 2026-03-17)**: GET /api/picks API
+  endpoint with promotion_band + professional_score; CC proxy /api/picks
+  (requireOperatorIdentity, 503 fallback, query param forwarding); Pick
+  interface
+  - usePicks.ts extended with promotion columns; 10 new CC vitest tests; CC:
+    94/94 passing; UNI-106 Done
 
 ### Remaining Work
 
@@ -493,14 +509,14 @@ are Mode B multi-LLM pilot work — not yet scheduled. Wave 3 skills
 
 ## Phase Summary
 
-| Phase                                  | Status  | Completion | Blocking Issues                                                                                                                                                                                                      |
-| -------------------------------------- | ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure                                                                                                         |
-| **Phase 2** — Intelligence Superiority | Done    | 100%       | ~~UNI-14~~ DONE (SPRINT-GITHUB-LINEAR-INTEGRATION, 2026-03-10)                                                                                                                                                       |
-| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)                                                                                                                      |
-| **Phase 4** — Automation Supremacy     | Active  | 55%        | Discord bot + RecapAgent VERIFIED; workflow registry live (SPRINT-052); workflow UI live (SPRINT-060); alerts dashboard live (SPRINT-061); scheduling config external; edge ranking and alert automation not started |
-| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                                                                                                                                   |
-| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; Wave 2 skills COMPLETE (7 operational); sprint:close enforces LLM_ROUTING_DECISION.md gate (COS-007); SPRINT-059 2026-03-16                                                                    |
+| Phase                                  | Status  | Completion | Blocking Issues                                                                                                                                                                                                                                                |
+| -------------------------------------- | ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure                                                                                                                                                   |
+| **Phase 2** — Intelligence Superiority | Done    | 100%       | ~~UNI-14~~ DONE (SPRINT-GITHUB-LINEAR-INTEGRATION, 2026-03-10)                                                                                                                                                                                                 |
+| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)                                                                                                                                                                |
+| **Phase 4** — Automation Supremacy     | Active  | 55%        | Discord bot + RecapAgent VERIFIED; workflow registry live (SPRINT-052); workflow UI live (SPRINT-060); alerts dashboard live (SPRINT-061); PicksHQ promotion data live (SPRINT-074); scheduling config external; edge ranking and alert automation not started |
+| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                                                                                                                                                                             |
+| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; Wave 2 skills COMPLETE (7 operational); sprint:close enforces LLM_ROUTING_DECISION.md gate (COS-007); SPRINT-059 2026-03-16                                                                                                              |
 
 **Current Platform Phase**: Layer 2 COMPLETE (Phases 6–8 all done). Layer 1
 COMPLETE. Phase 1 at 97%, Phase 2 at 100%, Phase 3 at 100%, Phase 4 at 55%.
