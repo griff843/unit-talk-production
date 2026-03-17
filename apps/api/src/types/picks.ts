@@ -18,10 +18,10 @@ export interface UnifiedPick {
   odds?: number;
   tier?: string;
   edge_score?: number;
-  play_status?: string;
+  status?: string;
   capper?: string;
   units?: number;
-  outcome?: 'win' | 'loss' | 'push' | 'pending';
+  settlement_result?: string | null;
   parlay_id?: string;
   is_sharp_fade?: boolean;
   tags?: string[];
