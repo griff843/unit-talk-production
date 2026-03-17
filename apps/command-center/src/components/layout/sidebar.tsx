@@ -23,6 +23,7 @@ import {
   Layers,
   Gavel,
   RefreshCw,
+  Workflow,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -55,6 +56,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'Settlement', href: '/dashboard/settlement', icon: Gavel },
       { name: 'PicksHQ', href: '/dashboard/picks', icon: Target },
       { name: 'Grading HQ', href: '/dashboard/grading', icon: Timer },
+      { name: 'Lifecycle', href: '/dashboard/lifecycle', icon: Workflow },
       { name: 'Replay', href: '/dashboard/replay', icon: RefreshCw },
       { name: 'Workflows', href: '/dashboard/workflows', icon: GitBranch },
     ],

@@ -6,6 +6,10 @@
 import { Client, Connection } from '@temporalio/client';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+
 export interface WorkflowInfo {
   workflowId: string;
   runId: string;
@@ -173,6 +177,10 @@ const serverTemporalService = new ServerTemporalService();
 
 // API Route Handlers
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
@@ -214,6 +222,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { action, workflowId, reason, workflowType, args } = body;

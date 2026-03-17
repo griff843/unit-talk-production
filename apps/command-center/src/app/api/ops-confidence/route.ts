@@ -4,11 +4,16 @@
  * GET /api/ops-confidence — read-only operational confidence indicators
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { getSupabaseClient } from '@/lib/supabase';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const client = getSupabaseClient();
     if (!client) {

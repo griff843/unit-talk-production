@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import type { Json } from '@/types/database';
 
+import { requireOperatorIdentity } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Sync endpoint to pull live data from Unit Talk Production platform
@@ -65,6 +68,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const source = searchParams.get('source') || 'agents';
