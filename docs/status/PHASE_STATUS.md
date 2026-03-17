@@ -1,6 +1,6 @@
 # Phase Status
 
-**Last Updated**: 2026-03-16 (SPRINT-061-LAYER3-PHASE10-CC-ALERT-DASHBOARD)
+**Last Updated**: 2026-03-16 (SPRINT-065-LAYER1-COMPLETION-VERIFICATION)
 **Source**: Linear initiatives + repo implementation + sprint closeouts
 
 ---
@@ -321,10 +321,14 @@ automation, edge ranking feeds, market alerts, context/recap automation
   probes, Docker deployment, blue-green support, fail-closed feature flags
   (SPRINT-DISCORD-RECAP-VERIFICATION, UNI-57, 2026-03-10) — 20 discordRouting
   tests
-- RecapAgent VERIFIED: lifecycle-compliant (`lifecycleUpdate` with `poster`
+- RecapAgent ARCHITECTURE VERIFIED, schema FIXED (SPRINT-067), status query
+  FIXED (SPRINT-068): lifecycle-compliant (`lifecycleUpdate` with `poster`
   role), Temporal workflows (daily/weekly/monthly/micro), RecapFormatter Discord
   embeds, RecapStateManager for idempotent operation, 81 recapUtils unit tests
-  (SPRINT-DISCORD-RECAP-VERIFICATION, UNI-57, 2026-03-10)
+  (SPRINT-DISCORD-RECAP-VERIFICATION, UNI-57, 2026-03-10). SPRINT-067 fixed
+  column refs (play_status→status, outcome→settlement_result). SPRINT-068 fixed
+  status query filter (added 'won','lost','push','void'). RecapService
+  runtime-proven via direct DB query (SPRINT-068 harness).
 - Vitest: 843/843 passing (includes 101 Discord/Recap verification tests)
 - **Workflow Registry UI (SPRINT-060, PR #262, UNI-95, 2026-03-16)**: CC
   Workflow Registry dashboard at `/dashboard/workflows`; GET /api/ops/workflows
@@ -350,7 +354,7 @@ automation, edge ranking feeds, market alerts, context/recap automation
 
 ### Assessment
 
-**PHASE 4 is 55% complete.** Discord bot fully verified and K8s-ready.
+**PHASE 4 is 57% complete.** Discord bot fully verified and K8s-ready.
 RecapAgent lifecycle-compliant with Temporal workflows and embed generation.
 AlertAgent live. Core automation infrastructure complete. Operator workflow
 registry delivered (SPRINT-052): 18 curated workflows across 6 categories, GET
@@ -493,17 +497,23 @@ are Mode B multi-LLM pilot work — not yet scheduled. Wave 3 skills
 
 ## Phase Summary
 
-| Phase                                  | Status  | Completion | Blocking Issues                                                                                                                                                                                                      |
-| -------------------------------------- | ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure                                                                                                         |
-| **Phase 2** — Intelligence Superiority | Done    | 100%       | ~~UNI-14~~ DONE (SPRINT-GITHUB-LINEAR-INTEGRATION, 2026-03-10)                                                                                                                                                       |
-| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)                                                                                                                      |
-| **Phase 4** — Automation Supremacy     | Active  | 55%        | Discord bot + RecapAgent VERIFIED; workflow registry live (SPRINT-052); workflow UI live (SPRINT-060); alerts dashboard live (SPRINT-061); scheduling config external; edge ranking and alert automation not started |
-| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                                                                                                                                   |
-| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; Wave 2 skills COMPLETE (7 operational); sprint:close enforces LLM_ROUTING_DECISION.md gate (COS-007); SPRINT-059 2026-03-16                                                                    |
+| Phase                                  | Status  | Completion | Blocking Issues                                                                                                                                                                                                               |
+| -------------------------------------- | ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Phase 1** — Structural Dominance     | Done    | 100%       | Layer 1 fully certified (SPRINT-068-E2E-LIFECYCLE-CERT): 4P/9P/0F, R13 CERTIFIED, DRIFT-H6 RESOLVED. All remaining items resolved or intentional.                                                                             |
+| **Phase 2** — Intelligence Superiority | Done    | 100%       | ~~UNI-14~~ DONE (SPRINT-GITHUB-LINEAR-INTEGRATION, 2026-03-10)                                                                                                                                                                |
+| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | Risk controls + operator API + monitoring + replay COMPLETE. **NOTE**: Settlement and Recap are NOT certified (SPRINT-063 lifecycle audit). Phase 3 covers risk engine only, not full lifecycle.                              |
+| **Phase 4** — Automation Supremacy     | Active  | 57%        | Discord bot VERIFIED; Settlement RUNTIME PROVEN (SPRINT-064 harness); RecapAgent schema+query FIXED (SPRINT-067/068), runtime-proven via direct DB query; workflow registry + alerts dashboard live; edge ranking not started |
+| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                                                                                                                                            |
+| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; Wave 2 skills COMPLETE (7 operational); sprint:close enforces LLM_ROUTING_DECISION.md gate (COS-007); SPRINT-059 2026-03-16                                                                             |
 
-**Current Platform Phase**: Layer 2 COMPLETE (Phases 6–8 all done). Layer 1
-COMPLETE. Phase 1 at 97%, Phase 2 at 100%, Phase 3 at 100%, Phase 4 at 55%.
+**Current Platform Phase**: Layer 2 work COMPLETE (Phases 6–8 all done). **Layer
+1 COMPLETE** (FULLY CERTIFIED per SPRINT-068 — 4/13 exit requirements PASS, 9
+PARTIAL, 0 FAIL; R13 CERTIFIED, DRIFT-H6 RESOLVED; full E2E path traversed; see
+LAYER1_EXIT_REQUIREMENTS.md). Phase 1 at 100%, Phase 2 at 100%, Phase 3 at 100%
+(risk engine only), Phase 4 at 57%. **LIFECYCLE CERTIFICATION**: Full lifecycle
+(submit→score→promote→post→settle→recap) CERTIFIED
+(SPRINT-068-E2E-LIFECYCLE-CERT, 2026-03-16). 6/6 phases PASS. Proof:
+`out/sprints/SPRINT-068-E2E-LIFECYCLE-CERT/2026-03-16/proofs/proof_harness_output.json`.
 **Layer 3 started**: SPRINT-049 delivered auth identity foundation; SPRINT-050
 delivered permission enforcement (PR #224, UNI-85 Done); SPRINT-051 delivered
 Smart Form UX Polish — WCAG 2.1 AA accessibility, KeyboardShortcutsHelp (PR
@@ -528,6 +538,9 @@ risk badges, invocation snippets; Workflows nav; 78/78 CC tests passing (PR
 #262, UNI-95 Done, 2026-03-16); **SPRINT-061 delivered Alerts Dashboard (Layer 3
 / Phase 10)** — GET /ops/alerts API route + CC proxy + /dashboard/alerts page
 grouped by severity critical→warning→info; Bell nav; DEMO_MODE gate fix; API:
-1000/1000; CC: 84/84 tests passing (PR #265, UNI-96 Done, 2026-03-16). Next
-canonical work: run /sprint-plan. See `docs/06_status/current_phase.md` for
-canonical layer/phase position.
+1000/1000; CC: 84/84 tests passing (PR #265, UNI-96 Done, 2026-03-16);
+**SPRINT-068 certified Full Layer 1 Lifecycle** — one pick traversed
+SUBMIT→SCORE→PROMOTE→POST→SETTLE→RECAP; 6/6 phases PASS; R13: FAIL→CERTIFIED;
+RecapService status query fixed; DRIFT-H6 RESOLVED; Layer 1: 4P/9P/0F — fully
+complete (Commit: 32dad3c8, 2026-03-16). Next canonical work: run /sprint-plan.
+See `docs/06_status/current_phase.md` for canonical layer/phase position.

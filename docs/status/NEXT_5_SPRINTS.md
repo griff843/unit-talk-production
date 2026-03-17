@@ -1,44 +1,45 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-16 (SPRINT-067-RECAP-SCHEMA-FIX) **Source**:
-SPRINT-067 schema fix + LAYER1_EXIT_REQUIREMENTS.md + drift report
+**Last Updated**: 2026-03-16 (SPRINT-068-E2E-LIFECYCLE-CERT) **Source**:
+SPRINT-068 E2E certification + LAYER1_EXIT_REQUIREMENTS.md + drift report
 
-> **Layer 1 NOT COMPLETE**: RecapAgent schema fixed (R10: FAIL→PARTIAL). Full
-> lifecycle E2E path still never traversed. Only 1 FAIL remains (R13). Sprint
-> queue targets Layer 1 closure. See `docs/status/LAYER1_EXIT_REQUIREMENTS.md`
-> for full requirements matrix.
+> **Layer 1 COMPLETE**: Full lifecycle E2E path certified (R13: FAIL→CERTIFIED).
+> One pick traversed SUBMIT→SCORE→PROMOTE→POST→SETTLE→RECAP. Layer 1: 4P/9P/0F.
+> DRIFT-H6 RESOLVED. See `docs/status/LAYER1_EXIT_REQUIREMENTS.md` for full
+> matrix.
 
 ---
 
 ## Sprint Queue
 
-> **SPRINT-067-RECAP-SCHEMA-FIX** completed 2026-03-16 (Lane 1 + 3).
-> play_status→status, outcome→settlement_result corrected across 5 RecapAgent
-> files + UnifiedPick type. L1: 3P/9P/1F (was 3P/8P/2F). API vitest 1025. UNI-99
-> Done. Next: E2E cert.
+> **SPRINT-068-E2E-LIFECYCLE-CERT** completed 2026-03-16 (Lane 1 + 3). Full
+> Layer 1 lifecycle certified: 6/6 phases PASS. R13: FAIL→CERTIFIED. DRIFT-H6
+> RESOLVED. RecapService status query fixed. Layer 1: 4P/9P/0F. Commit:
+> 32dad3c8. Next: settlement RPC repair + embed fixes.
 
 | #   | Sprint                            | Priority | Phase | Focus                                                                             | Blocked By |
 | --- | --------------------------------- | -------- | ----- | --------------------------------------------------------------------------------- | ---------- |
-| 1   | SPRINT-068-E2E-LIFECYCLE-CERT     | P0       | L1    | One pick: submit→score→post→settle→recap (Layer 1 exit proof)                     | None       |
-| 2   | SPRINT-069-SETTLEMENT-RPC-REPAIR  | P1       | L2    | Fix manual_settle_pick RPC (7 missing DB objs) + attach guard trigger             | None       |
-| 3   | SPRINT-070-EMBED-CONTRACT-FIX     | P2       | L3    | Fix 5 embed defects (build:unknown, enum leak)                                    | None       |
-| 4   | SPRINT-071-SCORING-ENGINE-V2-WIRE | P1       | L1    | Set SCORING_ENGINE_V2 env in production agents; full live-data scoring round-trip | 068        |
-| 5   | SPRINT-072-SETTLEMENT-GUARD-FIX   | P1       | L1    | Attach settlement guard trigger; add settlement_frozen column (DEFECT-10/12)      | None       |
+| 1   | SPRINT-069-SETTLEMENT-RPC-REPAIR  | P1       | L2    | Fix manual_settle_pick RPC (7 missing DB objs) + attach guard trigger             | None       |
+| 2   | SPRINT-070-EMBED-CONTRACT-FIX     | P2       | L3    | Fix 5 embed defects (build:unknown, enum leak)                                    | None       |
+| 3   | SPRINT-071-SCORING-ENGINE-V2-WIRE | P1       | L1    | Set SCORING_ENGINE_V2 env in production agents; full live-data scoring round-trip | None       |
+| 4   | SPRINT-072-SETTLEMENT-GUARD-FIX   | P1       | L1    | Attach settlement guard trigger; add settlement_frozen column (DEFECT-10/12)      | None       |
+| 5   | SPRINT-073-LAYER3-PHASE12-NEXT    | P2       | L3    | Next Layer 3 / Phase 12 deliverable (TBD from sprint-plan)                        | None       |
 
-**Dependency chain**: **Layer 1 is NOT complete.** Full E2E path (R13) is the
-sole remaining FAIL. SPRINT-068 is the minimum remaining exit path. Sprint 2
-(settlement RPC) is Layer 2 quality work. Sprint 3 (embed fix) is Layer 3.
-Sprint 4 (live scoring wire) completes the scoring chain. **LIFECYCLE
-CERTIFICATION**: Transport PASS (submit→post), Settlement PASS
-(harness-bounded), Scoring PARTIAL (synthetic data), Recap PARTIAL (schema
-fixed, not runtime-certified). Full E2E NOT certified.
+**Dependency chain**: **Layer 1 is COMPLETE.** Full E2E certified (SPRINT-068).
+Sprint 1 (settlement RPC) fixes the manual_settle_pick RPC quality gap. Sprint 2
+(embed fix) is Layer 3 polish. Sprint 3 (live scoring wire) connects the scoring
+chain to production agents. **LIFECYCLE CERTIFICATION**: Full lifecycle
+(submit→score→promote→post→settle→recap) CERTIFIED (SPRINT-068). Settlement PASS
+(harness-bounded). Scoring PARTIAL (synthetic data, live-data wire pending
+SPRINT-071). Recap PARTIAL (schema+query fixed, not exercised via Temporal
+scheduling).
 
 ---
 
 ## Completed Sprint History
 
 <details>
-<summary>40 sprints completed (2026-03-10 through 2026-03-16) — click to expand</summary>
+<summary>41 sprints completed (2026-03-10 through 2026-03-16) — click to expand</summary>
 
 | Sprint                             | Date       | PR   | Linear    | Layer/Phase |
 | ---------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -81,5 +82,6 @@ fixed, not runtime-certified). Full E2E NOT certified.
 | 065-LAYER1-COMPLETION-VERIFICATION | 2026-03-16 | —    | UNI-97    | Audit/L1    |
 | 066-SCORING-CERTIFICATION          | 2026-03-16 | —    | UNI-98    | L1/Ph 2     |
 | 067-RECAP-SCHEMA-FIX               | 2026-03-16 | —    | UNI-99    | L1/Ph 1     |
+| 068-E2E-LIFECYCLE-CERT             | 2026-03-16 | —    | UNI-100   | L1 Exit     |
 
 </details>

@@ -87,38 +87,23 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
   2026-03-13T23:51:52Z)
 - **Resolved**: 2026-03-13
 
+### ~~DRIFT-H6: Lifecycle Certification Gap~~ ✅ RESOLVED
+
+- **What**: Full lifecycle E2E path never traversed; RecapService
+  schema+status-query mismatch
+- **Resolved by**: SPRINT-068-E2E-LIFECYCLE-CERT (+ SPRINT-067 schema fix,
+  SPRINT-066 scoring, SPRINT-064 settlement)
+- **Evidence**: Full lifecycle traversed:
+  SUBMIT→SCORE→PROMOTE→POST→SETTLE→RECAP. 6/6 phases PASS. L1-R13: CERTIFIED.
+  Layer 1: 4P/9P/0F. RecapService status query fixed. Proof:
+  `out/sprints/SPRINT-068-E2E-LIFECYCLE-CERT/2026-03-16/proofs/proof_harness_output.json`
+- **Resolved**: 2026-03-16
+
 ---
 
 ## ACTIVE DRIFT
 
 ### HIGH DRIFT
-
-#### DRIFT-H6: Lifecycle Certification Gap — Recap NOT Operational (Scoring PARTIAL, Settlement RESOLVED)
-
-- **What**: SPRINT-062 E2E truth audit proved transport (submit→post) but could
-  not certify settlement, scoring, or recap. SPRINT-064 proved settlement.
-  SPRINT-066 exercised scoring pipeline (V2 pipeline certified with synthetic
-  data).
-- **Settlement status**: **PARTIALLY RESOLVED** by SPRINT-064. lifecycleSettle()
-  runtime-proven. SettlementAgent automatic trigger not tested (requires
-  game_results from external API). manual_settle_pick() RPC broken (DEFECT-11).
-- **Scoring status**: **PARTIALLY RESOLVED** by SPRINT-066. computeScoreV2 +
-  evaluatePromotion exercised. CONSTITUTIONAL Gate 7 defect fixed
-  (featureSnapshotId
-  - featureVectorHash now generated). All 8 promotion gates proven satisfiable.
-    Remaining: live provider_offers round-trip not tested; SCORING_ENGINE_V2 not
-    wired in production agents.
-- **Remaining**: Full E2E path (submit→score→post→settle→recap) never traversed.
-  RecapAgent schema corrected by SPRINT-067 (play_status→status,
-  outcome→settlement_result). Runtime certification pending.
-- **Where**: Full lifecycle path not yet exercised end-to-end
-- **Evidence**: `docs/status/LIFECYCLE_PROOF_MATRIX.md`,
-  `out/sprints/SPRINT-067-RECAP-SCHEMA-FIX/2026-03-16/SPRINT_CLOSEOUT_REPORT.md`
-- **Impact**: Cannot claim full lifecycle certification until full E2E path is
-  traversed with runtime traces at every stage.
-- **Severity**: **HIGH**
-- **Owner**: SPRINT-068-E2E-LIFECYCLE-CERT
-- **Added**: SPRINT-063, 2026-03-16 | **Updated**: SPRINT-067, 2026-03-16
 
 #### DRIFT-H7: Embed Contract Defects — 5 Discord Output Issues
 
@@ -224,23 +209,21 @@ Compared**: Blueprint docs, repo implementation, Linear issues, roadmap, runtime
 
 ## DRIFT SUMMARY
 
-| Severity            | Count | Key Theme                                                               |
-| ------------------- | ----- | ----------------------------------------------------------------------- |
-| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                       |
-| HIGH                | **2** | DRIFT-H6: lifecycle certification gap; DRIFT-H7: embed defects          |
-| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                                  |
-| LOW                 | 2     | Cycle overlap, deprecated references                                    |
-| **ACTIVE TOTAL**    | **7** |                                                                         |
-| **Resolved/Closed** | 13    | C1, C2, C3, H1, H2, H3, H4, H5, M-CONSENSUS, M3, M5, L2, L4 (false +ve) |
+| Severity            | Count | Key Theme                                                                   |
+| ------------------- | ----- | --------------------------------------------------------------------------- |
+| CRITICAL            | **0** | ~~All 3 CRITICAL items resolved~~                                           |
+| HIGH                | **1** | DRIFT-H7: embed defects                                                     |
+| MEDIUM              | 3     | Roadmap mismatch, doc bloat, ownership                                      |
+| LOW                 | 2     | Cycle overlap, deprecated references                                        |
+| **ACTIVE TOTAL**    | **6** |                                                                             |
+| **Resolved/Closed** | 14    | C1, C2, C3, H1, H2, H3, H4, H5, H6, M-CONSENSUS, M3, M5, L2, L4 (false +ve) |
 
-**Drift Trend**: IMPROVING — 0 CRITICAL, **2 HIGH** as of 2026-03-16. SPRINT-067
-resolved recap schema portion of DRIFT-H6 (RecapAgent column refs corrected,
-R10: FAIL→PARTIAL). Sole remaining FAIL: R13 (full E2E). One sprint remaining to
-close DRIFT-H6.
+**Drift Trend**: IMPROVING — 0 CRITICAL, **1 HIGH** as of 2026-03-16. SPRINT-068
+resolved DRIFT-H6: full lifecycle E2E path certified (R13: FAIL→CERTIFIED, Layer
+1: 4P/9P/0F). DRIFT-H6 fully closed.
 
 **Top 3 Active Actions**:
 
-1. **Full E2E lifecycle certification** (DRIFT-H6) —
-   SPRINT-068-E2E-LIFECYCLE-CERT
-2. **Embed contract defects** (DRIFT-H7) — SPRINT-070-EMBED-CONTRACT-FIX
-3. **Settlement RPC repair** (quality) — SPRINT-069-SETTLEMENT-RPC-REPAIR
+1. **Embed contract defects** (DRIFT-H7) — SPRINT-070-EMBED-CONTRACT-FIX
+2. **Settlement RPC repair** (quality) — SPRINT-069-SETTLEMENT-RPC-REPAIR
+3. **Roadmap sprint order mismatch** (DRIFT-M1) — future status-sync sprint
