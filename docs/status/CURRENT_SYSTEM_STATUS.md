@@ -1,6 +1,13 @@
 # Current System Status
 
 **Last Updated**: 2026-03-17 **Audit Source**:
+SPRINT-078-LAYER3-PHASE10-CC-LIFECYCLE-MONITOR (/dashboard/lifecycle page: stage
+distribution cards (SUBMITTED/QUEUED/POSTED/SETTLING/SETTLED/BLOCKED/FAILED),
+stuck picks table, all-picks table with stage filter, timeline drawer (per-pick
+event history); Lifecycle nav entry (Workflow icon, Operations section);
+sidebar.tsx updated; 8 new vitest tests covering 401/200/404/503 contracts for
+both lifecycle API routes; CC: 171/171; lifecycle gate: 0 violations;
+type-check: 0 errors; PR #290, UNI-110 Done, 2026-03-17) **Prior Audit Source**:
 SPRINT-077-LAYER3-PHASE10-CC-AUTH-GATE-WAVE2 (requireOperatorIdentity wave-2
 gate: 27 route files / 36 handlers gated — redis, services, sync,
 system/metrics, system, temporal/health, temporal/workflows, ccc/actions,
@@ -9,26 +16,27 @@ llm/models, llm/requests, llm/test, monitoring/rollout-status, ops/cappers,
 ops/credit-usage, ops/picks/[id]/[action], ops/quarantine-metrics,
 ops-confidence, ops-recap, pipeline/promo-backlog, pipeline/recent-promotions;
 36 new wave-2 auth-gate vitest tests; CC: 163/163; lifecycle gate: 0 violations;
-type-check: 0 errors; PR #287, UNI-109 Done, 2026-03-17) **Prior Audit Source**:
-SPRINT-076-LAYER3-PHASE10-CC-AUTH-GATE-HARDENING (requireOperatorIdentity gate
-added to all 20 CC API route groups missing auth — admin/freeze, safe-mode,
-remediation, autopilot (+actions/intelligence/policy), agents (+health/status),
-settlement, lifecycle/picks (+timeline/stuck), risk/dashboard, risk/decisions,
-risk/status, users, security, audit; 23 new vitest auth-gate tests; CC: 127/127;
-lifecycle gate: 0 violations; type-check: 0 errors; UNI-108 Done, 2026-03-17)
-**Prior Prior Audit Source**: SPRINT-075-LAYER3-PHASE10-CC-CAPPER-DASHBOARD (GET
-/api/cappers API route aggregating mv_capper_daily_rollup + v_capper_streaks; CC
-proxy /api/capper-performance rewritten with requireOperatorIdentity (auth gap
-fixed); /dashboard/cappers sortable capper table (tier badge, ROI coloring,
-streak, window selector); Cappers nav in Analytics section; 10 new CC vitest
-tests; CC: 104/104 passing; API: 1061/1061; lifecycle gate: 0 violations;
-commits f5feaf8c + 98210127, UNI-107 Done, 2026-03-17) **Prior Prior Audit
-Source**: SPRINT-074-LAYER3-PHASE10-CC-PICK-MANAGEMENT (GET /api/picks API
-endpoint with promotion_band + professional_score; CC proxy /api/picks
-(force-dynamic, requireOperatorIdentity, query param forwarding, 503 fallback);
-Pick interface + usePicks.ts extended with promotion columns; 10 new CC vitest
-tests; CC: 94/94 passing; lifecycle gate: 0 violations; commits d5affb11 +
-7cf4bf1d, UNI-106 Done, 2026-03-17) **Prior Audit Source**:
+type-check: 0 errors; PR #287, UNI-109 Done, 2026-03-17) **Prior Prior Audit
+Source**: SPRINT-076-LAYER3-PHASE10-CC-AUTH-GATE-HARDENING
+(requireOperatorIdentity gate added to all 20 CC API route groups missing auth —
+admin/freeze, safe-mode, remediation, autopilot (+actions/intelligence/policy),
+agents (+health/status), settlement, lifecycle/picks (+timeline/stuck),
+risk/dashboard, risk/decisions, risk/status, users, security, audit; 23 new
+vitest auth-gate tests; CC: 127/127; lifecycle gate: 0 violations; type-check: 0
+errors; UNI-108 Done, 2026-03-17) **Prior Prior Audit Source**:
+SPRINT-075-LAYER3-PHASE10-CC-CAPPER-DASHBOARD (GET /api/cappers API route
+aggregating mv_capper_daily_rollup + v_capper_streaks; CC proxy
+/api/capper-performance rewritten with requireOperatorIdentity (auth gap fixed);
+/dashboard/cappers sortable capper table (tier badge, ROI coloring, streak,
+window selector); Cappers nav in Analytics section; 10 new CC vitest tests; CC:
+104/104 passing; API: 1061/1061; lifecycle gate: 0 violations; commits
+f5feaf8c + 98210127, UNI-107 Done, 2026-03-17) **Prior Prior Audit Source**:
+SPRINT-074-LAYER3-PHASE10-CC-PICK-MANAGEMENT (GET /api/picks API endpoint with
+promotion_band + professional_score; CC proxy /api/picks (force-dynamic,
+requireOperatorIdentity, query param forwarding, 503 fallback); Pick interface +
+usePicks.ts extended with promotion columns; 10 new CC vitest tests; CC: 94/94
+passing; lifecycle gate: 0 violations; commits d5affb11 + 7cf4bf1d, UNI-106
+Done, 2026-03-17) **Prior Audit Source**:
 SPRINT-073-PROMOTION-WIRING-CERTIFICATION (buildPromotionMetadata() injected
 featureSnapshotId + featureVectorHash + ProbabilityPrimitives before
 evaluatePromotion(); Gates 7+8 unblocked — valid S/A-tier picks now pass
