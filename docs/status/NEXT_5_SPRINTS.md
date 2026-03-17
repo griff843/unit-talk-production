@@ -1,7 +1,7 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-16 (SPRINT-068-E2E-LIFECYCLE-CERT) **Source**:
-SPRINT-068 E2E certification + LAYER1_EXIT_REQUIREMENTS.md + drift report
+**Last Updated**: 2026-03-16 (SPRINT-069-SETTLEMENT-RPC-REPAIR) **Source**:
+SPRINT-069 settlement RPC repair + drift report
 
 > **Layer 1 COMPLETE**: Full lifecycle E2E path certified (R13: FAIL→CERTIFIED).
 > One pick traversed SUBMIT→SCORE→PROMOTE→POST→SETTLE→RECAP. Layer 1: 4P/9P/0F.
@@ -12,27 +12,28 @@ SPRINT-068 E2E certification + LAYER1_EXIT_REQUIREMENTS.md + drift report
 
 ## Sprint Queue
 
-> **SPRINT-068-E2E-LIFECYCLE-CERT** completed 2026-03-16 (Lane 1 + 3). Full
-> Layer 1 lifecycle certified: 6/6 phases PASS. R13: FAIL→CERTIFIED. DRIFT-H6
-> RESOLVED. RecapService status query fixed. Layer 1: 4P/9P/0F. Commit:
-> 32dad3c8. Next: settlement RPC repair + embed fixes.
+> **SPRINT-069-SETTLEMENT-RPC-REPAIR** completed 2026-03-16 (Lane 1 + 3).
+> Created 7 missing DB objects for manual_settle_pick() + correct_settlement()
+> RPCs. DEFECT-10/11/12 resolved. TypeScript types updated. 1025/1025 vitest.
+> Commit: 0345bafb. UNI-101 Done. SPRINT-072 removed (DEFECT-10/12 now
+> resolved).
 
 | #   | Sprint                            | Priority | Phase | Focus                                                                             | Blocked By |
 | --- | --------------------------------- | -------- | ----- | --------------------------------------------------------------------------------- | ---------- |
-| 1   | SPRINT-069-SETTLEMENT-RPC-REPAIR  | P1       | L2    | Fix manual_settle_pick RPC (7 missing DB objs) + attach guard trigger             | None       |
-| 2   | SPRINT-070-EMBED-CONTRACT-FIX     | P2       | L3    | Fix 5 embed defects (build:unknown, enum leak)                                    | None       |
-| 3   | SPRINT-071-SCORING-ENGINE-V2-WIRE | P1       | L1    | Set SCORING_ENGINE_V2 env in production agents; full live-data scoring round-trip | None       |
-| 4   | SPRINT-072-SETTLEMENT-GUARD-FIX   | P1       | L1    | Attach settlement guard trigger; add settlement_frozen column (DEFECT-10/12)      | None       |
-| 5   | SPRINT-073-LAYER3-PHASE12-NEXT    | P2       | L3    | Next Layer 3 / Phase 12 deliverable (TBD from sprint-plan)                        | None       |
+| 1   | SPRINT-070-EMBED-CONTRACT-FIX     | P2       | L3    | Fix 5 embed defects (build:unknown, enum leak)                                    | None       |
+| 2   | SPRINT-071-SCORING-ENGINE-V2-WIRE | P1       | L1    | Set SCORING_ENGINE_V2 env in production agents; full live-data scoring round-trip | None       |
+| 3   | SPRINT-073-LAYER3-PHASE12-NEXT    | P2       | L3    | Next Layer 3 / Phase 12 deliverable (TBD from sprint-plan)                        | None       |
+| 4   | SPRINT-074-TBD                    | P3       | TBD   | TBD from sprint-plan                                                              | None       |
+| 5   | SPRINT-075-TBD                    | P3       | TBD   | TBD from sprint-plan                                                              | None       |
 
 **Dependency chain**: **Layer 1 is COMPLETE.** Full E2E certified (SPRINT-068).
-Sprint 1 (settlement RPC) fixes the manual_settle_pick RPC quality gap. Sprint 2
-(embed fix) is Layer 3 polish. Sprint 3 (live scoring wire) connects the scoring
-chain to production agents. **LIFECYCLE CERTIFICATION**: Full lifecycle
+Settlement RPC repair COMPLETE (SPRINT-069). Sprint 1 (embed fix) is Layer 3
+polish. Sprint 2 (live scoring wire) connects the scoring chain to production
+agents. **LIFECYCLE CERTIFICATION**: Full lifecycle
 (submit→score→promote→post→settle→recap) CERTIFIED (SPRINT-068). Settlement PASS
-(harness-bounded). Scoring PARTIAL (synthetic data, live-data wire pending
-SPRINT-071). Recap PARTIAL (schema+query fixed, not exercised via Temporal
-scheduling).
+(harness-bounded; RPC objects now in place). Scoring PARTIAL (synthetic data,
+live-data wire pending SPRINT-071). Recap PARTIAL (schema+query fixed, not
+exercised via Temporal scheduling).
 
 ---
 
@@ -83,5 +84,6 @@ scheduling).
 | 066-SCORING-CERTIFICATION          | 2026-03-16 | —    | UNI-98    | L1/Ph 2     |
 | 067-RECAP-SCHEMA-FIX               | 2026-03-16 | —    | UNI-99    | L1/Ph 1     |
 | 068-E2E-LIFECYCLE-CERT             | 2026-03-16 | —    | UNI-100   | L1 Exit     |
+| 069-SETTLEMENT-RPC-REPAIR          | 2026-03-16 | #275 | UNI-101   | Schema/L2   |
 
 </details>

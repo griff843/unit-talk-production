@@ -225,5 +225,6 @@ resolved DRIFT-H6: full lifecycle E2E path certified (R13: FAIL→CERTIFIED, Lay
 **Top 3 Active Actions**:
 
 1. **Embed contract defects** (DRIFT-H7) — SPRINT-070-EMBED-CONTRACT-FIX
-2. **Settlement RPC repair** (quality) — SPRINT-069-SETTLEMENT-RPC-REPAIR
-3. **Roadmap sprint order mismatch** (DRIFT-M1) — future status-sync sprint
+2. **Roadmap sprint order mismatch** (DRIFT-M1) — future status-sync sprint
+3. **Live scoring wire** — SPRINT-071-SCORING-ENGINE-V2-WIRE (SCORING_ENGINE_V2
+   env not set in production agents)
