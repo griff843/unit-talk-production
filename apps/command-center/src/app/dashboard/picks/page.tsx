@@ -46,6 +46,12 @@ export default function PicksHQPage() {
         onApprove={page.handleApprove}
         onReject={page.handleReject}
         onShowDetails={page.show}
+        selectedIds={page.selectedIds}
+        onToggleSelect={page.toggleSelect}
+        onSelectAll={page.selectAll}
+        onClearSelection={page.clearSelection}
+        onBatchAction={page.handleBatchAction}
+        batchLoading={page.batchLoading}
       />
       <PickDetailsModal
         pick={page.selectedPick}

@@ -3,9 +3,10 @@
  * Sprint: SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE
  * Layer/Phase: Layer 2 / Phase 6 — Operator Control Plane
  *
- * GET  /ops/autopilot          → current AutopilotGuard status
- * PUT  /ops/autopilot          → set mode at runtime + persist to DB
- * POST /ops/picks/:id/override → manual pick override via operator_override lifecycle role
+ * GET  /ops/autopilot               → current AutopilotGuard status
+ * PUT  /ops/autopilot               → set mode at runtime + persist to DB
+ * POST /ops/picks/batch-action      → bulk override multiple picks (SPRINT-082)
+ * POST /ops/picks/:id/override      → manual pick override via operator_override lifecycle role
  *
  * Auth: operatorAuth (JWT in production, system operator in dev, E2E bypass in test)
  */
@@ -128,6 +129,115 @@ router.put('/autopilot', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to update autopilot mode',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+const VALID_BATCH_ACTIONS = ['promote', 'reject', 'requeue'] as const;
+type BatchAction = (typeof VALID_BATCH_ACTIONS)[number];
+const MAX_BATCH_SIZE = 100;
+
+/**
+ * POST /ops/picks/batch-action
+ * Bulk override multiple picks via operator_override lifecycle role.
+ * SPRINT-082-LAYER3-PHASE11-CC-BATCH-PICK-OPERATIONS
+ *
+ * Body: { pickIds: string[], action: 'promote' | 'reject' | 'requeue', reason?: string }
+ * Returns: { succeeded: string[], failed: { id: string, error: string }[] }
+ *
+ * - 'promote': sets promotion_status='queued'
+ * - 'reject':  sets promotion_status='failed'
+ * - 'requeue': sets promotion_status='queued' (re-enqueue from failed state)
+ */
+router.post('/picks/batch-action', async (req, res) => {
+  const { pickIds, action, reason } = req.body as {
+    pickIds?: unknown;
+    action?: unknown;
+    reason?: unknown;
+  };
+
+  try {
+    if (!Array.isArray(pickIds) || pickIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'pickIds must be a non-empty array',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (pickIds.length > MAX_BATCH_SIZE) {
+      return res.status(400).json({
+        success: false,
+        error: `Batch size exceeds maximum of ${MAX_BATCH_SIZE}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!VALID_BATCH_ACTIONS.includes(action as BatchAction)) {
+      return res.status(400).json({
+        success: false,
+        error: `action must be one of: ${VALID_BATCH_ACTIONS.join(', ')}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const validAction = action as BatchAction;
+    const validatedReason = typeof reason === 'string' ? reason.trim() : '';
+
+    const updates: Record<string, unknown> =
+      validAction === 'reject'
+        ? { promotion_status: 'failed', risk_decision: 'operator_override_reject' }
+        : {
+            promotion_status: 'queued',
+            risk_decision:
+              validAction === 'requeue' ? 'operator_override_requeue' : 'operator_override_promote',
+          };
+
+    const succeeded: string[] = [];
+    const failed: { id: string; error: string }[] = [];
+
+    await Promise.all(
+      pickIds.map(async (rawId: unknown) => {
+        const pickId = String(rawId);
+        try {
+          const result = await lifecycleUpdate(supabase, pickId, updates, {
+            writerRole: 'operator_override',
+          });
+          if (result.success) {
+            succeeded.push(pickId);
+          } else {
+            failed.push({ id: pickId, error: result.error ?? 'Lifecycle update failed' });
+          }
+        } catch (err) {
+          failed.push({
+            id: pickId,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          });
+        }
+      })
+    );
+
+    logger.info('Batch pick action applied via operator control', {
+      action: validAction,
+      reason: validatedReason,
+      total: pickIds.length,
+      succeeded: succeeded.length,
+      failed: failed.length,
+    });
+
+    res.json({
+      success: true,
+      data: { succeeded, failed },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Failed to apply batch pick action', {
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to apply batch pick action',
       timestamp: new Date().toISOString(),
     });
   }
