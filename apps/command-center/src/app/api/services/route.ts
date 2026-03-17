@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+import { requireOperatorIdentity } from '@/lib/auth';
 import { dockerServiceMonitor } from '@/lib/dockerServiceMonitor';
 import { systemMetrics } from '@/lib/systemMetrics';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/services
  * Get current service health and metrics
  */
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const includeSystem = searchParams.get('system') === 'true';
@@ -76,6 +84,10 @@ export async function GET(request: NextRequest) {
  * Control service actions (start, stop, restart)
  */
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { service, action } = body;

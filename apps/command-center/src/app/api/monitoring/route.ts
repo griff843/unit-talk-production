@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { apiHealthMonitor } from '../../../lib/apiHealthMonitoring';
 import { dataIngestionMonitor } from '../../../lib/dataIngestionMonitor';
 
+import { requireOperatorIdentity } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'all';
 
     console.log(`🔍 Monitoring check requested: ${type}`);
 
-    let result: any = {
+    const result: any = {
       timestamp: new Date().toISOString(),
       monitoring_active: true,
     };
@@ -67,7 +76,7 @@ export async function GET(request: NextRequest) {
     // Overall system health assessment
     if (type === 'all') {
       let overallStatus = 'healthy';
-      let criticalIssues: string[] = [];
+      const criticalIssues: string[] = [];
 
       if (result.api_health?.critical_alerts?.length > 0) {
         overallStatus = 'critical';
@@ -131,6 +140,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const identity = requireOperatorIdentity(request);
+  if (!identity) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { action, type } = await request.json();
 
