@@ -1,15 +1,21 @@
 # Current System Status
 
 **Last Updated**: 2026-03-17 **Audit Source**:
+SPRINT-079-LAYER3-PHASE10-CC-SETTLEMENT-CONSOLE (11 vitest tests for GET+POST
+/api/settlement: 401 auth, 200 empty picks, 200 with picks+count, 503 db
+unavailable, sport filter, 400 missing pick_id, 400 invalid result, 422 RPC
+reject, 200 RPC success, 503 POST db unavailable; makeChain() fluent Supabase
+mock helper; CC: 174/174; cc:no-mocks: PASSED; lifecycle gate: 0 violations;
+type-check: 0 errors; PR #293, UNI-111 Done, 2026-03-17) **Prior Audit Source**:
 SPRINT-078-LAYER3-PHASE10-CC-LIFECYCLE-MONITOR (/dashboard/lifecycle page: stage
 distribution cards (SUBMITTED/QUEUED/POSTED/SETTLING/SETTLED/BLOCKED/FAILED),
 stuck picks table, all-picks table with stage filter, timeline drawer (per-pick
 event history); Lifecycle nav entry (Workflow icon, Operations section);
 sidebar.tsx updated; 8 new vitest tests covering 401/200/404/503 contracts for
 both lifecycle API routes; CC: 171/171; lifecycle gate: 0 violations;
-type-check: 0 errors; PR #290, UNI-110 Done, 2026-03-17) **Prior Audit Source**:
-SPRINT-077-LAYER3-PHASE10-CC-AUTH-GATE-WAVE2 (requireOperatorIdentity wave-2
-gate: 27 route files / 36 handlers gated — redis, services, sync,
+type-check: 0 errors; PR #290, UNI-110 Done, 2026-03-17) **Prior Prior Audit
+Source**: SPRINT-077-LAYER3-PHASE10-CC-AUTH-GATE-WAVE2 (requireOperatorIdentity
+wave-2 gate: 27 route files / 36 handlers gated — redis, services, sync,
 system/metrics, system, temporal/health, temporal/workflows, ccc/actions,
 ccc/plays, monitoring, operations, analytics, grading/agents, grading/picks,
 llm/models, llm/requests, llm/test, monitoring/rollout-status, ops/cappers,
