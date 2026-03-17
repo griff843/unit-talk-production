@@ -1,14 +1,18 @@
 # Current System Status
 
-**Last Updated**: 2026-03-16 **Audit Source**:
-SPRINT-061-LAYER3-PHASE10-CC-ALERT-DASHBOARD (GET /ops/alerts API route; CC
-proxy /api/alerts (force-dynamic, requireOperatorIdentity, 503 fallback);
-/dashboard/alerts page — grouped by severity critical→warning→info, empty state;
-Bell nav entry (Monitoring section); supabase.ts DEMO_MODE gate fix (unblocks
-all CC PRs); 5 new API vitest + 6 new CC vitest; API: 1000/1000 passing; CC:
-84/84 passing; build PASS; PR #265, UNI-96 Done, 2026-03-16) **Prior Audit
-Source**: SPRINT-060-LAYER3-PHASE11-CC-WORKFLOW-MANAGEMENT (Workflow Registry
-dashboard: GET /api/ops/workflows CC proxy route; /dashboard/workflows page —
+**Last Updated**: 2026-03-16 **Audit Source**: SPRINT-072-SCORING-CERTIFICATION
+(41 vitest + 23-point harness certify
+computeScoreV2/canonicalTier/evaluatePromotion; CONSTITUTIONAL gates 7+8
+verified fail-closed; 1041/1041 vitest; PR #280, UNI-104 Done, 2026-03-16)
+**Prior Audit Source**: SPRINT-061-LAYER3-PHASE10-CC-ALERT-DASHBOARD (GET
+/ops/alerts API route; CC proxy /api/alerts (force-dynamic,
+requireOperatorIdentity, 503 fallback); /dashboard/alerts page — grouped by
+severity critical→warning→info, empty state; Bell nav entry (Monitoring
+section); supabase.ts DEMO_MODE gate fix (unblocks all CC PRs); 5 new API
+vitest + 6 new CC vitest; API: 1000/1000 passing; CC: 84/84 passing; build PASS;
+PR #265, UNI-96 Done, 2026-03-16) **Prior Audit Source**:
+SPRINT-060-LAYER3-PHASE11-CC-WORKFLOW-MANAGEMENT (Workflow Registry dashboard:
+GET /api/ops/workflows CC proxy route; /dashboard/workflows page —
 WorkflowRegistry 18 entries/6 categories grouped by category with risk badges +
 invocation snippets; Workflows nav entry (GitBranch); 5 new vitest tests; CC:
 78/78 passing; build PASS; PR #262, UNI-95 Done, 2026-03-16) **Prior Audit
