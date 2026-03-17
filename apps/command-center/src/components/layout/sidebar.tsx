@@ -57,6 +57,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'Grading HQ', href: '/dashboard/grading', icon: Timer },
       { name: 'Replay', href: '/dashboard/replay', icon: RefreshCw },
       { name: 'Workflows', href: '/dashboard/workflows', icon: GitBranch },
+      { name: 'Recaps', href: '/dashboard/recaps', icon: FileText },
     ],
   },
   {
