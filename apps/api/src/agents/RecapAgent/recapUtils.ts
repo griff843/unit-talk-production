@@ -176,7 +176,10 @@ export function calculateStreak(picks: any[]): { type: 'win' | 'loss' | 'none'; 
 
   // Sort by most recent first
   const sortedPicks = picks
-    .filter(p => p.outcome && p.outcome !== 'push' && p.outcome !== 'pending')
+    .filter(
+      p =>
+        p.settlement_result && p.settlement_result !== 'push' && p.settlement_result !== 'pending'
+    )
     .sort(
       (a, b) =>
         new Date(b.settled_at || b.created_at).getTime() -
@@ -187,12 +190,12 @@ export function calculateStreak(picks: any[]): { type: 'win' | 'loss' | 'none'; 
     return { type: 'none', length: 0 };
   }
 
-  const latestOutcome = sortedPicks[0].outcome;
+  const latestOutcome = sortedPicks[0].settlement_result;
   let streakLength = 1;
 
   // Count consecutive outcomes of the same type
   for (let i = 1; i < sortedPicks.length; i++) {
-    if (sortedPicks[i].outcome === latestOutcome) {
+    if (sortedPicks[i].settlement_result === latestOutcome) {
       streakLength++;
     } else {
       break;

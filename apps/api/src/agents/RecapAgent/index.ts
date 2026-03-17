@@ -244,7 +244,7 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
       const { data: livePicks, error: liveError } = await supabase
         .from('unified_picks')
         .select('*')
-        .eq('play_status', 'pending')
+        .eq('status', 'pending')
         .eq('source', 'smart_form_bridge')
         .is('message_id', null) // Not yet posted to Discord
         .lte('created_at', toISOString(new Date()));

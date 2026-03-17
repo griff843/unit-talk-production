@@ -95,8 +95,8 @@ export class RecapService {
         .select('*')
         .gte('created_at', `${date}T00:00:00Z`)
         .lt('created_at', `${date}T23:59:59Z`)
-        .in('play_status', ['settled', 'graded'])
-        .not('outcome', 'is', null);
+        .in('status', ['won', 'lost', 'push', 'void', 'settled', 'graded'])
+        .not('settlement_result', 'is', null);
 
       if (error) {
         throw error;
@@ -142,8 +142,8 @@ export class RecapService {
         .select('*')
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDate}T23:59:59Z`)
-        .in('play_status', ['settled', 'graded'])
-        .not('outcome', 'is', null);
+        .in('status', ['won', 'lost', 'push', 'void', 'settled', 'graded'])
+        .not('settlement_result', 'is', null);
 
       if (error) {
         throw error;
@@ -174,8 +174,8 @@ export class RecapService {
         .select('*')
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDate}T23:59:59Z`)
-        .in('play_status', ['settled', 'graded'])
-        .not('outcome', 'is', null);
+        .in('status', ['won', 'lost', 'push', 'void', 'settled', 'graded'])
+        .not('settlement_result', 'is', null);
 
       if (error) {
         throw error;
@@ -207,9 +207,9 @@ export class RecapService {
     const picks: UnifiedPick[] = rawPicks.map(this.mapRawPickToUnifiedPick);
 
     // Calculate basic stats
-    const wins = picks.filter(p => p.outcome === 'win').length;
-    const losses = picks.filter(p => p.outcome === 'loss').length;
-    const pushes = picks.filter(p => p.outcome === 'push').length;
+    const wins = picks.filter(p => p.settlement_result === 'win').length;
+    const losses = picks.filter(p => p.settlement_result === 'loss').length;
+    const pushes = picks.filter(p => p.settlement_result === 'push').length;
     const totalPicks = picks.length;
     const winRate = totalPicks > 0 ? (wins / (wins + losses)) * 100 : 0;
 
@@ -278,9 +278,9 @@ export class RecapService {
     const capperStats: CapperStats[] = [];
 
     for (const [capper, capperPicks] of Array.from(capperMap.entries())) {
-      const wins = capperPicks.filter(p => p.outcome === 'win').length;
-      const losses = capperPicks.filter(p => p.outcome === 'loss').length;
-      const pushes = capperPicks.filter(p => p.outcome === 'push').length;
+      const wins = capperPicks.filter(p => p.settlement_result === 'win').length;
+      const losses = capperPicks.filter(p => p.settlement_result === 'loss').length;
+      const pushes = capperPicks.filter(p => p.settlement_result === 'push').length;
       const totalUnits = capperPicks.reduce((sum, pick) => sum + (pick.units || 1), 0);
       const netUnits = capperPicks.reduce((sum, pick) => {
         const profitLoss = typeof pick['profit_loss'] === 'number' ? pick['profit_loss'] : 0;
@@ -343,9 +343,9 @@ export class RecapService {
     const tierStats: TierStats[] = [];
 
     for (const [tier, tierPicks] of Array.from(tierMap.entries())) {
-      const wins = tierPicks.filter(p => p.outcome === 'win').length;
-      const losses = tierPicks.filter(p => p.outcome === 'loss').length;
-      const pushes = tierPicks.filter(p => p.outcome === 'push').length;
+      const wins = tierPicks.filter(p => p.settlement_result === 'win').length;
+      const losses = tierPicks.filter(p => p.settlement_result === 'loss').length;
+      const pushes = tierPicks.filter(p => p.settlement_result === 'push').length;
       const totalUnits = tierPicks.reduce((sum, pick) => sum + (pick.units || 1), 0);
       const netUnits = tierPicks.reduce((sum, pick) => {
         const profitLoss = typeof pick['profit_loss'] === 'number' ? pick['profit_loss'] : 0;
@@ -418,7 +418,7 @@ export class RecapService {
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDateStr}T23:59:59Z`)
         .not('parlay_id', 'is', null)
-        .in('play_status', ['settled', 'graded']);
+        .in('status', ['settled', 'graded']);
 
       if (error) {
         throw error;
@@ -559,7 +559,7 @@ export class RecapService {
       }
 
       // Check if all picks are grading_status
-      const pendingPicks = picks.filter(p => p.play_status === 'pending' || !p.outcome);
+      const pendingPicks = picks.filter(p => p.status === 'pending' || !p.settlement_result);
 
       if (pendingPicks.length === 0) {
         // All picks grading_status, trigger micro-recap
@@ -624,8 +624,8 @@ export class RecapService {
       tags: raw.tags,
       created_at: raw.created_at,
       updated_at: raw.updated_at,
-      play_status: raw.play_status,
-      outcome: raw.outcome,
+      status: raw.status,
+      settlement_result: raw.settlement_result,
       units: raw.units || this.calculateUnits(raw.tier, raw.edge_score),
       profit_loss: raw.profit_loss,
       capper: raw.capper || this.extractCapper(raw.tags || []),
@@ -727,7 +727,10 @@ export class RecapService {
     }
 
     const sortedPicks = picks
-      .filter(p => p.outcome && p.outcome !== 'push' && p.outcome !== 'pending')
+      .filter(
+        p =>
+          p.settlement_result && p.settlement_result !== 'push' && p.settlement_result !== 'pending'
+      )
       .sort((a, b) => {
         const aDate =
           typeof a['settled_at'] === 'string'
@@ -748,11 +751,11 @@ export class RecapService {
       return { type: 'none', length: 0 };
     }
 
-    const latestOutcome = sortedPicks[0]!.outcome;
+    const latestOutcome = sortedPicks[0]!.settlement_result;
     let streakLength = 1;
 
     for (let i = 1; i < sortedPicks.length; i++) {
-      if (sortedPicks[i]!.outcome === latestOutcome) {
+      if (sortedPicks[i]!.settlement_result === latestOutcome) {
         streakLength++;
       } else {
         break;
@@ -767,7 +770,7 @@ export class RecapService {
 
   private getStreakPicks(picks: UnifiedPick[], streakType: 'win' | 'loss'): UnifiedPick[] {
     const sortedPicks = picks
-      .filter(p => p.outcome === streakType)
+      .filter(p => p.settlement_result === streakType)
       .sort((a, b) => {
         const aDate =
           typeof a['settled_at'] === 'string'
@@ -786,7 +789,7 @@ export class RecapService {
 
     const streakPicks: UnifiedPick[] = [];
     for (const pick of sortedPicks) {
-      if (pick.outcome === streakType) {
+      if (pick.settlement_result === streakType) {
         streakPicks.push(pick);
       } else {
         break;
@@ -798,7 +801,7 @@ export class RecapService {
 
   private generateStreakSparkline(picks: UnifiedPick[]): string {
     const recentPicks = picks
-      .filter(p => p.outcome && p.outcome !== 'push')
+      .filter(p => p.settlement_result && p.settlement_result !== 'push')
       .sort((a, b) => {
         const aDate =
           typeof a['settled_at'] === 'string'
@@ -818,7 +821,7 @@ export class RecapService {
 
     return recentPicks
       .map(pick => {
-        switch (pick.outcome) {
+        switch (pick.settlement_result) {
           case 'win':
             return '▲';
           case 'loss':
@@ -832,7 +835,7 @@ export class RecapService {
 
   private findBestPick(picks: UnifiedPick[]): UnifiedPick | undefined {
     return picks
-      .filter(p => p.outcome === 'win')
+      .filter(p => p.settlement_result === 'win')
       .sort((a, b) => {
         const aProfitLoss = typeof a['profit_loss'] === 'number' ? a['profit_loss'] : 0;
         const bProfitLoss = typeof b['profit_loss'] === 'number' ? b['profit_loss'] : 0;
@@ -842,7 +845,7 @@ export class RecapService {
 
   private findWorstPick(picks: UnifiedPick[]): UnifiedPick | undefined {
     return picks
-      .filter(p => p.outcome === 'loss')
+      .filter(p => p.settlement_result === 'loss')
       .sort((a, b) => {
         const aProfitLoss = typeof a['profit_loss'] === 'number' ? a['profit_loss'] : 0;
         const bProfitLoss = typeof b['profit_loss'] === 'number' ? b['profit_loss'] : 0;
@@ -852,7 +855,7 @@ export class RecapService {
 
   private findBiggestWin(picks: UnifiedPick[]): UnifiedPick | undefined {
     return picks
-      .filter(p => p.outcome === 'win')
+      .filter(p => p.settlement_result === 'win')
       .sort((a, b) => {
         const aProfitLoss = typeof a['profit_loss'] === 'number' ? a['profit_loss'] : 0;
         const bProfitLoss = typeof b['profit_loss'] === 'number' ? b['profit_loss'] : 0;
@@ -863,7 +866,7 @@ export class RecapService {
   private findBadBeat(picks: UnifiedPick[]): UnifiedPick | undefined {
     // Find high edge loss
     return picks
-      .filter(p => p.outcome === 'loss' && (p.edge_score || 0) > 15)
+      .filter(p => p.settlement_result === 'loss' && (p.edge_score || 0) > 15)
       .sort((a, b) => (b.edge_score || 0) - (a.edge_score || 0))[0];
   }
 
@@ -875,14 +878,14 @@ export class RecapService {
   }
 
   private determineParlayOutcome(picks: UnifiedPick[]): 'win' | 'loss' | 'push' | 'pending' {
-    if (picks.some(p => p.outcome === 'pending')) {
+    if (picks.some(p => p.settlement_result === 'pending')) {
       return 'pending';
     }
-    if (picks.some(p => p.outcome === 'loss')) {
+    if (picks.some(p => p.settlement_result === 'loss')) {
       return 'loss';
     }
-    if (picks.every(p => p.outcome === 'win' || p.outcome === 'push')) {
-      return picks.some(p => p.outcome === 'push') ? 'push' : 'win';
+    if (picks.every(p => p.settlement_result === 'win' || p.settlement_result === 'push')) {
+      return picks.some(p => p.settlement_result === 'push') ? 'push' : 'win';
     }
     return 'loss';
   }
