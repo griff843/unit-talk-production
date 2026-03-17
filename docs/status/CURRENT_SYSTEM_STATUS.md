@@ -1,13 +1,22 @@
 # Current System Status
 
 **Last Updated**: 2026-03-17 **Audit Source**:
+SPRINT-077-LAYER3-PHASE10-CC-AUTH-GATE-WAVE2 (requireOperatorIdentity wave-2
+gate: 27 route files / 36 handlers gated — redis, services, sync,
+system/metrics, system, temporal/health, temporal/workflows, ccc/actions,
+ccc/plays, monitoring, operations, analytics, grading/agents, grading/picks,
+llm/models, llm/requests, llm/test, monitoring/rollout-status, ops/cappers,
+ops/credit-usage, ops/picks/[id]/[action], ops/quarantine-metrics,
+ops-confidence, ops-recap, pipeline/promo-backlog, pipeline/recent-promotions;
+36 new wave-2 auth-gate vitest tests; CC: 163/163; lifecycle gate: 0 violations;
+type-check: 0 errors; PR #287, UNI-109 Done, 2026-03-17) **Prior Audit Source**:
 SPRINT-076-LAYER3-PHASE10-CC-AUTH-GATE-HARDENING (requireOperatorIdentity gate
 added to all 20 CC API route groups missing auth — admin/freeze, safe-mode,
 remediation, autopilot (+actions/intelligence/policy), agents (+health/status),
 settlement, lifecycle/picks (+timeline/stuck), risk/dashboard, risk/decisions,
 risk/status, users, security, audit; 23 new vitest auth-gate tests; CC: 127/127;
 lifecycle gate: 0 violations; type-check: 0 errors; UNI-108 Done, 2026-03-17)
-**Prior Audit Source**: SPRINT-075-LAYER3-PHASE10-CC-CAPPER-DASHBOARD (GET
+**Prior Prior Audit Source**: SPRINT-075-LAYER3-PHASE10-CC-CAPPER-DASHBOARD (GET
 /api/cappers API route aggregating mv_capper_daily_rollup + v_capper_streaks; CC
 proxy /api/capper-performance rewritten with requireOperatorIdentity (auth gap
 fixed); /dashboard/cappers sortable capper table (tier badge, ROI coloring,

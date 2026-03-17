@@ -1,6 +1,6 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-17 (SPRINT-076-LAYER3-PHASE10-CC-AUTH-GATE-HARDENING)
+**Last Updated**: 2026-03-17 (SPRINT-077-LAYER3-PHASE10-CC-AUTH-GATE-WAVE2)
 **Source**: Phase status + drift report + Layer 3 scoping analysis + Claude OS
 backlog + codebase investigation
 
@@ -31,7 +31,7 @@ SPRINT-054 Replay Endpoint — all done).
 ## Completed Sprint History
 
 <details>
-<summary>38 sprints completed (2026-03-10 through 2026-03-17) — click to expand</summary>
+<summary>39 sprints completed (2026-03-10 through 2026-03-17) — click to expand</summary>
 
 | Sprint                             | Date       | PR   | Linear    | Layer/Phase |
 | ---------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -73,5 +73,6 @@ SPRINT-054 Replay Endpoint — all done).
 | 074-LAYER3-PHASE10-CC-PICK-MGMT    | 2026-03-17 | —    | UNI-106   | L3/Ph 10    |
 | 075-LAYER3-PHASE10-CC-CAPPER-DASH  | 2026-03-17 | —    | UNI-107   | L3/Ph 10    |
 | 076-LAYER3-PHASE10-CC-AUTH-GATE    | 2026-03-17 | #280 | UNI-108   | L3/Ph 10    |
+| 077-LAYER3-PHASE10-CC-AUTH-GATE-W2 | 2026-03-17 | #287 | UNI-109   | L3/Ph 10    |
 
 </details>
