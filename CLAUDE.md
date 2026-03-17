@@ -303,7 +303,10 @@ pnpm mcp:supabase     # Supabase schema introspection
 
 Claude must follow the sprint order defined in:
 
-`docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md`
+`docs/status/NEXT_5_SPRINTS.md`
+
+`docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md` is historical record only
+for completed sprints 031–041 and is not a runtime queue authority.
 
 Before beginning any new sprint, run:
 

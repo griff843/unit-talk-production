@@ -34,7 +34,7 @@ function log(message, color = 'reset') {
 }
 
 /**
- * Find the most recent baseline
+ * Find the most recent complete baseline.
  */
 function findLatestBaseline() {
   if (!existsSync(BASELINE_DIR)) {
@@ -50,27 +50,33 @@ function findLatestBaseline() {
     }))
     .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
 
-  if (dirs.length === 0) {
-    return null;
+  for (const dir of dirs) {
+    const baselinePath = path.join(dir.path, 'baseline.json');
+
+    if (!existsSync(baselinePath)) {
+      continue;
+    }
+
+    try {
+      const content = JSON.parse(readFileSync(baselinePath, 'utf8'));
+      const timestamp = content.timestamp;
+      const parsedTimestamp = new Date(timestamp).getTime();
+
+      if (!timestamp || Number.isNaN(parsedTimestamp)) {
+        continue;
+      }
+
+      return {
+        path: dir.path,
+        timestamp,
+        data: content,
+      };
+    } catch {
+      continue;
+    }
   }
 
-  const latest = dirs[0];
-  const baselinePath = path.join(latest.path, 'baseline.json');
-
-  if (!existsSync(baselinePath)) {
-    return null;
-  }
-
-  try {
-    const content = JSON.parse(readFileSync(baselinePath, 'utf8'));
-    return {
-      path: latest.path,
-      timestamp: content.timestamp,
-      data: content,
-    };
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 /**
@@ -154,10 +160,10 @@ function checkForBlockers(baseline) {
  * Run pre-sprint checks
  */
 function runPreSprintCheck() {
-  log('\n' + '═'.repeat(60), 'cyan');
+  log('\n' + '='.repeat(60), 'cyan');
   log('  PRE-SPRINT CHECK', 'bold');
   log('  FAIL-CLOSED: Must pass before any sprint begins', 'yellow');
-  log('═'.repeat(60), 'cyan');
+  log('='.repeat(60), 'cyan');
 
   const results = {
     passed: false,
@@ -165,42 +171,45 @@ function runPreSprintCheck() {
     checks: {},
   };
 
-  // Check 1: Find baseline
   log('\n[1/4] Checking for baseline...', 'blue');
   const baseline = findLatestBaseline();
 
   if (!baseline) {
-    log('  ✗ No baseline found!', 'red');
+    log('  x No baseline found!', 'red');
     log('  Run: pnpm session:baseline', 'yellow');
     results.checks.baselineExists = { passed: false, reason: 'No baseline found' };
     printFailure(results);
     process.exit(1);
   }
 
-  log(`  ✓ Baseline found: ${baseline.path}`, 'green');
+  log(`  ok Baseline found: ${baseline.path}`, 'green');
   results.checks.baselineExists = { passed: true, path: baseline.path };
 
-  // Check 2: Baseline freshness
   log('\n[2/4] Checking baseline freshness...', 'blue');
   const freshness = isBaselineFresh(baseline);
 
   if (!freshness.fresh) {
-    log(`  ✗ Baseline is ${freshness.ageMinutes} minutes old (max: ${freshness.maxAgeMinutes})`, 'red');
+    log(
+      `  x Baseline is ${freshness.ageMinutes} minutes old (max: ${freshness.maxAgeMinutes})`,
+      'red'
+    );
     log('  Run: pnpm session:baseline', 'yellow');
     results.checks.baselineFresh = { passed: false, ...freshness };
     printFailure(results);
     process.exit(1);
   }
 
-  log(`  ✓ Baseline is ${freshness.ageMinutes} minutes old (max: ${freshness.maxAgeMinutes})`, 'green');
+  log(
+    `  ok Baseline is ${freshness.ageMinutes} minutes old (max: ${freshness.maxAgeMinutes})`,
+    'green'
+  );
   results.checks.baselineFresh = { passed: true, ...freshness };
 
-  // Check 3: No blockers
   log('\n[3/4] Checking for blockers...', 'blue');
   const { blockers, warnings } = checkForBlockers(baseline);
 
   if (blockers.length > 0) {
-    log(`  ✗ ${blockers.length} blocking issue(s) found:`, 'red');
+    log(`  x ${blockers.length} blocking issue(s) found:`, 'red');
     for (const blocker of blockers) {
       log(`    - ${blocker.type}: ${blocker.message}`, 'red');
     }
@@ -209,52 +218,47 @@ function runPreSprintCheck() {
     process.exit(1);
   }
 
-  log('  ✓ No blocking issues', 'green');
+  log('  ok No blocking issues', 'green');
   results.checks.noBlockers = { passed: true };
 
-  // Check 4: Warnings (informational, non-blocking)
   log('\n[4/4] Checking warnings...', 'blue');
 
   if (warnings.length > 0) {
-    log(`  ⚠ ${warnings.length} warning(s):`, 'yellow');
+    log(`  ! ${warnings.length} warning(s):`, 'yellow');
     for (const warning of warnings) {
       log(`    - ${warning.type}: ${warning.message}`, 'yellow');
     }
     results.checks.warnings = { passed: true, count: warnings.length, warnings };
   } else {
-    log('  ✓ No warnings', 'green');
+    log('  ok No warnings', 'green');
     results.checks.warnings = { passed: true, count: 0 };
   }
 
-  // All checks passed
   results.passed = true;
   printSuccess(results, baseline);
 }
 
-/**
- * Print success message
- */
 function printSuccess(results, baseline) {
-  log('\n' + '═'.repeat(60), 'green');
-  log('  ✓ PRE-SPRINT CHECK PASSED', 'green');
-  log('═'.repeat(60), 'green');
+  log('\n' + '='.repeat(60), 'green');
+  log('  PRE-SPRINT CHECK PASSED', 'green');
+  log('='.repeat(60), 'green');
 
   log('\nBaseline Summary:', 'blue');
   log(`  TypeScript: ${baseline.data.typescript?.totalErrors || 0} errors`, 'reset');
-  log(`  ESLint: ${baseline.data.eslint?.summary?.totalErrors || 0} errors, ${baseline.data.eslint?.summary?.totalWarnings || 0} warnings`, 'reset');
+  log(
+    `  ESLint: ${baseline.data.eslint?.summary?.totalErrors || 0} errors, ${baseline.data.eslint?.summary?.totalWarnings || 0} warnings`,
+    'reset'
+  );
   log(`  Git: ${baseline.data.git?.clean ? 'clean' : 'dirty'}`, 'reset');
   log(`  Supabase: ${baseline.data.supabase?.hash?.hash || 'unknown'}`, 'reset');
 
-  log('\n✅ Sprint may proceed.\n', 'green');
+  log('\nSprint may proceed.\n', 'green');
 }
 
-/**
- * Print failure message
- */
 function printFailure(results) {
-  log('\n' + '═'.repeat(60), 'red');
-  log('  ✗ PRE-SPRINT CHECK FAILED', 'red');
-  log('═'.repeat(60), 'red');
+  log('\n' + '='.repeat(60), 'red');
+  log('  PRE-SPRINT CHECK FAILED', 'red');
+  log('='.repeat(60), 'red');
 
   log('\nFailed checks:', 'red');
   for (const [check, result] of Object.entries(results.checks)) {
@@ -263,8 +267,7 @@ function printFailure(results) {
     }
   }
 
-  log('\n❌ Sprint CANNOT proceed until issues are resolved.\n', 'red');
+  log('\nSprint CANNOT proceed until issues are resolved.\n', 'red');
 }
 
-// Run the check
 runPreSprintCheck();

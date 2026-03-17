@@ -1,5 +1,10 @@
 # Intelligence Pipeline Sprint Order (Locked)
 
+> **STATUS: COMPLETE (Historical Record Only)** All sprints 031–041 are
+> complete. This file is no longer a runtime queue authority. The active queue
+> is `docs/status/NEXT_5_SPRINTS.md`. Do not use this file as a fallback for
+> sprint order enforcement.
+
 Status: LOCKED Last Updated: 2026-03-06 Owner: Unit Talk Architecture
 
 This document defines the required sprint sequence for the intelligence
