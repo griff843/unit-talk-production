@@ -10,6 +10,11 @@
 # WARNING: This wrapper allows Codex to modify files.
 # Task file MUST define precise scope and OUT-OF-SCOPE boundaries.
 # Review task file carefully before confirming.
+#
+# MCP suppression:
+#   Global MCP servers (playwright, linear) are redirected to fail-fast
+#   values via .codex/config.toml. Startup noise is filtered from stdout.
+#   Stderr (MCP transport errors) is captured to a temp log and suppressed.
 set -euo pipefail
 
 TASK_FILE="${1:-}"
@@ -49,6 +54,7 @@ fi
 echo "[CODEX-WRITE] ================================================"
 echo "[CODEX-WRITE] Mode: auto-edit (file modifications ALLOWED)"
 echo "[CODEX-WRITE] Task: $TASK_FILE"
+echo "[CODEX-WRITE] MCP: suppressed (fail-fast via .codex/config.toml)"
 echo "[CODEX-WRITE] ================================================"
 echo ""
 echo "Task scope preview (first 10 lines):"
@@ -65,4 +71,31 @@ if [[ "$confirm" != "yes" ]]; then
 fi
 
 echo ""
-exec codex exec -s workspace-write -c 'mcp_servers={}' "$(cat "$TASK_FILE")"
+
+# ── Run codex with clean output ──────────────────────────────
+# stdout: capture to temp file, then filter MCP startup lines
+# stderr: redirect to temp log (MCP transport error messages)
+
+CODEX_OUT=$(mktemp)
+CODEX_LOG=$(mktemp)
+
+codex exec -s workspace-write "$(cat "$TASK_FILE")" \
+  >"$CODEX_OUT" \
+  2>"$CODEX_LOG" \
+  || true
+
+EXIT_CODE=$?
+
+# Filter known MCP startup preamble lines from output
+# Pattern: "mcp: <name> starting|ready|failed|..." and "mcp startup: ..."
+sed -E '/^mcp: /d; /^mcp startup:/d' "$CODEX_OUT"
+
+# If MCP log has content, note its location for debugging
+if [[ -s "$CODEX_LOG" ]]; then
+  echo ""
+  echo "[CODEX-WRITE] MCP transport log (suppressed): $CODEX_LOG"
+fi
+
+rm -f "$CODEX_OUT"
+
+exit "$EXIT_CODE"
