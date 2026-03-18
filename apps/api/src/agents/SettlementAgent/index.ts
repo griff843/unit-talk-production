@@ -189,6 +189,13 @@ export class SettlementAgent extends BaseAgent {
       const cycleTime = Date.now() - cycleStartTime;
       this.settlementMetrics.processingTimeMs = cycleTime;
 
+      // SPRINT-CAPPER-PERFORMANCE-MV-CREATION: Refresh downstream capper performance
+      // after settlement cycle if any picks were settled. Non-blocking — errors logged
+      // but do not fail the settlement cycle.
+      if (this.settlementMetrics.propsSettled > 0) {
+        await this.refreshCapperPerformance();
+      }
+
       this.logger.info('✅ SettlementAgent cycle completed', {
         gamesProcessed: this.settlementMetrics.gamesProcessed,
         propsSettled: this.settlementMetrics.propsSettled,
@@ -857,6 +864,30 @@ export class SettlementAgent extends BaseAgent {
     } catch (error) {
       // Non-blocking: log error but don't fail settlement
       this.logger.warn(`⚠️ Error attributing loss for ${pickId}`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * SPRINT-CAPPER-PERFORMANCE-MV-CREATION: Refresh downstream capper performance
+   * materialized view after settlement. Non-blocking — logs errors but does not
+   * fail the settlement cycle. Uses the refresh_capper_daily_rollup() RPC which
+   * runs REFRESH MATERIALIZED VIEW CONCURRENTLY.
+   */
+  private async refreshCapperPerformance(): Promise<void> {
+    try {
+      const { error } = await this.requireSupabase().rpc('refresh_capper_daily_rollup');
+      if (error) {
+        this.logger.warn('⚠️ Failed to refresh capper performance MV', {
+          error: error.message,
+        });
+      } else {
+        this.logger.info('📊 Capper performance MV refreshed after settlement');
+      }
+    } catch (error) {
+      // Non-blocking: capper stats staleness is acceptable; settlement correctness is not
+      this.logger.warn('⚠️ Error refreshing capper performance MV', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
