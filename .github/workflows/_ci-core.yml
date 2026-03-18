@@ -182,7 +182,10 @@ jobs:
           pnpm --filter @unit-talk/shared-utils build
           pnpm --filter @unit-talk/config build
           pnpm --filter @unit-talk/contracts build
+          pnpm --filter @unit-talk/shared build
           pnpm --filter @unit-talk/data-access build
+          pnpm --filter @unit-talk/distribution build
+          pnpm --filter @unit-talk/observability build
 
       # ── 6. Extra setup (Playwright, etc.) ────────────────────────
       - name: Extra setup

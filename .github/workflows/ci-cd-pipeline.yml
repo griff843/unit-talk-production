@@ -44,6 +44,12 @@ jobs:
         run: |
           pnpm --filter @unit-talk/shared-types build
           pnpm --filter @unit-talk/shared-utils build
+          pnpm --filter @unit-talk/config build
+          pnpm --filter @unit-talk/contracts build
+          pnpm --filter @unit-talk/shared build
+          pnpm --filter @unit-talk/data-access build
+          pnpm --filter @unit-talk/distribution build
+          pnpm --filter @unit-talk/observability build
 
       - name: Run type checking
         run: npm run type-check
