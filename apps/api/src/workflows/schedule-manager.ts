@@ -194,6 +194,81 @@ export class SyndicateScheduleManager {
       }
 
       // ================================================================
+      // ROUTINE ANALYSIS SCHEDULES (SPRINT-PH11-GAP-CLOSURE-2)
+      // Closes GAP-PH11-1: 4 analysis workflows previously manual-only
+      // ================================================================
+
+      // VERIFY SLO — every 30 minutes
+      await this.createSchedule({
+        scheduleId: 'routine-verify-slo',
+        workflowType: 'verifySloWorkflow',
+        args: [],
+        spec: {
+          intervals: [{ every: '30m' }],
+        },
+        policies: {
+          overlap: 'SKIP',
+          pauseOnFailure: false,
+        },
+      });
+
+      // CHECK GRADING STATUS — every 15 minutes
+      await this.createSchedule({
+        scheduleId: 'routine-check-grading-status',
+        workflowType: 'checkGradingStatusWorkflow',
+        args: [],
+        spec: {
+          intervals: [{ every: '15m' }],
+        },
+        policies: {
+          overlap: 'SKIP',
+          pauseOnFailure: false,
+        },
+      });
+
+      // ANALYZE GRADING & PROMOTION — daily at 4 AM
+      await this.createSchedule({
+        scheduleId: 'routine-analyze-grading-promotion',
+        workflowType: 'analyzeGradingPromotionWorkflow',
+        args: [],
+        spec: {
+          calendars: [
+            {
+              comment: 'Daily grading/promotion analysis at 4 AM',
+              hour: 4,
+              minute: 0,
+            },
+          ],
+        },
+        policies: {
+          overlap: 'SKIP',
+          pauseOnFailure: false,
+        },
+      });
+
+      // EDGE VALIDATION REPORT — daily at 5 AM
+      await this.createSchedule({
+        scheduleId: 'routine-edge-validation-report',
+        workflowType: 'edgeValidationReportWorkflow',
+        args: [],
+        spec: {
+          calendars: [
+            {
+              comment: 'Daily edge validation report at 5 AM',
+              hour: 5,
+              minute: 0,
+            },
+          ],
+        },
+        policies: {
+          overlap: 'SKIP',
+          pauseOnFailure: false,
+        },
+      });
+
+      logger.info('✅ Routine analysis schedules registered (4 workflows)');
+
+      // ================================================================
       // RECAP SCHEDULES (UNIFIED-OPS-002)
       // Only registered when ENABLE_RECAP_SCHEDULES=true (fail-closed)
       // ================================================================

@@ -239,6 +239,14 @@ export {
 // Test workflow for E2E testing
 export { testWorkflow } from './test-workflow';
 
+// Routine analysis workflows (SPRINT-PH11-GAP-CLOSURE-2: close GAP-PH11-1)
+export {
+  verifySloWorkflow,
+  checkGradingStatusWorkflow,
+  analyzeGradingPromotionWorkflow,
+  edgeValidationReportWorkflow,
+} from './routine-analysis-workflows';
+
 // FeedAgent Backfill Workflow
 export { FeedAgentBackfillWorkflow } from './FeedAgentBackfillWorkflow';
 

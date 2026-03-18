@@ -21,6 +21,9 @@ export const WORKFLOW_REGISTRY: WorkflowEntry[] = [
     riskLevel: 'low',
     invocation: 'pnpm --filter api tsx src/scripts/analyze-grading-promotion.ts',
     requiresDatabase: true,
+    trigger: 'scheduled',
+    temporalScheduleId: 'routine-analyze-grading-promotion',
+    scheduleDescription: 'daily at 4 AM',
   },
   {
     name: 'edge-validation-report',
@@ -32,6 +35,9 @@ export const WORKFLOW_REGISTRY: WorkflowEntry[] = [
     riskLevel: 'low',
     invocation: 'pnpm --filter api tsx src/scripts/edge-validation-report.ts',
     requiresDatabase: true,
+    trigger: 'scheduled',
+    temporalScheduleId: 'routine-edge-validation-report',
+    scheduleDescription: 'daily at 5 AM',
   },
   {
     name: 'verify-slo',
@@ -43,6 +49,9 @@ export const WORKFLOW_REGISTRY: WorkflowEntry[] = [
     riskLevel: 'low',
     invocation: 'pnpm --filter api tsx src/scripts/verify-slo.ts',
     requiresDatabase: true,
+    trigger: 'scheduled',
+    temporalScheduleId: 'routine-verify-slo',
+    scheduleDescription: 'every 30 minutes',
   },
   {
     name: 'check-grading-status',
@@ -54,6 +63,9 @@ export const WORKFLOW_REGISTRY: WorkflowEntry[] = [
     riskLevel: 'low',
     invocation: 'pnpm --filter api tsx src/scripts/check-grading-status.ts',
     requiresDatabase: true,
+    trigger: 'scheduled',
+    temporalScheduleId: 'routine-check-grading-status',
+    scheduleDescription: 'every 15 minutes',
   },
 
   // ── BACKFILL ──────────────────────────────────────────────────────────────
