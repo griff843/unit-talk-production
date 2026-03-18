@@ -1,13 +1,13 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-17
-(SPRINT-085-GOVERNANCE-SURFACE-HARDENING-AND-SPOA-CONSERVATIVE-MODE) **Source**:
-Phase status + drift report + Layer 3 scoping analysis + Claude OS backlog +
+**Last Updated**: 2026-03-18 (SPRINT-PH11-GAP-CLOSURE-4) **Source**: Phase
+status + drift report + Layer 3 gap closure series + Claude OS backlog +
 codebase investigation
 
-> **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
-> targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
-> See `docs/06_status/current_phase.md` for canonical layer/phase position.
+> **Layer 3 COMPLETE**: Layers 1, 2, and 3 are all COMPLETE. The sprint queue
+> now targets Layer 4 (Syndicate Intelligence — Phases 12–14) and governance
+> maintenance. See `docs/06_status/current_phase.md` for canonical layer/phase
+> position.
 
 ---
 
@@ -22,17 +22,15 @@ codebase investigation
 | --- | ------ | -------- | ----- | ----------------------------- | ------ | ---------- |
 | 1   | TBD    | —        | —     | Run /sprint-plan to determine | —      | None       |
 
-**Dependency chain**: All Layer 1 and Layer 2 sprints COMPLETE. Layer 3 in
-progress (SPRINT-049 auth, SPRINT-050 permissions, SPRINT-051 Smart Form UX,
-SPRINT-052 Operator Workflow Foundation, SPRINT-053 Naming Convention,
-SPRINT-054 Replay Endpoint — all done).
+**Dependency chain**: All Layer 1, Layer 2, and Layer 3 sprints COMPLETE. Layer
+4 (Phases 12–14: Syndicate Intelligence) is next.
 
 ---
 
 ## Completed Sprint History
 
 <details>
-<summary>40 sprints completed (2026-03-10 through 2026-03-17) — click to expand</summary>
+<summary>48 sprints completed (2026-03-10 through 2026-03-18) — click to expand</summary>
 
 | Sprint                             | Date       | PR   | Linear    | Layer/Phase |
 | ---------------------------------- | ---------- | ---- | --------- | ----------- |
@@ -76,5 +74,13 @@ SPRINT-054 Replay Endpoint — all done).
 | 083-CLAUDE-OS-QUEUE-BASELINE-HARD  | 2026-03-17 | #308 | —         | Claude OS   |
 | 084-CLAUDE-OS-CLOSEOUT-CONTRACT    | 2026-03-17 | #308 | —         | Claude OS   |
 | 085-GOVERNANCE-SURFACE-SPOA-MODE   | 2026-03-17 | #309 | —         | Claude OS   |
+| CI-GOVERNANCE-DEBT-NORMALIZATION   | 2026-03-18 | #311 | —         | CI/Gov      |
+| PHASE11-GAP-CLOSURE-1              | 2026-03-18 | #314 | —         | L3/Ph 10    |
+| PH11-GAP-CLOSURE-2                 | 2026-03-18 | #315 | —         | L3/Ph 11    |
+| PH11-GAP-CLOSURE-3                 | 2026-03-18 | #316 | —         | L3/Ph 11    |
+| PH11-GAP-CLOSURE-4                 | 2026-03-18 | #317 | —         | L3/Ph 11    |
+| CONTROL-PLANE-TRUTH-RECONCILIATION | 2026-03-18 | #309 | —         | Claude OS   |
+| QA-FORMAT-NORMALIZATION            | 2026-03-18 | #312 | —         | QA/Infra    |
+| LAYER3-EXIT-AUDIT                  | 2026-03-18 | #313 | —         | L3/Audit    |
 
 </details>
