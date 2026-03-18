@@ -4,12 +4,16 @@
  * SPRINT-PH11-GAP-CLOSURE-2: Close GAP-PH11-1 by providing scheduled Temporal
  * triggers for the 4 analysis workflows that were previously manual-only.
  *
+ * SPRINT-PH11-GAP-CLOSURE-3: Close GAP-PH11-2 by adding operator-visible
+ * failure escalation via sendWorkflowFailure (Discord operator webhook).
+ *
  * Each workflow is a single-shot execution invoked by a Temporal schedule.
  * The detailed ad-hoc CLI scripts remain available for operator deep-dives.
  */
 
 import { proxyActivities } from '@temporalio/workflow';
 
+import type { AlertActivities } from '../activities';
 import type { AnalyticsAgentActivities, OperatorAgentActivities } from '../types/activities';
 
 const analyticsActivities = proxyActivities<AnalyticsAgentActivities>({
@@ -18,6 +22,10 @@ const analyticsActivities = proxyActivities<AnalyticsAgentActivities>({
 
 const operatorActivities = proxyActivities<OperatorAgentActivities>({
   startToCloseTimeout: '2 minutes',
+});
+
+const alertActivities = proxyActivities<AlertActivities>({
+  startToCloseTimeout: '30 seconds',
 });
 
 /**
@@ -43,6 +51,12 @@ export async function verifySloWorkflow(): Promise<void> {
       timestamp: new Date().toISOString(),
       workflow: 'verifySloWorkflow',
     });
+    await alertActivities.sendWorkflowFailure({
+      timestamp: new Date().toISOString(),
+      workflowName: 'verifySloWorkflow',
+      errorMessage: String(error),
+      cycleCount: 0,
+    } as any);
     throw error;
   }
 }
@@ -67,6 +81,12 @@ export async function checkGradingStatusWorkflow(): Promise<void> {
       timestamp: new Date().toISOString(),
       workflow: 'checkGradingStatusWorkflow',
     });
+    await alertActivities.sendWorkflowFailure({
+      timestamp: new Date().toISOString(),
+      workflowName: 'checkGradingStatusWorkflow',
+      errorMessage: String(error),
+      cycleCount: 0,
+    } as any);
     throw error;
   }
 }
@@ -91,6 +111,12 @@ export async function analyzeGradingPromotionWorkflow(): Promise<void> {
       timestamp: new Date().toISOString(),
       workflow: 'analyzeGradingPromotionWorkflow',
     });
+    await alertActivities.sendWorkflowFailure({
+      timestamp: new Date().toISOString(),
+      workflowName: 'analyzeGradingPromotionWorkflow',
+      errorMessage: String(error),
+      cycleCount: 0,
+    } as any);
     throw error;
   }
 }
@@ -115,6 +141,12 @@ export async function edgeValidationReportWorkflow(): Promise<void> {
       timestamp: new Date().toISOString(),
       workflow: 'edgeValidationReportWorkflow',
     });
+    await alertActivities.sendWorkflowFailure({
+      timestamp: new Date().toISOString(),
+      workflowName: 'edgeValidationReportWorkflow',
+      errorMessage: String(error),
+      cycleCount: 0,
+    } as any);
     throw error;
   }
 }
