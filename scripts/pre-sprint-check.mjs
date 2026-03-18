@@ -34,7 +34,9 @@ function log(message, color = 'reset') {
 }
 
 /**
- * Find the most recent baseline
+ * Find the most recent valid baseline using backward walk.
+ * Tries each directory from newest to oldest until one with a parseable
+ * baseline.json is found. Incomplete/corrupt runs are skipped.
  */
 function findLatestBaseline() {
   if (!existsSync(BASELINE_DIR)) {
@@ -54,23 +56,24 @@ function findLatestBaseline() {
     return null;
   }
 
-  const latest = dirs[0];
-  const baselinePath = path.join(latest.path, 'baseline.json');
-
-  if (!existsSync(baselinePath)) {
-    return null;
+  // Backward walk: skip dirs with missing or corrupt baseline.json
+  for (const dir of dirs) {
+    const baselinePath = path.join(dir.path, 'baseline.json');
+    if (!existsSync(baselinePath)) continue;
+    try {
+      const content = JSON.parse(readFileSync(baselinePath, 'utf8'));
+      if (!content.timestamp) continue; // incomplete run — skip
+      return {
+        path: dir.path,
+        timestamp: content.timestamp,
+        data: content,
+      };
+    } catch {
+      continue; // corrupt JSON — skip
+    }
   }
 
-  try {
-    const content = JSON.parse(readFileSync(baselinePath, 'utf8'));
-    return {
-      path: latest.path,
-      timestamp: content.timestamp,
-      data: content,
-    };
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 /**
@@ -96,33 +99,39 @@ function checkForBlockers(baseline) {
   const warnings = [];
   const data = baseline.data;
 
-  // TypeScript errors are blockers
+  // TypeScript errors are blockers (inherited = pre-existing before this sprint)
   if (data.typescript?.totalErrors > 0) {
     blockers.push({
       type: 'typescript',
       severity: 'error',
-      message: `${data.typescript.totalErrors} TypeScript errors`,
+      message: `${data.typescript.totalErrors} TypeScript errors (inherited — pre-existing repo debt)`,
       count: data.typescript.totalErrors,
+      inherited: true,
     });
   }
 
-  // ESLint errors are blockers
+  // ESLint errors are blockers (inherited = pre-existing before this sprint)
   if (data.eslint?.summary?.totalErrors > 0) {
     blockers.push({
       type: 'eslint',
       severity: 'error',
-      message: `${data.eslint.summary.totalErrors} ESLint errors`,
+      message: `${data.eslint.summary.totalErrors} ESLint errors (inherited — pre-existing repo debt)`,
       count: data.eslint.summary.totalErrors,
+      inherited: true,
     });
   }
 
-  // Schema drift is a blocker
-  if (data.supabase?.drift?.hasDrift === true) {
+  // Schema drift is a blocker — fail-closed on null/undefined/unknown (not just true)
+  const hasDrift = data.supabase?.drift?.hasDrift;
+  if (hasDrift !== false) {
+    const reason = hasDrift === true
+      ? 'Schema drift detected'
+      : `Schema drift status unknown (hasDrift=${String(hasDrift)}) — fail-closed`;
     blockers.push({
       type: 'supabase',
       severity: 'error',
-      message: 'Schema drift detected',
-      details: data.supabase.drift,
+      message: reason,
+      details: data.supabase?.drift,
     });
   }
 

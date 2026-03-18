@@ -19,6 +19,8 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { validateRoutingDecision } from '../tools/claude-os/src/routing-decision-validator.js';
+
 const WORKSPACE_ROOT = path.resolve(__dirname, '..');
 const SPRINTS_DIR = path.join(WORKSPACE_ROOT, 'out', 'sprints');
 
@@ -344,6 +346,18 @@ function main(): void {
     fs.mkdirSync(proofsDir, { recursive: true });
   }
 
+  // Routing decision gate (COS-007) — always enforced regardless of mode
+  console.log('\n🔀 Validating routing decision...');
+  const routingResult = validateRoutingDecision(sprintId);
+  if (!routingResult.valid) {
+    console.error('\n❌ CLOSEOUT FAILED: Routing decision invalid');
+    for (const err of routingResult.errors) {
+      console.error(`   ${err}`);
+    }
+    process.exit(1);
+  }
+  console.log(`   ✅ LLM_ROUTING_DECISION.md valid: ${routingResult.filePath}`);
+
   if (!validateOnly) {
     const verifyPassed = runVerificationLane(lane);
     if (!verifyPassed) {
@@ -352,11 +366,14 @@ function main(): void {
     }
   }
 
-  console.log('\n📋 Generating proof inventory...');
-  const inventory = generateProofInventory(proofsDir);
-  const inventoryPath = path.join(proofsDir, 'proof_proof_inventory.txt');
-  fs.writeFileSync(inventoryPath, inventory);
-  console.log(`   Written: ${inventoryPath}`);
+  // Proof inventory write is skipped in --validate-only mode (non-mutating)
+  if (!validateOnly) {
+    console.log('\n📋 Generating proof inventory...');
+    const inventory = generateProofInventory(proofsDir);
+    const inventoryPath = path.join(proofsDir, 'proof_proof_inventory.txt');
+    fs.writeFileSync(inventoryPath, inventory);
+    console.log(`   Written: ${inventoryPath}`);
+  }
 
   // If phase claim, add proof_phase_advancement_<N>.txt to required artifacts
   if (phase !== null) {
