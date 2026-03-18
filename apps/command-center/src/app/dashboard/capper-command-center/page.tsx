@@ -30,7 +30,6 @@ import {
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
-
 import type { RankedPlay, CCCResponse, EliminationReason } from '@/lib/ccc/rankingEngine';
 
 import { Badge } from '@/components/ui/badge';

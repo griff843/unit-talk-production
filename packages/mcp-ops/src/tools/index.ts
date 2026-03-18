@@ -9,7 +9,6 @@
  *   get_slo_status            — SLO attainment per window (requires OPERATOR_TOKEN)
  */
 
-
 import {
   fetchAgentHealth,
   fetchOperatorWorkflows,

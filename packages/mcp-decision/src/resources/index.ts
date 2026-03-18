@@ -5,7 +5,6 @@
  *   unit-talk://decision/lifecycle-status   lifecycle gate status snapshot
  */
 
-
 import { getLifecycleStatus, getRoutingDecision } from '../adapters/index.js';
 
 import type { McpDecisionConfig } from '../schemas/index.js';

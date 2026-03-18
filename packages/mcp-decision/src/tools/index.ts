@@ -2,7 +2,6 @@
  * @unit-talk/mcp-decision — tool registrations
  */
 
-
 import {
   getFindingBacklog,
   getLifecycleStatus,

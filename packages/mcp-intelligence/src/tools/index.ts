@@ -9,7 +9,6 @@
  *   run_strategy_simulation  — returns CLI command to run R5 strategy simulation
  */
 
-
 import {
   computeCalibration,
   computeClv,

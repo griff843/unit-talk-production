@@ -8,7 +8,6 @@
  *   get_settlement_records — prop_settlements query
  */
 
-
 import { getLifecycleStage, getPick, getSettlementRecords, queryPicks } from '../adapters/index.js';
 import {
   GetLifecycleStageInput,
