@@ -1,7 +1,7 @@
 # Phase Status
 
-**Last Updated**: 2026-03-17 (SPRINT-075-LAYER3-PHASE10-CC-CAPPER-DASHBOARD)
-**Source**: Linear initiatives + repo implementation + sprint closeouts
+**Last Updated**: 2026-03-18 (SPRINT-PH11-GAP-CLOSURE-4) **Source**: Linear
+initiatives + repo implementation + sprint closeouts
 
 ---
 
@@ -532,46 +532,49 @@ are Mode B multi-LLM pilot work — not yet scheduled. Wave 3 skills
 
 ## Phase Summary
 
-| Phase                                  | Status  | Completion | Blocking Issues                                                                                                                                                                                                                                                |
-| -------------------------------------- | ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure                                                                                                                                                   |
-| **Phase 2** — Intelligence Superiority | Done    | 100%       | ~~UNI-14~~ DONE (SPRINT-GITHUB-LINEAR-INTEGRATION, 2026-03-10)                                                                                                                                                                                                 |
-| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)                                                                                                                                                                |
-| **Phase 4** — Automation Supremacy     | Active  | 55%        | Discord bot + RecapAgent VERIFIED; workflow registry live (SPRINT-052); workflow UI live (SPRINT-060); alerts dashboard live (SPRINT-061); PicksHQ promotion data live (SPRINT-074); scheduling config external; edge ranking and alert automation not started |
-| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                                                                                                                                                                             |
-| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; Wave 2 skills COMPLETE (7 operational); sprint:close enforces LLM_ROUTING_DECISION.md gate (COS-007); SPRINT-059 2026-03-16                                                                                                              |
+| Phase                                  | Status  | Completion | Blocking Issues                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------------- | ------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Phase 1** — Structural Dominance     | Active  | 97%        | Runtime env config (intentional fail-closed), Jest quarantine, Smart Form Windows build, Phase 5 E2E closure                                                                                                                                                                                                                                                                                   |
+| **Phase 2** — Intelligence Superiority | Done    | 100%       | ~~UNI-14~~ DONE (SPRINT-GITHUB-LINEAR-INTEGRATION, 2026-03-10)                                                                                                                                                                                                                                                                                                                                 |
+| **Phase 3** — Risk Engine Dominance    | Done    | 100%       | COMPLETE — all risk controls + operator API + monitoring + replay (Layer 2 Phases 6–8 all done)                                                                                                                                                                                                                                                                                                |
+| **Phase 4** — Automation Supremacy     | Active  | 60%        | Discord bot + RecapAgent VERIFIED; workflow registry live (SPRINT-052); workflow UI live (SPRINT-060); alerts dashboard live (SPRINT-061); PicksHQ promotion data live (SPRINT-074); routine analysis workflows scheduled (SPRINT-PH11-GAP-CLOSURE-2); workflow failure escalation live (SPRINT-PH11-GAP-CLOSURE-3); scheduling config external; edge ranking and alert automation not started |
+| **Phase 5** — Enterprise Scaling       | Planned | 0%         | Blocked by Phase 4                                                                                                                                                                                                                                                                                                                                                                             |
+| **Claude OS Upgrade**                  | Done    | 100%       | COS-001–007 all DONE; Wave 2 skills COMPLETE (7 operational); sprint:close enforces LLM_ROUTING_DECISION.md gate (COS-007); SPRINT-059 2026-03-16                                                                                                                                                                                                                                              |
 
-**Current Platform Phase**: Layer 2 COMPLETE (Phases 6–8 all done). Layer 1
-COMPLETE. Phase 1 at 97%, Phase 2 at 100%, Phase 3 at 100%, Phase 4 at 55%.
-**Layer 3 started**: SPRINT-049 delivered auth identity foundation; SPRINT-050
-delivered permission enforcement (PR #224, UNI-85 Done); SPRINT-051 delivered
-Smart Form UX Polish — WCAG 2.1 AA accessibility, KeyboardShortcutsHelp (PR
-#227, UNI-86 Done); **SPRINT-052 delivered Operator Workflow Foundation
-(Phase 11)** — WorkflowRegistry with 18 entries, GET /ops/workflows, pnpm
-ops:list CLI (PR #230, UNI-87 Done); **SPRINT-053 delivered Governance Naming
-Convention** — DRIFT-H2 resolved, 0 HIGH drift items, canonical naming doc
-published (PR #234, UNI-88 Done); **SPRINT-054 delivered Replay Endpoint (Layer
-3 / Phase 10)** — Temporal startWorkflow wired in /api/replay, operator replay
-dashboard at /dashboard/replay, 61/61 CC tests passing (PR #252, 2026-03-15);
-**SPRINT-058 delivered Platform Health Dashboard (Layer 3 / Phase 10)** — GET
-/api/health/summary + GET /api/slo/status CC proxy routes, /dashboard/health
-page (platform status card HEALTHY/DEGRADED/CRITICAL + 4-SLO attainment grid),
-sidebar Replay + Platform Health nav, 73/73 CC tests passing (PR #255,
-2026-03-15, UNI-93 Done); **SPRINT-059 delivered AI OS Wave 2 Skills + Agents**
-— incident-triage, scoring-audit skills + intelligence-scoring-specialist,
-temporal-workflow-guardian agents; 7 operational skills total; AI OS docs
-updated; Lane 4 docs-only sprint (PR #259, 2026-03-16); **SPRINT-060 delivered
-Workflow Registry Dashboard (Layer 3 / Phase 11)** — CC dashboard at
-/dashboard/workflows with 18-entry WorkflowRegistry grouped by 6 categories,
-risk badges, invocation snippets; Workflows nav; 78/78 CC tests passing (PR
-#262, UNI-95 Done, 2026-03-16); **SPRINT-061 delivered Alerts Dashboard (Layer 3
-/ Phase 10)** — GET /ops/alerts API route + CC proxy + /dashboard/alerts page
-grouped by severity critical→warning→info; Bell nav; DEMO_MODE gate fix; API:
-1000/1000; CC: 84/84 tests passing (PR #265, UNI-96 Done, 2026-03-16);
-**SPRINT-072 certified scoring pipeline** —
-computeScoreV2/canonicalTier/evaluatePromotion 23-point harness; CONSTITUTIONAL
-gates 7+8 verified fail-closed; 1041/1041 vitest (PR #280, UNI-104 Done,
-2026-03-16); **SPRINT-073 certified promotion wiring** —
+**Current Platform Phase**: Layer 3 COMPLETE (Phases 9–11 all done). Layer 2
+COMPLETE (Phases 6–8 all done). Layer 1 COMPLETE. Phase 1 at 97%, Phase 2 at
+100%, Phase 3 at 100%, Phase 4 at 60%. **Layer 3 gap closure**:
+SPRINT-PH11-GAP-CLOSURE-1 (P2 defect fix, PR #314); SPRINT-PH11-GAP-CLOSURE-2
+(scheduled analysis workflows, PR #315); SPRINT-PH11-GAP-CLOSURE-3 (failure
+escalation, PR #316). **Layer 3 history**: SPRINT-049 delivered auth identity
+foundation; SPRINT-050 delivered permission enforcement (PR #224, UNI-85 Done);
+SPRINT-051 delivered Smart Form UX Polish — WCAG 2.1 AA accessibility,
+KeyboardShortcutsHelp (PR #227, UNI-86 Done); **SPRINT-052 delivered Operator
+Workflow Foundation (Phase 11)** — WorkflowRegistry with 18 entries, GET
+/ops/workflows, pnpm ops:list CLI (PR #230, UNI-87 Done); **SPRINT-053 delivered
+Governance Naming Convention** — DRIFT-H2 resolved, 0 HIGH drift items,
+canonical naming doc published (PR #234, UNI-88 Done); **SPRINT-054 delivered
+Replay Endpoint (Layer 3 / Phase 10)** — Temporal startWorkflow wired in
+/api/replay, operator replay dashboard at /dashboard/replay, 61/61 CC tests
+passing (PR #252, 2026-03-15); **SPRINT-058 delivered Platform Health Dashboard
+(Layer 3 / Phase 10)** — GET /api/health/summary + GET /api/slo/status CC proxy
+routes, /dashboard/health page (platform status card HEALTHY/DEGRADED/CRITICAL +
+4-SLO attainment grid), sidebar Replay + Platform Health nav, 73/73 CC tests
+passing (PR #255, 2026-03-15, UNI-93 Done); **SPRINT-059 delivered AI OS Wave 2
+Skills + Agents** — incident-triage, scoring-audit skills +
+intelligence-scoring-specialist, temporal-workflow-guardian agents; 7
+operational skills total; AI OS docs updated; Lane 4 docs-only sprint (PR #259,
+2026-03-16); **SPRINT-060 delivered Workflow Registry Dashboard (Layer 3 /
+Phase 11)** — CC dashboard at /dashboard/workflows with 18-entry
+WorkflowRegistry grouped by 6 categories, risk badges, invocation snippets;
+Workflows nav; 78/78 CC tests passing (PR #262, UNI-95 Done, 2026-03-16);
+**SPRINT-061 delivered Alerts Dashboard (Layer 3 / Phase 10)** — GET /ops/alerts
+API route + CC proxy + /dashboard/alerts page grouped by severity
+critical→warning→info; Bell nav; DEMO_MODE gate fix; API: 1000/1000; CC: 84/84
+tests passing (PR #265, UNI-96 Done, 2026-03-16); **SPRINT-072 certified scoring
+pipeline** — computeScoreV2/canonicalTier/evaluatePromotion 23-point harness;
+CONSTITUTIONAL gates 7+8 verified fail-closed; 1041/1041 vitest (PR #280,
+UNI-104 Done, 2026-03-16); **SPRINT-073 certified promotion wiring** —
 buildPromotionMetadata() injected into GradingEngine V2+shadow paths; Gates 7+8
 unblocked at runtime; fail-closed preserved; 1061/1061 vitest (commits
 4df4dd90+bf1351b8, UNI-105 Done, 2026-03-17). Next canonical work: run
