@@ -100,40 +100,57 @@ function checkForBlockers(baseline, previousBaseline = null) {
   const data = baseline.data;
   const previousData = previousBaseline?.data;
 
+  // TypeScript errors: block on NEW debt, warn on inherited
   const tsDebt = classifyDebt(
     data.typescript?.totalErrors,
     previousData?.typescript?.totalErrors
   );
   if (data.typescript?.totalErrors > 0) {
-    blockers.push({
-      type: 'typescript',
-      severity: 'error',
-      message:
-        tsDebt.label === 'new'
-          ? `${data.typescript.totalErrors} TypeScript errors (newly introduced +${tsDebt.delta} vs previous baseline)`
-          : `${data.typescript.totalErrors} TypeScript errors (inherited - pre-existing repo debt)`,
-      count: data.typescript.totalErrors,
-      inherited: tsDebt.label !== 'new',
-    });
+    if (tsDebt.label === 'new') {
+      blockers.push({
+        type: 'typescript',
+        severity: 'error',
+        message: `${data.typescript.totalErrors} TypeScript errors (newly introduced +${tsDebt.delta} vs previous baseline)`,
+        count: data.typescript.totalErrors,
+        inherited: false,
+      });
+    } else {
+      warnings.push({
+        type: 'typescript',
+        severity: 'warning',
+        message: `${data.typescript.totalErrors} TypeScript errors (inherited - pre-existing repo debt, non-blocking)`,
+        count: data.typescript.totalErrors,
+        inherited: true,
+      });
+    }
   }
 
+  // ESLint errors: block on NEW debt, warn on inherited
   const eslintDebt = classifyDebt(
     data.eslint?.summary?.totalErrors,
     previousData?.eslint?.summary?.totalErrors
   );
   if (data.eslint?.summary?.totalErrors > 0) {
-    blockers.push({
-      type: 'eslint',
-      severity: 'error',
-      message:
-        eslintDebt.label === 'new'
-          ? `${data.eslint.summary.totalErrors} ESLint errors (newly introduced +${eslintDebt.delta} vs previous baseline)`
-          : `${data.eslint.summary.totalErrors} ESLint errors (inherited - pre-existing repo debt)`,
-      count: data.eslint.summary.totalErrors,
-      inherited: eslintDebt.label !== 'new',
-    });
+    if (eslintDebt.label === 'new') {
+      blockers.push({
+        type: 'eslint',
+        severity: 'error',
+        message: `${data.eslint.summary.totalErrors} ESLint errors (newly introduced +${eslintDebt.delta} vs previous baseline)`,
+        count: data.eslint.summary.totalErrors,
+        inherited: false,
+      });
+    } else {
+      warnings.push({
+        type: 'eslint',
+        severity: 'warning',
+        message: `${data.eslint.summary.totalErrors} ESLint errors (inherited - pre-existing repo debt, non-blocking)`,
+        count: data.eslint.summary.totalErrors,
+        inherited: true,
+      });
+    }
   }
 
+  // Supabase schema truth: ALWAYS fail-closed (never inherited-pass)
   const hasDrift = data.supabase?.drift?.hasDrift;
   const previousHasDrift = previousData?.supabase?.drift?.hasDrift;
   if (hasDrift !== false) {

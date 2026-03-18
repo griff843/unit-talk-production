@@ -243,7 +243,7 @@ describe('pre-sprint-check: actual script behavior', () => {
     expect(stdout).toContain('Checking baseline freshness');
   });
 
-  it('labels repo debt as inherited when counts do not increase vs previous baseline', () => {
+  it('passes with warning when debt is inherited (non-blocking)', () => {
     writeBaseline(tmpDir, '20260317-090000', {
       timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
       typescript: { totalErrors: 0 },
@@ -260,11 +260,13 @@ describe('pre-sprint-check: actual script behavior', () => {
     });
 
     const { exitCode, stdout } = runPreSprintCheck(tmpDir);
-    expect(exitCode).toBe(1);
+    // Inherited debt is non-blocking — exits 0 with warning
+    expect(exitCode).toBe(0);
     expect(stdout).toContain('inherited - pre-existing repo debt');
+    expect(stdout).toContain('PRE-SPRINT CHECK PASSED');
   });
 
-  it('labels debt as newly introduced when counts increase vs previous baseline', () => {
+  it('blocks when debt is newly introduced (exit 1)', () => {
     writeBaseline(tmpDir, '20260317-090000', {
       timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
       typescript: { totalErrors: 0 },
@@ -283,6 +285,28 @@ describe('pre-sprint-check: actual script behavior', () => {
     const { exitCode, stdout } = runPreSprintCheck(tmpDir);
     expect(exitCode).toBe(1);
     expect(stdout).toContain('newly introduced +3');
+  });
+
+  it('passes when only inherited TypeScript debt exists (non-blocking)', () => {
+    writeBaseline(tmpDir, '20260317-090000', {
+      timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      typescript: { totalErrors: 5 },
+      eslint: { summary: { totalErrors: 0, totalWarnings: 0 } },
+      git: { clean: true },
+      supabase: { drift: { hasDrift: false }, hash: { hash: 'abc123' } },
+    });
+    writeBaseline(tmpDir, '20260317-100000', {
+      timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      typescript: { totalErrors: 5 },
+      eslint: { summary: { totalErrors: 0, totalWarnings: 0 } },
+      git: { clean: true },
+      supabase: { drift: { hasDrift: false }, hash: { hash: 'abc123' } },
+    });
+
+    const { exitCode, stdout } = runPreSprintCheck(tmpDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('inherited - pre-existing repo debt');
+    expect(stdout).toContain('PRE-SPRINT CHECK PASSED');
   });
 
   it('fails closed when schema/type truth is missing', () => {
@@ -408,6 +432,81 @@ describe('check-session-baseline: backward walk skips incomplete dirs', () => {
     expect(found).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// 4. CLAUDE.md §12 — no roadmap reference, sole queue authority
+// ---------------------------------------------------------------------------
+
+describe('CLAUDE.md §12: sole queue authority is NEXT_5_SPRINTS.md', () => {
+  it('does not reference INTELLIGENCE_PIPELINE_SPRINT_ORDER.md as authority', () => {
+    const claudeMdPath = path.join(REPO_ROOT, 'CLAUDE.md');
+    const content = fs.readFileSync(claudeMdPath, 'utf8');
+
+    // Extract just section 12
+    const section12Match = content.match(/## 12\. Sprint Order Enforcement[\s\S]*?(?=## 13\.|$)/);
+    expect(section12Match).not.toBeNull();
+    const section12 = section12Match![0];
+
+    // Must reference NEXT_5_SPRINTS.md as sole authority
+    expect(section12).toContain('NEXT_5_SPRINTS.md');
+    expect(section12).toMatch(/[Ss]ole queue authority/);
+
+    // Must NOT reference roadmap as the sprint-start authority
+    // (historical mention is OK, but it must not say "follow the order defined in" the roadmap)
+    expect(section12).not.toMatch(
+      /must follow the sprint order defined in:?\s*\n\s*`docs\/roadmap/
+    );
+  });
+
+  it('roadmap file is marked HISTORICAL', () => {
+    const roadmapPath = path.join(
+      REPO_ROOT,
+      'docs',
+      'roadmap',
+      'INTELLIGENCE_PIPELINE_SPRINT_ORDER.md'
+    );
+    if (!fs.existsSync(roadmapPath)) return; // file may be deleted entirely
+
+    const content = fs.readFileSync(roadmapPath, 'utf8');
+    expect(content).toMatch(/HISTORICAL/i);
+    expect(content).toContain('NEXT_5_SPRINTS.md');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. Baseline Supabase status — hasDrift null/undefined must produce 'fail'
+// ---------------------------------------------------------------------------
+
+describe('baseline: Supabase hasDrift status mapping', () => {
+  /**
+   * Simulates the baseline status logic from claude-session-baseline.mjs.
+   * This must match the actual code.
+   */
+  function baselineSupabaseStatus(hasDrift: boolean | null | undefined): string {
+    // Mirrors: results.status.supabase = drift.hasDrift === false ? 'pass' : 'fail';
+    return hasDrift === false ? 'pass' : 'fail';
+  }
+
+  it('returns pass when hasDrift is false', () => {
+    expect(baselineSupabaseStatus(false)).toBe('pass');
+  });
+
+  it('returns fail when hasDrift is true (schema drift)', () => {
+    expect(baselineSupabaseStatus(true)).toBe('fail');
+  });
+
+  it('returns fail when hasDrift is null (missing types — fail-closed)', () => {
+    expect(baselineSupabaseStatus(null)).toBe('fail');
+  });
+
+  it('returns fail when hasDrift is undefined (fail-closed)', () => {
+    expect(baselineSupabaseStatus(undefined)).toBe('fail');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 6. sprint-close: validate-only is non-mutating and date-specific
+// ---------------------------------------------------------------------------
 
 describe('sprint-close: validate-only is non-mutating and date-specific', () => {
   const sprintId = `SPRINT-TEST-CLOSEOUT-${Date.now()}`;

@@ -1,10 +1,16 @@
-# Intelligence Pipeline Sprint Order (Locked)
+# Intelligence Pipeline Sprint Order (HISTORICAL)
 
-Status: LOCKED Last Updated: 2026-03-06 Owner: Unit Talk Architecture
+> **HISTORICAL REFERENCE ONLY** — This file is NOT a sprint-start authority. The
+> sole queue authority is `docs/status/NEXT_5_SPRINTS.md`. See CLAUDE.md §12 for
+> enforcement rules. Sprint-gate.js reads ONLY from NEXT_5_SPRINTS.md. This file
+> is retained for historical context of completed intelligence pipeline sprints.
 
-This document defines the required sprint sequence for the intelligence
-pipeline. Claude Code must follow this order unless explicitly overridden by a
-new architecture decision and committed governance update.
+Status: HISTORICAL (superseded by NEXT_5_SPRINTS.md queue) Last Updated:
+2026-03-06 Owner: Unit Talk Architecture
+
+This document was the original sprint sequence for the intelligence pipeline. It
+has been superseded by `docs/status/NEXT_5_SPRINTS.md` as the sole queue
+authority.
 
 ---
 

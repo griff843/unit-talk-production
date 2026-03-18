@@ -301,9 +301,11 @@ pnpm mcp:supabase     # Supabase schema introspection
 
 ## 12. Sprint Order Enforcement
 
-Claude must follow the sprint order defined in:
+**Sole queue authority**: `docs/status/NEXT_5_SPRINTS.md`
 
-`docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md`
+No secondary source (roadmap, status doc, or AI memory) may override the queue.
+`docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md` is historical reference
+only — it is NOT a sprint-start authority.
 
 Before beginning any new sprint, run:
 
@@ -317,7 +319,8 @@ And if targeting a specific sprint:
 node tools/governance/sprint-gate.js <SPRINT-ID>
 ```
 
-If the gate fails, stop and report the mismatch instead of proceeding.
+If the gate fails, stop and report the mismatch instead of proceeding. If the
+queue slot is vacant, missing, or unparseable — fail closed, do not proceed.
 
 Do not begin a later sprint until the previous sprint is completed, committed,
 and linked to the corresponding Linear issue.

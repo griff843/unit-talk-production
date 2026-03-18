@@ -225,7 +225,7 @@ function generateMarkdownSummary(baseline) {
 | Git | ${git.clean ? '✅ Clean' : '⚠️ Dirty'} | ${git.branch.current} |
 | TypeScript | ${typescript.totalErrors === 0 ? '✅ Pass' : `❌ ${typescript.totalErrors} errors`} | ${typescript.summary?.uniqueErrorCodes || 0} unique codes |
 | ESLint | ${eslint.success && eslint.summary?.totalErrors === 0 ? '✅ Pass' : `❌ ${eslint.summary?.totalErrors || 0} errors`} | ${eslint.summary?.totalWarnings || 0} warnings |
-| Supabase | ${supabase.drift.hasDrift === false ? '✅ Synced' : supabase.drift.hasDrift === true ? '❌ Drift' : '⚠️ Unknown'} | Hash: ${supabase.hash.hash} |
+| Supabase | ${supabase.drift.hasDrift === false ? '✅ Synced' : supabase.drift.hasDrift === true ? '❌ Drift' : '❌ Missing types (fail-closed)'} | Hash: ${supabase.hash.hash} |
 
 ---
 
@@ -313,7 +313,7 @@ ${workspace.affected.directlyAffected.map(p => `- ${p}`).join('\n')}
 - **Tables**: ${supabase.summary.schema.tables}
 - **Functions**: ${supabase.summary.schema.functions}
 - **Latest Migration**: ${supabase.summary.latestMigration}
-- **Schema Drift**: ${supabase.drift.hasDrift === false ? 'None' : supabase.drift.hasDrift === true ? 'DETECTED' : 'Unknown'}
+- **Schema Drift**: ${supabase.drift.hasDrift === false ? 'None' : supabase.drift.hasDrift === true ? 'DETECTED' : 'MISSING TYPES (fail-closed)'}
 
 `;
 
@@ -347,6 +347,8 @@ ${workspace.affected.directlyAffected.map(p => `- ${p}`).join('\n')}
   }
   if (supabase.drift.hasDrift === true) {
     blockers.push('- ❌ Schema drift detected. Regenerate types before proceeding.');
+  } else if (supabase.drift.hasDrift !== false) {
+    blockers.push('- ❌ Supabase generated types missing or unknown. Run: npx supabase gen types typescript --local');
   }
 
   if (blockers.length === 0) {
@@ -409,7 +411,9 @@ async function runBaseline() {
 
     // 5. Supabase schema
     results.supabase = await runSupabaseBaseline();
-    results.status.supabase = results.supabase.drift.hasDrift === false ? 'pass' : results.supabase.drift.hasDrift === true ? 'fail' : 'warn';
+    // Supabase: fail-closed — anything other than hasDrift===false is a failure
+    // (null/undefined/unknown = missing types = fail, not warn)
+    results.status.supabase = results.supabase.drift.hasDrift === false ? 'pass' : 'fail';
 
     // Determine overall status
     const statuses = Object.values(results.status).filter(s => s !== 'unknown');
