@@ -192,6 +192,11 @@ jobs:
           pnpm --filter @unit-talk/shared-types build
           pnpm --filter @unit-talk/shared-utils build
           pnpm --filter @unit-talk/config build
+          pnpm --filter @unit-talk/contracts build
+          pnpm --filter @unit-talk/shared build
+          pnpm --filter @unit-talk/data-access build
+          pnpm --filter @unit-talk/distribution build
+          pnpm --filter @unit-talk/observability build
 
       - name: Run unit tests
         run: npm run test:unit
@@ -249,9 +254,14 @@ jobs:
           pnpm --filter @unit-talk/shared-types build
           pnpm --filter @unit-talk/shared-utils build
           pnpm --filter @unit-talk/config build
+          pnpm --filter @unit-talk/contracts build
+          pnpm --filter @unit-talk/shared build
+          pnpm --filter @unit-talk/data-access build
+          pnpm --filter @unit-talk/distribution build
+          pnpm --filter @unit-talk/observability build
 
       - name: Build ${{ matrix.app }}
-        run: npm run build --workspace=apps/${{ matrix.app }}
+        run: pnpm --filter apps/${{ matrix.app }} build
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
