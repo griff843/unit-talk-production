@@ -48,8 +48,13 @@ and mechanical, it goes to Codex.
    `run-write.sh` prompt gate).
 7. **Incomplete task templates are rejected.** `run-write.sh` scans for
    `<FILL IN:` placeholders and blocks execution before any confirmation.
-8. **MCP servers are isolated.** All wrappers pass `-c 'mcp_servers={}'` to
-   prevent global MCP servers from starting during Codex runs.
+8. **MCP servers are suppressed.** The project `.codex/config.toml` overrides
+   global MCP server entries (playwright, linear) with fail-fast values,
+   preventing them from being available as tools during read-only/verify runs.
+   Wrapper scripts filter residual startup-noise lines from stdout and redirect
+   MCP transport errors (stderr) to a temp log. Note: `-c 'mcp_servers={}'` CLI
+   flag does NOT suppress sub-table entries in the global config — the project
+   config approach is required (verified on codex-cli 0.115.0).
 9. **Claude skills are isolated from Codex.** `.agents/skills/*/SKILL.md`
    renamed to `SKILL_CLAUDE.md` to prevent Codex from attempting to load
    Claude-format skill files.

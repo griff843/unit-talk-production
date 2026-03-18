@@ -1,0 +1,20 @@
+# Codex project-level config — Unit Talk Production
+#
+# PURPOSE: Suppress global MCP servers (playwright, linear) for audit-clean
+# Codex runs. Codex read-only and verify tasks must not have external API
+# access (Linear, browser automation) — they are pure code-reading tasks.
+#
+# HOW: Both server entries are intentionally set to fail-fast values so they
+# cannot be used as tools. The wrapper scripts then filter the resulting
+# startup-noise lines from stdout. Stderr is redirected to a temp log.
+#
+# WHY NOT -c 'mcp_servers={}': That CLI flag does not suppress sub-table
+# entries in the global config. The project-level config + stdout filtering
+# is the effective approach for this codex-cli version (0.115.0).
+
+[mcp_servers.playwright]
+command = "false"
+args = []
+
+[mcp_servers.linear]
+url = "http://127.0.0.1:1"
