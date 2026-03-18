@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 # Codex Read-Only Agent Wrapper
-# Mode: suggest — no file modifications, no shell execution
+# Mode: suggest -- no file modifications, no shell execution
 # ============================================================
 # Usage:
 #   bash scripts/codex/run-readonly.sh <task-file>
@@ -23,9 +23,9 @@ if [[ ! -f "$TASK_FILE" ]]; then
 fi
 
 echo "[CODEX-READONLY] ================================================"
-echo "[CODEX-READONLY] Mode: suggest (read-only — no file writes)"
+echo "[CODEX-READONLY] Mode: suggest (read-only -- no file writes)"
 echo "[CODEX-READONLY] Task: $TASK_FILE"
 echo "[CODEX-READONLY] ================================================"
 echo ""
 
-exec codex exec -s read-only "$(cat "$TASK_FILE")"
+exec codex exec -s read-only -c 'mcp_servers={}' "$(cat "$TASK_FILE")"

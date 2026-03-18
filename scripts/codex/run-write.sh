@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 # Codex Bounded Write Agent Wrapper
-# Mode: auto-edit — file edits allowed, no shell execution
+# Mode: auto-edit -- file edits allowed, no shell execution
 # ============================================================
 # Usage:
 #   bash scripts/codex/run-write.sh <task-file>
@@ -26,6 +26,26 @@ if [[ ! -f "$TASK_FILE" ]]; then
   exit 1
 fi
 
+# -- Validate task file completeness ---------------------------
+
+PLACEHOLDERS=$(grep -c '<FILL IN:' "$TASK_FILE" || true)
+FILL_COMMENTS=$(grep -c '<!-- Fill in' "$TASK_FILE" || true)
+TOTAL_PLACEHOLDERS=$((PLACEHOLDERS + FILL_COMMENTS))
+
+if [[ "$TOTAL_PLACEHOLDERS" -gt 0 ]]; then
+  echo "[CODEX-WRITE] BLOCKED: task file contains $TOTAL_PLACEHOLDERS unfilled placeholder(s)."
+  echo ""
+  echo "  Placeholders found:"
+  grep -n '<FILL IN:' "$TASK_FILE" | sed 's/^/    /' || true
+  grep -n '<!-- Fill in' "$TASK_FILE" | sed 's/^/    /' || true
+  echo ""
+  echo "  A bounded-write task file must be fully specified before execution."
+  echo "  Fill in all <FILL IN: ...> fields and remove template comments."
+  exit 1
+fi
+
+# -- Confirmation gate -----------------------------------------
+
 echo "[CODEX-WRITE] ================================================"
 echo "[CODEX-WRITE] Mode: auto-edit (file modifications ALLOWED)"
 echo "[CODEX-WRITE] Task: $TASK_FILE"
@@ -40,9 +60,9 @@ echo ""
 read -r -p "[CODEX-WRITE] Proceed with bounded write execution? (yes/no): " confirm
 
 if [[ "$confirm" != "yes" ]]; then
-  echo "[CODEX-WRITE] Aborted — no changes made."
+  echo "[CODEX-WRITE] Aborted -- no changes made."
   exit 0
 fi
 
 echo ""
-exec codex exec -s workspace-write "$(cat "$TASK_FILE")"
+exec codex exec -s workspace-write -c 'mcp_servers={}' "$(cat "$TASK_FILE")"

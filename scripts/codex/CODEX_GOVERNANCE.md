@@ -1,7 +1,7 @@
 # Codex Execution Layer — Governance
 
 **Authority**: Unit Talk Engineering | Claude OS §7 (verification commands)
-**Updated**: 2026-03-17
+**Updated**: 2026-03-18
 
 ---
 
@@ -46,6 +46,13 @@ and mechanical, it goes to Codex.
    tasks only.
 6. **Bounded-write tasks require human confirmation** (enforced by
    `run-write.sh` prompt gate).
+7. **Incomplete task templates are rejected.** `run-write.sh` scans for
+   `<FILL IN:` placeholders and blocks execution before any confirmation.
+8. **MCP servers are isolated.** All wrappers pass `-c 'mcp_servers={}'` to
+   prevent global MCP servers from starting during Codex runs.
+9. **Claude skills are isolated from Codex.** `.agents/skills/*/SKILL.md`
+   renamed to `SKILL_CLAUDE.md` to prevent Codex from attempting to load
+   Claude-format skill files.
 
 ---
 

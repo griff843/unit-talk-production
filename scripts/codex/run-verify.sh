@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 # Codex Verification / Support Agent Wrapper
-# Mode: suggest — post-change inspection, report generation
+# Mode: suggest -- post-change inspection, report generation
 # ============================================================
 # Usage:
 #   bash scripts/codex/run-verify.sh <task-file>
@@ -27,9 +27,9 @@ if [[ ! -f "$TASK_FILE" ]]; then
 fi
 
 echo "[CODEX-VERIFY] ================================================"
-echo "[CODEX-VERIFY] Mode: suggest (verification — no file writes)"
+echo "[CODEX-VERIFY] Mode: suggest (verification -- no file writes)"
 echo "[CODEX-VERIFY] Task: $TASK_FILE"
 echo "[CODEX-VERIFY] ================================================"
 echo ""
 
-exec codex exec -s read-only "$(cat "$TASK_FILE")"
+exec codex exec -s read-only -c 'mcp_servers={}' "$(cat "$TASK_FILE")"
