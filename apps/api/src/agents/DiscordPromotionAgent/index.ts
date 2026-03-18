@@ -5,7 +5,12 @@ import FormData from 'form-data';
 
 // SPRINT-REPO-TRUTH-LOCK-002: Distribution domain boundary — type-only import
 
-import { resolveDiscordRoutingConfig } from '../../config/discordRouting';
+import {
+  resolveDiscordRoutingConfig,
+  requireWebhookForChannel,
+  getWebhookForChannel,
+  type DiscordProductionChannel,
+} from '../../config/discordRouting';
 import { runAutoApproval } from '../../lib/auto-approval';
 import { autopilotGuard } from '../../lib/AutopilotGuard';
 import { getBuildInfo } from '../../lib/buildInfo';
@@ -41,21 +46,13 @@ import { parsePromotionPolicyConfig } from '../GradingAgent/scoring/promotionPol
 import type { DistributionChannel, DistributionResult } from '@unit-talk/distribution';
 
 // ---- CONFIG ----
-// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
-// Returns undefined if not set (fail-closed: callers must handle)
-function getDiscordWebhookUrl(): string | undefined {
-  return process.env['DISCORD_WEBHOOK_URL'];
-}
-// REQUIRED env var - throws if not configured
-function requireDiscordWebhookUrl(): string {
-  const url = process.env['DISCORD_WEBHOOK_URL'];
-  if (!url) {
-    throw new Error(
-      'DISCORD_WEBHOOK_URL is required but not configured. See apps/api/CLAUDE.md for env requirements.'
-    );
-  }
-  return url;
-}
+// SPRINT-DISCORD-ROUTING-INTEGRATION: Channel-aware webhook resolution.
+// All posting MUST go through getWebhookForChannel/requireWebhookForChannel
+// from discordRouting.ts. This respects DISCORD_MODE (canary/production/legacy).
+// Direct DISCORD_WEBHOOK_URL reads are eliminated on the promotion posting path.
+
+/** Default channel for picks when caller does not specify */
+const DEFAULT_PICK_CHANNEL: DiscordProductionChannel = 'TRADER_INSIGHTS';
 // SPRINT-PROMOTION-PIPELINE-ACTIVATION: Changed to opt-in (=== 'true') to match all other
 // shadow mode patterns in the codebase. Previously inverted default blocked all posting.
 // Set PROMOTION_SHADOW_MODE=true to re-enable shadow mode. Default is now ACTIVE posting.
@@ -458,7 +455,10 @@ function buildEliteEmbed(pick: any) {
  * PARLAY-DISCORD-GROUPING-001: Returns message_id for storage
  */
 // eslint-disable-next-line max-lines-per-function, complexity
-async function postEliteCardToDiscord(pick: any): Promise<string | null> {
+async function postEliteCardToDiscord(
+  pick: any,
+  channel: DiscordProductionChannel = DEFAULT_PICK_CHANNEL
+): Promise<string | null> {
   // SPRINT-SCORING-PIPELINE-ACTIVATION-018: Promotion guardrail (P0)
   // Fail-closed: block any pick that should not reach Discord.
   // Must run BEFORE autopilot guard to prevent any bypass.
@@ -481,8 +481,12 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
     );
   }
 
-  if (!getDiscordWebhookUrl()) {
-    logger.error('No Discord webhook URL set!');
+  // SPRINT-DISCORD-ROUTING-INTEGRATION: Use channel-aware routing.
+  // In canary mode → canary webhook. In production mode → per-channel webhook.
+  // In legacy mode → DISCORD_WEBHOOK_URL fallback.
+  // Fail-closed: if no webhook configured, do not post.
+  if (!getWebhookForChannel(channel)) {
+    logger.error({ channel }, 'No Discord webhook configured for channel (routing-aware check)');
     return null;
   }
 
@@ -696,8 +700,8 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
     const embed = buildEmbedFromPresentation(presentation);
 
     // PARLAY-DISCORD-GROUPING-001: Use ?wait=true to get message_id
-    // SPRINT-SCHEMA-ENV-GATES-002: Use requireDiscordWebhookUrl for fail-closed posting
-    const response = await axios.post(`${requireDiscordWebhookUrl()}?wait=true`, {
+    // SPRINT-DISCORD-ROUTING-INTEGRATION: Channel-aware webhook resolution
+    const response = await axios.post(`${requireWebhookForChannel(channel)}?wait=true`, {
       username: 'Unit Talk Picks',
       embeds: [embed],
     });
@@ -722,12 +726,16 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
         'payload_json',
         JSON.stringify({ username: 'Unit Talk Picks', embeds: [buildEliteEmbed(pick)] })
       );
-      // SPRINT-SCHEMA-ENV-GATES-002: Use requireDiscordWebhookUrl for fail-closed posting
-      const fallbackResponse = await axios.post(`${requireDiscordWebhookUrl()}?wait=true`, form, {
-        headers: form.getHeaders(),
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-      });
+      // SPRINT-DISCORD-ROUTING-INTEGRATION: Channel-aware webhook resolution (fallback)
+      const fallbackResponse = await axios.post(
+        `${requireWebhookForChannel(channel)}?wait=true`,
+        form,
+        {
+          headers: form.getHeaders(),
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+        }
+      );
       const fallbackMsgId = fallbackResponse.data?.id || null;
       logger.info(
         { pickId: pick.id, messageId: fallbackMsgId },
@@ -747,9 +755,13 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
 // PARLAY-DISCORD-FIX-001: Post parlay to Discord
 // PARLAY-DISCORD-GROUPING-001: Returns message_id for storage
 // eslint-disable-next-line max-lines-per-function, complexity
-async function postParlayToDiscord(legs: any[]): Promise<string | null> {
-  if (!getDiscordWebhookUrl()) {
-    logger.error('No Discord webhook URL set!');
+async function postParlayToDiscord(
+  legs: any[],
+  channel: DiscordProductionChannel = DEFAULT_PICK_CHANNEL
+): Promise<string | null> {
+  // SPRINT-DISCORD-ROUTING-INTEGRATION: Channel-aware routing for parlays.
+  if (!getWebhookForChannel(channel)) {
+    logger.error({ channel }, 'No Discord webhook configured for channel (routing-aware check)');
     return null;
   }
 
@@ -902,8 +914,8 @@ async function postParlayToDiscord(legs: any[]): Promise<string | null> {
 
   try {
     // PARLAY-DISCORD-GROUPING-001: Use ?wait=true to get message_id back
-    // SPRINT-SCHEMA-ENV-GATES-002: Use requireDiscordWebhookUrl for fail-closed posting
-    const response = await axios.post(`${requireDiscordWebhookUrl()}?wait=true`, {
+    // SPRINT-DISCORD-ROUTING-INTEGRATION: Channel-aware webhook resolution
+    const response = await axios.post(`${requireWebhookForChannel(channel)}?wait=true`, {
       username: 'Unit Talk Picks',
       embeds: [buildParlayEmbed(legs)],
     });
@@ -1193,7 +1205,7 @@ async function processCapperPicks(): Promise<number> {
           'Shadow mode — skipped capper parlay post'
         );
       } else {
-        const messageId = await postParlayToDiscord(allLegs);
+        const messageId = await postParlayToDiscord(allLegs, 'TRADER_INSIGHTS');
         const publishLatencyMs = Date.now() - requestStartTime;
 
         // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
@@ -1264,7 +1276,7 @@ async function processCapperPicks(): Promise<number> {
           continue;
         }
 
-        const messageId = await postEliteCardToDiscord(pick);
+        const messageId = await postEliteCardToDiscord(pick, 'TRADER_INSIGHTS');
         const singlePublishLatencyMs = Date.now() - singleRequestStartTime;
 
         // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
@@ -1366,7 +1378,7 @@ async function processSystemPicks(): Promise<number> {
         continue;
       }
 
-      const messageId = await postEliteCardToDiscord(pick);
+      const messageId = await postEliteCardToDiscord(pick, 'BEST_BETS');
       const publishLatencyMs = Date.now() - requestStartTime;
 
       // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
@@ -1459,7 +1471,7 @@ async function processLegacyPicks(): Promise<number> {
         continue;
       }
 
-      const messageId = await postEliteCardToDiscord(pick);
+      const messageId = await postEliteCardToDiscord(pick, 'FREE_DAILY_PICKS');
       const publishLatencyMs = Date.now() - requestStartTime;
 
       // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
@@ -1509,7 +1521,8 @@ export async function promoteToDiscord() {
   // SPRINT-PROMOTION-PIPELINE-ACTIVATION: Gate status diagnostics at startup.
   // If any gate is blocking, log actionable message so operators know what to set.
   const shadowMode = isPromotionShadowMode();
-  const webhookConfigured = !!getDiscordWebhookUrl();
+  // SPRINT-DISCORD-ROUTING-INTEGRATION: Check webhook via routing-aware path
+  const webhookConfigured = !!getWebhookForChannel(DEFAULT_PICK_CHANNEL);
   const autopilotMode = process.env.AUTOPILOT_MODE || '(not set — defaults to off)';
   const promotionPolicyCfg = parsePromotionPolicyConfig();
 
@@ -1524,7 +1537,7 @@ export async function promoteToDiscord() {
     actionRequired: shadowMode
       ? 'Set PROMOTION_SHADOW_MODE=true to suppress (or unset to allow posting)'
       : !webhookConfigured
-        ? 'Set DISCORD_WEBHOOK_URL to enable posting'
+        ? 'Configure Discord webhook (DISCORD_MODE + channel webhooks or DISCORD_WEBHOOK_URL)'
         : !['prod', 'canary'].includes(process.env.AUTOPILOT_MODE?.toLowerCase() || '')
           ? 'Set AUTOPILOT_MODE=prod to allow Discord posts'
           : null,
@@ -1595,7 +1608,7 @@ export async function getDiscordPublishHealth(): Promise<DiscordPublishHealth> {
 
   // Determine health status
   let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-  if (config.killSwitch || !getDiscordWebhookUrl()) {
+  if (config.killSwitch || !getWebhookForChannel(DEFAULT_PICK_CHANNEL)) {
     status = 'unhealthy';
   } else if (isPromotionShadowMode()) {
     status = 'degraded';
@@ -1609,7 +1622,7 @@ export async function getDiscordPublishHealth(): Promise<DiscordPublishHealth> {
     pendingCount,
     recentlyPostedCount,
     oldestPendingMinutes,
-    webhookConfigured: !!getDiscordWebhookUrl(),
+    webhookConfigured: !!getWebhookForChannel(DEFAULT_PICK_CHANNEL),
     shadowModeEnabled: isPromotionShadowMode(),
     killSwitchActive: config.killSwitch || false,
     checkedAt: now.toISOString(),
