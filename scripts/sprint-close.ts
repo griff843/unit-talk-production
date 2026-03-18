@@ -342,13 +342,22 @@ function main(): void {
   console.log(`   Date: ${targetDate}`);
   console.log(`   Proofs Dir: ${proofsDir}`);
 
-  if (!fs.existsSync(proofsDir)) {
+  if (!validateOnly && !fs.existsSync(proofsDir)) {
     fs.mkdirSync(proofsDir, { recursive: true });
+  }
+
+  if (validateOnly && !fs.existsSync(proofsDir)) {
+    console.error('\n❌ CLOSEOUT FAILED: Proofs directory not found in validate-only mode');
+    console.error(`   Expected existing directory: ${proofsDir}`);
+    console.error(
+      '   Validate-only is non-mutating and will not create missing proof directories.'
+    );
+    process.exit(1);
   }
 
   // Routing decision gate (COS-007) — always enforced regardless of mode
   console.log('\n🔀 Validating routing decision...');
-  const routingResult = validateRoutingDecision(sprintId);
+  const routingResult = validateRoutingDecision(sprintId, { dateDir: targetDate });
   if (!routingResult.valid) {
     console.error('\n❌ CLOSEOUT FAILED: Routing decision invalid');
     for (const err of routingResult.errors) {

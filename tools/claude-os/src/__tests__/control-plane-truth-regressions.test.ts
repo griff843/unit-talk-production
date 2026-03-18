@@ -29,7 +29,27 @@ afterEach(() => {
 });
 
 const SPRINT_GATE = path.resolve(__dirname, '../../../../tools/governance/sprint-gate.js');
+const PRE_SPRINT_CHECK = path.resolve(__dirname, '../../../../scripts/pre-sprint-check.mjs');
+const SPRINT_CLOSE = path.resolve(__dirname, '../../../../scripts/sprint-close.ts');
 const REPO_ROOT = path.resolve(__dirname, '../../../../');
+const VALID_ROUTING_DECISION = `# LLM Routing Decision
+
+**Sprint**: SPRINT-TEST-001
+
+## Classification Result
+
+**Classifications**: implementation
+
+## Lanes Selected
+
+| Lane | Name | Preferred Model | Execution Mode | External? |
+|------|------|-----------------|----------------|-----------|
+| 1 | Implementation | Claude Sonnet | Claude Code internal | None |
+
+## Instance Recommendation
+
+**Mode**: SINGLE_INSTANCE
+`;
 
 /**
  * Run sprint-gate.js with a synthetic NEXT_5_SPRINTS.md in tmpDir.
@@ -64,6 +84,38 @@ function runSprintGate(
   }
 
   return { exitCode, stdout, stderr };
+}
+
+function runPreSprintCheck(cwd: string): { exitCode: number; stdout: string; stderr: string } {
+  let stdout = '';
+  let stderr = '';
+  let exitCode = 0;
+
+  try {
+    stdout = execSync(`node "${PRE_SPRINT_CHECK}"`, {
+      cwd,
+      encoding: 'utf8',
+      env: { ...process.env },
+      timeout: 5000,
+    });
+  } catch (err: any) {
+    stdout = err.stdout ?? '';
+    stderr = err.stderr ?? '';
+    exitCode = err.status ?? 1;
+  }
+
+  return { exitCode, stdout, stderr };
+}
+
+function writeBaseline(
+  repoRoot: string,
+  dirName: string,
+  payload: Record<string, unknown>
+): string {
+  const dir = path.join(repoRoot, 'out', 'session-baseline', dirName);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'baseline.json'), JSON.stringify(payload, null, 2));
+  return dir;
 }
 
 // ---------------------------------------------------------------------------
@@ -167,6 +219,84 @@ describe('hasDrift fail-closed logic', () => {
   it('does NOT block when hasDrift === false (clean schema)', () => {
     const blockers = checkDriftBlocker(false);
     expect(blockers).toHaveLength(0);
+  });
+});
+
+describe('pre-sprint-check: actual script behavior', () => {
+  it('fails when no baseline exists', () => {
+    const { exitCode, stdout } = runPreSprintCheck(tmpDir);
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain('No baseline found');
+  });
+
+  it('fails when baseline is stale', () => {
+    writeBaseline(tmpDir, '20260317-090000', {
+      timestamp: '2026-03-17T09:00:00.000Z',
+      typescript: { totalErrors: 0 },
+      eslint: { summary: { totalErrors: 0, totalWarnings: 0 } },
+      git: { clean: true },
+      supabase: { drift: { hasDrift: false }, hash: { hash: 'abc123' } },
+    });
+
+    const { exitCode, stdout } = runPreSprintCheck(tmpDir);
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain('Checking baseline freshness');
+  });
+
+  it('labels repo debt as inherited when counts do not increase vs previous baseline', () => {
+    writeBaseline(tmpDir, '20260317-090000', {
+      timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      typescript: { totalErrors: 0 },
+      eslint: { summary: { totalErrors: 3, totalWarnings: 0 } },
+      git: { clean: true },
+      supabase: { drift: { hasDrift: false }, hash: { hash: 'abc123' } },
+    });
+    writeBaseline(tmpDir, '20260317-100000', {
+      timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      typescript: { totalErrors: 0 },
+      eslint: { summary: { totalErrors: 3, totalWarnings: 0 } },
+      git: { clean: true },
+      supabase: { drift: { hasDrift: false }, hash: { hash: 'abc123' } },
+    });
+
+    const { exitCode, stdout } = runPreSprintCheck(tmpDir);
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain('inherited - pre-existing repo debt');
+  });
+
+  it('labels debt as newly introduced when counts increase vs previous baseline', () => {
+    writeBaseline(tmpDir, '20260317-090000', {
+      timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      typescript: { totalErrors: 0 },
+      eslint: { summary: { totalErrors: 2, totalWarnings: 0 } },
+      git: { clean: true },
+      supabase: { drift: { hasDrift: false }, hash: { hash: 'abc123' } },
+    });
+    writeBaseline(tmpDir, '20260317-100000', {
+      timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      typescript: { totalErrors: 0 },
+      eslint: { summary: { totalErrors: 5, totalWarnings: 0 } },
+      git: { clean: true },
+      supabase: { drift: { hasDrift: false }, hash: { hash: 'abc123' } },
+    });
+
+    const { exitCode, stdout } = runPreSprintCheck(tmpDir);
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain('newly introduced +3');
+  });
+
+  it('fails closed when schema/type truth is missing', () => {
+    writeBaseline(tmpDir, '20260317-100000', {
+      timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      typescript: { totalErrors: 0 },
+      eslint: { summary: { totalErrors: 0, totalWarnings: 0 } },
+      git: { clean: true },
+      supabase: { drift: { hasDrift: null }, hash: { hash: 'abc123' } },
+    });
+
+    const { exitCode, stdout } = runPreSprintCheck(tmpDir);
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain('Schema/type truth missing or unknown');
   });
 });
 
@@ -276,5 +406,68 @@ describe('check-session-baseline: backward walk skips incomplete dirs', () => {
   it('returns null when baselineDir does not exist', () => {
     const found = findLatestBaselineBackwardWalk(path.join(tmpDir, 'nonexistent'));
     expect(found).toBeNull();
+  });
+});
+
+describe('sprint-close: validate-only is non-mutating and date-specific', () => {
+  const sprintId = `SPRINT-TEST-CLOSEOUT-${Date.now()}`;
+  const sprintDir = path.join(REPO_ROOT, 'out', 'sprints', sprintId);
+
+  afterEach(() => {
+    fs.rmSync(sprintDir, { recursive: true, force: true });
+  });
+
+  it('does not create proofs directory in validate-only mode', () => {
+    const dateDir = path.join(sprintDir, '2026-03-17');
+    fs.mkdirSync(dateDir, { recursive: true });
+    fs.writeFileSync(path.join(dateDir, 'LLM_ROUTING_DECISION.md'), VALID_ROUTING_DECISION);
+
+    let stdout = '';
+    let stderr = '';
+    let exitCode = 0;
+    try {
+      stdout = execSync(`npx tsx "${SPRINT_CLOSE}" ${sprintId} --date 2026-03-17 --validate-only`, {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        env: { ...process.env },
+        timeout: 15000,
+      });
+    } catch (err: any) {
+      stdout = err.stdout ?? '';
+      stderr = err.stderr ?? '';
+      exitCode = err.status ?? 1;
+    }
+
+    expect(exitCode).toBe(1);
+    expect(stdout + stderr).toContain('validate-only mode');
+    expect(fs.existsSync(path.join(dateDir, 'proofs'))).toBe(false);
+  });
+
+  it('validates the requested date directory instead of the latest one', () => {
+    const olderDir = path.join(sprintDir, '2026-03-16');
+    const newerDir = path.join(sprintDir, '2026-03-17');
+    fs.mkdirSync(path.join(olderDir, 'proofs'), { recursive: true });
+    fs.mkdirSync(path.join(newerDir, 'proofs'), { recursive: true });
+    fs.writeFileSync(path.join(olderDir, 'LLM_ROUTING_DECISION.md'), VALID_ROUTING_DECISION);
+
+    let stdout = '';
+    let stderr = '';
+    let exitCode = 0;
+    try {
+      stdout = execSync(`npx tsx "${SPRINT_CLOSE}" ${sprintId} --date 2026-03-17 --validate-only`, {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        env: { ...process.env },
+        timeout: 15000,
+      });
+    } catch (err: any) {
+      stdout = err.stdout ?? '';
+      stderr = err.stderr ?? '';
+      exitCode = err.status ?? 1;
+    }
+
+    expect(exitCode).toBe(1);
+    expect(stdout + stderr).toContain('2026-03-17');
+    expect(stdout + stderr).not.toContain(path.join(olderDir, 'LLM_ROUTING_DECISION.md'));
   });
 });

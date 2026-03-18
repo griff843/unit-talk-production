@@ -39,6 +39,8 @@ export interface RoutingDecisionValidationResult {
 export interface RoutingDecisionValidatorOptions {
   /** Override repo root for resolving out/sprints/ (useful in tests) */
   repoRoot?: string;
+  /** Validate a specific sprint date directory instead of auto-discovery */
+  dateDir?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,15 +78,19 @@ export function findRoutingDecisionFile(
   if (!fs.existsSync(sprintsDir)) return null;
 
   let dateDirs: string[];
-  try {
-    dateDirs = fs
-      .readdirSync(sprintsDir, { withFileTypes: true })
-      .filter(d => d.isDirectory())
-      .map(d => d.name)
-      .sort()
-      .reverse(); // most-recent date string first
-  } catch {
-    return null;
+  if (options?.dateDir) {
+    dateDirs = [options.dateDir];
+  } else {
+    try {
+      dateDirs = fs
+        .readdirSync(sprintsDir, { withFileTypes: true })
+        .filter(d => d.isDirectory())
+        .map(d => d.name)
+        .sort()
+        .reverse(); // most-recent date string first
+    } catch {
+      return null;
+    }
   }
 
   for (const dateDir of dateDirs) {
@@ -124,11 +130,14 @@ export function validateRoutingDecision(
 
   const filePath = findRoutingDecisionFile(sprintId, options);
   if (!filePath) {
+    const location = options?.dateDir
+      ? `out/sprints/${sprintId}/${options.dateDir}/LLM_ROUTING_DECISION.md`
+      : `out/sprints/${sprintId}/*/`;
     return {
       valid: false,
       filePath: null,
       errors: [
-        `LLM_ROUTING_DECISION.md not found in out/sprints/${sprintId}/*/`,
+        `LLM_ROUTING_DECISION.md not found in ${location}`,
         'Run the LLM router before closing: npx tsx tools/claude-os/src/cli.ts route --sprint <ID> ...',
       ],
     };

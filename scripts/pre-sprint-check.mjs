@@ -11,14 +11,13 @@
  *   pnpm pre-sprint-check
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import path from 'path';
 
 const ROOT = process.cwd();
 const BASELINE_DIR = path.join(ROOT, 'out', 'session-baseline');
 const MAX_BASELINE_AGE_MINUTES = 10;
 
-// Colors for console output
 const colors = {
   reset: '\x1b[0m',
   red: '\x1b[31m',
@@ -33,52 +32,39 @@ function log(message, color = 'reset') {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
-/**
- * Find the most recent valid baseline using backward walk.
- * Tries each directory from newest to oldest until one with a parseable
- * baseline.json is found. Incomplete/corrupt runs are skipped.
- */
-function findLatestBaseline() {
+function findValidBaselines() {
   if (!existsSync(BASELINE_DIR)) {
-    return null;
+    return [];
   }
 
   const dirs = readdirSync(BASELINE_DIR, { withFileTypes: true })
     .filter(d => d.isDirectory())
-    .map(d => ({
-      name: d.name,
-      path: path.join(BASELINE_DIR, d.name),
-      mtime: statSync(path.join(BASELINE_DIR, d.name)).mtime,
-    }))
-    .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+    .map(d => d.name)
+    .sort()
+    .reverse();
 
-  if (dirs.length === 0) {
-    return null;
-  }
-
-  // Backward walk: skip dirs with missing or corrupt baseline.json
-  for (const dir of dirs) {
-    const baselinePath = path.join(dir.path, 'baseline.json');
+  const baselines = [];
+  for (const name of dirs) {
+    const dirPath = path.join(BASELINE_DIR, name);
+    const baselinePath = path.join(dirPath, 'baseline.json');
     if (!existsSync(baselinePath)) continue;
+
     try {
       const content = JSON.parse(readFileSync(baselinePath, 'utf8'));
-      if (!content.timestamp) continue; // incomplete run — skip
-      return {
-        path: dir.path,
+      if (!content.timestamp) continue;
+      baselines.push({
+        path: dirPath,
         timestamp: content.timestamp,
         data: content,
-      };
+      });
     } catch {
-      continue; // corrupt JSON — skip
+      continue;
     }
   }
 
-  return null;
+  return baselines;
 }
 
-/**
- * Check if baseline is fresh enough
- */
 function isBaselineFresh(baseline, maxAgeMinutes = MAX_BASELINE_AGE_MINUTES) {
   const baselineTime = new Date(baseline.timestamp).getTime();
   const now = Date.now();
@@ -91,51 +77,82 @@ function isBaselineFresh(baseline, maxAgeMinutes = MAX_BASELINE_AGE_MINUTES) {
   };
 }
 
-/**
- * Check for blocking issues in baseline
- */
-function checkForBlockers(baseline) {
+function classifyDebt(currentCount, previousCount) {
+  if (typeof currentCount !== 'number' || currentCount <= 0) {
+    return { label: 'clean', delta: 0 };
+  }
+
+  if (typeof previousCount !== 'number') {
+    return { label: 'inherited', delta: null };
+  }
+
+  const delta = currentCount - previousCount;
+  if (delta > 0) {
+    return { label: 'new', delta };
+  }
+
+  return { label: 'inherited', delta: 0 };
+}
+
+function checkForBlockers(baseline, previousBaseline = null) {
   const blockers = [];
   const warnings = [];
   const data = baseline.data;
+  const previousData = previousBaseline?.data;
 
-  // TypeScript errors are blockers (inherited = pre-existing before this sprint)
+  const tsDebt = classifyDebt(
+    data.typescript?.totalErrors,
+    previousData?.typescript?.totalErrors
+  );
   if (data.typescript?.totalErrors > 0) {
     blockers.push({
       type: 'typescript',
       severity: 'error',
-      message: `${data.typescript.totalErrors} TypeScript errors (inherited — pre-existing repo debt)`,
+      message:
+        tsDebt.label === 'new'
+          ? `${data.typescript.totalErrors} TypeScript errors (newly introduced +${tsDebt.delta} vs previous baseline)`
+          : `${data.typescript.totalErrors} TypeScript errors (inherited - pre-existing repo debt)`,
       count: data.typescript.totalErrors,
-      inherited: true,
+      inherited: tsDebt.label !== 'new',
     });
   }
 
-  // ESLint errors are blockers (inherited = pre-existing before this sprint)
+  const eslintDebt = classifyDebt(
+    data.eslint?.summary?.totalErrors,
+    previousData?.eslint?.summary?.totalErrors
+  );
   if (data.eslint?.summary?.totalErrors > 0) {
     blockers.push({
       type: 'eslint',
       severity: 'error',
-      message: `${data.eslint.summary.totalErrors} ESLint errors (inherited — pre-existing repo debt)`,
+      message:
+        eslintDebt.label === 'new'
+          ? `${data.eslint.summary.totalErrors} ESLint errors (newly introduced +${eslintDebt.delta} vs previous baseline)`
+          : `${data.eslint.summary.totalErrors} ESLint errors (inherited - pre-existing repo debt)`,
       count: data.eslint.summary.totalErrors,
-      inherited: true,
+      inherited: eslintDebt.label !== 'new',
     });
   }
 
-  // Schema drift is a blocker — fail-closed on null/undefined/unknown (not just true)
   const hasDrift = data.supabase?.drift?.hasDrift;
+  const previousHasDrift = previousData?.supabase?.drift?.hasDrift;
   if (hasDrift !== false) {
-    const reason = hasDrift === true
-      ? 'Schema drift detected'
-      : `Schema drift status unknown (hasDrift=${String(hasDrift)}) — fail-closed`;
+    const schemaState =
+      hasDrift === true
+        ? 'Schema drift detected'
+        : `Schema/type truth missing or unknown (hasDrift=${String(hasDrift)}) - fail-closed`;
+    const comparison =
+      previousHasDrift === false
+        ? 'newly introduced vs previous baseline'
+        : 'inherited';
     blockers.push({
       type: 'supabase',
       severity: 'error',
-      message: reason,
+      message: `${schemaState} (${comparison})`,
       details: data.supabase?.drift,
     });
   }
 
-  // Dirty working tree is a warning
   if (!data.git?.clean) {
     warnings.push({
       type: 'git',
@@ -146,7 +163,6 @@ function checkForBlockers(baseline) {
     });
   }
 
-  // ESLint warnings are warnings
   if (data.eslint?.summary?.totalWarnings > 10) {
     warnings.push({
       type: 'eslint',
@@ -159,9 +175,6 @@ function checkForBlockers(baseline) {
   return { blockers, warnings };
 }
 
-/**
- * Run pre-sprint checks
- */
 function runPreSprintCheck() {
   log('\n' + '═'.repeat(60), 'cyan');
   log('  PRE-SPRINT CHECK', 'bold');
@@ -174,9 +187,10 @@ function runPreSprintCheck() {
     checks: {},
   };
 
-  // Check 1: Find baseline
   log('\n[1/4] Checking for baseline...', 'blue');
-  const baseline = findLatestBaseline();
+  const baselines = findValidBaselines();
+  const baseline = baselines[0] ?? null;
+  const previousBaseline = baselines[1] ?? null;
 
   if (!baseline) {
     log('  ✗ No baseline found!', 'red');
@@ -189,24 +203,28 @@ function runPreSprintCheck() {
   log(`  ✓ Baseline found: ${baseline.path}`, 'green');
   results.checks.baselineExists = { passed: true, path: baseline.path };
 
-  // Check 2: Baseline freshness
   log('\n[2/4] Checking baseline freshness...', 'blue');
   const freshness = isBaselineFresh(baseline);
 
   if (!freshness.fresh) {
-    log(`  ✗ Baseline is ${freshness.ageMinutes} minutes old (max: ${freshness.maxAgeMinutes})`, 'red');
+    log(
+      `  ✗ Baseline is ${freshness.ageMinutes} minutes old (max: ${freshness.maxAgeMinutes})`,
+      'red'
+    );
     log('  Run: pnpm session:baseline', 'yellow');
     results.checks.baselineFresh = { passed: false, ...freshness };
     printFailure(results);
     process.exit(1);
   }
 
-  log(`  ✓ Baseline is ${freshness.ageMinutes} minutes old (max: ${freshness.maxAgeMinutes})`, 'green');
+  log(
+    `  ✓ Baseline is ${freshness.ageMinutes} minutes old (max: ${freshness.maxAgeMinutes})`,
+    'green'
+  );
   results.checks.baselineFresh = { passed: true, ...freshness };
 
-  // Check 3: No blockers
   log('\n[3/4] Checking for blockers...', 'blue');
-  const { blockers, warnings } = checkForBlockers(baseline);
+  const { blockers, warnings } = checkForBlockers(baseline, previousBaseline);
 
   if (blockers.length > 0) {
     log(`  ✗ ${blockers.length} blocking issue(s) found:`, 'red');
@@ -221,7 +239,6 @@ function runPreSprintCheck() {
   log('  ✓ No blocking issues', 'green');
   results.checks.noBlockers = { passed: true };
 
-  // Check 4: Warnings (informational, non-blocking)
   log('\n[4/4] Checking warnings...', 'blue');
 
   if (warnings.length > 0) {
@@ -235,14 +252,10 @@ function runPreSprintCheck() {
     results.checks.warnings = { passed: true, count: 0 };
   }
 
-  // All checks passed
   results.passed = true;
   printSuccess(results, baseline);
 }
 
-/**
- * Print success message
- */
 function printSuccess(results, baseline) {
   log('\n' + '═'.repeat(60), 'green');
   log('  ✓ PRE-SPRINT CHECK PASSED', 'green');
@@ -250,16 +263,16 @@ function printSuccess(results, baseline) {
 
   log('\nBaseline Summary:', 'blue');
   log(`  TypeScript: ${baseline.data.typescript?.totalErrors || 0} errors`, 'reset');
-  log(`  ESLint: ${baseline.data.eslint?.summary?.totalErrors || 0} errors, ${baseline.data.eslint?.summary?.totalWarnings || 0} warnings`, 'reset');
+  log(
+    `  ESLint: ${baseline.data.eslint?.summary?.totalErrors || 0} errors, ${baseline.data.eslint?.summary?.totalWarnings || 0} warnings`,
+    'reset'
+  );
   log(`  Git: ${baseline.data.git?.clean ? 'clean' : 'dirty'}`, 'reset');
   log(`  Supabase: ${baseline.data.supabase?.hash?.hash || 'unknown'}`, 'reset');
 
   log('\n✅ Sprint may proceed.\n', 'green');
 }
 
-/**
- * Print failure message
- */
 function printFailure(results) {
   log('\n' + '═'.repeat(60), 'red');
   log('  ✗ PRE-SPRINT CHECK FAILED', 'red');
@@ -275,5 +288,4 @@ function printFailure(results) {
   log('\n❌ Sprint CANNOT proceed until issues are resolved.\n', 'red');
 }
 
-// Run the check
 runPreSprintCheck();

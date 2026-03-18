@@ -105,6 +105,13 @@ describe('findRoutingDecisionFile', () => {
     const newer = writeRoutingDecision(SPRINT_ID, '2026-03-15', VALID_ROUTING_DECISION);
     expect(findRoutingDecisionFile(SPRINT_ID, opts())).toBe(newer);
   });
+
+  it('uses the requested date directory when dateDir is provided', () => {
+    const older = writeRoutingDecision(SPRINT_ID, '2026-03-14', VALID_ROUTING_DECISION);
+    writeRoutingDecision(SPRINT_ID, '2026-03-15', '# newer but invalid');
+
+    expect(findRoutingDecisionFile(SPRINT_ID, { ...opts(), dateDir: '2026-03-14' })).toBe(older);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -141,6 +148,15 @@ describe('validateRoutingDecision — missing file', () => {
     });
     const result = validateRoutingDecision(SPRINT_ID, opts());
     expect(result.errors.some(e => e.includes('route'))).toBe(true);
+  });
+
+  it('reports the specific date path when dateDir is provided', () => {
+    fs.mkdirSync(path.join(tmpDir, 'out', 'sprints', SPRINT_ID, '2026-03-15'), {
+      recursive: true,
+    });
+    const result = validateRoutingDecision(SPRINT_ID, { ...opts(), dateDir: '2026-03-15' });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('2026-03-15');
   });
 });
 
