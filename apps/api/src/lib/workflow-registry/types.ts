@@ -16,6 +16,8 @@ export interface WorkflowParameter {
   example?: string;
 }
 
+export type WorkflowTrigger = 'manual' | 'scheduled' | 'event-driven';
+
 export interface WorkflowEntry {
   /** Unique identifier (kebab-case) */
   name: string;
@@ -35,4 +37,10 @@ export interface WorkflowEntry {
   parameters?: WorkflowParameter[];
   /** Requires live Supabase connection */
   requiresDatabase?: boolean;
+  /** How this workflow is triggered (default: manual) */
+  trigger?: WorkflowTrigger;
+  /** Temporal schedule ID if trigger is 'scheduled' */
+  temporalScheduleId?: string;
+  /** Schedule interval description (e.g., 'every 30m', 'daily at 4 AM') */
+  scheduleDescription?: string;
 }

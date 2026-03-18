@@ -145,4 +145,61 @@ describe('WorkflowRegistry', () => {
       }
     });
   });
+
+  // SPRINT-PH11-GAP-CLOSURE-2: Verify scheduled trigger metadata for analysis workflows
+  describe('scheduled trigger metadata (GAP-PH11-1 closure)', () => {
+    const scheduledWorkflows = [
+      {
+        name: 'verify-slo',
+        scheduleId: 'routine-verify-slo',
+        scheduleDesc: 'every 30 minutes',
+      },
+      {
+        name: 'check-grading-status',
+        scheduleId: 'routine-check-grading-status',
+        scheduleDesc: 'every 15 minutes',
+      },
+      {
+        name: 'analyze-grading-promotion',
+        scheduleId: 'routine-analyze-grading-promotion',
+        scheduleDesc: 'daily at 4 AM',
+      },
+      {
+        name: 'edge-validation-report',
+        scheduleId: 'routine-edge-validation-report',
+        scheduleDesc: 'daily at 5 AM',
+      },
+    ];
+
+    for (const { name, scheduleId, scheduleDesc } of scheduledWorkflows) {
+      it(`${name} has trigger=scheduled with correct schedule ID`, () => {
+        const w = findWorkflow(name);
+        expect(w).toBeDefined();
+        expect(w?.trigger).toBe('scheduled');
+        expect(w?.temporalScheduleId).toBe(scheduleId);
+        expect(w?.scheduleDescription).toBe(scheduleDesc);
+      });
+    }
+
+    it('all 4 analysis workflows are scheduled', () => {
+      const analysis = getWorkflowsByCategory('analysis');
+      const scheduled = analysis.filter(w => w.trigger === 'scheduled');
+      expect(scheduled.length).toBe(4);
+    });
+
+    it('scheduled workflows have valid trigger type', () => {
+      const scheduled = WORKFLOW_REGISTRY.filter(w => w.trigger === 'scheduled');
+      for (const w of scheduled) {
+        expect(w.temporalScheduleId).toBeTruthy();
+        expect(w.scheduleDescription).toBeTruthy();
+      }
+    });
+
+    it('non-scheduled workflows do not have schedule metadata', () => {
+      const manual = WORKFLOW_REGISTRY.filter(w => !w.trigger || w.trigger === 'manual');
+      for (const w of manual) {
+        expect(w.temporalScheduleId).toBeUndefined();
+      }
+    });
+  });
 });
