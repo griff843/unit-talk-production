@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { subscriptions, getSupabaseClient } from '@/lib/supabase';
 import { toast } from 'sonner';
+
+import { subscriptions, getSupabaseClient } from '@/lib/supabase';
 
 export interface AgentLog {
   id: string;
@@ -80,119 +81,33 @@ export function useAgentLogs(limit = 50) {
     }
   };
 
-  // Load initial agent logs
+  // Load initial agent logs from database (fail-closed, no mock fallbacks)
   const loadLogs = async () => {
     try {
-      console.log('📊 Loading initial agent logs...');
-
-      // For local testing - always use working mock data first
-      const mockLogs: AgentLog[] = [
-        {
-          id: 'mock_1',
-          timestamp: new Date(Date.now() - 60000),
-          agent: 'GradingAgent',
-          level: 'info',
-          message: 'Completed batch grading of 23 pending picks - Processing live data',
-          correlationId: 'grade_789012',
-          created_at: new Date(Date.now() - 60000).toISOString(),
-        },
-        {
-          id: 'mock_2',
-          timestamp: new Date(Date.now() - 180000),
-          agent: 'AlertAgent',
-          level: 'info',
-          message: 'Successfully posted MLB pick alert to Discord #alerts channel',
-          correlationId: 'alert_123456',
-          created_at: new Date(Date.now() - 180000).toISOString(),
-        },
-        {
-          id: 'mock_3',
-          timestamp: new Date(Date.now() - 240000),
-          agent: 'RecapAgent',
-          level: 'info',
-          message: 'Generated daily recap for Griff843 picks - All systems operational',
-          correlationId: 'recap_345678',
-          created_at: new Date(Date.now() - 240000).toISOString(),
-        },
-        {
-          id: 'mock_4',
-          timestamp: new Date(Date.now() - 360000),
-          agent: 'FeedAgent',
-          level: 'info',
-          message: 'Ingested 234 new props from Optimal API - Data pipeline healthy',
-          correlationId: 'feed_901234',
-          created_at: new Date(Date.now() - 360000).toISOString(),
-        },
-        {
-          id: 'mock_5',
-          timestamp: new Date(Date.now() - 480000),
-          agent: 'NotificationAgent',
-          level: 'info',
-          message: 'Sent 47 Discord notifications for approved picks - System running smoothly',
-          correlationId: 'notification_567890',
-          created_at: new Date(Date.now() - 480000).toISOString(),
-        },
-      ];
-
-      console.log('✅ Using production agent logs data (simulated for testing)');
-      setLogs(mockLogs);
-      setLoading(false);
-      return;
+      console.log('[CC] Loading agent logs from database...');
 
       const client = getSupabaseClient();
-      if (!client) {
-        // Use fallback mock data if no database connection
-        console.log('⚠️ Using mock agent logs - database not available');
-        setLogs(mockLogs);
-        setLoading(false);
-        return;
-      }
 
       // Fetch real agent logs from database
-      const { data, error } = await client
+      const { data, error: queryError } = await client
         .from('agent_logs')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      if (error) {
-        console.warn('❌ Failed to load agent logs:', error.message);
-        // Fall back to mock data on error
-        const mockLogs: AgentLog[] = [
-          {
-            id: 'fallback_1',
-            timestamp: new Date(),
-            agent: 'System',
-            level: 'warn',
-            message: 'Unable to load real agent logs - using fallback data',
-            correlationId: 'fallback_001',
-            created_at: new Date().toISOString(),
-          },
-        ];
-        setLogs(mockLogs);
-        setError(new Error(error.message));
+      if (queryError) {
+        console.warn('[CC] Failed to load agent logs:', queryError.message);
+        setLogs([]);
+        setError(new Error(queryError.message));
       } else {
         const transformedLogs = (data || []).map(transformDbLogToAgentLog);
-        console.log(`✅ Loaded ${transformedLogs.length} agent logs from database`);
+        console.log(`[CC] Loaded ${transformedLogs.length} agent logs from database`);
         setLogs(transformedLogs);
       }
     } catch (err) {
-      console.error('❌ Failed to load agent logs:', err);
+      console.error('[CC] Failed to load agent logs:', err);
       setError(err instanceof Error ? err : new Error('Unknown error'));
-
-      // Use mock data as fallback
-      const mockLogs: AgentLog[] = [
-        {
-          id: 'error_fallback',
-          timestamp: new Date(),
-          agent: 'System',
-          level: 'error',
-          message: 'Failed to connect to agent logs database',
-          correlationId: 'error_001',
-          created_at: new Date().toISOString(),
-        },
-      ];
-      setLogs(mockLogs);
+      setLogs([]);
     } finally {
       setLoading(false);
       setLastUpdate(new Date());
