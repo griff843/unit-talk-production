@@ -48,6 +48,7 @@ import { loadIssue } from './issue-loader.js';
 import { checkLifecycle } from './lifecycle-checker.js';
 import { runRouterCli } from './llm-router.js';
 import { runAutopilotCycle, checkAutopilotFrozen } from './orchestrator.js';
+import { runPortfolioAudit } from './portfolio-audit.js';
 import { loadProfileById, loadProfileFromPath } from './profile-loader.js';
 import { generatePromptPack } from './prompt-pack-generator.js';
 import { scanIssueQueue, selectNextIssue } from './queue-manager.js';
@@ -155,6 +156,73 @@ function commandFindings(args: Record<string, string | boolean | string[]>): voi
   console.log(`  ${c.dim}${effectiveOutDir}/LINEAR_ISSUE_DRAFTS.md${c.reset}`);
   console.log(`  ${c.dim}${effectiveOutDir}/FINDING_DECISION_LOG.md${c.reset}`);
   console.log(`  ${c.dim}${effectiveOutDir}/HANDOFF_SUMMARY.md${c.reset}`);
+  console.log('');
+
+  process.exit(0);
+}
+
+function commandPortfolioAudit(args: Record<string, string | boolean | string[]>): void {
+  const jsonOutput = args.json === true;
+  const outputDir = args.output as string | undefined;
+  const trigger = (args.trigger as string | undefined) ?? 'cli';
+
+  console.log(`\n${c.bold}${c.cyan}CLAUDE OS — Sprint Portfolio Optimization Audit${c.reset}\n`);
+
+  const {
+    result,
+    outputDir: resolvedOutputDir,
+    artifactFiles,
+  } = runPortfolioAudit({
+    trigger,
+    outputDir,
+  });
+
+  if (jsonOutput) {
+    console.log(
+      JSON.stringify(
+        {
+          result,
+          outputDir: resolvedOutputDir,
+          artifactFiles,
+        },
+        null,
+        2
+      )
+    );
+    process.exit(0);
+  }
+
+  console.log(`${c.bold}Audit ID:${c.reset} ${result.auditId}`);
+  console.log(`${c.bold}Run At:${c.reset} ${result.runAt}`);
+  console.log(`${c.bold}Trigger:${c.reset} ${result.trigger}`);
+  console.log(`${c.bold}Sources:${c.reset} ${result.inputSources.join(', ') || 'none'}`);
+  console.log(
+    `${c.bold}Conservative Mode:${c.reset} ${result.conservativeMode ? c.yellow + 'YES' : c.green + 'NO'}${c.reset}`
+  );
+
+  if (result.conservativeModeReason) {
+    console.log(`\n${c.yellow}${result.conservativeModeReason}${c.reset}`);
+  }
+
+  console.log(
+    `\n${c.bold}Recommended Next Sprint:${c.reset} ${result.recommendedNextSprint ?? 'suppressed'}`
+  );
+  console.log(`${c.bold}Ranked Candidates:${c.reset} ${result.rankedNextSprints?.length ?? 0}`);
+  console.log(`${c.bold}Blocked Items:${c.reset} ${result.blockedItems.length}`);
+  console.log(`${c.bold}Risk Notes:${c.reset} ${result.riskNotes.length}`);
+
+  if (result.nextActions.length > 0) {
+    console.log(`\n${c.bold}Next Actions:${c.reset}`);
+    for (const action of result.nextActions) {
+      console.log(`  - ${action}`);
+    }
+  }
+
+  console.log(`\n${c.bold}Artifacts:${c.reset}`);
+  console.log(`  ${c.dim}${resolvedOutputDir}${c.reset}`);
+  for (const file of artifactFiles) {
+    console.log(`  ${c.dim}${file}${c.reset}`);
+  }
   console.log('');
 
   process.exit(0);
@@ -2889,6 +2957,7 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}verify${c.reset}          Execute verification steps and capture evidence
   ${c.cyan}bundle${c.reset}          Assemble proof bundle from plan + verification outputs
   ${c.cyan}validate${c.reset}        Validate governance artifact loading
+  ${c.cyan}portfolio:audit${c.reset} Run SPOA and emit audit artifacts
   ${c.cyan}issue${c.reset}           Load and display an issue file
   ${c.cyan}eligible${c.reset}        Evaluate issue eligibility for autonomous execution
   ${c.cyan}generate${c.reset}        Generate TaskEnvelope from an issue (--write to persist)
@@ -3078,6 +3147,9 @@ ${c.bold}Examples:${c.reset}
   ${c.dim}# Load and inspect an issue:${c.reset}
   npx tsx src/cli.ts issue --issue ISSUE-001
 
+  ${c.dim}# Run SPOA and write audit artifacts:${c.reset}
+  npx tsx src/cli.ts portfolio:audit [--output out/portfolio-audits/custom] [--json]
+
   ${c.dim}# Check issue eligibility:${c.reset}
   npx tsx src/cli.ts eligible --issue ISSUE-001
 
@@ -3247,6 +3319,9 @@ function main(): void {
       break;
     case 'validate':
       commandValidate();
+      break;
+    case 'portfolio:audit':
+      commandPortfolioAudit(args);
       break;
     case 'issue':
       commandIssue(args);

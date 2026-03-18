@@ -36,6 +36,11 @@ const GOVERNANCE_FORBIDDEN_PATHS: ScopePathRule[] = [
     source: 'governance-default',
   },
   {
+    pattern: 'docs/CLAUDE_OS_GOVERNANCE_CONTRACT.md',
+    type: 'exact',
+    source: 'governance-default',
+  },
+  {
     pattern: 'docs/SYSTEM_INVARIANTS.md',
     type: 'exact',
     source: 'governance-default',
@@ -139,10 +144,16 @@ export function validateFileAgainstScope(
   contract: ScopeContract
 ): { allowed: boolean; violation: BoundaryViolation | null } {
   const normalized = normalizePath(filePath);
+  const explicitlyAllowed = contract.allowedPaths.find(
+    rule => rule.source === 'envelope' && matchesPathRule(normalized, rule)
+  );
 
   // 1. Check forbidden paths first
   for (const rule of contract.forbiddenPaths) {
     if (matchesPathRule(normalized, rule)) {
+      if (rule.source === 'governance-default' && rule.type === 'exact' && explicitlyAllowed) {
+        return { allowed: true, violation: null };
+      }
       return {
         allowed: false,
         violation: {

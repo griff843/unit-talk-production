@@ -245,8 +245,8 @@ export function summary() {
 
   if (!packages.success) return packages;
 
-  const apps = packages.packages.filter(p => p.path.includes('/apps/'));
-  const pkgs = packages.packages.filter(p => p.path.includes('/packages/'));
+  const apps = packages.packages.filter(p => p.path.replace(/\\/g, '/').includes('/apps/'));
+  const pkgs = packages.packages.filter(p => p.path.replace(/\\/g, '/').includes('/packages/'));
 
   return {
     success: true,

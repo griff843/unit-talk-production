@@ -11,29 +11,46 @@
  * Reference: docs/02_architecture/claude_os_ceiling_blueprint.md §10 COS-005
  */
 
-import { existsSync, readdirSync, statSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import path from 'path';
 
 const ROOT = process.cwd();
 const BASELINE_DIR = path.join(ROOT, 'out', 'session-baseline');
 const MAX_AGE_MINUTES = 30;
 
+/**
+ * Find the most recent valid baseline using backward walk.
+ * Uses JSON timestamp (not directory mtime) for accuracy.
+ * Skips incomplete or corrupt runs.
+ */
 function findLatestBaseline() {
   if (!existsSync(BASELINE_DIR)) return null;
 
   const dirs = readdirSync(BASELINE_DIR, { withFileTypes: true })
     .filter(d => d.isDirectory())
-    .map(d => ({
-      name: d.name,
-      mtime: statSync(path.join(BASELINE_DIR, d.name)).mtime,
-    }))
-    .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+    .map(d => d.name)
+    .sort()
+    .reverse(); // newest-named (timestamp-based names sort correctly)
 
-  return dirs[0] || null;
+  // Backward walk: skip dirs without a valid baseline.json timestamp
+  for (const name of dirs) {
+    const baselinePath = path.join(BASELINE_DIR, name, 'baseline.json');
+    if (!existsSync(baselinePath)) continue;
+    try {
+      const data = JSON.parse(readFileSync(baselinePath, 'utf8'));
+      if (data.timestamp) {
+        return { name, timestamp: data.timestamp };
+      }
+    } catch {
+      continue; // corrupt JSON — skip
+    }
+  }
+
+  return null;
 }
 
-function ageMinutes(mtime) {
-  return (Date.now() - mtime.getTime()) / 60000;
+function ageMinutes(timestamp) {
+  return (Date.now() - new Date(timestamp).getTime()) / 60000;
 }
 
 const latest = findLatestBaseline();
@@ -52,7 +69,7 @@ if (!latest) {
   process.exit(0);
 }
 
-const age = ageMinutes(latest.mtime);
+const age = ageMinutes(latest.timestamp);
 
 if (age > MAX_AGE_MINUTES) {
   const ageStr = age < 60
@@ -63,7 +80,7 @@ if (age > MAX_AGE_MINUTES) {
     type: 'system',
     content: [
       `⚠️  SESSION BASELINE STALE (${ageStr} old)`,
-      `Last run: ${latest.name}`,
+      `Last run: ${latest.name} (timestamp: ${latest.timestamp})`,
       'Per CLAUDE.md §11, baseline must be fresh before code changes.',
       'Run: pnpm session:baseline',
     ].join('\n'),

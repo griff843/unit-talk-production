@@ -19,6 +19,8 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { validateRoutingDecision } from '../tools/claude-os/src/routing-decision-validator.js';
+
 const WORKSPACE_ROOT = path.resolve(__dirname, '..');
 const SPRINTS_DIR = path.join(WORKSPACE_ROOT, 'out', 'sprints');
 
@@ -33,7 +35,8 @@ const REQUIRED_ARTIFACTS = [
 ];
 
 // Artifacts that may have variable names (glob patterns)
-const REQUIRED_PATTERNS = [/^proof_typecheck.*\.txt$/, /^proof_verify.*\.txt$/];
+const REQUIRED_TYPECHECK_PATTERN = /^proof_typecheck.*\.txt$/;
+const REQUIRED_SCOPED_VERIFY_PATTERN = /^proof_verify.*\.txt$/;
 
 interface ValidationResult {
   artifact: string;
@@ -55,7 +58,7 @@ function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
   let sprintId = '';
   let date: string | null = null;
-  let lane = 'ops-submit';
+  let lane = 'full';
   let validateOnly = false;
   let phase: number | null = null;
   let linearIssue: string | null = null;
@@ -184,7 +187,7 @@ function listDirectory(dir: string, prefix: string, inventory: string[]): void {
   }
 }
 
-function validateArtifacts(proofsDir: string): ValidationResult[] {
+function validateArtifacts(proofsDir: string, lane: string): ValidationResult[] {
   const results: ValidationResult[] = [];
   const existingFiles = fs.existsSync(proofsDir) ? fs.readdirSync(proofsDir) : [];
 
@@ -198,7 +201,12 @@ function validateArtifacts(proofsDir: string): ValidationResult[] {
     });
   }
 
-  for (const pattern of REQUIRED_PATTERNS) {
+  const requiredPatterns = [REQUIRED_TYPECHECK_PATTERN];
+  if (lane !== 'full') {
+    requiredPatterns.push(REQUIRED_SCOPED_VERIFY_PATTERN);
+  }
+
+  for (const pattern of requiredPatterns) {
     const matches = existingFiles.filter(f => pattern.test(f));
     const found = matches.length > 0;
     results.push({
@@ -269,7 +277,7 @@ function runVerificationLane(lane: string): boolean {
         cmd = 'npm run type-check && npm run test';
         break;
       default:
-        cmd = 'npm run verify:ops-submit';
+        throw new Error(`Unsupported verification lane: ${lane}`);
     }
 
     console.log(`Running: ${cmd}`);
@@ -334,9 +342,30 @@ function main(): void {
   console.log(`   Date: ${targetDate}`);
   console.log(`   Proofs Dir: ${proofsDir}`);
 
-  if (!fs.existsSync(proofsDir)) {
+  if (!validateOnly && !fs.existsSync(proofsDir)) {
     fs.mkdirSync(proofsDir, { recursive: true });
   }
+
+  if (validateOnly && !fs.existsSync(proofsDir)) {
+    console.error('\n❌ CLOSEOUT FAILED: Proofs directory not found in validate-only mode');
+    console.error(`   Expected existing directory: ${proofsDir}`);
+    console.error(
+      '   Validate-only is non-mutating and will not create missing proof directories.'
+    );
+    process.exit(1);
+  }
+
+  // Routing decision gate (COS-007) — always enforced regardless of mode
+  console.log('\n🔀 Validating routing decision...');
+  const routingResult = validateRoutingDecision(sprintId, { dateDir: targetDate });
+  if (!routingResult.valid) {
+    console.error('\n❌ CLOSEOUT FAILED: Routing decision invalid');
+    for (const err of routingResult.errors) {
+      console.error(`   ${err}`);
+    }
+    process.exit(1);
+  }
+  console.log(`   ✅ LLM_ROUTING_DECISION.md valid: ${routingResult.filePath}`);
 
   if (!validateOnly) {
     const verifyPassed = runVerificationLane(lane);
@@ -346,18 +375,21 @@ function main(): void {
     }
   }
 
-  console.log('\n📋 Generating proof inventory...');
-  const inventory = generateProofInventory(proofsDir);
-  const inventoryPath = path.join(proofsDir, 'proof_proof_inventory.txt');
-  fs.writeFileSync(inventoryPath, inventory);
-  console.log(`   Written: ${inventoryPath}`);
+  // Proof inventory write is skipped in --validate-only mode (non-mutating)
+  if (!validateOnly) {
+    console.log('\n📋 Generating proof inventory...');
+    const inventory = generateProofInventory(proofsDir);
+    const inventoryPath = path.join(proofsDir, 'proof_proof_inventory.txt');
+    fs.writeFileSync(inventoryPath, inventory);
+    console.log(`   Written: ${inventoryPath}`);
+  }
 
   // If phase claim, add proof_phase_advancement_<N>.txt to required artifacts
   if (phase !== null) {
     REQUIRED_ARTIFACTS.push(`proof_phase_advancement_${phase}.txt`);
   }
 
-  const results = validateArtifacts(proofsDir);
+  const results = validateArtifacts(proofsDir, lane);
   const allFound = printComplianceTable(sprintId, targetDate, results);
 
   if (!allFound) {

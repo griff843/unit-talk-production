@@ -28,7 +28,17 @@ import type {
   BlockedItem,
   AuditOptions,
   RankedSprintCandidate,
+  RunnerRecommendation,
 } from './portfolio-audit-types.js';
+
+const CONSERVATIVE_MODE_NOTICE = [
+  '[SPOA CONSERVATIVE MODE] Queue truth is insufficient for actionable recommendations.',
+  'No explicitly queued sprints found in docs/status/NEXT_5_SPRINTS.md.',
+  'Recommendations for next sprint and runner assignments are suppressed.',
+  'Classification audit and risk notes remain available for review.',
+  'To unlock recommendations: populate Sprint 1 in docs/status/NEXT_5_SPRINTS.md',
+  'using ## Sprint 1: SPRINT-<NAME> format, then re-run SPOA.',
+].join('\n');
 
 // ---------------------------------------------------------------------------
 // Main audit function
@@ -52,11 +62,20 @@ export function runPortfolioAudit(options: AuditOptions = {}): {
     truthGaps,
     driftItems,
   } = loadSprintPortfolio();
+  const queuedCount = rawSprints.filter(s => s.status === 'queued').length;
+  const conservativeMode = queuedCount === 0;
+  const conservativeModeReason = conservativeMode ? CONSERVATIVE_MODE_NOTICE : undefined;
 
   // ---- Classify each sprint ----
   const classifiedSprints: ClassifiedSprint[] = rawSprints.map(entry => {
     const classification = classifySprint(entry);
-    const runner = assignRunner(classification.classification, classification.parallelSafe);
+    let runner: RunnerRecommendation = assignRunner(
+      classification.classification,
+      classification.parallelSafe
+    );
+    if (conservativeMode && (entry.status === 'inferred' || entry.status === 'blocked')) {
+      runner = 'Unassigned';
+    }
 
     return {
       entry,
@@ -75,10 +94,12 @@ export function runPortfolioAudit(options: AuditOptions = {}): {
   const runnerSummary = buildRunnerSummary(classifiedSprints);
 
   // ---- Determine recommended next sprint ----
-  const recommendedNextSprint = determineRecommendedNextSprint(classifiedSprints);
+  const recommendedNextSprint = conservativeMode
+    ? undefined
+    : determineRecommendedNextSprint(classifiedSprints);
 
   // ---- Build ranked next-sprint candidates ----
-  const rankedNextSprints = buildRankedNextSprints(classifiedSprints);
+  const rankedNextSprints = conservativeMode ? [] : buildRankedNextSprints(classifiedSprints);
 
   // ---- Build risk notes (base + truth gaps + drift items) ----
   const riskNotes = buildRiskNotes(classifiedSprints, rawSprints.length, truthGaps, driftItems);
@@ -93,7 +114,15 @@ export function runPortfolioAudit(options: AuditOptions = {}): {
     }));
 
   // ---- Next actions ----
-  const nextActions = buildNextActions(classifiedSprints, recommendedNextSprint, limitations);
+  const effectiveLimitations = conservativeMode
+    ? [CONSERVATIVE_MODE_NOTICE, ...limitations]
+    : limitations;
+  const nextActions = buildNextActions(
+    classifiedSprints,
+    recommendedNextSprint,
+    effectiveLimitations,
+    conservativeMode
+  );
 
   // ---- Combine / split candidates ----
   const { combineCandidates, splitCandidates } = detectCombineSplitCandidates(classifiedSprints);
@@ -104,6 +133,8 @@ export function runPortfolioAudit(options: AuditOptions = {}): {
     trigger,
     inputSources: loadedSources,
     sprints: classifiedSprints,
+    conservativeMode,
+    conservativeModeReason,
     recommendedNextSprint,
     rankedNextSprints,
     parallelOpportunities: parallelMatrix,
@@ -112,7 +143,7 @@ export function runPortfolioAudit(options: AuditOptions = {}): {
     riskNotes,
     nextActions,
     blockedItems,
-    limitations,
+    limitations: effectiveLimitations,
   };
 
   // ---- Write artifacts ----
@@ -311,9 +342,24 @@ function buildRiskNotes(
 function buildNextActions(
   sprints: ClassifiedSprint[],
   recommendedNext: string | undefined,
-  limitations: string[]
+  limitations: string[],
+  conservativeMode: boolean
 ): string[] {
   const actions: string[] = [];
+
+  if (conservativeMode) {
+    const blocked = sprints.filter(s => s.classification === 'Blocked');
+    if (blocked.length > 0) {
+      actions.push(
+        `Resolve ${blocked.length} blocked sprint(s) once queue truth is restored â€” see NEXT_ACTIONS.md for unblock conditions`
+      );
+    }
+    actions.push(
+      'Populate Sprint 1 in docs/status/NEXT_5_SPRINTS.md using ## Sprint 1: SPRINT-<NAME>.'
+    );
+    actions.push('Re-run `claude-os portfolio:audit` after queue truth is restored.');
+    return actions;
+  }
 
   if (recommendedNext) {
     actions.push(`Execute recommended next sprint: \`${recommendedNext}\``);

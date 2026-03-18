@@ -5,21 +5,21 @@
 > run: `npm run sprint:close -- <SPRINT-ID>`
 
 > **GOVERNANCE AUTHORITY**: This document + `CLAUDE_EXECUTION_CONTRACT.md`
-> govern all AI operations. Modular rules: `.Codex/rules/` | Agents:
-> `.Codex/agents/` | Skills: `.Codex/skills/`
+> govern all AI operations. Modular rules: `.claude/rules/` | Agents:
+> `.claude/agents/` | Skills: `.claude/skills/`
 
 ---
 
 ## Quick Reference
 
-| Resource                                 | Purpose                                  |
-| ---------------------------------------- | ---------------------------------------- |
-| `docs/CLAUDE_OS_GOVERNANCE_CONTRACT.md`  | Sprint execution rules (authoritative)   |
-| `CLAUDE_EXECUTION_CONTRACT.md`           | Hard law - non-negotiable invariants     |
-| `.Codex/rules/*.md`                      | Modular rule files                       |
-| `.Codex/agents/*.md`                     | Specialist role definitions              |
-| `.Codex/skills/*.md`                     | Repeatable procedures (invoke on-demand) |
-| `docs/Codex/SPRINT_WORKFLOW_TEMPLATE.md` | Sprint execution template                |
+| Resource                                  | Purpose                                  |
+| ----------------------------------------- | ---------------------------------------- |
+| `docs/CLAUDE_OS_GOVERNANCE_CONTRACT.md`   | Sprint execution rules (authoritative)   |
+| `CLAUDE_EXECUTION_CONTRACT.md`            | Hard law - non-negotiable invariants     |
+| `.claude/rules/*.md`                      | Modular rule files                       |
+| `.claude/agents/*.md`                     | Specialist role definitions              |
+| `.claude/skills/*.md`                     | Repeatable procedures (invoke on-demand) |
+| `docs/claude/SPRINT_WORKFLOW_TEMPLATE.md` | Sprint execution template                |
 
 ---
 
@@ -55,7 +55,7 @@ unit-talk-platform/
 ├── docs/                 # Documentation
 ├── out/                  # Sprint proofs & artifacts
 │   └── sprints/<SPRINT>/<DATE>/
-└── .Codex/              # Codex governance system
+└── .claude/             # Claude governance system
 ```
 
 ---
@@ -142,7 +142,7 @@ out/sprints/<SPRINT>/<DATE>/
 └── SPRINT_CLOSEOUT_REPORT.md
 ```
 
-**Workflow:** See `docs/Codex/SPRINT_WORKFLOW_TEMPLATE.md`
+**Workflow:** See `docs/claude/SPRINT_WORKFLOW_TEMPLATE.md`
 
 ---
 
@@ -184,7 +184,7 @@ docker-compose exec api npm run db:migrate
 
 ## 9. Invoking Agents & Skills
 
-**Agents** (specialist roles - see `.Codex/agents/`):
+**Agents** (specialist roles - see `.claude/agents/`):
 
 - `@release-engineer` - Deployment operations
 - `@migration-auditor` - DB migration review
@@ -192,7 +192,7 @@ docker-compose exec api npm run db:migrate
 - `@proof-bundler` - Generate proof artifacts
 - `@sprint-manager` - Orchestrate sprint workflow
 
-**Skills** (procedures - see `.Codex/skills/`):
+**Skills** (procedures - see `.claude/skills/`):
 
 - `/skill sprint_plan` - Phase 1 planning
 - `/skill sprint_verify` - Phase 3 verification
@@ -217,7 +217,7 @@ docker-compose exec api npm run db:migrate
 
 ## 11. 🔒 Mandatory Session Baseline (Non-Negotiable)
 
-> **Sprint: SPRINT-Codex-OS-SESSION-ENFORCEMENT-110A**
+> **Sprint: SPRINT-CLAUDE-OS-SESSION-ENFORCEMENT-110A**
 
 Before ANY code modification, Codex MUST:
 
@@ -291,7 +291,10 @@ pnpm mcp:supabase     # Supabase schema introspection
 
 Codex must follow the sprint order defined in:
 
-`docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md`
+`docs/status/NEXT_5_SPRINTS.md`
+
+`docs/roadmap/INTELLIGENCE_PIPELINE_SPRINT_ORDER.md` is historical record only
+for completed sprints 031–041 and is not a runtime queue authority.
 
 Before beginning any new sprint, run:
 
@@ -320,7 +323,7 @@ required governance update before proceeding.
 - **Execution Contract:** `CLAUDE_EXECUTION_CONTRACT.md`
 - **System Invariants:** `docs/SYSTEM_INVARIANTS.md` (fail-open/fail-closed
   rules)
-- **Sprint Template:** `docs/Codex/SPRINT_WORKFLOW_TEMPLATE.md`
+- **Sprint Template:** `docs/claude/SPRINT_WORKFLOW_TEMPLATE.md`
 - **Lifecycle Contract:** `docs/contracts/PICK_LIFECYCLE_CONTRACT.md`
 - **Prior Sprints:** `out/sprints/*/`
 

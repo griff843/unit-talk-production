@@ -496,6 +496,22 @@ Tracking AI operator tooling improvements separate from product phases.
   AI_ENHANCEMENT_REMAINING_WORK_MAP updated to reflect Wave 2 complete (PR #259,
   2026-03-16)
 
+### Complete (SPRINT-083/084/085 — Control Plane Hardening, 2026-03-17)
+
+- **SPRINT-083 — Queue and Baseline Hardening**: `sprint-gate.js` vacancy
+  detection + roadmap fallback removed; `pre-sprint-check.mjs` +
+  `check-session-baseline.mjs` backward-walk baseline selection; `CLAUDE.md` §12
+  queue authority updated to `NEXT_5_SPRINTS.md`; roadmap historical banner
+  added (PR #308)
+- **SPRINT-084 — Closeout Contract Alignment**: `sprint-close.ts` default lane
+  fixed to `full`; `proof_verify*` conditional on scoped lanes only; unknown
+  lane fails closed before verification; exhaustive switch + exports (PR #308)
+- **SPRINT-085 — Governance Surface Hardening + SPOA Conservative Mode**:
+  `AGENTS.md` `.Codex` → `.claude` corrected;
+  `docs/CLAUDE_OS_GOVERNANCE_CONTRACT.md` added to `GOVERNANCE_FORBIDDEN_PATHS`;
+  SPOA conservative mode when `queuedCount === 0`; Phase 4/11 Parallel-Safe
+  exception removed (PR #309)
+
 ### Future
 
 - **COS-008 — Mode B task envelopes**: artifact bundle format for external LLM
