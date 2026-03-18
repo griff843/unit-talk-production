@@ -42,8 +42,8 @@ jobs:
 
       - name: Build shared packages (required for cross-workspace type-check)
         run: |
-          npm run build --workspace=@unit-talk/shared-types
-          npm run build --workspace=@unit-talk/shared-utils
+          pnpm --filter @unit-talk/shared-types build
+          pnpm --filter @unit-talk/shared-utils build
 
       - name: Run type checking
         run: npm run type-check
@@ -52,7 +52,7 @@ jobs:
         run: npm run format:check
 
       - name: Security audit
-        run: npm audit --audit-level=high
+        run: pnpm audit --audit-level high
 
       # SPRINT-SCHEMA-ENV-GATES-002: CI-enforced guards (monorepo-wide, no scope filters)
       - name: Guard - Env Proliferation (strict, monorepo-wide)
