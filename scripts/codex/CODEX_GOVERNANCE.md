@@ -90,9 +90,10 @@ Phase 3: Verify
 - Claude passes a task file path; Codex receives a bounded prompt
 - Claude reviews Codex output before any commit or closeout
 
-**Not yet automated.** Codex is triggered manually via wrapper scripts today.
-Automation (Claude OS calling Codex directly) is a future milestone, not this
-sprint.
+**Trigger layer live.** Codex agents are invoked by workflow moment via
+`run-trigger.sh`. Read-only tasks auto-execute; write tasks require human
+confirmation. See `TRIGGER_INTEGRATION.md` for the full integration spec and
+`trigger-registry.sh` for the trigger map.
 
 ---
 
