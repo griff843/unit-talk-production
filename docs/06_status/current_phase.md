@@ -1,8 +1,8 @@
 # Current Phase Status
 
-**Last Updated**: 2026-03-15 (SPRINT-048-TRUTH-RECONCILIATION-LAYER3-QUEUE)
-**Authority**: `docs/04_roadmap/layer_phase_execution_model.md` **Operational
-Progress**: `docs/status/PHASE_STATUS.md`
+**Last Updated**: 2026-03-18 (SPRINT-LAYER3-EXIT-AUDIT) **Authority**:
+`docs/04_roadmap/layer_phase_execution_model.md` **Operational Progress**:
+`docs/status/PHASE_STATUS.md`
 
 ---
 
@@ -10,26 +10,29 @@ Progress**: `docs/status/PHASE_STATUS.md`
 
 Per `docs/04_roadmap/layer_phase_execution_model.md`:
 
-| Layer | Phase | Name                         | Status                                                                                                                                                                                                                                                          |
-| ----- | ----- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | 0     | Governance Lock              | COMPLETE                                                                                                                                                                                                                                                        |
-| **1** | 1     | Runtime Truth                | COMPLETE                                                                                                                                                                                                                                                        |
-| **1** | 2     | Data Truth                   | COMPLETE                                                                                                                                                                                                                                                        |
-| **1** | 3     | Distribution Determinism     | COMPLETE                                                                                                                                                                                                                                                        |
-| **1** | 4     | Operational Determinism      | COMPLETE (worker health + pipeline observability verified)                                                                                                                                                                                                      |
-| **1** | **5** | **Platform Stabilization**   | **COMPLETE** — R3 shadow guardrails + R4 fault suite wired into CI; E2E lifecycle traversal proven via R2 replay (SPRINT-LAYER1-PHASE5-E2E-CLOSURE, 2026-03-14)                                                                                                 |
-| **2** | **6** | **Operator Control Plane**   | **COMPLETE** — GET/PUT /ops/autopilot, POST /ops/picks/:id/override, PUT /api/risk/config/:key; AutopilotGuard.persistMode(); migration 20260314120000; 12 new vitest tests (SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE, 2026-03-14)                       |
-| **2** | **7** | **Reliability & Monitoring** | **COMPLETE** — SLO framework (4 SLOs), GET /api/health/summary (HEALTHY/DEGRADED/CRITICAL), PlatformThresholdEvaluator, SLO_DEFINITIONS.md + ON_CALL_RUNBOOK.md; 921/921 vitest (SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING, PR #191, UNI-74 Done)         |
-| **2** | **8** | **Recovery & Replay**        | **COMPLETE** — POST /ops/recovery/replay + GET /ops/recovery/replays; deterministic replay from production journal; JOURNAL_BACKUP_PROCEDURE.md; ON_CALL_RUNBOOK.md Scenario 6; 926/926 vitest (SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY, PR #199, UNI-77 Done) |
-| 3     | 9     | SmartForm UX                 | PLANNED                                                                                                                                                                                                                                                         |
-| 3     | 10    | Command Center UX            | PLANNED                                                                                                                                                                                                                                                         |
-| 3     | 11    | Workflow Optimization        | PLANNED                                                                                                                                                                                                                                                         |
-| 4     | 12    | Edge Detection               | PLANNED                                                                                                                                                                                                                                                         |
-| 4     | 13    | Market Resistance            | PLANNED                                                                                                                                                                                                                                                         |
-| 4     | 14    | CLV Analytics                | PLANNED                                                                                                                                                                                                                                                         |
+| Layer | Phase  | Name                         | Status                                                                                                                                                                                                                                                                                 |
+| ----- | ------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | 0      | Governance Lock              | COMPLETE                                                                                                                                                                                                                                                                               |
+| **1** | 1      | Runtime Truth                | COMPLETE                                                                                                                                                                                                                                                                               |
+| **1** | 2      | Data Truth                   | COMPLETE                                                                                                                                                                                                                                                                               |
+| **1** | 3      | Distribution Determinism     | COMPLETE                                                                                                                                                                                                                                                                               |
+| **1** | 4      | Operational Determinism      | COMPLETE (worker health + pipeline observability verified)                                                                                                                                                                                                                             |
+| **1** | **5**  | **Platform Stabilization**   | **COMPLETE** — R3 shadow guardrails + R4 fault suite wired into CI; E2E lifecycle traversal proven via R2 replay (SPRINT-LAYER1-PHASE5-E2E-CLOSURE, 2026-03-14)                                                                                                                        |
+| **2** | **6**  | **Operator Control Plane**   | **COMPLETE** — GET/PUT /ops/autopilot, POST /ops/picks/:id/override, PUT /api/risk/config/:key; AutopilotGuard.persistMode(); migration 20260314120000; 12 new vitest tests (SPRINT-042-LAYER2-PHASE6-OPERATOR-CONTROL-PLANE, 2026-03-14)                                              |
+| **2** | **7**  | **Reliability & Monitoring** | **COMPLETE** — SLO framework (4 SLOs), GET /api/health/summary (HEALTHY/DEGRADED/CRITICAL), PlatformThresholdEvaluator, SLO_DEFINITIONS.md + ON_CALL_RUNBOOK.md; 921/921 vitest (SPRINT-043-LAYER2-PHASE7-RELIABILITY-MONITORING, PR #191, UNI-74 Done)                                |
+| **2** | **8**  | **Recovery & Replay**        | **COMPLETE** — POST /ops/recovery/replay + GET /ops/recovery/replays; deterministic replay from production journal; JOURNAL_BACKUP_PROCEDURE.md; ON_CALL_RUNBOOK.md Scenario 6; 926/926 vitest (SPRINT-044-LAYER2-PHASE8-RECOVERY-REPLAY, PR #199, UNI-77 Done)                        |
+| **3** | **9**  | **SmartForm UX**             | **COMPLETE** — WCAG 2.1 AA (aria-labels, htmlFor, role attributes); 5 form components; bridge_outbox single-writer compliance; idempotency via bet_slip_id; client+server Zod validation; 8 custom SmartForm gates (SPRINT-051, PR #227, UNI-86 Done)                                  |
+| **3** | **10** | **Command Center UX**        | **COMPLETE** — 18 production dashboard pages; 60+ API proxy routes; 100% RBAC auth coverage (69 routes, 5 roles, 13 permissions); PermissionGate UI; audit trail on all actions; 104+ CC vitest (SPRINT-049/050/054/058/061/074/075/082)                                               |
+| **3** | **11** | **Workflow Optimization**    | **PARTIAL** — WorkflowRegistry 18 entries/6 categories; batch operations (promote/reject/requeue up to 100); 11 Temporal schedules; pnpm ops:list CLI; core pipeline fully automated. Gaps: routine analysis/backfill manual-only; no workflow failure escalation (SPRINT-052/060/082) |
+| 4     | 12     | Edge Detection               | PLANNED                                                                                                                                                                                                                                                                                |
+| 4     | 13     | Market Resistance            | PLANNED                                                                                                                                                                                                                                                                                |
+| 4     | 14     | CLV Analytics                | PLANNED                                                                                                                                                                                                                                                                                |
 
-**Next planned work**: Layer 3 / Phase 9 — SmartForm UX (Layer 2 fully COMPLETE
-— Phases 6, 7, 8 all done)
+**Layer 3 status**: PARTIAL — Phases 9 and 10 COMPLETE; Phase 11 PARTIAL with
+bounded gap list (see Layer 3 Completion Gate below).
+
+**Next planned work**: Layer 3 / Phase 11 — Workflow Optimization gap closure,
+then Layer 4 planning.
 
 ---
 
@@ -86,6 +89,78 @@ All three Layer 2 phases delivered and verified:
 - SPRINT-047-INGESTION-UNIT-COVERAGE-LOCK — 45 IngestionAgent unit tests
 
 **Layer 3 work is now unblocked.**
+
+---
+
+## Layer 3 Completion Gate
+
+**Layer 3 is PARTIAL as of 2026-03-18 (SPRINT-LAYER3-EXIT-AUDIT).**
+
+Phases 9 and 10 are COMPLETE. Phase 11 is PARTIAL with a bounded gap list.
+
+### Phase 9 — SmartForm UX: COMPLETE
+
+- 5 form components (BetSlipPanel, GamePickForm, ManualEntryForm,
+  SportsbookManualEntry, KeyboardShortcutsHelp), all non-trivial (128–1691 LOC)
+- WCAG 2.1 AA compliance: aria-labels, htmlFor/id, role=alert+aria-live,
+  aria-expanded, aria-controls across all components
+- Single-writer compliance: V3 endpoint writes exclusively to `bridge_outbox`
+- Idempotency: `bet_slip_id` uniqueness check before insert, duplicate detection
+- Validation: Client-side (validation.ts) + server-side (Zod schema in route.ts)
+- Error handling: Toast notifications, validation errors, loading states
+- Test coverage: Unit tests (validation, reducer) + E2E Playwright tests
+- Build gates: 8 custom SmartForm gates (no-mocks, no-bypass, endpoints,
+  contracts, runtime-audit, no-dev-routes, no-direct-db, no-fallback)
+
+### Phase 10 — Command Center UX: COMPLETE
+
+- 18 production dashboard pages (13 primary, 5 secondary), all with real data
+  fetching, loading/error states, and proper Next.js 'use client' directives
+- 60+ API proxy routes covering: agents, alerts, analytics, cappers, health,
+  picks, replay, risk, settlement, workflows, remediation, ops-submit, audit,
+  grading, monitoring, temporal, lifecycle, admin controls
+- 100% RBAC auth coverage: 69 business routes protected via
+  `requireOperatorIdentity` + `enforcePermission`; only `/api/health` (k8s
+  probe) intentionally unprotected
+- 5 RBAC roles (CAPPER, ANALYST, VIEWER, OPS, ADMIN) with 13 permission types
+- PermissionGate UI component gates sensitive features client-side
+- Audit trail: RBACService logs every action with actor, IP, timestamp, resource
+- 104+ CC vitest tests across 11 test files
+
+**P2 Defect noted**: `useAgentLogs.ts` line 140 has an early `return` that
+bypasses real database queries and always serves mock data. Dead code after
+return. Does not block Phase 10 COMPLETE verdict but should be fixed.
+
+### Phase 11 — Workflow Optimization: PARTIAL
+
+**Completed:**
+
+- WorkflowRegistry: 18 entries across 6 categories (analysis, backfill, feed,
+  health, settlement, ops)
+- Batch operations: promote/reject/requeue up to 100 picks per request via
+  lifecycle adapters with audit logging
+- Temporal scheduling: 11 schedules configured (syndicate scheduler every 2m,
+  health monitor every 1m, daily cleanup, weekly report, league peak monitors)
+- Operator CLI: `pnpm ops:list` with category filtering + risk indicators; 6+
+  operator commands (workflows:start, workflows:status, recap:daily, etc.)
+- Core automation: pick submission → grading → promotion → alerts fully
+  automated
+- Settlement and recap agent code complete but fail-closed behind env flags
+
+**Remaining gaps (bounded punch list):**
+
+1. **Routine analysis/backfill workflows are manual-trigger only** — 4
+   analysis/backfill registry entries require operator CLI invocation; no
+   scheduled or event-driven triggers
+2. **No workflow failure escalation** — failed operator workflows do not alert
+   or auto-retry; operator must check logs manually
+3. **Settlement/recap scheduling policy undecided** — SettlementAgent requires
+   `SETTLEMENT_AGENT_ENABLED=true` and recap schedules require
+   `ENABLE_RECAP_SCHEDULES=true`; these are intentional fail-closed defaults but
+   no operator decision matrix documents when to enable them
+
+**Phase 11 gap scope**: 1–2 follow-up sprints to close. No gap blocks production
+operation of the existing automated pipeline.
 
 ---
 
