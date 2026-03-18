@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 
-import { Permission , usePermissions } from '@/lib/rbac';
+import { Permission, usePermissions } from '@/lib/rbac';
 
 /**
  * Conditionally renders children based on the current operator's permissions.

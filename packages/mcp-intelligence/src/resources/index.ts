@@ -4,7 +4,6 @@
  *   unit-talk://intelligence/shadow-divergence   7-day shadow divergence snapshot
  */
 
-
 import { fetchShadowDivergence } from '../adapters/index.js';
 
 import type { McpIntelligenceConfig } from '../schemas/index.js';

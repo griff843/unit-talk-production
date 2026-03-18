@@ -10,7 +10,6 @@ if (process.env.NODE_ENV === 'production' && process.env.DOCKER_CONTAINER !== 't
 import 'dotenv/config';
 import { Client, GatewayIntentBits, Partials, GuildMember } from 'discord.js';
 
-
 // REMOVED: AutomatedOnboardingIntegration - nuked as part of clean slate rebuild
 import { AdminCommands } from './commands/adminCommands';
 import { CommandHandler } from './handlers/commandHandler';

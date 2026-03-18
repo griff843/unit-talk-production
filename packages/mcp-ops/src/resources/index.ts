@@ -9,7 +9,6 @@
  *   unit-talk://ops/platform-health — platform health summary
  */
 
-
 import {
   fetchAgentHealth,
   fetchOperatorWorkflows,

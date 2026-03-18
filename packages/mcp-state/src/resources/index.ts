@@ -5,7 +5,6 @@
  *   unit-talk://state/pipeline       — pending/approved/posted counts (pipeline snapshot)
  */
 
-
 import { queryPicks } from '../adapters/index.js';
 
 import type { McpStateConfig } from '../schemas/index.js';
