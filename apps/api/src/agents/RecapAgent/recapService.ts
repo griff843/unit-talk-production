@@ -95,8 +95,8 @@ export class RecapService {
         .select('*')
         .gte('created_at', `${date}T00:00:00Z`)
         .lt('created_at', `${date}T23:59:59Z`)
-        .in('play_status', ['settled', 'graded'])
-        .not('outcome', 'is', null);
+        .eq('settlement_status', 'settled')
+        .not('settlement_result', 'is', null);
 
       if (error) {
         throw error;
@@ -142,8 +142,8 @@ export class RecapService {
         .select('*')
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDate}T23:59:59Z`)
-        .in('play_status', ['settled', 'graded'])
-        .not('outcome', 'is', null);
+        .eq('settlement_status', 'settled')
+        .not('settlement_result', 'is', null);
 
       if (error) {
         throw error;
@@ -174,8 +174,8 @@ export class RecapService {
         .select('*')
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDate}T23:59:59Z`)
-        .in('play_status', ['settled', 'graded'])
-        .not('outcome', 'is', null);
+        .eq('settlement_status', 'settled')
+        .not('settlement_result', 'is', null);
 
       if (error) {
         throw error;
@@ -418,7 +418,7 @@ export class RecapService {
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDateStr}T23:59:59Z`)
         .not('parlay_id', 'is', null)
-        .in('play_status', ['settled', 'graded']);
+        .eq('settlement_status', 'settled');
 
       if (error) {
         throw error;
@@ -558,8 +558,10 @@ export class RecapService {
         return null;
       }
 
-      // Check if all picks are grading_status
-      const pendingPicks = picks.filter(p => p.play_status === 'pending' || !p.outcome);
+      // Check if all picks are settled
+      const pendingPicks = picks.filter(
+        p => p.settlement_status !== 'settled' || !p.settlement_result
+      );
 
       if (pendingPicks.length === 0) {
         // All picks grading_status, trigger micro-recap
@@ -624,8 +626,8 @@ export class RecapService {
       tags: raw.tags,
       created_at: raw.created_at,
       updated_at: raw.updated_at,
-      play_status: raw.play_status,
-      outcome: raw.outcome,
+      play_status: raw.settlement_status ?? raw.play_status,
+      outcome: raw.settlement_result ?? raw.outcome,
       units: raw.units || this.calculateUnits(raw.tier, raw.edge_score),
       profit_loss: raw.profit_loss,
       capper: raw.capper || this.extractCapper(raw.tags || []),
