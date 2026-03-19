@@ -284,51 +284,53 @@ router.get('/', async (req: Request, res: Response) => {
         // Advisory only — do not fail health check
       }
 
-      // FM-9: Worker heartbeat check
+      // FM-9: Worker heartbeat check — REM-005: all 3 covered workers, no silent omission
       try {
         const staleThresholdMinutes = 5;
+        const EXPECTED_WORKERS = ['temporal-worker', 'bridge-worker', 'discord-ticket-worker'];
+
         const { data: heartbeats } = await supabaseClient
           .from('ops_worker_heartbeats')
           .select('worker_name, last_heartbeat_at, status')
-          .in('worker_name', ['temporal-worker'])
+          .in('worker_name', EXPECTED_WORKERS)
           .order('last_heartbeat_at', { ascending: false });
 
-        healthStatus.workerHeartbeats = (heartbeats ?? []).map(
-          (h: { worker_name: string; last_heartbeat_at: string; status: string }) => {
-            const ageMs = h.last_heartbeat_at
-              ? Date.now() - new Date(h.last_heartbeat_at).getTime()
-              : null;
-            const ageMinutes = ageMs !== null ? Math.floor(ageMs / 60000) : null;
-            const heartbeatStatus: 'healthy' | 'stale' | 'missing' =
-              ageMinutes === null
-                ? 'missing'
-                : ageMinutes > staleThresholdMinutes
-                  ? 'stale'
-                  : 'healthy';
-            return {
-              workerName: h.worker_name,
-              lastHeartbeatAt: h.last_heartbeat_at ?? null,
-              ageMinutes,
-              status: heartbeatStatus,
-            };
+        const heartbeatMap = new Map<string, { last_heartbeat_at: string; status: string }>();
+        for (const h of heartbeats ?? []) {
+          // Keep only the most recent row per worker (ordered desc)
+          if (!heartbeatMap.has(h.worker_name)) {
+            heartbeatMap.set(h.worker_name, h);
           }
-        );
+        }
 
-        // If temporal-worker has no heartbeat at all, add a missing entry
-        const hasTemporalWorker = (healthStatus.workerHeartbeats ?? []).some(
-          w => w.workerName === 'temporal-worker'
-        );
-        if (!hasTemporalWorker) {
-          healthStatus.workerHeartbeats = [
-            ...(healthStatus.workerHeartbeats ?? []),
-            {
-              workerName: 'temporal-worker',
+        // Build entries for ALL expected workers — missing workers are explicit, never omitted
+        healthStatus.workerHeartbeats = EXPECTED_WORKERS.map(workerName => {
+          const h = heartbeatMap.get(workerName);
+          if (!h) {
+            return {
+              workerName,
               lastHeartbeatAt: null,
               ageMinutes: null,
-              status: 'missing',
-            },
-          ];
-        }
+              status: 'missing' as const,
+            };
+          }
+          const ageMs = h.last_heartbeat_at
+            ? Date.now() - new Date(h.last_heartbeat_at).getTime()
+            : null;
+          const ageMinutes = ageMs !== null ? Math.floor(ageMs / 60000) : null;
+          const heartbeatStatus: 'healthy' | 'stale' | 'missing' =
+            ageMinutes === null
+              ? 'missing'
+              : ageMinutes > staleThresholdMinutes
+                ? 'stale'
+                : 'healthy';
+          return {
+            workerName,
+            lastHeartbeatAt: h.last_heartbeat_at ?? null,
+            ageMinutes,
+            status: heartbeatStatus,
+          };
+        });
       } catch (_workerErr) {
         // Advisory only — do not fail health check
       }
