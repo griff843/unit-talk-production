@@ -4,7 +4,7 @@
 > This is the canonical source of program truth.
 >
 > **Last Updated**: 2026-03-19 | **Program Status**: R2 COMPLETE — R3 COMPLETE —
-> R4 COMPLETE — R5 COMPLETE — R6 UNLOCKED
+> R4 COMPLETE — R5 COMPLETE — R6 COMPLETE — R7 UNLOCKED
 
 ---
 
@@ -76,14 +76,14 @@
 
 ## Settlement Pipeline Defects
 
-| ID        | Severity | Title                                                                                                                                                             | Workstream | Status      | Sprint                                    | Notes                                                                                                                                                           |
-| --------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DEFECT-23 | P0       | Settlement blocked at auth layer — 401 from CC for all ops endpoints                                                                                              | R3         | ✅ RESOLVED | UTRP-R3-LIFECYCLE-AUTH                    | Root cause same as DEFECT-14 (garbage token). CC settlement POST now routes to API `/ops/picks/:id/settle-result` with internal service token.                  |
-| DEFECT-24 | P1       | `RecapService` uses `SUPABASE_ANON_KEY` not service role — may hit RLS restrictions on settled pick queries                                                       | R5         | ✅ RESOLVED | UTRP-R5-DOWNSTREAM-OUTCOME-RECONSTRUCTION | recapService.ts constructor: SUPABASE_ANON_KEY → SUPABASE_SERVICE_ROLE_KEY. RecapService is read-only; service role is appropriate.                             |
-| DEFECT-25 | P1       | `RecapService.extractCapper()` reads non-existent `tags` column on `unified_picks` — capper attribution always "Unit Talk"                                        | R5         | ✅ RESOLVED | UTRP-R5-DOWNSTREAM-OUTCOME-RECONSTRUCTION | getDailyRecapData/Weekly/Monthly: select now includes users join. mapRawPickToUnifiedPick: capper = raw.users?.username ?? 'Unit Talk'.                         |
-| DEFECT-26 | P1       | `getDailyRecapData()` filter: `settlement_status='settled'` AND `settlement_result NOT NULL` — correct semantics, but settlement pipeline must be unblocked first | R5         | ✅ RESOLVED | UTRP-R5-DOWNSTREAM-OUTCOME-RECONSTRUCTION | Root cause was ops route not setting settlement_status. Fixed: /ops/picks/:id/settle-result now sets settlement_status='settled', creates prop_settlements row. |
-| DEFECT-34 | P1       | CC settlement route (`/api/settlement/route.ts:104`) calls `manual_settle_pick` RPC directly — bypasses API lifecycle adapters entirely                           | R3         | ✅ RESOLVED | UTRP-R3-LIFECYCLE-AUTH                    | POST handler replaced: no longer calls Supabase RPC. Routes through API `/ops/picks/:id/settle-result` with internal service token. Single-writer compliant.    |
-| DEFECT-35 | P1       | SettlementAgent has no processing loop — `.start()` only initializes, no periodic poll or event trigger                                                           | R6         | OPEN        | —                                         | Reclassified R5→R6: R5 governing doc explicitly states "automation is R6's job." Settlement is intentionally manual-only in R5.                                 |
+| ID        | Severity | Title                                                                                                                                                             | Workstream | Status      | Sprint                                            | Notes                                                                                                                                                               |
+| --------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DEFECT-23 | P0       | Settlement blocked at auth layer — 401 from CC for all ops endpoints                                                                                              | R3         | ✅ RESOLVED | UTRP-R3-LIFECYCLE-AUTH                            | Root cause same as DEFECT-14 (garbage token). CC settlement POST now routes to API `/ops/picks/:id/settle-result` with internal service token.                      |
+| DEFECT-24 | P1       | `RecapService` uses `SUPABASE_ANON_KEY` not service role — may hit RLS restrictions on settled pick queries                                                       | R5         | ✅ RESOLVED | UTRP-R5-DOWNSTREAM-OUTCOME-RECONSTRUCTION         | recapService.ts constructor: SUPABASE_ANON_KEY → SUPABASE_SERVICE_ROLE_KEY. RecapService is read-only; service role is appropriate.                                 |
+| DEFECT-25 | P1       | `RecapService.extractCapper()` reads non-existent `tags` column on `unified_picks` — capper attribution always "Unit Talk"                                        | R5         | ✅ RESOLVED | UTRP-R5-DOWNSTREAM-OUTCOME-RECONSTRUCTION         | getDailyRecapData/Weekly/Monthly: select now includes users join. mapRawPickToUnifiedPick: capper = raw.users?.username ?? 'Unit Talk'.                             |
+| DEFECT-26 | P1       | `getDailyRecapData()` filter: `settlement_status='settled'` AND `settlement_result NOT NULL` — correct semantics, but settlement pipeline must be unblocked first | R5         | ✅ RESOLVED | UTRP-R5-DOWNSTREAM-OUTCOME-RECONSTRUCTION         | Root cause was ops route not setting settlement_status. Fixed: /ops/picks/:id/settle-result now sets settlement_status='settled', creates prop_settlements row.     |
+| DEFECT-34 | P1       | CC settlement route (`/api/settlement/route.ts:104`) calls `manual_settle_pick` RPC directly — bypasses API lifecycle adapters entirely                           | R3         | ✅ RESOLVED | UTRP-R3-LIFECYCLE-AUTH                            | POST handler replaced: no longer calls Supabase RPC. Routes through API `/ops/picks/:id/settle-result` with internal service token. Single-writer compliant.        |
+| DEFECT-35 | P1       | SettlementAgent has no processing loop — `.start()` only initializes, no periodic poll or event trigger                                                           | R6         | ✅ RESOLVED | UTRP-R6-VERIFICATION-CONTROL-PLANE-RECONSTRUCTION | BaseAgent `_scheduledProcessInterval` + `processing?.intervalSeconds` config added. `start()` starts setInterval; `stop()` clears it. Zod schema validates min 10s. |
 
 ---
 
@@ -99,11 +99,11 @@
 
 ## Verification / Test Coverage Defects
 
-| ID        | Severity | Title                                                                                       | Workstream | Status | Sprint | Notes                                                       |
-| --------- | -------- | ------------------------------------------------------------------------------------------- | ---------- | ------ | ------ | ----------------------------------------------------------- |
-| DEFECT-30 | P1       | R2 replay fixture only covers 3 NBA/NFL/MLB player props — no game total or spread bet type | R6         | OPEN   | —      | `post-rem-events.jsonl` needs game total + spread fixtures. |
-| DEFECT-31 | P1       | No E2E test covering submit → grade → post → settle → recap → Discord chain                 | R6         | OPEN   | —      | Critical path has no automated verification.                |
-| DEFECT-32 | P2       | No CI test for settlement auth (401 scenario)                                               | R6         | OPEN   | —      | Auth regression would be silent.                            |
+| ID        | Severity | Title                                                                                       | Workstream | Status      | Sprint                                            | Notes                                                                                                                                                                        |
+| --------- | -------- | ------------------------------------------------------------------------------------------- | ---------- | ----------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DEFECT-30 | P1       | R2 replay fixture only covers 3 NBA/NFL/MLB player props — no game total or spread bet type | R6         | ✅ RESOLVED | UTRP-R6-VERIFICATION-CONTROL-PLANE-RECONSTRUCTION | `post-rem-events-3types.jsonl` created: 3 picks × 3 bet types (player_prop/total/spread) + full lifecycle. Gate H added to run-replay.ts verifying settlement truth.         |
+| DEFECT-31 | P1       | No E2E test covering submit → grade → post → settle → recap → Discord chain                 | R6         | ✅ RESOLVED | UTRP-R6-VERIFICATION-CONTROL-PLANE-RECONSTRUCTION | `e2e-critical-path.test.ts`: 5 tests covering full governed lifecycle in-process (no production DB). ReplayLifecycleRunner + IsolatedPickStore. Recap filter match verified. |
+| DEFECT-32 | P2       | No CI test for settlement auth (401 scenario)                                               | R6         | ✅ RESOLVED | UTRP-R6-VERIFICATION-CONTROL-PLANE-RECONSTRUCTION | `operatorAuth.test.ts`: 6 scenarios covering all auth paths (internal token, JWT, 401, 403, E2E bypass, short-token guard). Added to CI run_lifecycle_gate.                  |
 
 ---
 
@@ -123,22 +123,20 @@
 
 ## Program State Summary
 
-| Workstream                      | Status         | Blocking Defects                    |
-| ------------------------------- | -------------- | ----------------------------------- |
-| R0 — Truth Reset                | ✅ COMPLETE    | None (DB caveat: migration-derived) |
-| R1 — Canonical Data             | ✅ COMPLETE    | None (DB migration caveat)          |
-| R2 — Submission Contract        | ✅ COMPLETE    | None (DB migration caveat)          |
-| R3 — Lifecycle Auth             | ✅ COMPLETE    | None                                |
-| R4 — Operator Surface           | ✅ COMPLETE    | None                                |
-| R5 — Downstream Outcomes        | ✅ COMPLETE    | None                                |
-| R6 — Verification Control Plane | 🔓 UNLOCKED    | R3 ✅, R4 ✅, R5 ✅                 |
-| R7 — Closeout                   | ⬜ NOT STARTED | Awaits R0–R6 + 48h gate             |
+| Workstream                      | Status      | Blocking Defects                    |
+| ------------------------------- | ----------- | ----------------------------------- |
+| R0 — Truth Reset                | ✅ COMPLETE | None (DB caveat: migration-derived) |
+| R1 — Canonical Data             | ✅ COMPLETE | None (DB migration caveat)          |
+| R2 — Submission Contract        | ✅ COMPLETE | None (DB migration caveat)          |
+| R3 — Lifecycle Auth             | ✅ COMPLETE | None                                |
+| R4 — Operator Surface           | ✅ COMPLETE | None                                |
+| R5 — Downstream Outcomes        | ✅ COMPLETE | None                                |
+| R6 — Verification Control Plane | ✅ COMPLETE | None                                |
+| R7 — Closeout                   | 🔓 UNLOCKED | Awaits 48h observation gate         |
 
-**Open P0 defects**: None **Open P1 defects**: DEFECT-28, DEFECT-30, DEFECT-31,
-DEFECT-33, DEFECT-35 (reclassified R6) **Resolved**: DEFECT-1 through DEFECT-13,
-DEFECT-14, DEFECT-15, DEFECT-17, DEFECT-18, DEFECT-19, DEFECT-20, DEFECT-21,
-DEFECT-22, DEFECT-23, DEFECT-24, DEFECT-25, DEFECT-26, DEFECT-27, DEFECT-29,
-DEFECT-36
+**Open P0 defects**: None **Open P1 defects**: DEFECT-28, DEFECT-33
+**Resolved**: DEFECT-1 through DEFECT-27, DEFECT-29, DEFECT-30, DEFECT-31,
+DEFECT-32, DEFECT-34, DEFECT-35, DEFECT-36
 
 ---
 

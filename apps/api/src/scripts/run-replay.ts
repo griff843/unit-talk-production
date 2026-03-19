@@ -185,6 +185,18 @@ async function main(): Promise<void> {
   const gateF = true; // Proof bundle was written
   const gateG = result1.errors.length === 0;
 
+  // UTRP-R6 DEFECT-30 Gate H: Settlement truth
+  // All picks that received a PICK_SETTLED event must have:
+  //   settlement_status === 'settled', settlement_result non-null, settled_at set.
+  // Also: the count of settled picks in the store must match the number of PICK_SETTLED events.
+  const expectedSettledCount = events.filter(e => e.eventType === 'PICK_SETTLED').length;
+  const settledPicks = result1.finalPickState.filter(p => p['settlement_status'] === 'settled');
+  const gateH =
+    expectedSettledCount > 0
+      ? settledPicks.length === expectedSettledCount &&
+        settledPicks.every(p => p['settlement_result'] != null && p['settled_at'] != null)
+      : true; // vacuously true when fixture has no PICK_SETTLED events
+
   console.log(`   Gate A — EventStore operational:        ${gateA ? '✅ PASS' : '❌ FAIL'}`);
   console.log(`   Gate B — ReplayFeedAdapter operational: ${gateB ? '✅ PASS' : '❌ FAIL'}`);
   console.log(
@@ -200,9 +212,12 @@ async function main(): Promise<void> {
   console.log(
     `   Gate G — No production side effects:    ${gateG ? '✅ PASS' : '❌ FAIL'} (${result1.errors.length} errors)`
   );
+  console.log(
+    `   Gate H — Settlement truth:              ${gateH ? '✅ PASS' : '❌ FAIL'} (${settledPicks.length}/${expectedSettledCount} settled picks verified)`
+  );
   console.log('');
 
-  const allPass = gateA && gateB && gateC && gateD && gateE && gateF && gateG;
+  const allPass = gateA && gateB && gateC && gateD && gateE && gateF && gateG && gateH;
   if (allPass) {
     console.log('✅ SPRINT PASS — All gates passed.');
     process.exit(0);

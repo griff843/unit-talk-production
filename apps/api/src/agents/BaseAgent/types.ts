@@ -76,6 +76,11 @@ export interface BaseAgentConfig {
   metrics?: MetricsConfig;
   health?: HealthConfig;
   retry?: RetryConfig;
+  // UTRP-R6 DEFECT-35: Processing loop — periodic automatic calls to process()
+  processing?: {
+    /** Interval in seconds between automatic process() calls. Requires schedule !== 'disabled'. */
+    intervalSeconds?: number;
+  };
 }
 
 export interface BaseAgentDependencies {
@@ -131,6 +136,11 @@ export const BaseAgentConfigSchema = z.object({
     .optional()
     .default({}),
   schedule: z.enum(['disabled', 'enabled', 'manual']).optional().default('enabled'),
+  processing: z
+    .object({
+      intervalSeconds: z.number().min(10).optional(),
+    })
+    .optional(),
 });
 
 // Export the Logger type

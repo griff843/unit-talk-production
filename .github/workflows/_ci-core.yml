@@ -297,6 +297,25 @@ jobs:
           SUPABASE_URL: http://localhost:0
           SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
 
+      # UTRP-R6 DEFECT-32: OperatorAuth regression test — prevents silent regression of R3 auth fix
+      - name: R6 OperatorAuth regression test
+        if: inputs.run_lifecycle_gate
+        run: pnpm exec vitest run src/middleware/__tests__/operatorAuth.test.ts --reporter=verbose
+        working-directory: apps/api
+        env:
+          SUPABASE_URL: http://localhost:0
+          SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
+          NODE_ENV: test
+
+      # UTRP-R6 DEFECT-31: E2E critical path test — verifies full governed lifecycle in-process
+      - name: R6 E2E critical path test
+        if: inputs.run_lifecycle_gate
+        run: pnpm exec vitest run src/lib/verification/__tests__/e2e-critical-path.test.ts --reporter=verbose
+        working-directory: apps/api
+        env:
+          SUPABASE_URL: http://localhost:0
+          SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
+
       - name: R3 Shadow divergence guardrails
         # SPRINT-LAYER1-PHASE5-E2E-CLOSURE: Phase 5 CI gate
         # Uses fixture mode — no Supabase connection required.
