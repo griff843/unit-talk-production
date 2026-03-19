@@ -63,7 +63,7 @@ function deriveLatencySloStatus(attainmentSeconds: number, targetSeconds: number
 async function computeLifecycleCompletionSlo(db: SupabaseClient): Promise<SloEntry> {
   const { data, error } = await db
     .from('unified_picks')
-    .select('lifecycle_stage, settled_at, created_at')
+    .select('settlement_status, settled_at, created_at')
     .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
   if (error || !data) {
@@ -79,7 +79,7 @@ async function computeLifecycleCompletionSlo(db: SupabaseClient): Promise<SloEnt
 
   const total = data.length;
   const settled = data.filter(row => {
-    if (row.lifecycle_stage !== 'SETTLED' || !row.settled_at || !row.created_at) return false;
+    if (row.settlement_status !== 'settled' || !row.settled_at || !row.created_at) return false;
     const durationMs = new Date(row.settled_at).getTime() - new Date(row.created_at).getTime();
     return durationMs <= 72 * 60 * 60 * 1000; // 72h in ms
   }).length;
@@ -179,7 +179,7 @@ async function computeSettlementAccuracySlo(db: SupabaseClient): Promise<SloEntr
   const { data, error } = await db
     .from('unified_picks')
     .select('settlement_status')
-    .eq('lifecycle_stage', 'SETTLED')
+    .eq('settlement_status', 'settled')
     .gte('settled_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
   if (error || !data) {

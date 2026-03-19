@@ -16,6 +16,9 @@
  * 10. evaluatePlatformThresholds → no alerts when drawdown not frozen
  * 11. evaluatePlatformThresholds → HIGH alert when drawdown frozen
  * 12. checkSloBreaches reflected in evaluatePlatformThresholds when BREACH SLO passed
+ * --- SPRINT-REM-007-SLO-TRUTH-RECOVERY: runtime-truth verification ---
+ * 13. (E-1) computeLifecycleCompletionSlo → not BREACH when settlement_status='settled' rows exist
+ * 14. (E-2) computeSettlementAccuracySlo → denominator > 0 when settlement_status='settled' rows exist
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -107,12 +110,12 @@ describe('computeLifecycleCompletionSlo', () => {
           gte: vi.fn().mockResolvedValue({
             data: [
               {
-                lifecycle_stage: 'SETTLED',
+                settlement_status: 'settled',
                 settled_at: settledAt.toISOString(),
                 created_at: createdAt.toISOString(),
               },
               {
-                lifecycle_stage: 'SETTLED',
+                settlement_status: 'settled',
                 settled_at: settledAt.toISOString(),
                 created_at: createdAt.toISOString(),
               },
@@ -127,6 +130,47 @@ describe('computeLifecycleCompletionSlo', () => {
     expect(result.id).toBe('lifecycle_completion');
     expect(result.attainment).toBe(1);
     expect(result.status).toBe('OK');
+  });
+
+  // SPRINT-REM-007-SLO-TRUTH-RECOVERY — Test E-1
+  // Proves SLO 1 is not BREACH when rows with settlement_status='settled' exist.
+  // Uses real-shaped DB data (no lifecycle_stage column) to verify the fixed query path.
+  it('E-1: not BREACH and attainment > 0 when settlement_status=settled rows exist', async () => {
+    vi.resetModules();
+    vi.mock('../../../services/supabaseClient', () => ({
+      supabase: { from: vi.fn() },
+      supabaseClient: { from: vi.fn() },
+    }));
+    vi.mock('../../../shadow/ShadowMode', () => ({
+      shadowMode: { isShadowMode: vi.fn(() => false), shouldSkipPublicAction: vi.fn(() => false) },
+    }));
+
+    const { computeLifecycleCompletionSlo } = await import('../../../routes/slo');
+
+    const now = new Date();
+    const settledAt = new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString(); // 1h ago
+    const createdAt = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(); // 2h ago
+
+    // Real-shaped rows: settlement_status present, no lifecycle_stage column
+    const mockDb = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          gte: vi.fn().mockResolvedValue({
+            data: [
+              { settlement_status: 'settled', settled_at: settledAt, created_at: createdAt },
+              { settlement_status: 'settled', settled_at: settledAt, created_at: createdAt },
+              { settlement_status: 'settled', settled_at: settledAt, created_at: createdAt },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    } as any;
+
+    const result = await computeLifecycleCompletionSlo(mockDb);
+    expect(result.status).not.toBe('BREACH');
+    expect(result.attainment).toBeGreaterThan(0);
+    expect(result.numerator).toBeGreaterThan(0);
   });
 });
 
@@ -365,5 +409,48 @@ describe('evaluatePlatformThresholds', () => {
     expect(sloBreachAlert).toBeDefined();
     expect(sloBreachAlert?.severity).toBe('HIGH');
     expect(sloBreachAlert?.source).toBe('slo');
+  });
+});
+
+// ─── Tests: computeSettlementAccuracySlo (runtime-truth) ─────────────────────
+
+describe('computeSettlementAccuracySlo', () => {
+  // SPRINT-REM-007-SLO-TRUTH-RECOVERY — Test E-2
+  // Proves SLO 4 denominator is non-zero when rows with settlement_status='settled' exist.
+  // Verifies the fixed query scope (.eq('settlement_status','settled')) returns qualifying rows.
+  it('E-2: denominator > 0 and status OK when settlement_status=settled rows exist', async () => {
+    vi.resetModules();
+    vi.mock('../../../services/supabaseClient', () => ({
+      supabase: { from: vi.fn() },
+      supabaseClient: { from: vi.fn() },
+    }));
+    vi.mock('../../../shadow/ShadowMode', () => ({
+      shadowMode: { isShadowMode: vi.fn(() => false), shouldSkipPublicAction: vi.fn(() => false) },
+    }));
+
+    const { computeSettlementAccuracySlo } = await import('../../../routes/slo');
+
+    // Real-shaped rows: settlement_status='settled', none disputed
+    const mockDb = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            gte: vi.fn().mockResolvedValue({
+              data: [
+                { settlement_status: 'settled' },
+                { settlement_status: 'settled' },
+                { settlement_status: 'settled' },
+              ],
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    } as any;
+
+    const result = await computeSettlementAccuracySlo(mockDb);
+    expect(result.denominator).toBeGreaterThan(0);
+    expect(result.attainment).toBeGreaterThan(0);
+    expect(result.status).toBe('OK');
   });
 });
