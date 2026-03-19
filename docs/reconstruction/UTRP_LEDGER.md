@@ -4,7 +4,8 @@
 > This is the canonical source of program truth.
 >
 > **Last Updated**: 2026-03-19 | **Program Status**: R2 COMPLETE — R3 COMPLETE —
-> R4 COMPLETE — R5 COMPLETE — R6 COMPLETE — R7 UNLOCKED
+> R4 COMPLETE — R5 COMPLETE — R6 COMPLETE — R7 IN-FLIGHT (48h gate pending:
+> closes 2026-03-21 18:43 EDT)
 
 ---
 
@@ -123,16 +124,16 @@
 
 ## Program State Summary
 
-| Workstream                      | Status      | Blocking Defects                    |
-| ------------------------------- | ----------- | ----------------------------------- |
-| R0 — Truth Reset                | ✅ COMPLETE | None (DB caveat: migration-derived) |
-| R1 — Canonical Data             | ✅ COMPLETE | None (DB migration caveat)          |
-| R2 — Submission Contract        | ✅ COMPLETE | None (DB migration caveat)          |
-| R3 — Lifecycle Auth             | ✅ COMPLETE | None                                |
-| R4 — Operator Surface           | ✅ COMPLETE | None                                |
-| R5 — Downstream Outcomes        | ✅ COMPLETE | None                                |
-| R6 — Verification Control Plane | ✅ COMPLETE | None                                |
-| R7 — Closeout                   | 🔓 UNLOCKED | Awaits 48h observation gate         |
+| Workstream                      | Status       | Blocking Defects                    |
+| ------------------------------- | ------------ | ----------------------------------- |
+| R0 — Truth Reset                | ✅ COMPLETE  | None (DB caveat: migration-derived) |
+| R1 — Canonical Data             | ✅ COMPLETE  | None (DB migration caveat)          |
+| R2 — Submission Contract        | ✅ COMPLETE  | None (DB migration caveat)          |
+| R3 — Lifecycle Auth             | ✅ COMPLETE  | None                                |
+| R4 — Operator Surface           | ✅ COMPLETE  | None                                |
+| R5 — Downstream Outcomes        | ✅ COMPLETE  | None                                |
+| R6 — Verification Control Plane | ✅ COMPLETE  | None                                |
+| R7 — Closeout                   | 🔄 IN-FLIGHT | Observation gate closes 2026-03-21  |
 
 **Open P0 defects**: None **Open P1 defects**: DEFECT-28, DEFECT-33
 **Resolved**: DEFECT-1 through DEFECT-27, DEFECT-29, DEFECT-30, DEFECT-31,

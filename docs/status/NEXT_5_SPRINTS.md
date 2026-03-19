@@ -1,26 +1,29 @@
 # Next 5 Sprints
 
-**Last Updated**: 2026-03-17
-(SPRINT-085-GOVERNANCE-SURFACE-HARDENING-AND-SPOA-CONSERVATIVE-MODE) **Source**:
-Phase status + drift report + Layer 3 scoping analysis + Claude OS backlog +
-codebase investigation
+**Last Updated**: 2026-03-19 (UTRP-R7-CLOSEOUT — post-UTRP queue established)
+**Source**: UTRP program closeout + ledger reconciliation + Charter §6
+exclusions
 
-> **Layer 3 Entry**: Layer 1 and Layer 2 are both COMPLETE. The sprint queue now
-> targets Layer 3 (Product Complete — Phases 9–11) and governance maintenance.
-> See `docs/06_status/current_phase.md` for canonical layer/phase position.
+> **UTRP Status**: R0–R6 ALL COMPLETE. R7 IN-FLIGHT (observation gate pending,
+> closes 2026-03-21 18:43 EDT). Post-UTRP development is AUTHORIZED once R7
+> observation gate passes. Do not start new sprints before R7 is COMPLETE.
 
 ---
 
-## Sprint Queue
+## Sprint Queue (Post-UTRP — Authorized After R7 COMPLETE)
 
-> **Sprint 1 slot is vacant.** SPRINT-061 completed 2026-03-16. Run
-> `/sprint-plan` to select the next sprint from the roadmap.
+> **Blocked until R7 observation gate closes (2026-03-21 18:43 EDT).** After
+> gate passes, the following queue is authorized per UTRP Charter §6.
 
 ## Summary
 
-| #   | Sprint | Priority | Phase | Focus                         | Linear | Blocked By |
-| --- | ------ | -------- | ----- | ----------------------------- | ------ | ---------- |
-| 1   | TBD    | —        | —     | Run /sprint-plan to determine | —      | None       |
+| #   | Sprint                                  | Priority | Focus                                               | Authority         |
+| --- | --------------------------------------- | -------- | --------------------------------------------------- | ----------------- |
+| 1   | DEFECT-33-BRIDGEWORKER-V3-FIELD-MAPPING | P1       | V3 path missing 16+ fields — silent data loss       | UTRP Ledger OPEN  |
+| 2   | CANONICAL-V3-TICKETS-MIGRATION          | P1       | Deferred V3 `tickets` migration (Charter exclusion) | UTRP Charter §4   |
+| 3   | Layer 4 Intelligence Pipeline           | P2       | First L4 sprint — authorized after UTRP closes      | UTRP Charter §2   |
+| 4   | SGO-PARTICIPANT-SYNC-IMPROVEMENTS       | P3       | Deferred during UTRP (Charter exclusion)            | UTRP Charter §4   |
+| 5   | TBD                                     | —        | Run /sprint-plan after R7 COMPLETE                  | Sprint queue auth |
 
 **Dependency chain**: All Layer 1 and Layer 2 sprints COMPLETE. Layer 3 in
 progress (SPRINT-049 auth, SPRINT-050 permissions, SPRINT-051 Smart Form UX,

@@ -1,7 +1,10 @@
 # UTRP-R7 — Program Closeout
 
-> **Workstream**: R7 **Status**: NOT STARTED **Dependencies**: R0–R6 ALL
+> **Workstream**: R7 **Status**: IN-FLIGHT **Dependencies**: R0–R6 ALL
 > COMPLETE + 48-hour observation gate
+>
+> **Observation Gate**: Opens 2026-03-19 18:43 EDT | Closes 2026-03-21 18:43 EDT
+> All completable criteria satisfied. Gate confirmation pending.
 
 ---
 
