@@ -3,8 +3,8 @@
 > **Authority**: UTRP Charter §6 — Ledger is updated at every state transition.
 > This is the canonical source of program truth.
 >
-> **Last Updated**: 2026-03-19 | **Program Status**: R1 COMPLETE — R2/R3
-> UNLOCKED
+> **Last Updated**: 2026-03-19 | **Program Status**: R1 COMPLETE — R2 UNLOCKED —
+> R3 COMPLETE
 
 ---
 
@@ -45,11 +45,11 @@
 
 ## Auth / Security Defects
 
-| ID        | Severity | Title                                                                                                                                                            | Workstream | Status | Sprint | Notes                                                                                                                            |
-| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------ | ------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| DEFECT-14 | P0       | CC→API operatorAuth returns 403 — CC sends `Bearer admin-internal` (non-JWT garbage token); JWT verify fails → 403. Dev passthrough only triggers with NO token. | R3         | OPEN   | —      | Blocks all CC ops actions: approve, reject, settle. API runs NODE_ENV=development but passthrough dead because CC sends a token. |
-| DEFECT-15 | P1       | No `INTERNAL_SERVICE_TOKEN` mechanism for CC→API internal calls                                                                                                  | R3         | OPEN   | —      | Required fix for DEFECT-14.                                                                                                      |
-| DEFECT-16 | P2       | CC uses `NODE_ENV=production` in docker-compose while API uses `NODE_ENV=development` — inconsistent per-service NODE_ENV                                        | R3         | OPEN   | —      | Only CC has production mode. API is development. Per-service review needed.                                                      |
+| ID        | Severity | Title                                                                                                                                                            | Workstream | Status      | Sprint                 | Notes                                                                                                                                        |
+| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| DEFECT-14 | P0       | CC→API operatorAuth returns 403 — CC sends `Bearer admin-internal` (non-JWT garbage token); JWT verify fails → 403. Dev passthrough only triggers with NO token. | R3         | ✅ RESOLVED | UTRP-R3-LIFECYCLE-AUTH | Garbage Bearer token replaced with `X-Internal-Service-Token` in CC ops proxy. `operatorAuth.ts` validates token → `operator_override` role. |
+| DEFECT-15 | P1       | No `INTERNAL_SERVICE_TOKEN` mechanism for CC→API internal calls                                                                                                  | R3         | ✅ RESOLVED | UTRP-R3-LIFECYCLE-AUTH | `INTERNAL_SERVICE_TOKEN` added to `operatorAuth.ts`, docker-compose (API + CC), `.env.example`. Min 32-char, env-var only, never logged.     |
+| DEFECT-16 | P2       | CC uses `NODE_ENV=production` in docker-compose while API uses `NODE_ENV=development` — inconsistent per-service NODE_ENV                                        | R3         | ✅ RESOLVED | UTRP-R3-LIFECYCLE-AUTH | Per-service NODE_ENV is intentional. INTERNAL_SERVICE_TOKEN mechanism makes auth independent of NODE_ENV — R3 doc confirms this is the fix.  |
 
 ---
 
@@ -76,14 +76,14 @@
 
 ## Settlement Pipeline Defects
 
-| ID        | Severity | Title                                                                                                                                                             | Workstream | Status | Sprint | Notes                                                                                                                |
-| --------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------ | ------ | -------------------------------------------------------------------------------------------------------------------- |
-| DEFECT-23 | P0       | Settlement blocked at auth layer — 401 from CC for all ops endpoints                                                                                              | R3         | OPEN   | —      | Same root as DEFECT-14. Settlement pipeline cannot be exercised from CC.                                             |
-| DEFECT-24 | P1       | `RecapService` uses `SUPABASE_ANON_KEY` not service role — may hit RLS restrictions on settled pick queries                                                       | R5         | OPEN   | —      | Even post-settlement, recap may return empty under RLS.                                                              |
-| DEFECT-25 | P1       | `RecapService.extractCapper()` reads non-existent `tags` column on `unified_picks` — capper attribution always "Unit Talk"                                        | R5         | OPEN   | —      | Must join `users` table or read `user_id` instead.                                                                   |
-| DEFECT-26 | P1       | `getDailyRecapData()` filter: `settlement_status='settled'` AND `settlement_result NOT NULL` — correct semantics, but settlement pipeline must be unblocked first | R5         | OPEN   | —      | Not a code bug; a dependency on R3/DEFECT-14 fix.                                                                    |
-| DEFECT-34 | P1       | CC settlement route (`/api/settlement/route.ts:104`) calls `manual_settle_pick` RPC directly — bypasses API lifecycle adapters entirely                           | R3         | OPEN   | —      | Single-writer violation. CC must route through API, not direct Supabase RPC. Moot while DEFECT-14 blocks all CC ops. |
-| DEFECT-35 | P1       | SettlementAgent has no processing loop — `.start()` only initializes, no periodic poll or event trigger                                                           | R5         | OPEN   | —      | Settlement is manual-only. Must add cron/poll or event-driven trigger for automated settlement.                      |
+| ID        | Severity | Title                                                                                                                                                             | Workstream | Status      | Sprint                 | Notes                                                                                                                                                        |
+| --------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| DEFECT-23 | P0       | Settlement blocked at auth layer — 401 from CC for all ops endpoints                                                                                              | R3         | ✅ RESOLVED | UTRP-R3-LIFECYCLE-AUTH | Root cause same as DEFECT-14 (garbage token). CC settlement POST now routes to API `/ops/picks/:id/settle-result` with internal service token.               |
+| DEFECT-24 | P1       | `RecapService` uses `SUPABASE_ANON_KEY` not service role — may hit RLS restrictions on settled pick queries                                                       | R5         | OPEN        | —                      | Even post-settlement, recap may return empty under RLS.                                                                                                      |
+| DEFECT-25 | P1       | `RecapService.extractCapper()` reads non-existent `tags` column on `unified_picks` — capper attribution always "Unit Talk"                                        | R5         | OPEN        | —                      | Must join `users` table or read `user_id` instead.                                                                                                           |
+| DEFECT-26 | P1       | `getDailyRecapData()` filter: `settlement_status='settled'` AND `settlement_result NOT NULL` — correct semantics, but settlement pipeline must be unblocked first | R5         | OPEN        | —                      | Not a code bug; a dependency on R3/DEFECT-14 fix.                                                                                                            |
+| DEFECT-34 | P1       | CC settlement route (`/api/settlement/route.ts:104`) calls `manual_settle_pick` RPC directly — bypasses API lifecycle adapters entirely                           | R3         | ✅ RESOLVED | UTRP-R3-LIFECYCLE-AUTH | POST handler replaced: no longer calls Supabase RPC. Routes through API `/ops/picks/:id/settle-result` with internal service token. Single-writer compliant. |
+| DEFECT-35 | P1       | SettlementAgent has no processing loop — `.start()` only initializes, no periodic poll or event trigger                                                           | R5         | OPEN        | —                      | Settlement is manual-only. Must add cron/poll or event-driven trigger for automated settlement.                                                              |
 
 ---
 
@@ -128,15 +128,15 @@
 | R0 — Truth Reset                | ✅ COMPLETE    | None (DB caveat: migration-derived) |
 | R1 — Canonical Data             | ✅ COMPLETE    | None (DB migration caveat)          |
 | R2 — Submission Contract        | 🔓 UNLOCKED    | R1 complete                         |
-| R3 — Lifecycle Auth             | 🔓 UNLOCKED    | R1 complete                         |
-| R4 — Operator Surface           | ⬜ NOT STARTED | Awaits R1, R2, R3                   |
-| R5 — Downstream Outcomes        | ⬜ NOT STARTED | Awaits R3, R4                       |
+| R3 — Lifecycle Auth             | ✅ COMPLETE    | None                                |
+| R4 — Operator Surface           | 🔓 UNLOCKED    | R2 must also complete (parallel)    |
+| R5 — Downstream Outcomes        | ⬜ NOT STARTED | Awaits R3 ✅, R4                    |
 | R6 — Verification Control Plane | ⬜ NOT STARTED | Awaits R1–R5                        |
 | R7 — Closeout                   | ⬜ NOT STARTED | Awaits R0–R6 + 48h gate             |
 
-**Open P0 defects**: DEFECT-14, DEFECT-23 **Open P1 defects**: DEFECT-11,
-DEFECT-12, DEFECT-15, DEFECT-17, DEFECT-22, DEFECT-24, DEFECT-25, DEFECT-26,
-DEFECT-27, DEFECT-28, DEFECT-30, DEFECT-31, DEFECT-33, DEFECT-34, DEFECT-35,
+**Open P0 defects**: None (DEFECT-14, DEFECT-23 resolved in R3) **Open P1
+defects**: DEFECT-11, DEFECT-12, DEFECT-17, DEFECT-22, DEFECT-24, DEFECT-25,
+DEFECT-26, DEFECT-27, DEFECT-28, DEFECT-30, DEFECT-31, DEFECT-33, DEFECT-35,
 DEFECT-36 **Resolved**: DEFECT-1 through DEFECT-10, DEFECT-13, DEFECT-18,
 DEFECT-19, DEFECT-20, DEFECT-21
 

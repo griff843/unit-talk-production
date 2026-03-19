@@ -58,6 +58,23 @@ export const operatorAuth = async (
       logger.info('E2E test bypass enabled (test environment only)', { correlationId });
       // Use 'e2e-test-operator' as the authenticated ID for test tracing
       req.authenticatedOperatorId = 'e2e-test-operator';
+      req.authenticatedUser = { id: 'e2e-test-operator', role: 'operator_override' };
+      return next();
+    }
+
+    // UTRP-R3 DEFECT-15: Internal service token authentication
+    // Allows authorized internal services (e.g. Command Center) to call lifecycle endpoints
+    // without a user JWT. Token must match INTERNAL_SERVICE_TOKEN env var exactly.
+    // Grants operator_override authority — never logged, never returned in responses.
+    const configuredToken = process.env.INTERNAL_SERVICE_TOKEN;
+    const internalToken = req.headers['x-internal-service-token'];
+    if (configuredToken && configuredToken.length >= 32 && internalToken === configuredToken) {
+      logger.info('Internal service token authenticated', {
+        correlationId,
+        source: 'internal-service',
+      });
+      req.authenticatedOperatorId = 'internal-service';
+      req.authenticatedUser = { id: 'internal-service', role: 'operator_override' };
       return next();
     }
 
@@ -217,7 +234,8 @@ export const requireOperatorRole = (allowedRoles: string[]) => {
     }
 
     const userRole = req.authenticatedUser?.role;
-    if (!userRole || !allowedRoles.includes(userRole)) {
+    // operator_override role bypasses all role checks (internal service + emergency operators)
+    if (!userRole || (!allowedRoles.includes(userRole) && userRole !== 'operator_override')) {
       logger.warn('Operator role check failed', {
         operatorId: req.authenticatedOperatorId,
         userRole,

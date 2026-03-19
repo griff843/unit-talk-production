@@ -2,16 +2,21 @@
  * Settlement Console API Route (UNIFIED-OPS-002 Step 2)
  *
  * GET  /api/settlement?limit=50&sport=NBA  — List unsettled picks
- * POST /api/settlement                     — Settle a pick via manual_settle_pick RPC
+ * POST /api/settlement                     — Settle a pick via governed API lifecycle path
  *
- * Uses the Command Center's Supabase client (anon key).
- * The RPC is SECURITY DEFINER so it runs with elevated privileges on the DB side.
+ * UTRP-R3 DEFECT-34: POST previously called manual_settle_pick RPC directly (bypass).
+ * Now routes through API /ops/picks/:id/settle-result with internal service token.
+ * GET remains Supabase-direct (read-only, no lifecycle bypass).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 
 import { requireOperatorIdentity } from '@/lib/auth';
 import { getSupabaseClient } from '@/lib/supabase';
+
+function getApiBaseUrl(): string {
+  return process.env.API_SERVICE_URL || 'http://localhost:3010';
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -79,16 +84,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const client = getSupabaseClient();
-    if (!client) {
-      return NextResponse.json(
-        { success: false, error: 'Supabase client not available' },
-        { status: 503 }
-      );
-    }
-
     const body = await request.json();
-    const { pick_id, result, actual_value, notes, operator } = body;
+    const { pick_id, result, notes } = body;
 
     if (!pick_id) {
       return NextResponse.json({ success: false, error: 'pick_id is required' }, { status: 400 });
@@ -101,38 +98,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data, error } = await client.rpc('manual_settle_pick', {
-      p_pick_id: pick_id,
-      p_result: result,
-      p_settled_at: new Date().toISOString(),
-      p_meta: {
-        actual_value: actual_value ?? 0,
-        operator: operator || 'command-center',
-        notes: notes || null,
-        trace_id: `cc-settle-${Date.now()}`,
+    // UTRP-R3 DEFECT-34: Route through governed API lifecycle path instead of direct RPC.
+    // Uses internal service token so the API can enforce lifecycle control and single-writer.
+    const serviceToken = process.env.INTERNAL_SERVICE_TOKEN || '';
+    const apiResponse = await fetch(`${getApiBaseUrl()}/ops/picks/${pick_id}/settle-result`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Service-Token': serviceToken,
       },
+      body: JSON.stringify({ result, reason: notes || undefined }),
     });
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    const apiResult = (await apiResponse.json()) as Record<string, unknown>;
 
-    const rpcResult = data as Record<string, unknown> | null;
-
-    if (!rpcResult?.success) {
+    if (!apiResponse.ok || !apiResult.success) {
       return NextResponse.json(
         {
           success: false,
-          error: (rpcResult?.error as string) || 'Settlement rejected',
-          details: rpcResult,
+          error: (apiResult.error as string) || 'Settlement rejected by API',
+          details: apiResult,
         },
-        { status: 422 }
+        { status: apiResponse.status || 422 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      ...rpcResult,
+      ...apiResult,
       timestamp: new Date().toISOString(),
     });
   } catch (err) {

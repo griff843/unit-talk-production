@@ -321,6 +321,8 @@ services:
       - PROMOTION_HARD_ONLY=true
       # SPRINT-044D: Grading data source (raw_props → provider_offers migration)
       - GRADING_DATA_SOURCE=raw_props
+      # UTRP-R3 DEFECT-15: Internal service token for CC→API auth
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/logs:/app/apps/api/logs
@@ -530,6 +532,10 @@ services:
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - PROMETHEUS_URL=http://prometheus:9090
       - TEMPORAL_UI_URL=http://localhost:8088
+      # UTRP-R3 DEFECT-14/15: Internal API URL for container-to-container calls
+      - API_SERVICE_URL=http://api:3000
+      # UTRP-R3 DEFECT-15: Internal service token for CC→API auth
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
       # Version provenance (ui/surface-reset-020)
       - GIT_COMMIT=${GIT_COMMIT:-unknown}
       - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}
