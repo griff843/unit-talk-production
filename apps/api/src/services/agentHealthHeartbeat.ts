@@ -16,6 +16,9 @@ function getCommitHash(): string {
 }
 const HEARTBEAT_INTERVAL_MS = 30000; // 30 seconds
 
+// REM-005: Workers that also write to ops_worker_heartbeats for /api/health/summary visibility
+const OPS_HEARTBEAT_WORKERS = new Set(['temporal-worker', 'bridge-worker']);
+
 interface AgentHeartbeatMeta {
   version: string;
   environment: string;
@@ -128,6 +131,34 @@ class AgentHealthHeartbeat {
       if (error) {
         logger.error({ agentName, error: error.message }, 'Failed to send heartbeat');
         return false;
+      }
+
+      // REM-005: Dual-write to ops_worker_heartbeats for covered workers
+      if (OPS_HEARTBEAT_WORKERS.has(agentName)) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase.rpc as any)('upsert_worker_heartbeat', {
+            p_worker_name: agentName,
+            p_worker_id: `worker-${process.pid}`,
+            p_status: status,
+            p_last_error: null,
+            p_items_processed: 0,
+            p_last_successful_post_at: null,
+            p_meta: {
+              version: meta.version,
+              environment: meta.environment,
+              pid: meta.pid,
+              uptime_seconds: meta.uptime_seconds,
+              source: 'agentHealthHeartbeat',
+            },
+          });
+        } catch (opsErr) {
+          // Non-fatal: agent_health write succeeded, ops_worker is advisory
+          logger.warn(
+            { agentName, error: opsErr instanceof Error ? opsErr.message : String(opsErr) },
+            'Failed to write ops_worker_heartbeat (non-fatal)'
+          );
+        }
       }
 
       logger.debug({ agentName, status }, 'Heartbeat sent');

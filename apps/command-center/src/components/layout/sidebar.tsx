@@ -92,25 +92,30 @@ const NAV_SECTIONS: NavSection[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Status hook — polls /api/pipeline/health every 30s
+// Status hook — polls /api/health/summary (canonical authority) every 30s
+// SPRINT-REM-003: Fail closed to 'unknown', derive from platform_status only.
 // ---------------------------------------------------------------------------
 
-type SystemStatus = 'healthy' | 'degraded' | 'down';
+type SystemStatus = 'healthy' | 'degraded' | 'down' | 'unknown';
 
 function useSystemStatus(): SystemStatus {
-  const [status, setStatus] = useState<SystemStatus>('healthy');
+  const [status, setStatus] = useState<SystemStatus>('unknown');
 
   const poll = useCallback(async () => {
     try {
-      const res = await fetch('/api/pipeline/health');
+      const res = await fetch('/api/health/summary');
       if (!res.ok) {
         setStatus('down');
         return;
       }
       const data = await res.json();
-      setStatus(data.status === 'healthy' ? 'healthy' : 'degraded');
+      const ps = data.platform_status;
+      if (ps === 'HEALTHY') setStatus('healthy');
+      else if (ps === 'DEGRADED') setStatus('degraded');
+      else if (ps === 'CRITICAL') setStatus('down');
+      else setStatus('unknown');
     } catch {
-      setStatus('down');
+      setStatus('unknown');
     }
   }, []);
 
@@ -127,6 +132,7 @@ const STATUS_META: Record<SystemStatus, { color: string; label: string }> = {
   healthy: { color: 'bg-emerald-500', label: 'System Healthy' },
   degraded: { color: 'bg-yellow-500', label: 'Degraded' },
   down: { color: 'bg-red-500', label: 'Disconnected' },
+  unknown: { color: 'bg-gray-400', label: 'Status Unknown' },
 };
 
 // ---------------------------------------------------------------------------

@@ -321,6 +321,16 @@ services:
       - PROMOTION_HARD_ONLY=true
       # SPRINT-044D: Grading data source (raw_props → provider_offers migration)
       - GRADING_DATA_SOURCE=raw_props
+      # UTRP-R3 DEFECT-15: Internal service token for CC→API auth
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
+      # UTRP-R5 DEFECT-27: DiscordPromotionAgent requires AUTOPILOT_MODE to post.
+      # shadow = logs posting intent without sending to Discord (safe for dev/staging).
+      # Change to 'prod' or 'canary' for live Discord posting in production.
+      - AUTOPILOT_MODE=shadow
+      # UTRP-R5 DEFECT-29: Discord credentials — must be set in .env for posting to work.
+      # In shadow mode, missing credentials are tolerated (no actual send occurs).
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/logs:/app/apps/api/logs
@@ -530,6 +540,10 @@ services:
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - PROMETHEUS_URL=http://prometheus:9090
       - TEMPORAL_UI_URL=http://localhost:8088
+      # UTRP-R3 DEFECT-14/15: Internal API URL for container-to-container calls
+      - API_SERVICE_URL=http://api:3000
+      # UTRP-R3 DEFECT-15: Internal service token for CC→API auth
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
       # Version provenance (ui/surface-reset-020)
       - GIT_COMMIT=${GIT_COMMIT:-unknown}
       - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}

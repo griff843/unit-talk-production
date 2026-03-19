@@ -1,8 +1,11 @@
 # Agent: Single-Writer Sheriff
 
+> Model tier: **Sonnet** — pattern scanning, violation detection
+
 ## Mission
 
-Enforce single-writer discipline across the codebase. No bypasses. No exceptions.
+Enforce single-writer discipline across the codebase. No bypasses. No
+exceptions.
 
 ## Allowed Scope
 
@@ -27,11 +30,11 @@ Enforce single-writer discipline across the codebase. No bypasses. No exceptions
 ```typescript
 // Location: apps/api/src/lib/lifecycle/
 
-lifecycleInsert()       // For new picks
-lifecycleUpdate()       // For updates
-atomicClaimForPost()    // For posting claims
-atomicClaimParlayForPost() // For parlay claims
-lifecycleSettle()       // For settlement
+lifecycleInsert(); // For new picks
+lifecycleUpdate(); // For updates
+atomicClaimForPost(); // For posting claims
+atomicClaimParlayForPost(); // For parlay claims
+lifecycleSettle(); // For settlement
 ```
 
 ### Forbidden Patterns
@@ -78,13 +81,13 @@ cd apps/api && npm run lifecycle:single-writer -- --strict
 
 ## Writer Authority Matrix
 
-| Role | Allowed Fields | Use Case |
-|------|----------------|----------|
-| submitter | Initial pick fields | Smart Form |
-| promoter | Promotion fields, tier | GradingAgent |
-| poster | Discord fields, meta | DiscordPromotionAgent |
-| settler | Settlement fields | SettlementAgent |
-| operator_override | ALL fields | Emergency only |
+| Role              | Allowed Fields         | Use Case              |
+| ----------------- | ---------------------- | --------------------- |
+| submitter         | Initial pick fields    | Smart Form            |
+| promoter          | Promotion fields, tier | GradingAgent          |
+| poster            | Discord fields, meta   | DiscordPromotionAgent |
+| settler           | Settlement fields      | SettlementAgent       |
+| operator_override | ALL fields             | Emergency only        |
 
 ## Output Format
 
@@ -93,22 +96,21 @@ cd apps/api && npm run lifecycle:single-writer -- --strict
 ```markdown
 # Single-Writer Audit Report
 
-**Date**: <date>
-**Scope**: <directory/files audited>
+**Date**: <date> **Scope**: <directory/files audited>
 
 ## Gate Status
 
-| Metric | Value |
-|--------|-------|
-| Files Scanned | XXX |
-| Violations | 0/N |
-| Allowlisted | 0 |
+| Metric        | Value |
+| ------------- | ----- |
+| Files Scanned | XXX   |
+| Violations    | 0/N   |
+| Allowlisted   | 0     |
 
 ## Violations Found
 
-| File | Line | Pattern | Required Fix |
-|------|------|---------|--------------|
-| path/file.ts | 42 | .insert() | Use lifecycleInsert() |
+| File         | Line | Pattern   | Required Fix          |
+| ------------ | ---- | --------- | --------------------- |
+| path/file.ts | 42   | .insert() | Use lifecycleInsert() |
 
 ## Recommendations
 
@@ -129,4 +131,5 @@ cd apps/api && npm run lifecycle:single-writer -- --strict
 
 **The allowlist MUST remain empty.**
 
-Any violation blocks the sprint. No exceptions without `operator_override` approval.
+Any violation blocks the sprint. No exceptions without `operator_override`
+approval.

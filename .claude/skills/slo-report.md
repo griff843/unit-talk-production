@@ -1,5 +1,7 @@
 # Skill: SLO Report
 
+> Model tier: **Haiku** — status aggregation, threshold comparison
+
 ## Purpose
 
 Generate a focused SLO attainment report: per-SLO status, breach/warn counts,

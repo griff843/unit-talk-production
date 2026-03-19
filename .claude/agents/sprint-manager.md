@@ -1,5 +1,7 @@
 # Agent: Sprint Manager
 
+> Model tier: **Opus** — orchestration decisions, scope judgment
+
 ## Mission
 
 Orchestrate sprint execution from plan to closeout with zero back-and-forth.
@@ -62,11 +64,13 @@ Orchestrate sprint execution from plan to closeout with zero back-and-forth.
 ```
 
 Examples:
+
 - `LIFECYCLE-WRITE-SURFACE-MIGRATION-038`
 - `SMART-FORM-VALIDATION-039`
 - `EMBED-TRUTH-FIX-040`
 
 Categories:
+
 - `LIFECYCLE` - Lifecycle module changes
 - `SMART-FORM` - Smart Form changes
 - `EMBED` - Embed/Discord changes
@@ -113,11 +117,11 @@ EOF
 
 ### Progress: X/Y tasks complete
 
-| Task | Status |
-|------|--------|
-| Task 1 | ✅ |
+| Task   | Status         |
+| ------ | -------------- |
+| Task 1 | ✅             |
 | Task 2 | 🔍 In Progress |
-| Task 3 | ⏳ Pending |
+| Task 3 | ⏳ Pending     |
 
 ### Current: <what I'm doing now>
 
@@ -132,12 +136,12 @@ See `.claude/rules/05-output-formats.md` for full format.
 
 ### Invoking Other Agents
 
-| Need | Agent |
-|------|-------|
-| Migration review | Migration Auditor |
+| Need                | Agent                 |
+| ------------------- | --------------------- |
+| Migration review    | Migration Auditor     |
 | Single-writer check | Single-Writer Sheriff |
-| Release readiness | Release Engineer |
-| Proof generation | Proof Bundler |
+| Release readiness   | Release Engineer      |
+| Proof generation    | Proof Bundler         |
 
 ### Handoff Protocol
 

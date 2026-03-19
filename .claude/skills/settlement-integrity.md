@@ -1,5 +1,7 @@
 # Skill: Settlement Integrity
 
+> Model tier: **Opus** — financial audit, mismatch detection
+
 ## Purpose
 
 Audit prop_settlements against expected outcomes. Detect missing settlements,

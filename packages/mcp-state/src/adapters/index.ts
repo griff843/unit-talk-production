@@ -47,7 +47,7 @@ interface DbPickRow {
 
 interface DbSettlementRow {
   id: string;
-  pick_id: string;
+  final_pick_id: string;
   settlement_result: 'win' | 'loss' | 'push' | null;
   settlement_status: string;
   settled_at: string | null;
@@ -251,10 +251,10 @@ export async function getSettlementRecords(
   let q: any = supabase
     .from('prop_settlements')
     .select(
-      'id, pick_id, settlement_result, settlement_status, settled_at, provider, raw_result, created_at'
+      'id, final_pick_id, settlement_result, settlement_status, settled_at, provider, raw_result, created_at'
     );
 
-  if (opts.pick_id !== undefined) q = q.eq('pick_id', opts.pick_id);
+  if (opts.pick_id !== undefined) q = q.eq('final_pick_id', opts.pick_id);
   if (opts.date !== undefined) {
     q = q.gte('settled_at', `${opts.date}T00:00:00Z`).lt('settled_at', `${opts.date}T24:00:00Z`);
   }
@@ -269,7 +269,7 @@ export async function getSettlementRecords(
 
   const records: SettlementRecord[] = (data ?? []).map(row => ({
     id: row.id,
-    pick_id: row.pick_id,
+    pick_id: row.final_pick_id,
     settlement_result: row.settlement_result,
     settlement_status: row.settlement_status,
     settled_at: row.settled_at,

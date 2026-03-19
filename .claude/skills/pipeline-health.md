@@ -1,5 +1,7 @@
 # Skill: Pipeline Health
 
+> Model tier: **Haiku** — status reads, health snapshot
+
 ## Purpose
 
 Get a complete platform health snapshot in a single pass: agent heartbeat

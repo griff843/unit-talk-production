@@ -897,11 +897,26 @@ export class SettlementAgent extends BaseAgent {
         throw new Error(`Manual settlement failed: ${error.message}`);
       }
 
+      // UTRP-R5 DEFECT-36: Resolve actual prop_settlements.id before writing settlement_log.
+      // Previously wrote pickId (unified_picks.id) to settlement_log.prop_settlement_id,
+      // which is a FK to prop_settlements.id — a different table, a different value.
+      const { data: propRecord } = await this.requireSupabase()
+        .from('prop_settlements')
+        .select('id')
+        .eq('final_pick_id', pickId)
+        .single();
+
+      if (!propRecord?.id) {
+        this.logger.warn(
+          `⚠️ prop_settlements row not found for pick ${pickId} — settlement_log will reference pickId as fallback`
+        );
+      }
+
       // Log the manual action
       await this.requireSupabase()
         .from('settlement_log')
         .insert({
-          prop_settlement_id: pickId,
+          prop_settlement_id: propRecord?.id ?? pickId,
           action_type: 'resolved',
           new_values: { settlement_result: result, actual_value: actualValue },
           data_source: 'manual',

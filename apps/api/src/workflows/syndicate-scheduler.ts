@@ -1,5 +1,6 @@
 import { proxyActivities, defineSignal, setHandler, condition, sleep } from '@temporalio/workflow';
 
+import type { AlertActivities } from '../activities';
 import type {
   DiscordPromotionActivities,
   FeedAgentActivities,
@@ -55,6 +56,11 @@ const operatorActivities = proxyActivities<OperatorAgentActivities>({
     initialInterval: '1 second',
     maximumInterval: '5 seconds',
   },
+});
+
+// SPRINT-REM-006: Workflow failure escalation proxy
+const alertActivities = proxyActivities<AlertActivities>({
+  startToCloseTimeout: '30 seconds',
 });
 
 // Workflow signals for emergency controls
@@ -164,6 +170,13 @@ export async function syndicateSchedulerWorkflow(): Promise<void> {
         error: String(error),
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent cycle failures to operator alerts
+      await alertActivities.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'syndicateSchedulerWorkflow',
+        error: String(error),
+        cycleCount,
+      } as any);
 
       // Brief pause before retry
       await sleep(5000);
@@ -214,6 +227,13 @@ export async function leagueIngestionWorkflow(params: {
       error: String(error),
       timestamp: new Date(),
     });
+    // SPRINT-REM-006: Escalate ingestion failures to operator alerts
+    await alertActivities.sendWorkflowFailure({
+      timestamp: new Date().toISOString(),
+      workflowName: `leagueIngestionWorkflow-${league}`,
+      error: String(error),
+      cycleCount,
+    } as any);
   }
 }
 
@@ -331,6 +351,13 @@ export async function gradingAndScoringWorkflow(params: {
         error: `Grading failures: ${failedGrading.join('; ')}`,
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate grading failures to operator alerts
+      await alertActivities.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'gradingAndScoringWorkflow',
+        error: `Grading failures: ${failedGrading.join('; ')}`,
+        cycleCount,
+      } as any);
     }
 
     // SPRINT-044D: Capture closing snapshots every 5th cycle for CLV analysis
@@ -355,6 +382,13 @@ export async function gradingAndScoringWorkflow(params: {
       error: String(error),
       timestamp: new Date(),
     });
+    // SPRINT-REM-006: Escalate grading workflow failures to operator alerts
+    await alertActivities.sendWorkflowFailure({
+      timestamp: new Date().toISOString(),
+      workflowName: 'gradingAndScoringWorkflow',
+      error: String(error),
+      cycleCount,
+    } as any);
   }
 }
 
@@ -400,5 +434,12 @@ export async function discordAlertWorkflow(params: {
       error: String(error),
       timestamp: new Date(),
     });
+    // SPRINT-REM-006: Escalate discord alert failures to operator alerts
+    await alertActivities.sendWorkflowFailure({
+      timestamp: new Date().toISOString(),
+      workflowName: 'discordAlertWorkflow',
+      error: String(error),
+      cycleCount,
+    } as any);
   }
 }

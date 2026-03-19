@@ -1,8 +1,11 @@
 # Skill: Migration Review
 
+> Model tier: **Opus** — safety analysis, rollback assessment
+
 ## Purpose
 
-Review database migrations for safety, reversibility, and compliance before application.
+Review database migrations for safety, reversibility, and compliance before
+application.
 
 ## Invocation
 
@@ -39,6 +42,7 @@ cat supabase/migrations/<filename>.sql
 - [ ] Rollback is reversible
 
 Example expected format:
+
 ```sql
 -- Migration: Add lifecycle_stage column
 -- Rollback: ALTER TABLE unified_picks DROP COLUMN lifecycle_stage;
@@ -48,13 +52,13 @@ ALTER TABLE unified_picks ADD COLUMN lifecycle_stage TEXT;
 
 #### Destructive Operations Check
 
-| Operation | Found | Approved |
-|-----------|-------|----------|
-| DROP TABLE | ❌ | N/A |
-| DROP COLUMN | ❌ | N/A |
-| DELETE FROM | ❌ | N/A |
-| TRUNCATE | ❌ | N/A |
-| ALTER COLUMN TYPE | ❌ | N/A |
+| Operation         | Found | Approved |
+| ----------------- | ----- | -------- |
+| DROP TABLE        | ❌    | N/A      |
+| DROP COLUMN       | ❌    | N/A      |
+| DELETE FROM       | ❌    | N/A      |
+| TRUNCATE          | ❌    | N/A      |
+| ALTER COLUMN TYPE | ❌    | N/A      |
 
 #### Immutability Check
 
@@ -80,11 +84,10 @@ supabase db status
 
 ### Step 5: Generate Report
 
-```markdown
+````markdown
 # Migration Review Report
 
-**File**: <filename>
-**Reviewed**: <date>
+**File**: <filename> **Reviewed**: <date>
 
 ## Summary
 
@@ -92,25 +95,26 @@ supabase db status
 
 ## Safety Checks
 
-| Check | Status |
-|-------|--------|
-| Naming Convention | ✅/❌ |
-| Rollback Documented | ✅/❌ |
-| No Destructive Ops | ✅/❌ |
-| Immutability Safe | ✅/❌ |
-| Performance OK | ✅/❌ |
-| Tested Locally | ✅/❌ |
+| Check               | Status |
+| ------------------- | ------ |
+| Naming Convention   | ✅/❌  |
+| Rollback Documented | ✅/❌  |
+| No Destructive Ops  | ✅/❌  |
+| Immutability Safe   | ✅/❌  |
+| Performance OK      | ✅/❌  |
+| Tested Locally      | ✅/❌  |
 
 ## Rollback Procedure
 
 ```sql
 <rollback SQL>
 ```
+````
 
 ## Affected Tables
 
-| Table | Operation |
-|-------|-----------|
+| Table   | Operation        |
+| ------- | ---------------- |
 | <table> | ADD COLUMN / etc |
 
 ## Approval Status
@@ -118,6 +122,7 @@ supabase db status
 ✅ APPROVED / ❌ BLOCKED
 
 **Reason** (if blocked): <reason>
+
 ```
 
 ## Escalation Triggers
@@ -139,3 +144,4 @@ Never approve without explicit user consent:
 - DELETE FROM without WHERE
 - ALTER COLUMN TYPE on large tables
 - Removal of immutability triggers
+```

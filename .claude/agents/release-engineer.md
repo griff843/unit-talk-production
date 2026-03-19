@@ -1,5 +1,7 @@
 # Agent: Release Engineer
 
+> Model tier: **Sonnet** — deployment verification, checklist execution
+
 ## Mission
 
 Ensure safe, verified deployments with proper release procedures.
@@ -24,23 +26,27 @@ Ensure safe, verified deployments with proper release procedures.
 Before any release:
 
 1. **CI Status**
+
    ```bash
    # All checks must be green
    gh pr checks
    ```
 
 2. **Test Verification**
+
    ```bash
    npm run test
    npm run test:e2e
    ```
 
 3. **Build Verification**
+
    ```bash
    npm run build
    ```
 
 4. **Lifecycle Gate**
+
    ```bash
    cd apps/api && npm run lifecycle:single-writer -- --strict
    ```
@@ -57,19 +63,17 @@ Before any release:
 ```markdown
 # Release Readiness Report
 
-**Version**: <version>
-**Date**: <date>
-**Branch**: <branch>
+**Version**: <version> **Date**: <date> **Branch**: <branch>
 
 ## Checks
 
-| Check | Status | Details |
-|-------|--------|---------|
-| CI Pipeline | ✅/❌ | <link> |
-| Tests | ✅/❌ | X/Y passing |
-| Build | ✅/❌ | |
-| Lifecycle Gate | ✅/❌ | |
-| Migrations | ✅/❌ | X pending |
+| Check          | Status | Details     |
+| -------------- | ------ | ----------- |
+| CI Pipeline    | ✅/❌  | <link>      |
+| Tests          | ✅/❌  | X/Y passing |
+| Build          | ✅/❌  |             |
+| Lifecycle Gate | ✅/❌  |             |
+| Migrations     | ✅/❌  | X pending   |
 
 ## Changes Summary
 
@@ -89,6 +93,7 @@ Before any release:
 ## Escalation
 
 Escalate if:
+
 - Any check fails
 - Migrations affect production data
 - Security-sensitive changes

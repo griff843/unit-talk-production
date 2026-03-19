@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+import { alertManager } from '../monitoring/alerts';
 import { toISOString } from '../utils/dateUtils';
 import { makeLogger } from '../utils/logger';
 
@@ -87,6 +88,33 @@ export async function sendOperatorAlert(params: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const alertMessage = `**${params.type.toUpperCase()}**: ${params.message}`;
+
+    // SPRINT-REM-002: Register alert in alertManager so it surfaces in /ops/alerts
+    // SPRINT-REM-006: Await registration to ensure operator visibility (was fire-and-forget)
+    const alertSeverity =
+      params.severity === 'critical' ? 'critical' : params.severity === 'high' ? 'warning' : 'info';
+    const alertId = `${params.type}_${Date.now()}`;
+    try {
+      await alertManager.createAlert({
+        id: alertId,
+        ruleId: `operator_${params.type}`,
+        title: `${params.type.toUpperCase()}: ${params.message.substring(0, 100)}`,
+        description: params.message,
+        severity: alertSeverity,
+        timestamp: toISOString(new Date()),
+        value: 0,
+        threshold: 0,
+        status: 'active',
+        channels: ['discord-alerts'],
+        tags: [params.type, 'operator'],
+        metadata: {
+          type: params.type,
+          ...params.metadata,
+        },
+      });
+    } catch (err) {
+      logger.warn('Failed to register alert in alertManager', { error: String(err) });
+    }
 
     return await sendDiscordAlert({
       message: alertMessage,

@@ -1,5 +1,7 @@
 # Skill: E2E Smoke Check
 
+> Model tier: **Haiku** — scripted test execution, pass/fail reporting
+
 ## Purpose
 
 Run quick smoke tests to verify critical user flows are working.
@@ -23,6 +25,7 @@ docker-compose ps
 ```
 
 All critical services must be running:
+
 - api
 - smart-form
 - discord-bot (if testing Discord flows)
@@ -100,40 +103,39 @@ npm run test:e2e -- --testPathPattern="discord"
 ```markdown
 # E2E Smoke Check Report
 
-**Date**: <date>
-**Scope**: <scope>
+**Date**: <date> **Scope**: <scope>
 
 ## Service Status
 
-| Service | Status |
-|---------|--------|
-| API | ✅ Running |
-| Smart Form | ✅ Running |
-| Discord Bot | ✅ Running |
-| Database | ✅ Connected |
+| Service     | Status       |
+| ----------- | ------------ |
+| API         | ✅ Running   |
+| Smart Form  | ✅ Running   |
+| Discord Bot | ✅ Running   |
+| Database    | ✅ Connected |
 
 ## Health Checks
 
-| Endpoint | Status | Response |
-|----------|--------|----------|
-| /health | ✅ | ok |
-| /api/pipeline/health | ✅ | ok |
+| Endpoint             | Status | Response |
+| -------------------- | ------ | -------- |
+| /health              | ✅     | ok       |
+| /api/pipeline/health | ✅     | ok       |
 
 ## E2E Tests
 
-| Suite | Status | Tests |
-|-------|--------|-------|
-| API | ✅ | X/X |
-| Smart Form | ✅ | X/X |
-| Discord | ✅ | X/X |
+| Suite      | Status | Tests |
+| ---------- | ------ | ----- |
+| API        | ✅     | X/X   |
+| Smart Form | ✅     | X/X   |
+| Discord    | ✅     | X/X   |
 
 ## Critical Flows
 
-| Flow | Status |
-|------|--------|
-| Smart Form → Outbox | ✅ |
-| Outbox → Grading | ✅ |
-| Grading → Discord | ✅ |
+| Flow                | Status |
+| ------------------- | ------ |
+| Smart Form → Outbox | ✅     |
+| Outbox → Grading    | ✅     |
+| Grading → Discord   | ✅     |
 
 ## Smoke Check: ✅ PASSED
 ```

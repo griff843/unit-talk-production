@@ -1810,6 +1810,42 @@ router.get('/gauntlet/reconciliation', gauntletGate, async (req, res) => {
   }
 });
 
+/**
+ * POST /ops/gauntlet/trigger-recap - Trigger on-demand recap for a date
+ *
+ * UTRP-R5: Expose RecapService for R5 proof verification.
+ * Queries settled picks for the given date and returns recap summary.
+ *
+ * Body: { date?: string }  — ISO date string YYYY-MM-DD, defaults to today
+ */
+router.post('/gauntlet/trigger-recap', gauntletGate, async (req, res) => {
+  const correlationId = `gauntlet-recap-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const { date } = req.body;
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    const { RecapService } = await import('../agents/RecapAgent/recapService');
+    const recapService = new RecapService();
+    const summary = await recapService.getDailyRecapData(targetDate);
+
+    res.json({
+      success: true,
+      date: targetDate,
+      summary,
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // SPRINT-023-PRODUCTION-SURFACE-LOCK: Operator Finalization API
 // Approve / Reject / Override picks with audit trail
@@ -2502,9 +2538,12 @@ router.post(
 
       const { supabaseClient } = await import('../services/supabaseClient');
 
+      // UTRP-R5 DEFECT-26/36: Fetch full pick details needed for downstream records.
       const { data: before, error: fetchErr } = await supabaseClient
         .from('unified_picks')
-        .select('id, settlement_result, settlement_status, status, meta')
+        .select(
+          'id, player_name, stat_type, line, side, settlement_result, settlement_status, status, meta'
+        )
         .eq('id', pickId)
         .single();
 
@@ -2514,22 +2553,63 @@ router.post(
       }
 
       const existingMeta = before.meta && typeof before.meta === 'object' ? before.meta : {};
+      const settledAt = new Date().toISOString();
+
+      // UTRP-R5 DEFECT-26: Add settlement_status='settled' so RecapService can find this pick.
       const { error: updateErr } = await supabaseClient
         .from('unified_picks')
         .update({
           settlement_result: result,
+          settlement_status: 'settled',
           status: 'settled',
-          updated_at: new Date().toISOString(),
+          settled_at: settledAt,
+          updated_at: settledAt,
           meta: {
             ...existingMeta,
             settled_by: operatorId,
-            settle_result_at: new Date().toISOString(),
+            settle_result_at: settledAt,
             settle_result_correlation_id: correlationId,
           },
         })
         .eq('id', pickId);
 
       if (updateErr) throw new Error(`Settlement result update failed: ${updateErr.message}`);
+
+      // UTRP-R5 DEFECT-26/36: Create prop_settlements row so the settlement has a downstream record.
+      const { data: propSettlement, error: propErr } = await supabaseClient
+        .from('prop_settlements')
+        .insert({
+          final_pick_id: pickId,
+          player_name: before.player_name ?? null,
+          stat_type: before.stat_type ?? null,
+          line: before.line ?? null,
+          bet_side: before.side ?? null,
+          settlement_result: result,
+          settlement_method: 'manual',
+          settlement_confidence: 1.0,
+          data_source: 'operator',
+          settled_at: settledAt,
+        })
+        .select('id')
+        .single();
+
+      if (propErr) {
+        logger.warn(
+          { pickId, correlationId, error: propErr.message },
+          'R5: prop_settlements insert failed — settlement_log will reference pickId as fallback'
+        );
+      }
+
+      // UTRP-R5 DEFECT-36: Write correct prop_settlement_id (prop_settlements.id, not pickId).
+      await supabaseClient.from('settlement_log').insert({
+        prop_settlement_id: propSettlement?.id ?? pickId,
+        action_type: 'resolved',
+        new_values: { settlement_result: result },
+        data_source: 'manual',
+        processing_agent: 'ops-settle-result',
+        confidence_score: 1.0,
+        notes: reason || 'Manual settlement via CC ops endpoint',
+      });
 
       await supabaseClient.from('audit_log').insert({
         actor: operatorId,
@@ -2538,11 +2618,11 @@ router.post(
         entity_id: pickId,
         details: {
           before: { settlement_result: before.settlement_result, status: before.status },
-          after: { settlement_result: result, status: 'settled' },
+          after: { settlement_result: result, settlement_status: 'settled' },
           reason: reason || `Manual settlement: ${result}`,
           correlation_id: correlationId,
         },
-        created_at: new Date().toISOString(),
+        created_at: settledAt,
       });
 
       logger.info(

@@ -119,6 +119,27 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
     allowedWriters: ['submitter', 'promoter', 'operator_override'],
     immutableAfterSet: true,
   },
+  // UTRP-R2: Register submission contract fields (provider, matchup, team names)
+  {
+    field: 'provider',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
+  {
+    field: 'matchup',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
+  {
+    field: 'manual_matchup_home',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
+  {
+    field: 'manual_matchup_away',
+    allowedWriters: ['submitter', 'promoter', 'operator_override'],
+    immutableAfterSet: true,
+  },
   // SPRINT-035A B-2: Register remaining unified_picks business columns
   // These were missing from the authority map, causing unknown-field rejection
   {

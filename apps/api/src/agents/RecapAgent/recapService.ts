@@ -24,7 +24,12 @@ export class RecapService {
   private lastMicroRecapSent: Date | null = null;
 
   constructor(config?: Partial<RecapConfig>) {
-    this.supabase = createClient(process.env['SUPABASE_URL']!, process.env['SUPABASE_ANON_KEY']!);
+    // UTRP-R5 DEFECT-24: Use service role key so settled pick queries are not restricted by RLS.
+    // RecapService is read-only; service role is appropriate for internal recap generation.
+    this.supabase = createClient(
+      process.env['SUPABASE_URL']!,
+      process.env['SUPABASE_SERVICE_ROLE_KEY']!
+    );
 
     this.config = {
       legendFooter: process.env['LEGEND_FOOTER'] === 'true',
@@ -89,14 +94,14 @@ export class RecapService {
     try {
       const startTime = Date.now();
 
-      // Query picks for the specific date
+      // UTRP-R5 DEFECT-25: Join users table to resolve capper by user_id, not tags column.
       const { data: picks, error } = await this.supabase
         .from('unified_picks')
-        .select('*')
+        .select('*, users!unified_picks_user_id_fkey(username)')
         .gte('created_at', `${date}T00:00:00Z`)
         .lt('created_at', `${date}T23:59:59Z`)
-        .in('play_status', ['settled', 'graded'])
-        .not('outcome', 'is', null);
+        .eq('settlement_status', 'settled')
+        .not('settlement_result', 'is', null);
 
       if (error) {
         throw error;
@@ -139,11 +144,11 @@ export class RecapService {
     try {
       const { data: picks, error } = await this.supabase
         .from('unified_picks')
-        .select('*')
+        .select('*, users!unified_picks_user_id_fkey(username)')
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDate}T23:59:59Z`)
-        .in('play_status', ['settled', 'graded'])
-        .not('outcome', 'is', null);
+        .eq('settlement_status', 'settled')
+        .not('settlement_result', 'is', null);
 
       if (error) {
         throw error;
@@ -171,11 +176,11 @@ export class RecapService {
     try {
       const { data: picks, error } = await this.supabase
         .from('unified_picks')
-        .select('*')
+        .select('*, users!unified_picks_user_id_fkey(username)')
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDate}T23:59:59Z`)
-        .in('play_status', ['settled', 'graded'])
-        .not('outcome', 'is', null);
+        .eq('settlement_status', 'settled')
+        .not('settlement_result', 'is', null);
 
       if (error) {
         throw error;
@@ -204,7 +209,7 @@ export class RecapService {
     period: 'daily' | 'weekly' | 'monthly',
     startDate: string
   ): Promise<RecapSummary> {
-    const picks: UnifiedPick[] = rawPicks.map(this.mapRawPickToUnifiedPick);
+    const picks: UnifiedPick[] = rawPicks.map(raw => this.mapRawPickToUnifiedPick(raw));
 
     // Calculate basic stats
     const wins = picks.filter(p => p.outcome === 'win').length;
@@ -418,7 +423,7 @@ export class RecapService {
         .gte('created_at', `${startDate}T00:00:00Z`)
         .lte('created_at', `${endDateStr}T23:59:59Z`)
         .not('parlay_id', 'is', null)
-        .in('play_status', ['settled', 'graded']);
+        .eq('settlement_status', 'settled');
 
       if (error) {
         throw error;
@@ -558,8 +563,10 @@ export class RecapService {
         return null;
       }
 
-      // Check if all picks are grading_status
-      const pendingPicks = picks.filter(p => p.play_status === 'pending' || !p.outcome);
+      // Check if all picks are settled
+      const pendingPicks = picks.filter(
+        p => p.settlement_status !== 'settled' || !p.settlement_result
+      );
 
       if (pendingPicks.length === 0) {
         // All picks grading_status, trigger micro-recap
@@ -624,11 +631,13 @@ export class RecapService {
       tags: raw.tags,
       created_at: raw.created_at,
       updated_at: raw.updated_at,
-      play_status: raw.play_status,
-      outcome: raw.outcome,
+      play_status: raw.settlement_status ?? raw.play_status,
+      outcome: raw.settlement_result ?? raw.outcome,
       units: raw.units || this.calculateUnits(raw.tier, raw.edge_score),
       profit_loss: raw.profit_loss,
-      capper: raw.capper || this.extractCapper(raw.tags || []),
+      // UTRP-R5 DEFECT-25: Resolve capper from users join (user_id → username).
+      // unified_picks has no tags column; extractCapper(tags) always fell back to "Unit Talk".
+      capper: raw.users?.username ?? raw.capper ?? 'Unit Talk',
       matchup: raw.matchup || this.buildMatchup(raw),
       parlay_id: raw.parlay_id,
       closing_line: raw.closing_line,

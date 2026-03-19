@@ -1,5 +1,7 @@
 # Skill: Sprint Verify
 
+> Model tier: **Sonnet** — gate scripting, test execution
+
 ## Purpose
 
 Run all verification checks after implementation is complete.
@@ -21,6 +23,7 @@ npm run type-check
 **Expected**: No errors
 
 **If fails**:
+
 1. Read error messages
 2. Fix type issues
 3. Re-run type check
@@ -35,6 +38,7 @@ npm run test
 **Expected**: All tests pass
 
 **If fails**:
+
 1. Identify failing tests
 2. Determine if failure is:
    - Bug in implementation → Fix code
@@ -54,6 +58,7 @@ cd apps/api && npm run lifecycle:single-writer -- --strict
 **Expected**: GATE PASSED, 0 violations
 
 **If fails**:
+
 1. Identify violation file/line
 2. Refactor to use lifecycle adapter
 3. Re-run gate
@@ -68,6 +73,7 @@ npm run build
 **Expected**: Build succeeds
 
 **If fails**:
+
 1. Read build errors
 2. Fix bundling/compilation issues
 3. Re-run build
@@ -88,12 +94,12 @@ After all checks pass:
 ```markdown
 ## Verification Summary
 
-| Check | Status | Details |
-|-------|--------|---------|
-| Type Check | ✅ | Clean |
-| Tests | ✅ | X/X passing |
-| Lifecycle Gate | ✅ | 0 violations |
-| Build | ✅ | Success |
+| Check          | Status | Details      |
+| -------------- | ------ | ------------ |
+| Type Check     | ✅     | Clean        |
+| Tests          | ✅     | X/X passing  |
+| Lifecycle Gate | ✅     | 0 violations |
+| Build          | ✅     | Success      |
 
 All checks passing. Ready for proof bundle.
 ```

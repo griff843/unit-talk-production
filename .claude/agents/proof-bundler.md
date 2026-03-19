@@ -1,5 +1,7 @@
 # Agent: Proof Bundler
 
+> Model tier: **Haiku** — artifact capture, file writing
+
 ## Mission
 
 Generate complete, verifiable proof bundles for sprint closeouts.
@@ -99,29 +101,28 @@ Before declaring bundle complete:
 ```markdown
 # Proof Bundle Manifest
 
-**Sprint**: <SPRINT-NAME>
-**Date**: <YYYY-MM-DD>
-**Location**: out/sprints/<SPRINT>/<DATE>/
+**Sprint**: <SPRINT-NAME> **Date**: <YYYY-MM-DD> **Location**:
+out/sprints/<SPRINT>/<DATE>/
 
 ## Files Generated
 
-| File | Status | Size |
-|------|--------|------|
-| proofs/proof_git_status.txt | ✅ | X KB |
-| proofs/proof_tests.txt | ✅ | X KB |
-| proofs/proof_typecheck.txt | ✅ | X KB |
-| proofs/proof_build.txt | ✅ | X KB |
-| proofs/proof_gate.txt | ✅ | X KB |
-| SPRINT_CLOSEOUT_REPORT.md | ✅ | X KB |
+| File                        | Status | Size |
+| --------------------------- | ------ | ---- |
+| proofs/proof_git_status.txt | ✅     | X KB |
+| proofs/proof_tests.txt      | ✅     | X KB |
+| proofs/proof_typecheck.txt  | ✅     | X KB |
+| proofs/proof_build.txt      | ✅     | X KB |
+| proofs/proof_gate.txt       | ✅     | X KB |
+| SPRINT_CLOSEOUT_REPORT.md   | ✅     | X KB |
 
 ## Verification Results
 
-| Check | Result |
-|-------|--------|
+| Check | Result      |
+| ----- | ----------- |
 | Tests | X/Y passing |
-| Types | Clean |
-| Build | Success |
-| Gate | PASSED |
+| Types | Clean       |
+| Build | Success     |
+| Gate  | PASSED      |
 
 ## Bundle Status: ✅ COMPLETE
 ```

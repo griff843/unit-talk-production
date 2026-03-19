@@ -1,17 +1,24 @@
 # Codex Execution Layer — Governance
 
 **Authority**: Unit Talk Engineering | Claude OS §7 (verification commands)
-**Updated**: 2026-03-18
+**Updated**: 2026-03-18 **Canonical Workflow**: See
+`docs/ai/CODEX_EXECUTION_PLANE.md` for the full execution plane definition,
+task-class routing table, parallel execution model, and standard output
+contract. **Parallel Policy**: See `docs/ai/CODEX_PARALLEL_AGENT_POLICY.md` for
+auto-trigger rules, lane-model mapping, model-tier routing, and cost guardrails.
 
 ---
 
 ## Agent Registry
 
-| Agent                       | Wrapper           | Task File               | Purpose                                                              |
-| --------------------------- | ----------------- | ----------------------- | -------------------------------------------------------------------- |
-| Repo Scan                   | `run-readonly.sh` | `repo-scan-agent.md`    | Read-only diagnostic: error clusters, schema mismatches, route risks |
-| Fix Executor                | `run-write.sh`    | `fix-executor.md`       | Bounded write: mechanical code fixes from a task-file spec           |
-| Publish Visibility Verifier | `run-verify.sh`   | `publish-visibility.md` | Verify Discord publish path, outbox linkage, CC visibility           |
+| Agent                       | Wrapper           | Task File                 | Purpose                                                              |
+| --------------------------- | ----------------- | ------------------------- | -------------------------------------------------------------------- |
+| Repo Scan                   | `run-readonly.sh` | `repo-scan-agent.md`      | Read-only diagnostic: error clusters, schema mismatches, route risks |
+| Fix Executor                | `run-write.sh`    | `fix-executor.md`         | Bounded write: mechanical code fixes from a task-file spec           |
+| Publish Visibility Verifier | `run-verify.sh`   | `publish-visibility.md`   | Verify Discord publish path, outbox linkage, CC visibility           |
+| Test Hardener               | `run-write.sh`    | `test-hardening.md`       | Bounded write: add missing tests for specified modules               |
+| Migration Validator         | `run-readonly.sh` | `migration-validation.md` | Read-only: migration safety, schema compat, rollback check           |
+| Regression Challenger       | `run-readonly.sh` | `regression-challenge.md` | Read-only: adversarial review of recent changes                      |
 
 ---
 

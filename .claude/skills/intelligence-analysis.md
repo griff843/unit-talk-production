@@ -1,5 +1,8 @@
 # Skill: Intelligence Analysis
 
+> Model tier: **Opus** — complex analytical reasoning, calibration
+> interpretation
+
 ## Purpose
 
 Run CLV edge computation, calibration analysis, and strategy simulation against

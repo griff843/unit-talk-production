@@ -1,5 +1,7 @@
 # Agent: Migration Auditor
 
+> Model tier: **Opus** — safety analysis, rollback verification
+
 ## Mission
 
 Ensure all database migrations are safe, reversible, and properly documented.
@@ -42,17 +44,18 @@ Every migration MUST have rollback comments:
 
 ### 3. Safety Checks
 
-| Check | Pass Criteria |
-|-------|---------------|
-| No DROP TABLE | Unless archiving with backup |
-| No DELETE without WHERE | Always include condition |
+| Check                                | Pass Criteria                |
+| ------------------------------------ | ---------------------------- |
+| No DROP TABLE                        | Unless archiving with backup |
+| No DELETE without WHERE              | Always include condition     |
 | No ALTER COLUMN TYPE on large tables | Use add-migrate-drop pattern |
-| No direct production writes | Use application layer |
-| Indexes considered | Large tables need indexes |
+| No direct production writes          | Use application layer        |
+| Indexes considered                   | Large tables need indexes    |
 
 ### 4. Immutability Triggers
 
 Never remove or modify:
+
 - `guard_closing_line_immutability()`
 - `guard_settlement_immutability()` (if exists)
 
@@ -70,31 +73,32 @@ npm run db:status
 
 ### Migration Review Report
 
-```markdown
+````markdown
 # Migration Review Report
 
-**File**: <migration filename>
-**Reviewed**: <date>
+**File**: <migration filename> **Reviewed**: <date>
 
 ## Safety Checks
 
-| Check | Status | Notes |
-|-------|--------|-------|
-| Naming | ✅/❌ | |
-| Rollback Doc | ✅/❌ | |
-| No Destructive Ops | ✅/❌ | |
-| Indexes | ✅/❌ | |
-| Immutability Safe | ✅/❌ | |
+| Check              | Status | Notes |
+| ------------------ | ------ | ----- |
+| Naming             | ✅/❌  |       |
+| Rollback Doc       | ✅/❌  |       |
+| No Destructive Ops | ✅/❌  |       |
+| Indexes            | ✅/❌  |       |
+| Immutability Safe  | ✅/❌  |       |
 
 ## Rollback Procedure
 
 ```sql
 <rollback SQL here>
 ```
+````
 
 ## Approval: ✅ APPROVED / ❌ BLOCKED
 
 **Reason**: <if blocked>
+
 ```
 
 ## When to Invoke Me
@@ -111,3 +115,4 @@ Escalate if:
 - Migration modifies immutability triggers
 - Migration is destructive (DROP, DELETE)
 - Migration affects `unified_picks` schema
+```

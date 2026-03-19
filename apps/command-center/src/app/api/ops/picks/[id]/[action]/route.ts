@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 /**
  * OPS PICKS ACTION PROXY
  * Sprint: SPRINT-023B-CC-WRITE-BAN-ENFORCEMENT
+ * UTRP-R3: DEFECT-14/15 — use internal service token instead of garbage Bearer token
  *
  * Proxies pick action requests to API service.
  * Command Center remains READ-ONLY - all writes go through API.
@@ -14,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 
 function getApiBaseUrl(): string {
-  return process.env.API_SERVICE_URL || 'http://localhost:3000';
+  return process.env.API_SERVICE_URL || 'http://localhost:3010';
 }
 
 export async function POST(
@@ -42,12 +43,14 @@ export async function POST(
       );
     }
 
-    // Proxy to API service
+    // Proxy to API service using internal service token (UTRP-R3 DEFECT-14/15)
+    // INTERNAL_SERVICE_TOKEN is a shared secret set via env var — never from client headers
+    const serviceToken = process.env.INTERNAL_SERVICE_TOKEN || '';
     const apiResponse = await fetch(`${getApiBaseUrl()}/ops/picks/${id}/${action}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: request.headers.get('Authorization') || 'Bearer admin-command-center',
+        'X-Internal-Service-Token': serviceToken,
       },
       body: JSON.stringify(body),
     });

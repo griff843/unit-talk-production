@@ -8,6 +8,7 @@ import {
 } from '@temporalio/workflow';
 
 import type * as activities from '../activities';
+import type { AlertActivities } from '../activities';
 
 // Proxy activities
 const _activities = proxyActivities<typeof activities>({
@@ -17,6 +18,11 @@ const _activities = proxyActivities<typeof activities>({
     maximumInterval: '1 minute',
     maximumAttempts: 3,
   },
+});
+
+// SPRINT-REM-006: Workflow failure escalation proxy
+const alertActivities = proxyActivities<AlertActivities>({
+  startToCloseTimeout: '30 seconds',
 });
 
 // Workflow signals
@@ -109,6 +115,13 @@ export async function smartFormDailyBatchWorkflow(): Promise<void> {
       }
     } catch (error) {
       status.errors.push(`Workflow err: ${error instanceof Error ? error.message : String(error)}`);
+      // SPRINT-REM-006: Escalate persistent workflow failures to operator alerts
+      await alertActivities.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'smartFormDailyBatchWorkflow',
+        error: error instanceof Error ? error.message : String(error),
+        cycleCount: 0,
+      } as any);
 
       // Wait 1 hour before retrying on workflow errors
       await sleep('1 hour');
@@ -198,6 +211,13 @@ export async function smartFormHealthMonitorWorkflow(): Promise<void> {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       status.errors.push(`Health check failed: ${errorMessage}`);
+      // SPRINT-REM-006: Escalate persistent health check failures to operator alerts
+      await alertActivities.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'smartFormHealthMonitorWorkflow',
+        error: errorMessage,
+        cycleCount: 0,
+      } as any);
 
       // Wait 2 minutes before retrying on errors
       await sleep('2 minutes');

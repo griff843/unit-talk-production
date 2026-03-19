@@ -1,5 +1,6 @@
 import { proxyActivities, sleep } from '@temporalio/workflow';
 
+import type { AlertActivities } from '../activities';
 import type {
   FeedAgentActivities,
   AlertAgentActivities,
@@ -46,6 +47,11 @@ const alertActivities = proxyActivities<AlertAgentActivities>({
 
 const operatorActivities = proxyActivities<OperatorAgentActivities>({
   startToCloseTimeout: '1 minute',
+});
+
+// SPRINT-REM-006: Workflow failure escalation proxy
+const alertEscalation = proxyActivities<AlertActivities>({
+  startToCloseTimeout: '30 seconds',
 });
 
 // SPRINT-035A B-16: syndicateSchedulerWorkflow removed — sole implementation is in syndicate-scheduler.ts
@@ -96,6 +102,13 @@ export async function liveGameDetectorWorkflow(): Promise<void> {
         workflow: 'liveGameDetectorWorkflow',
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent failures to operator alerts
+      await alertEscalation.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'liveGameDetectorWorkflow',
+        error: String(error),
+        cycleCount: iteration,
+      } as any);
       await sleep('2 minutes');
       iteration++;
     }
@@ -131,6 +144,13 @@ export async function quotaMonitoringWorkflow(): Promise<void> {
         workflow: 'quotaMonitoringWorkflow',
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent failures to operator alerts
+      await alertEscalation.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'quotaMonitoringWorkflow',
+        error: String(error),
+        cycleCount: iteration,
+      } as any);
       await sleep('5 minutes');
       iteration++;
     }
@@ -180,6 +200,13 @@ export async function healthMonitoringWorkflow(): Promise<void> {
         workflow: 'healthMonitoringWorkflow',
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent failures to operator alerts
+      await alertEscalation.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'healthMonitoringWorkflow',
+        error: String(error),
+        cycleCount: iteration,
+      } as any);
       await sleep('5 minutes');
       iteration++;
     }
@@ -220,6 +247,13 @@ export async function createLeagueScheduleWorkflow(league: string) {
           workflow: `${league}ScheduleWorkflow`,
           timestamp: new Date(),
         });
+        // SPRINT-REM-006: Escalate persistent league workflow failures
+        await alertEscalation.sendWorkflowFailure({
+          timestamp: new Date().toISOString(),
+          workflowName: `${league}ScheduleWorkflow`,
+          error: String(error),
+          cycleCount: iteration,
+        } as any);
         await sleep('2 minutes');
         iteration++;
       }
@@ -257,6 +291,13 @@ export async function nflScheduleWorkflow(): Promise<void> {
         workflow: `${league}ScheduleWorkflow`,
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent league workflow failures
+      await alertEscalation.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: `${league}ScheduleWorkflow`,
+        error: String(error),
+        cycleCount: iteration,
+      } as any);
       await sleep('2 minutes');
       iteration++;
     }
@@ -292,6 +333,13 @@ export async function nbaScheduleWorkflow(): Promise<void> {
         workflow: `${league}ScheduleWorkflow`,
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent league workflow failures
+      await alertEscalation.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: `${league}ScheduleWorkflow`,
+        error: String(error),
+        cycleCount: iteration,
+      } as any);
       await sleep('2 minutes');
       iteration++;
     }
@@ -327,6 +375,13 @@ export async function mlbScheduleWorkflow(): Promise<void> {
         workflow: `${league}ScheduleWorkflow`,
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent league workflow failures
+      await alertEscalation.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: `${league}ScheduleWorkflow`,
+        error: String(error),
+        cycleCount: iteration,
+      } as any);
       await sleep('2 minutes');
       iteration++;
     }
@@ -362,6 +417,13 @@ export async function nhlScheduleWorkflow(): Promise<void> {
         workflow: `${league}ScheduleWorkflow`,
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent league workflow failures
+      await alertEscalation.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: `${league}ScheduleWorkflow`,
+        error: String(error),
+        cycleCount: iteration,
+      } as any);
       await sleep('2 minutes');
       iteration++;
     }
@@ -397,6 +459,13 @@ export async function ncaafScheduleWorkflow(): Promise<void> {
         workflow: `${league}ScheduleWorkflow`,
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent league workflow failures
+      await alertEscalation.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: `${league}ScheduleWorkflow`,
+        error: String(error),
+        cycleCount: iteration,
+      } as any);
       await sleep('2 minutes');
       iteration++;
     }
@@ -432,6 +501,13 @@ export async function ncaabScheduleWorkflow(): Promise<void> {
         workflow: `${league}ScheduleWorkflow`,
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent league workflow failures
+      await alertEscalation.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: `${league}ScheduleWorkflow`,
+        error: String(error),
+        cycleCount: iteration,
+      } as any);
       await sleep('2 minutes');
       iteration++;
     }
@@ -467,6 +543,13 @@ export async function wnbaScheduleWorkflow(): Promise<void> {
         workflow: `${league}ScheduleWorkflow`,
         timestamp: new Date(),
       });
+      // SPRINT-REM-006: Escalate persistent league workflow failures
+      await alertEscalation.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: `${league}ScheduleWorkflow`,
+        error: String(error),
+        cycleCount: iteration,
+      } as any);
       await sleep('2 minutes');
       iteration++;
     }

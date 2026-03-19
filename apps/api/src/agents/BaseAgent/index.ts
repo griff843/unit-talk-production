@@ -51,6 +51,8 @@ export abstract class BaseAgent extends EventEmitter {
   protected metrics!: BaseMetrics;
   private healthCheckInterval?: NodeJS.Timeout | undefined;
   private metricsInterval?: NodeJS.Timeout | undefined;
+  // UTRP-R6 DEFECT-35: Scheduled processing interval — periodic calls to run() when schedule='enabled'
+  private _scheduledProcessInterval?: NodeJS.Timeout | undefined;
   protected processLoopActive = false;
 
   constructor(config: BaseAgentConfig | any, deps: BaseAgentDependencies) {
@@ -246,6 +248,21 @@ export abstract class BaseAgent extends EventEmitter {
         );
       }
 
+      // UTRP-R6 DEFECT-35: Start processing loop if configured and schedule is enabled
+      const processingIntervalSeconds = (this.config as any).processing?.intervalSeconds;
+      if (processingIntervalSeconds && this.config.schedule !== 'disabled') {
+        this._scheduledProcessInterval = setInterval(() => {
+          this.run().catch(err =>
+            this.logger.error(`${this.config.name} processing loop error:`, {
+              err: err instanceof Error ? err.message : String(err),
+            })
+          );
+        }, processingIntervalSeconds * 1000);
+        this.logger.info(
+          `${this.config.name} processing loop started (interval: ${processingIntervalSeconds}s)`
+        );
+      }
+
       this.status = 'running';
       this.logger.info(`${this.config.name} started successfully`);
     } catch (error) {
@@ -275,6 +292,10 @@ export abstract class BaseAgent extends EventEmitter {
 
       // Stop process loop
       this.processLoopActive = false;
+      if (this._scheduledProcessInterval) {
+        clearInterval(this._scheduledProcessInterval);
+        this._scheduledProcessInterval = undefined;
+      }
 
       // Run cleanup
       await this.cleanup();

@@ -333,19 +333,45 @@ function PickTableRow({
         <div>
           <p className="font-medium">{pick.player_name || pick.line}</p>
           <p className="text-sm text-muted-foreground">
-            {pick.line} ({pick.odds > 0 ? '+' : ''}
-            {pick.odds})
+            {pick.line} ({pick.odds != null ? `${pick.odds > 0 ? '+' : ''}${pick.odds}` : '—'})
           </p>
+          {pick.bet_type != null && (
+            <p className="text-xs text-muted-foreground">{pick.bet_type}</p>
+          )}
+          {(pick.home_team != null || pick.away_team != null) && (
+            <p className="text-xs text-muted-foreground">
+              {[pick.away_team, pick.home_team].filter(Boolean).join(' @ ')}
+            </p>
+          )}
+          {pick.posted_to_discord === true && (
+            <p className="text-xs text-emerald-500">&#10003; Discord</p>
+          )}
         </div>
       </TableCell>
       <TableCell>
-        <Badge className={getTierColor(pick.tier || 'C')}>{pick.tier || 'C'}</Badge>
+        {pick.tier != null ? (
+          <Badge className={getTierColor(pick.tier)}>{pick.tier}</Badge>
+        ) : (
+          <span className="text-muted-foreground">&mdash;</span>
+        )}
       </TableCell>
       <TableCell>
-        <span className="font-mono">{pick.ev_score?.toFixed(1) || '0.0'}</span>
+        <span className="font-mono">
+          {pick.ev_score != null ? (
+            pick.ev_score.toFixed(1)
+          ) : (
+            <span className="text-muted-foreground">&mdash;</span>
+          )}
+        </span>
       </TableCell>
       <TableCell>
-        <span className="font-mono">{pick.confidence || 50}%</span>
+        <span className="font-mono">
+          {pick.confidence != null ? (
+            `${pick.confidence}%`
+          ) : (
+            <span className="text-muted-foreground">&mdash;</span>
+          )}
+        </span>
       </TableCell>
       <TableCell>
         <LifecycleBadge
