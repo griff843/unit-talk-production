@@ -1,7 +1,7 @@
 # UTRP-R0 — Truth Reset
 
-> **Sprint**: UTRP-R0-TRUTH-RESET **Workstream**: R0 **Status**: NOT STARTED
-> **Dependencies**: None — runs first.
+> **Sprint**: UTRP-R0-TRUTH-RESET **Workstream**: R0 **Status**: COMPLETE
+> (2026-03-19) **Dependencies**: None — runs first.
 
 ---
 
