@@ -10,6 +10,7 @@ import {
 
 import { env } from '../config/env';
 
+import type { AlertActivities } from '../activities';
 import type { RecapType } from '../types/picks';
 
 // Define activity interfaces
@@ -43,6 +44,11 @@ const recapActivities = proxyActivities<RecapActivities>({
     maximumInterval: '1 minute',
     backoffCoefficient: 2,
   },
+});
+
+// SPRINT-REM-006: Workflow failure escalation proxy
+const alertActivities = proxyActivities<AlertActivities>({
+  startToCloseTimeout: '30 seconds',
 });
 
 // Define signals for manual triggering
@@ -87,6 +93,13 @@ export async function dailyRecapWorkflow(): Promise<void> {
     } catch (error) {
       // Log error but continue workflow
       log.error('Error in daily recap workflow:', { error });
+      // SPRINT-REM-006: Escalate persistent recap failures to operator alerts
+      await alertActivities.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'dailyRecapWorkflow',
+        error: String(error),
+        cycleCount: 0,
+      } as any);
       // Sleep before retry to avoid rapid failure loops
       await sleep('5 minutes');
     }
@@ -135,6 +148,13 @@ export async function weeklyRecapWorkflow(): Promise<void> {
     } catch (error) {
       // Log error but continue workflow
       log.error('Error in weekly recap workflow:', { error });
+      // SPRINT-REM-006: Escalate persistent recap failures to operator alerts
+      await alertActivities.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'weeklyRecapWorkflow',
+        error: String(error),
+        cycleCount: 0,
+      } as any);
       // Sleep before retry to avoid rapid failure loops
       await sleep('5 minutes');
     }
@@ -183,6 +203,13 @@ export async function monthlyRecapWorkflow(): Promise<void> {
     } catch (error) {
       // Log error but continue workflow
       log.error('Error in monthly recap workflow:', { error });
+      // SPRINT-REM-006: Escalate persistent recap failures to operator alerts
+      await alertActivities.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'monthlyRecapWorkflow',
+        error: String(error),
+        cycleCount: 0,
+      } as any);
       // Sleep before retry to avoid rapid failure loops
       await sleep('5 minutes');
     }
@@ -227,6 +254,13 @@ export async function microRecapWorkflow(): Promise<void> {
     } catch (error) {
       // Log error but continue workflow
       log.error('Error in micro recap workflow:', { error });
+      // SPRINT-REM-006: Escalate persistent recap failures to operator alerts
+      await alertActivities.sendWorkflowFailure({
+        timestamp: new Date().toISOString(),
+        workflowName: 'microRecapWorkflow',
+        error: String(error),
+        cycleCount: 0,
+      } as any);
       // Sleep before retry to avoid rapid failure loops
       await sleep('1 minute');
     }

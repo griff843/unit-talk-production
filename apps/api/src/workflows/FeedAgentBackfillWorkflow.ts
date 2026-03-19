@@ -15,6 +15,7 @@ import {
   workflowInfo,
 } from '@temporalio/workflow';
 
+import type { AlertActivities } from '../activities';
 import type * as activities from '../activities/backfill';
 
 const {
@@ -32,6 +33,11 @@ const {
     maximumInterval: '5m',
     backoffCoefficient: 2.0,
   },
+});
+
+// SPRINT-REM-006: Workflow failure escalation proxy
+const alertActivities = proxyActivities<AlertActivities>({
+  startToCloseTimeout: '30 seconds',
 });
 
 export interface BackfillRequest {
@@ -229,6 +235,13 @@ export async function FeedAgentBackfillWorkflow(
         console.log('[BackfillWorkflow] Successfully triggered downstream workflows');
       } catch (error) {
         console.error('[BackfillWorkflow] Failed to trigger downstream workflows:', error);
+        // SPRINT-REM-006: Escalate silent downstream trigger failures to operator alerts
+        await alertActivities.sendWorkflowFailure({
+          timestamp: new Date().toISOString(),
+          workflowName: 'FeedAgentBackfillWorkflow-downstream',
+          error: String(error),
+          cycleCount: 0,
+        } as any);
         // Don't fail the entire workflow for downstream trigger failures
       }
     }

@@ -90,11 +90,12 @@ export async function sendOperatorAlert(params: {
     const alertMessage = `**${params.type.toUpperCase()}**: ${params.message}`;
 
     // SPRINT-REM-002: Register alert in alertManager so it surfaces in /ops/alerts
+    // SPRINT-REM-006: Await registration to ensure operator visibility (was fire-and-forget)
     const alertSeverity =
       params.severity === 'critical' ? 'critical' : params.severity === 'high' ? 'warning' : 'info';
     const alertId = `${params.type}_${Date.now()}`;
-    alertManager
-      .createAlert({
+    try {
+      await alertManager.createAlert({
         id: alertId,
         ruleId: `operator_${params.type}`,
         title: `${params.type.toUpperCase()}: ${params.message.substring(0, 100)}`,
@@ -110,10 +111,10 @@ export async function sendOperatorAlert(params: {
           type: params.type,
           ...params.metadata,
         },
-      })
-      .catch(err => {
-        logger.warn('Failed to register alert in alertManager', { error: String(err) });
       });
+    } catch (err) {
+      logger.warn('Failed to register alert in alertManager', { error: String(err) });
+    }
 
     return await sendDiscordAlert({
       message: alertMessage,
