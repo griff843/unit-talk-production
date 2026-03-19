@@ -115,6 +115,10 @@ Codex's internal model choice. Claude controls only **whether** to invoke Codex.
 
 ## 4. Parallel Execution Model
 
+> **Detailed policy**: See `docs/ai/CODEX_PARALLEL_AGENT_POLICY.md` for the full
+> parallel agent execution policy including auto-trigger rules, 2-agent/3-agent
+> mode triggers, model tier routing, cost guardrails, and safety invariants.
+
 ### Claude + Codex Parallel Pattern
 
 Claude and Codex can work in parallel on **non-overlapping** bounded tasks:
@@ -130,6 +134,30 @@ Claude reviews Codex output
   ↓
 Claude OS: Verification gate (Lane 3)
 ```
+
+### Multi-Agent Parallel Pattern (Default for Remediation Sprints)
+
+```
+Agent 1 (Scan — haiku)        Agent 2 (Artifact — sonnet)     Agent 3 (Gates)
+─────────────────────         ─────────────────────────        ───────────────
+Parity checks                 Write bounded test/artifact      [blocked by Agent 2]
+Field authority scans           ↓                              Type-check
+Schema coverage                 ↓                              Full test suite
+  ↓                           Complete                         Lifecycle gate
+Complete                        ↓                                ↓
+  ↓                           Claude reviews                   Complete
+Merged into sprint result       ↓                                ↓
+                              Claude reviews all → commit
+```
+
+Auto-trigger 2-agent mode when: task is read-only/bounded, files
+non-overlapping, work is audit/proof/verification heavy.
+
+Auto-trigger 3-agent mode when: one lane writes a bounded artifact, two other
+lanes independently verify, sequential execution would waste time.
+
+Do NOT parallelize when: agents would edit the same files, architecture is
+undecided, scope is ambiguous, or the task is governance/closeout.
 
 ### Parallel Rules
 
@@ -150,6 +178,9 @@ Claude OS: Verification gate (Lane 3)
 5. **Lane model applies.** Codex bounded-write tasks are Lane 1
    (Implementation). Codex read-only tasks are Lane 2 (Audit/Truth). Lane rules
    from `.claude/rules/07-lane-model.md` apply.
+
+6. **Gate agents run AFTER artifact agents.** Never run verification gates while
+   code is still being written by another agent.
 
 ### Parallel Dispatch Format
 
@@ -357,6 +388,7 @@ implemented in this sprint:
 | Document                                    | Role                                                       |
 | ------------------------------------------- | ---------------------------------------------------------- |
 | This document (`CODEX_EXECUTION_PLANE.md`)  | Canonical workflow definition — when/how/why Codex is used |
+| `docs/ai/CODEX_PARALLEL_AGENT_POLICY.md`    | Parallel execution triggers, lane model, cost guardrails   |
 | `scripts/codex/CODEX_GOVERNANCE.md`         | Hard rules and safety invariants                           |
 | `docs/ai/CODEX_AUDIT_ORCHESTRATION_SPEC.md` | Verified runtime behavior reference                        |
 | `scripts/codex/trigger-registry.sh`         | Trigger → agent mapping (source of truth for dispatch)     |

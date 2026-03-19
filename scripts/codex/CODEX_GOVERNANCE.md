@@ -4,7 +4,8 @@
 **Updated**: 2026-03-18 **Canonical Workflow**: See
 `docs/ai/CODEX_EXECUTION_PLANE.md` for the full execution plane definition,
 task-class routing table, parallel execution model, and standard output
-contract.
+contract. **Parallel Policy**: See `docs/ai/CODEX_PARALLEL_AGENT_POLICY.md` for
+auto-trigger rules, lane-model mapping, model-tier routing, and cost guardrails.
 
 ---
 
