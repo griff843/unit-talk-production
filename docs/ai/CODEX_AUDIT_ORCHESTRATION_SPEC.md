@@ -2,7 +2,9 @@
 
 **Status**: VERIFIED — SPRINT-CODEX-AUDIT-CRITICAL-ORCHESTRATION-HARDENING
 **Last Updated**: 2026-03-18 **Authority**: Supplemental to
-`scripts/codex/CODEX_GOVERNANCE.md`
+`scripts/codex/CODEX_GOVERNANCE.md` **Canonical Workflow**: See
+`docs/ai/CODEX_EXECUTION_PLANE.md` for the full execution plane definition and
+standard output contract.
 
 This document records the verified runtime behavior of the Codex execution layer
 as tested against codex-cli 0.115.0. It is the authoritative reference for how
@@ -83,13 +85,16 @@ NOT suppress these sub-table entries — it is ineffective.
 
 ## Audit Trigger Map
 
-| Moment                       | Type           | Wrapper      | Purpose                                              |
-| ---------------------------- | -------------- | ------------ | ---------------------------------------------------- |
-| `diagnosis-start`            | auto           | run-readonly | Repo scan: TS errors, schema mismatches, route risks |
-| `visibility-check`           | auto           | run-verify   | Discord publish path + CC visibility confidence      |
-| `post-implementation-verify` | auto           | run-verify   | Post-change verification of publish visibility chain |
-| `sprint-closeout-support`    | auto           | run-readonly | Final scan before closeout                           |
-| `implementation-start`       | manual-confirm | run-write    | Bounded write from fully-specified task file         |
+| Moment                       | Type           | Wrapper      | Purpose                                                |
+| ---------------------------- | -------------- | ------------ | ------------------------------------------------------ |
+| `diagnosis-start`            | auto           | run-readonly | Repo scan: TS errors, schema mismatches, route risks   |
+| `visibility-check`           | auto           | run-verify   | Discord publish path + CC visibility confidence        |
+| `post-implementation-verify` | auto           | run-verify   | Post-change verification of publish visibility chain   |
+| `sprint-closeout-support`    | auto           | run-readonly | Final scan before closeout                             |
+| `implementation-start`       | manual-confirm | run-write    | Bounded write from fully-specified task file           |
+| `test-hardening`             | manual-confirm | run-write    | Bounded write: add missing tests for specified modules |
+| `migration-validation`       | auto           | run-readonly | Migration safety, schema compat, rollback check        |
+| `regression-challenge-pass`  | auto           | run-readonly | Adversarial review: regressions, contract violations   |
 
 ---
 

@@ -63,6 +63,27 @@ register \
   "Post-change verification of publish visibility chain"
 
 register \
+  "test-hardening" \
+  "manual-confirm" \
+  "run-write.sh" \
+  "sprint_tasks/codex/test-hardening.md" \
+  "Bounded write: add missing tests for specified modules"
+
+register \
+  "migration-validation" \
+  "auto" \
+  "run-readonly.sh" \
+  "sprint_tasks/codex/migration-validation.md" \
+  "Read-only validation: migration safety, schema compatibility, rollback docs"
+
+register \
+  "regression-challenge-pass" \
+  "auto" \
+  "run-readonly.sh" \
+  "sprint_tasks/codex/regression-challenge.md" \
+  "Adversarial review: regressions, contract violations, untested changes"
+
+register \
   "sprint-closeout-support" \
   "auto" \
   "run-readonly.sh" \
