@@ -3,7 +3,7 @@
 > **Authority**: UTRP Charter §6 — Ledger is updated at every state transition.
 > This is the canonical source of program truth.
 >
-> **Last Updated**: 2026-03-19 | **Program Status**: R0 IN-FLIGHT
+> **Last Updated**: 2026-03-19 | **Program Status**: R0 NOT STARTED
 
 ---
 
@@ -30,14 +30,15 @@
 
 ## Schema / Data Defects
 
-| ID        | Severity | Title                                                                                                                     | Workstream | Status      | Sprint                                   | Notes                                                                                        |
-| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------- | -------------------------------------------------------------------------------------------- |
-| DEFECT-8  | P0       | `chk_unified_picks_workflow_stage` only allows `pending_review`/`approved`                                                | R1         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | Migration `20260319120000_fix_workflow_stage_constraint.sql` applied. 9-value lifecycle set. |
-| DEFECT-9  | P0       | `prop_settlements` schema mismatch: code legacy paths use `pick_id`/`outcome`, DB has `final_pick_id`/`settlement_result` | R1         | OPEN        | —                                        | RPC uses correct names. API/route layer must be audited and aligned.                         |
-| DEFECT-10 | P1       | `atomic_submit_ticket` defaults `confidence` to `0` not `NULL` when form omits it                                         | R2         | OPEN        | —                                        | Creates false EV signals. GradingAgent sees `confidence=0` as real data.                     |
-| DEFECT-11 | P1       | `atomic_submit_ticket` has no `provider`/sportsbook param                                                                 | R2         | OPEN        | —                                        | Provider is never written to `unified_picks`.                                                |
-| DEFECT-12 | P1       | `matchup` is never written to `unified_picks` (no RPC param, no DB column write)                                          | R2         | OPEN        | —                                        | Separate from home_team/away_team; matchup string is never stored.                           |
-| DEFECT-13 | P2       | `unified_picks.confidence` column has no CHECK constraint for valid range (0–100)                                         | R1         | OPEN        | —                                        | Low-impact; schema correctness only.                                                         |
+| ID        | Severity | Title                                                                                                                                       | Workstream | Status      | Sprint                                   | Notes                                                                                                                                     |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| DEFECT-8  | P0       | `chk_unified_picks_workflow_stage` only allows `pending_review`/`approved`                                                                  | R1         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | Migration `20260319120000_fix_workflow_stage_constraint.sql` applied. 9-value lifecycle set.                                              |
+| DEFECT-9  | P0       | `prop_settlements` schema mismatch: code legacy paths use `pick_id`/`outcome`, DB has `final_pick_id`/`settlement_result`                   | R1         | OPEN        | —                                        | RPC uses correct names. API/route layer must be audited and aligned.                                                                      |
+| DEFECT-10 | P1       | `atomic_submit_ticket` defaults `confidence` to `0` not `NULL` when form omits it                                                           | R1         | OPEN        | —                                        | Creates false EV signals. GradingAgent sees `confidence=0` as real data. R1 is canonical fix location; R2 verifies if not resolved in R1. |
+| DEFECT-11 | P1       | `atomic_submit_ticket` has no `provider`/sportsbook param                                                                                   | R2         | OPEN        | —                                        | Provider is never written to `unified_picks`.                                                                                             |
+| DEFECT-12 | P1       | `matchup` is never written to `unified_picks` (no RPC param, no DB column write)                                                            | R2         | OPEN        | —                                        | Separate from home_team/away_team; matchup string is never stored.                                                                        |
+| DEFECT-13 | P2       | `unified_picks.confidence` column has no CHECK constraint for valid range (0–100)                                                           | R1         | OPEN        | —                                        | Low-impact; schema correctness only.                                                                                                      |
+| DEFECT-36 | P1       | `SettlementAgent` writes `pickId` (unified_picks.id) to `settlement_log.prop_settlement_id` (FK to prop_settlements.id) — FK value mismatch | R1         | OPEN        | —                                        | Line 904. Writes succeed only if `pickId` happens to match a prop_settlements row by coincidence.                                         |
 
 ---
 
@@ -53,10 +54,11 @@
 
 ## Submission Pipeline Defects
 
-| ID        | Severity | Title                                                                                              | Workstream | Status      | Sprint                                   | Notes                                        |
-| --------- | -------- | -------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------- | -------------------------------------------- |
-| DEFECT-17 | P1       | `home_team`/`away_team` only mapped for `source='manual'` in RPC — other sources lose team data    | R2         | OPEN        | —                                        | Conditional mapping should be unconditional. |
-| DEFECT-18 | P1       | `/api/picks` was missing `bet_type`, `home_team`, `away_team`, `posted_to_discord`, and users join | R4         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | 4 fields + join added.                       |
+| ID        | Severity | Title                                                                                                                        | Workstream | Status      | Sprint                                   | Notes                                                                                                            |
+| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| DEFECT-17 | P1       | `home_team`/`away_team` only mapped for `source='manual'` in RPC — other sources lose team data                              | R2         | OPEN        | —                                        | Conditional mapping should be unconditional.                                                                     |
+| DEFECT-18 | P1       | `/api/picks` was missing `bet_type`, `home_team`, `away_team`, `posted_to_discord`, and users join                           | R4         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | 4 fields + join added.                                                                                           |
+| DEFECT-33 | P1       | BridgeWorker V3 maps only 10 of 26+ fields — drops provider, matchup, home_team, away_team, confidence, user_id, ticket_type | R2         | OPEN        | —                                        | `handleBridgeOutboxTicketSubmitted` lines 978-992. V1 RPC writes all 26; V3 path loses critical fields silently. |
 
 ---
 
@@ -73,12 +75,14 @@
 
 ## Settlement Pipeline Defects
 
-| ID        | Severity | Title                                                                                                                                                             | Workstream | Status | Sprint | Notes                                                                    |
-| --------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------ | ------ | ------------------------------------------------------------------------ |
-| DEFECT-23 | P0       | Settlement blocked at auth layer — 401 from CC for all ops endpoints                                                                                              | R3         | OPEN   | —      | Same root as DEFECT-14. Settlement pipeline cannot be exercised from CC. |
-| DEFECT-24 | P1       | `RecapService` uses `SUPABASE_ANON_KEY` not service role — may hit RLS restrictions on settled pick queries                                                       | R5         | OPEN   | —      | Even post-settlement, recap may return empty under RLS.                  |
-| DEFECT-25 | P1       | `RecapService.extractCapper()` reads non-existent `tags` column on `unified_picks` — capper attribution always "Unit Talk"                                        | R5         | OPEN   | —      | Must join `users` table or read `user_id` instead.                       |
-| DEFECT-26 | P1       | `getDailyRecapData()` filter: `settlement_status='settled'` AND `settlement_result NOT NULL` — correct semantics, but settlement pipeline must be unblocked first | R5         | OPEN   | —      | Not a code bug; a dependency on R3/DEFECT-14 fix.                        |
+| ID        | Severity | Title                                                                                                                                                             | Workstream | Status | Sprint | Notes                                                                                                                |
+| --------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------ | ------ | -------------------------------------------------------------------------------------------------------------------- |
+| DEFECT-23 | P0       | Settlement blocked at auth layer — 401 from CC for all ops endpoints                                                                                              | R3         | OPEN   | —      | Same root as DEFECT-14. Settlement pipeline cannot be exercised from CC.                                             |
+| DEFECT-24 | P1       | `RecapService` uses `SUPABASE_ANON_KEY` not service role — may hit RLS restrictions on settled pick queries                                                       | R5         | OPEN   | —      | Even post-settlement, recap may return empty under RLS.                                                              |
+| DEFECT-25 | P1       | `RecapService.extractCapper()` reads non-existent `tags` column on `unified_picks` — capper attribution always "Unit Talk"                                        | R5         | OPEN   | —      | Must join `users` table or read `user_id` instead.                                                                   |
+| DEFECT-26 | P1       | `getDailyRecapData()` filter: `settlement_status='settled'` AND `settlement_result NOT NULL` — correct semantics, but settlement pipeline must be unblocked first | R5         | OPEN   | —      | Not a code bug; a dependency on R3/DEFECT-14 fix.                                                                    |
+| DEFECT-34 | P1       | CC settlement route (`/api/settlement/route.ts:104`) calls `manual_settle_pick` RPC directly — bypasses API lifecycle adapters entirely                           | R3         | OPEN   | —      | Single-writer violation. CC must route through API, not direct Supabase RPC. Moot while DEFECT-14 blocks all CC ops. |
+| DEFECT-35 | P1       | SettlementAgent has no processing loop — `.start()` only initializes, no periodic poll or event trigger                                                           | R5         | OPEN   | —      | Settlement is manual-only. Must add cron/poll or event-driven trigger for automated settlement.                      |
 
 ---
 
@@ -131,8 +135,9 @@
 
 **Open P0 defects**: DEFECT-9, DEFECT-14, DEFECT-23 **Open P1 defects**:
 DEFECT-10, DEFECT-11, DEFECT-12, DEFECT-15, DEFECT-17, DEFECT-22, DEFECT-24,
-DEFECT-25, DEFECT-26, DEFECT-27, DEFECT-28, DEFECT-30, DEFECT-31 **Resolved**:
-DEFECT-1 through DEFECT-8, DEFECT-18, DEFECT-19, DEFECT-20, DEFECT-21
+DEFECT-25, DEFECT-26, DEFECT-27, DEFECT-28, DEFECT-30, DEFECT-31, DEFECT-33,
+DEFECT-34, DEFECT-35, DEFECT-36 **Resolved**: DEFECT-1 through DEFECT-8,
+DEFECT-18, DEFECT-19, DEFECT-20, DEFECT-21
 
 ---
 
