@@ -1,7 +1,7 @@
 # UTRP-R1 — Canonical Data Reconstruction
 
-> **Sprint**: UTRP-R1-CANONICAL-DATA-RECONSTRUCTION **Workstream**: R1
-> **Status**: NOT STARTED **Dependencies**: R0 COMPLETE
+> **Sprint**: UTRP-R1-CANONICAL-DATA **Workstream**: R1 **Status**: COMPLETE
+> (2026-03-19) **Dependencies**: R0 COMPLETE
 
 ---
 

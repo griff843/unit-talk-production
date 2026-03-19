@@ -3,7 +3,8 @@
 > **Authority**: UTRP Charter §6 — Ledger is updated at every state transition.
 > This is the canonical source of program truth.
 >
-> **Last Updated**: 2026-03-19 | **Program Status**: R0 COMPLETE — R1 UNLOCKED
+> **Last Updated**: 2026-03-19 | **Program Status**: R1 COMPLETE — R2/R3
+> UNLOCKED
 
 ---
 
@@ -30,15 +31,15 @@
 
 ## Schema / Data Defects
 
-| ID        | Severity | Title                                                                                                                                       | Workstream | Status      | Sprint                                   | Notes                                                                                                                                     |
-| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| DEFECT-8  | P0       | `chk_unified_picks_workflow_stage` only allows `pending_review`/`approved`                                                                  | R1         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | Migration `20260319120000_fix_workflow_stage_constraint.sql` applied. 9-value lifecycle set.                                              |
-| DEFECT-9  | P0       | `prop_settlements` schema mismatch: code legacy paths use `pick_id`/`outcome`, DB has `final_pick_id`/`settlement_result`                   | R1         | OPEN        | —                                        | RPC uses correct names. API/route layer must be audited and aligned.                                                                      |
-| DEFECT-10 | P1       | `atomic_submit_ticket` defaults `confidence` to `0` not `NULL` when form omits it                                                           | R1         | OPEN        | —                                        | Creates false EV signals. GradingAgent sees `confidence=0` as real data. R1 is canonical fix location; R2 verifies if not resolved in R1. |
-| DEFECT-11 | P1       | `atomic_submit_ticket` has no `provider`/sportsbook param                                                                                   | R2         | OPEN        | —                                        | Provider is never written to `unified_picks`.                                                                                             |
-| DEFECT-12 | P1       | `matchup` column exists in `unified_picks` but is never written by RPC or BridgeWorker                                                      | R2         | OPEN        | —                                        | Column exists (from migration) but neither V1 RPC nor V3 BridgeWorker writes to it. Always NULL.                                          |
-| DEFECT-13 | P2       | `unified_picks.confidence` column has no CHECK constraint for valid range (0–100)                                                           | R1         | OPEN        | —                                        | Low-impact; schema correctness only.                                                                                                      |
-| DEFECT-36 | P1       | `SettlementAgent` writes `pickId` (unified_picks.id) to `settlement_log.prop_settlement_id` (FK to prop_settlements.id) — FK value mismatch | R1         | OPEN        | —                                        | Line 904. Writes succeed only if `pickId` happens to match a prop_settlements row by coincidence.                                         |
+| ID        | Severity | Title                                                                                                                                       | Workstream | Status      | Sprint                                   | Notes                                                                                                                               |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| DEFECT-8  | P0       | `chk_unified_picks_workflow_stage` only allows `pending_review`/`approved`                                                                  | R1         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | Migration `20260319120000_fix_workflow_stage_constraint.sql` applied. 9-value lifecycle set.                                        |
+| DEFECT-9  | P0       | `prop_settlements` schema mismatch: code legacy paths use `pick_id`/`outcome`, DB has `final_pick_id`/`settlement_result`                   | R1         | ✅ RESOLVED | UTRP-R1-CANONICAL-DATA                   | mcp-state adapter corrected: `pick_id` → `final_pick_id` in query, filter, and mapping. All other surfaces already correct.         |
+| DEFECT-10 | P1       | `atomic_submit_ticket` defaults `confidence` to `0` not `NULL` when form omits it                                                           | R1         | ✅ RESOLVED | UTRP-R1-CANONICAL-DATA                   | Migration `20260319150000`: COALESCE removed, NULL propagated. Caveat: requires DB application.                                     |
+| DEFECT-11 | P1       | `atomic_submit_ticket` has no `provider`/sportsbook param                                                                                   | R2         | OPEN        | —                                        | Provider is never written to `unified_picks`.                                                                                       |
+| DEFECT-12 | P1       | `matchup` column exists in `unified_picks` but is never written by RPC or BridgeWorker                                                      | R2         | OPEN        | —                                        | Column exists (from migration) but neither V1 RPC nor V3 BridgeWorker writes to it. Always NULL.                                    |
+| DEFECT-13 | P2       | `unified_picks.confidence` column has no CHECK constraint for valid range (0–100)                                                           | R1         | ✅ RESOLVED | UTRP-R1-CANONICAL-DATA                   | Migration `20260319150001`: CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 100)). Caveat: requires DB application. |
+| DEFECT-36 | P1       | `SettlementAgent` writes `pickId` (unified_picks.id) to `settlement_log.prop_settlement_id` (FK to prop_settlements.id) — FK value mismatch | R5         | OPEN        | —                                        | Reclassified R1→R5: fix requires settlement logic changes (capture prop_settlements.id from insert), not canonical data definition. |
 
 ---
 
@@ -125,19 +126,19 @@
 | Workstream                      | Status         | Blocking Defects                    |
 | ------------------------------- | -------------- | ----------------------------------- |
 | R0 — Truth Reset                | ✅ COMPLETE    | None (DB caveat: migration-derived) |
-| R1 — Canonical Data             | 🔓 UNLOCKED    | R0 complete                         |
-| R2 — Submission Contract        | ⬜ NOT STARTED | Awaits R1                           |
-| R3 — Lifecycle Auth             | ⬜ NOT STARTED | Awaits R1                           |
+| R1 — Canonical Data             | ✅ COMPLETE    | None (DB migration caveat)          |
+| R2 — Submission Contract        | 🔓 UNLOCKED    | R1 complete                         |
+| R3 — Lifecycle Auth             | 🔓 UNLOCKED    | R1 complete                         |
 | R4 — Operator Surface           | ⬜ NOT STARTED | Awaits R1, R2, R3                   |
 | R5 — Downstream Outcomes        | ⬜ NOT STARTED | Awaits R3, R4                       |
 | R6 — Verification Control Plane | ⬜ NOT STARTED | Awaits R1–R5                        |
 | R7 — Closeout                   | ⬜ NOT STARTED | Awaits R0–R6 + 48h gate             |
 
-**Open P0 defects**: DEFECT-9, DEFECT-14, DEFECT-23 **Open P1 defects**:
-DEFECT-10, DEFECT-11, DEFECT-12, DEFECT-15, DEFECT-17, DEFECT-22, DEFECT-24,
-DEFECT-25, DEFECT-26, DEFECT-27, DEFECT-28, DEFECT-30, DEFECT-31, DEFECT-33,
-DEFECT-34, DEFECT-35, DEFECT-36 **Resolved**: DEFECT-1 through DEFECT-8,
-DEFECT-18, DEFECT-19, DEFECT-20, DEFECT-21
+**Open P0 defects**: DEFECT-14, DEFECT-23 **Open P1 defects**: DEFECT-11,
+DEFECT-12, DEFECT-15, DEFECT-17, DEFECT-22, DEFECT-24, DEFECT-25, DEFECT-26,
+DEFECT-27, DEFECT-28, DEFECT-30, DEFECT-31, DEFECT-33, DEFECT-34, DEFECT-35,
+DEFECT-36 **Resolved**: DEFECT-1 through DEFECT-10, DEFECT-13, DEFECT-18,
+DEFECT-19, DEFECT-20, DEFECT-21
 
 ---
 
