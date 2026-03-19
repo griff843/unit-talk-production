@@ -133,17 +133,27 @@ router.get('/', async (req, res) => {
         `
         id,
         user_id,
+        player_name,
+        stat_type,
+        bet_type,
+        line,
+        side,
         selection,
         odds,
         confidence,
         workflow_stage,
         settlement_status,
+        settlement_result,
         tier,
         sport,
+        home_team,
+        away_team,
+        posted_to_discord,
         promotion_band,
         professional_score,
+        source,
         created_at,
-        users!unified_picks_user_id_fkey (username, discord_id, tier, capper_tier)
+        users!unified_picks_user_id_fkey (username)
       `
       )
       .order('created_at', { ascending: false })

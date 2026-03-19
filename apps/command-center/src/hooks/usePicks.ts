@@ -83,21 +83,36 @@ function extractPlayerFromSelection(selection: string): string {
 export interface Pick {
   id: string;
   capper_discord_id: string;
-  capper: string;
-  sport: string;
+  /** null when no username is available — display as "—" not "Unknown Capper" */
+  capper: string | null;
+  /** null when sport column is NULL in DB */
+  sport: string | null;
   selection: string;
-  odds: number;
+  /** null when odds column is NULL in DB */
+  odds: number | null;
   status: 'pending' | 'approved' | 'rejected';
   workflow_stage?: string;
-  tier?: string;
-  confidence?: number;
-  ev_score?: number;
-  roi?: number;
+  /** null when tier column is NULL in DB — do not default to 'C' */
+  tier?: string | null;
+  /** null when confidence column is NULL in DB — do not default to 50 */
+  confidence?: number | null;
+  /** null when confidence is unavailable — derived value is meaningless without real input */
+  ev_score?: number | null;
+  roi?: number | null;
   submitted_at: string;
   created_at?: string;
-  player_name?: string;
-  line?: string;
-  market_type?: string;
+  player_name?: string | null;
+  line?: string | null;
+  /** null when stat_type column is NULL in DB — do not hardcode 'player_prop' */
+  market_type?: string | null;
+  /** null when bet_type column is NULL in DB */
+  bet_type?: string | null;
+  /** null when home_team column is NULL in DB — spread/total picks only */
+  home_team?: string | null;
+  /** null when away_team column is NULL in DB — spread/total picks only */
+  away_team?: string | null;
+  /** false when not yet posted; true when Discord post confirmed */
+  posted_to_discord?: boolean;
   risk?: string;
   notes?: string;
   /** Promotion decision from GradingEngine: 'HARD' | 'SOFT' | 'NO_POST' */
@@ -137,30 +152,35 @@ export function usePicks() {
 
       // Fetch picks from unified_picks with proper relationships
       // Production schema columns: id, user_id, selection, odds, confidence, workflow_stage,
-      // settlement_status, tier, sport, created_at, etc.
-      // Note: status, tier_when_placed, placed_at don't exist in production
+      // settlement_status, tier, sport, created_at, bet_type, home_team, away_team,
+      // posted_to_discord, and users join for capper display name.
       const { data: picksData, error: picksError } = await supabase
         .from('unified_picks')
         .select(
           `
           id,
           user_id,
+          player_name,
+          stat_type,
+          bet_type,
+          line,
+          side,
           selection,
           odds,
           confidence,
           workflow_stage,
           settlement_status,
+          settlement_result,
           tier,
           sport,
+          home_team,
+          away_team,
+          posted_to_discord,
           promotion_band,
           professional_score,
+          source,
           created_at,
-          users!unified_picks_user_id_fkey (
-            username,
-            discord_id,
-            tier,
-            capper_tier
-          )
+          users!unified_picks_user_id_fkey (username)
         `
         )
         .order('created_at', { ascending: false })
@@ -174,36 +194,53 @@ export function usePicks() {
       console.log(`✅ Successfully fetched ${picksData?.length || 0} picks from unified_picks`);
 
       // Transform unified_picks data to Pick interface
-      // Using production schema columns only
+      // SPRINT-POST-REM-OPERATOR-SURFACE-TRUST: Sparse data renders as null, not fake defaults.
+      // Operators must see NULL as NULL — not as 'Unknown Capper', 'C', 50, or 'player_prop'.
       const transformedPicks: Pick[] = (picksData || []).map(pick => {
-        const user = Array.isArray(pick.users) ? pick.users[0] : pick.users;
-
-        // Type-safe conversions
         const pickId = String(pick.id || '');
-        const confidence = Number(pick.confidence || 50);
-        const odds = Number(pick.odds || 0);
-        const selection = String(pick.selection || '');
+        // NULL columns stay null — no synthetic fallbacks
+        const confidence = pick.confidence != null ? Number(pick.confidence) : null;
+        const odds = pick.odds != null ? Number(pick.odds) : null;
+        const selection = String(pick.selection || pick.player_name || '');
         const workflowStage = String(pick.workflow_stage || 'draft');
         const settlementStatus = String(pick.settlement_status || 'pending');
 
+        // Resolve capper display name from users join — null when no user record
+        const usersRow = pick.users as { username: string | null } | null;
+        const capperUsername = usersRow?.username ?? null;
+
         return {
           id: pickId,
-          capper_discord_id: user?.discord_id || pick.user_id,
-          capper: user?.username || 'Unknown Capper',
-          sport: String(pick.sport || 'Unknown'),
+          capper_discord_id: String(pick.user_id || ''),
+          // username from users join when available — null renders as "—" in UI
+          capper: capperUsername,
+          // null when DB column is NULL — UI renders "—"
+          sport: pick.sport != null ? String(pick.sport) : null,
           selection: selection,
+          // null when DB column is NULL — UI renders "—"
           odds: odds,
           status: mapWorkflowStageToStatus(workflowStage, settlementStatus),
           workflow_stage: workflowStage,
-          tier: pick.tier || user?.capper_tier || user?.tier || 'C',
+          // null when DB column is NULL — do not assume tier C
+          tier: pick.tier != null ? String(pick.tier) : null,
+          // null when DB column is NULL — do not assume 50%
           confidence: confidence,
-          ev_score: calculateEvScore(confidence, odds),
+          // null when confidence unavailable — a derived score from null input is meaningless
+          ev_score: confidence != null ? calculateEvScore(confidence, odds) : null,
           roi: calculateRoi(settlementStatus, odds),
           submitted_at: String(pick.created_at || new Date().toISOString()),
           created_at: String(pick.created_at || new Date().toISOString()),
-          player_name: extractPlayerFromSelection(selection),
-          line: selection,
-          market_type: 'player_prop',
+          player_name: pick.player_name != null ? String(pick.player_name) : null,
+          line: pick.line != null ? String(pick.line) : null,
+          // null when stat_type unavailable — do not hardcode 'player_prop'
+          market_type: pick.stat_type != null ? String(pick.stat_type) : null,
+          // null when bet_type column is NULL in DB
+          bet_type: pick.bet_type != null ? String(pick.bet_type) : null,
+          // null when home_team/away_team columns are NULL — spread/total picks only
+          home_team: pick.home_team != null ? String(pick.home_team) : null,
+          away_team: pick.away_team != null ? String(pick.away_team) : null,
+          // false when not yet confirmed on Discord
+          posted_to_discord: pick.posted_to_discord === true,
           promotion_band: pick.promotion_band ?? null,
           professional_score:
             pick.professional_score != null ? Number(pick.professional_score) : null,
