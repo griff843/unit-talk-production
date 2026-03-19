@@ -323,6 +323,14 @@ services:
       - GRADING_DATA_SOURCE=raw_props
       # UTRP-R3 DEFECT-15: Internal service token for CC→API auth
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
+      # UTRP-R5 DEFECT-27: DiscordPromotionAgent requires AUTOPILOT_MODE to post.
+      # shadow = logs posting intent without sending to Discord (safe for dev/staging).
+      # Change to 'prod' or 'canary' for live Discord posting in production.
+      - AUTOPILOT_MODE=shadow
+      # UTRP-R5 DEFECT-29: Discord credentials — must be set in .env for posting to work.
+      # In shadow mode, missing credentials are tolerated (no actual send occurs).
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/logs:/app/apps/api/logs
