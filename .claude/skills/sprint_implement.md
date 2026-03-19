@@ -1,5 +1,7 @@
 # Skill: Sprint Implement
 
+> Model tier: **Sonnet** — mechanical code changes, file edits
+
 ## Purpose
 
 Execute sprint tasks according to the plan, tracking progress throughout.
@@ -17,6 +19,7 @@ Assumes sprint plan already exists.
 ### Step 1: Load Plan
 
 Read current sprint plan:
+
 ```bash
 cat out/sprints/<SPRINT>/<DATE>/notes/plan.md
 ```
@@ -53,6 +56,7 @@ For each task:
 #### Error Handling
 
 If a task fails:
+
 1. **STOP** - Do not proceed to next task
 2. **ANALYZE** - Understand the root cause
 3. **FIX** - Address the issue
@@ -94,14 +98,15 @@ After each phase, report:
 
 ### Phase X: <Name> ✅
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Task 1 | ✅ | <brief note> |
-| Task 2 | ✅ | <brief note> |
+| Task   | Status | Notes        |
+| ------ | ------ | ------------ |
+| Task 1 | ✅     | <brief note> |
+| Task 2 | ✅     | <brief note> |
 
 ### Next: Phase Y
 
 Proceeding with:
+
 - Task 3
 - Task 4
 ```

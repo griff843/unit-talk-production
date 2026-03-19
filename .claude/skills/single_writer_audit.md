@@ -1,8 +1,11 @@
 # Skill: Single-Writer Audit
 
+> Model tier: **Sonnet** — pattern scanning, violation classification
+
 ## Purpose
 
-Audit codebase for single-writer violations and ensure lifecycle adapter compliance.
+Audit codebase for single-writer violations and ensure lifecycle adapter
+compliance.
 
 ## Invocation
 
@@ -26,6 +29,7 @@ rg "\.from\s*\(\s*['\"]unified_picks['\"]\s*\)\s*\.\s*(insert|update|upsert|dele
 ### Step 2: Filter Results
 
 Allowed locations (not violations):
+
 - `apps/api/src/lib/lifecycle/**` - The adapters themselves
 - `**/*.test.ts`, `**/*.spec.ts` - Test files
 - `scripts/smoke-*` - Smoke test utilities
@@ -38,6 +42,7 @@ cd apps/api && npm run lifecycle:single-writer -- --strict
 ```
 
 Expected output:
+
 ```
 🔍 SINGLE-WRITER GATE
    Scanning: apps/api/src
@@ -64,29 +69,28 @@ Expected: `SINGLE_WRITER_ALLOWLIST` array is empty.
 ```markdown
 # Single-Writer Audit Report
 
-**Date**: <date>
-**Scope**: <audited scope>
+**Date**: <date> **Scope**: <audited scope>
 
 ## Gate Status
 
-| Metric | Value |
-|--------|-------|
-| Files Scanned | XXX |
-| Violations | 0 |
-| Allowlisted | 0 |
-| Gate Status | ✅ PASSED |
+| Metric        | Value     |
+| ------------- | --------- |
+| Files Scanned | XXX       |
+| Violations    | 0         |
+| Allowlisted   | 0         |
+| Gate Status   | ✅ PASSED |
 
 ## Authorized Write Paths
 
 All `unified_picks` writes use lifecycle adapters:
 
-| Adapter | Location | Writer Role |
-|---------|----------|-------------|
-| lifecycleInsert | SmartFormBridge.ts | submitter |
-| lifecycleInsert | gradeAndPromoteFinalPicks.ts | promoter |
-| atomicClaimForPost | DiscordPromotionAgent/index.ts | poster |
-| lifecycleUpdate | DiscordPromotionAgent/index.ts | poster |
-| lifecycleSettle | SettlementAgent/index.ts | settler |
+| Adapter            | Location                       | Writer Role |
+| ------------------ | ------------------------------ | ----------- |
+| lifecycleInsert    | SmartFormBridge.ts             | submitter   |
+| lifecycleInsert    | gradeAndPromoteFinalPicks.ts   | promoter    |
+| atomicClaimForPost | DiscordPromotionAgent/index.ts | poster      |
+| lifecycleUpdate    | DiscordPromotionAgent/index.ts | poster      |
+| lifecycleSettle    | SettlementAgent/index.ts       | settler     |
 
 ## Violations Found
 
@@ -122,13 +126,13 @@ await lifecycleInsert(supabase, pick, { writerRole: '<role>' });
 
 ### 3. Writer Role Selection
 
-| Operation | Role | Adapter |
-|-----------|------|---------|
-| New pick submission | submitter | lifecycleInsert |
-| Promotion/grading | promoter | lifecycleInsert/Update |
-| Discord posting | poster | atomicClaimForPost, lifecycleUpdate |
-| Settlement | settler | lifecycleSettle |
-| Emergency fix | operator_override | lifecycleUpdate |
+| Operation           | Role              | Adapter                             |
+| ------------------- | ----------------- | ----------------------------------- |
+| New pick submission | submitter         | lifecycleInsert                     |
+| Promotion/grading   | promoter          | lifecycleInsert/Update              |
+| Discord posting     | poster            | atomicClaimForPost, lifecycleUpdate |
+| Settlement          | settler           | lifecycleSettle                     |
+| Emergency fix       | operator_override | lifecycleUpdate                     |
 
 ### 4. Re-audit
 

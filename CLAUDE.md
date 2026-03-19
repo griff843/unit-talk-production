@@ -196,22 +196,29 @@ docker-compose exec api npm run db:migrate
 
 ## 9. Invoking Agents & Skills
 
+> Full cross-reference with model tiers and lanes:
+> `.claude/DELEGATION_MATRIX.md`
+
 **Agents** (specialist roles - see `.claude/agents/`):
 
-- `@release-engineer` - Deployment operations
-- `@migration-auditor` - DB migration review
-- `@single-writer-sheriff` - Enforce single-writer discipline
-- `@proof-bundler` - Generate proof artifacts
-- `@sprint-manager` - Orchestrate sprint workflow
+| Agent                    | Purpose                          | Model Tier |
+| ------------------------ | -------------------------------- | ---------- |
+| `@sprint-manager`        | Orchestrate sprint workflow      | Opus       |
+| `@release-engineer`      | Deployment operations            | Sonnet     |
+| `@migration-auditor`     | DB migration review              | Opus       |
+| `@single-writer-sheriff` | Enforce single-writer discipline | Sonnet     |
+| `@proof-bundler`         | Generate proof artifacts         | Haiku      |
 
 **Skills** (procedures - see `.claude/skills/`):
 
-- `/skill sprint_plan` - Phase 1 planning
-- `/skill sprint_verify` - Phase 3 verification
-- `/skill sprint_proof_bundle` - Phase 4 proof capture
-- `/skill single_writer_audit` - Audit compliance
-- `/skill migration_review` - Review migrations
-- `/skill e2e_smoke_check` - E2E smoke test
+| Skill                        | Purpose               | Model Tier |
+| ---------------------------- | --------------------- | ---------- |
+| `/skill sprint_plan`         | Phase 1 planning      | Opus       |
+| `/skill sprint_verify`       | Phase 3 verification  | Sonnet     |
+| `/skill sprint_proof_bundle` | Phase 4 proof capture | Haiku      |
+| `/skill single_writer_audit` | Audit compliance      | Sonnet     |
+| `/skill migration_review`    | Review migrations     | Opus       |
+| `/skill e2e_smoke_check`     | E2E smoke test        | Haiku      |
 
 ---
 
@@ -227,75 +234,13 @@ docker-compose exec api npm run db:migrate
 
 ---
 
-## 11. 🔒 Mandatory Session Baseline (Non-Negotiable)
+## 11. Mandatory Session Baseline (Non-Negotiable)
 
-> **Sprint: SPRINT-CLAUDE-OS-SESSION-ENFORCEMENT-110A**
+> Full protocol: `docs/claude/SESSION_BASELINE_PROTOCOL.md`
 
-Before ANY code modification, Claude MUST:
-
-### Required Pre-Sprint Actions
-
-1. **Run session baseline script**
-
-   ```bash
-   pnpm session:baseline
-   ```
-
-2. **Review diagnostics** - Check the generated `baseline-summary.md`
-
-3. **Generate sprint plan** based on real errors from baseline
-
-4. **Confirm no schema drift** - Supabase types must match schema
-
-5. **Confirm working tree state** - Document dirty/clean status
-
-### Baseline Output Location
-
-```
-out/session-baseline/<timestamp>/
-├── baseline.json           # Structured data
-└── baseline-summary.md     # Human-readable summary
-```
-
-### Pre-Sprint Check Gate
-
-```bash
-pnpm pre-sprint-check
-```
-
-This check:
-
-- Verifies baseline was run within last 10 minutes
-- Verifies no new blocking diagnostics
-- **FAIL-CLOSED**: Sprint cannot begin if check fails
-
-### Blocking Thresholds
-
-| Check                 | Threshold | Action                                   |
-| --------------------- | --------- | ---------------------------------------- |
-| TypeScript errors     | > 0       | Sprint must address or justify exclusion |
-| ESLint errors         | > 0       | Must address rule-by-rule before commit  |
-| Supabase schema drift | detected  | Regenerate types immediately             |
-
-### MCP Integration
-
-Available MCP wrappers for diagnostics:
-
-```bash
-pnpm mcp:typescript   # TypeScript diagnostics
-pnpm mcp:eslint       # ESLint analysis
-pnpm mcp:git          # Git status/diff
-pnpm mcp:workspace    # pnpm workspace graph
-pnpm mcp:supabase     # Supabase schema introspection
-```
-
-### Enforcement Rules
-
-1. **No sprint may begin without baseline artifacts**
-2. **If baseline fails → STOP and fix before proceeding**
-3. **TypeScript diagnostics > 0**: Sprint must explicitly address them
-4. **ESLint errors > threshold**: Must address before commit
-5. **Schema drift detected**: Regenerate types immediately
+Before ANY code modification, run `pnpm session:baseline`. If baseline is stale
+or missing, STOP. See protocol doc for thresholds, MCP wrappers, and enforcement
+rules.
 
 ---
 

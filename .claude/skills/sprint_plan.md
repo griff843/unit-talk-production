@@ -1,5 +1,8 @@
 # Skill: Sprint Plan
 
+> Model tier: **Opus** — design decisions, scope definition, architectural
+> tradeoffs
+
 ## Purpose
 
 Create a structured plan for a sprint before implementation begins.
@@ -15,6 +18,7 @@ Create a structured plan for a sprint before implementation begins.
 ### Step 1: Parse Objective
 
 Extract from user request:
+
 - Primary goal
 - Success criteria
 - Scope boundaries
@@ -22,6 +26,7 @@ Extract from user request:
 ### Step 2: Context Gathering
 
 Read relevant files:
+
 ```bash
 # Check current state
 git status
@@ -64,17 +69,19 @@ Create `out/sprints/$SPRINT/$DATE/notes/plan.md`:
 ## Tasks
 
 ### Phase 1: <Name>
+
 1. [ ] Task 1
 2. [ ] Task 2
 
 ### Phase 2: <Name>
+
 1. [ ] Task 3
 2. [ ] Task 4
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
+| File            | Change      |
+| --------------- | ----------- |
 | path/to/file.ts | Description |
 
 ## Verification Plan
@@ -97,6 +104,7 @@ Create `out/sprints/$SPRINT/$DATE/notes/plan.md`:
 ### Step 6: Validate Plan
 
 Before proceeding:
+
 - [ ] All affected files identified
 - [ ] Single-writer implications addressed
 - [ ] Verification steps defined
@@ -116,6 +124,7 @@ Present plan summary to user:
 **Files**: Z files to modify
 
 **Key Considerations**:
+
 - <consideration 1>
 - <consideration 2>
 

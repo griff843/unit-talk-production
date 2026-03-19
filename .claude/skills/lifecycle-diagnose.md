@@ -1,5 +1,7 @@
 # Skill: Lifecycle Diagnose
 
+> Model tier: **Sonnet** — pipeline diagnostics, stuck-pick classification
+
 ## Purpose
 
 Diagnose pick lifecycle pipeline health. Identify stuck picks, outbox backlogs,
