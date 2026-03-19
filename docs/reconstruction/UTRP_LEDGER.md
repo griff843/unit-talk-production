@@ -4,7 +4,7 @@
 > This is the canonical source of program truth.
 >
 > **Last Updated**: 2026-03-19 | **Program Status**: R2 COMPLETE — R3 COMPLETE —
-> R4 UNLOCKED
+> R4 COMPLETE — R5 UNLOCKED
 
 ---
 
@@ -65,12 +65,12 @@
 
 ## Operator Surface Defects
 
-| ID        | Severity | Title                                                                                                                     | Workstream | Status      | Sprint                                   | Notes                                                                      |
-| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------- | -------------------------------------------------------------------------- |
-| DEFECT-19 | P1       | Picks HQ rendered synthetic defaults: `capper='Unknown Capper'`, `tier='C'`, `confidence=50`, `market_type='player_prop'` | R4         | ✅ RESOLVED | SPRINT-POST-REM-OPERATOR-SURFACE-TRUST   | Null-safe rendering applied.                                               |
-| DEFECT-20 | P2       | Command Center footer shows `build:unknown`, `branch:unknown` when containers start without git identity                  | R4         | ✅ RESOLVED | SPRINT-POST-REM-OPERATOR-SURFACE-TRUST   | `ops/day.ps1` Step C0 added.                                               |
-| DEFECT-21 | P1       | Capper display in Picks HQ always "—" — no username from users join                                                       | R4         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | `users!unified_picks_user_id_fkey (username)` join added.                  |
-| DEFECT-22 | P1       | Disconnected state in CC pipeline dashboard — HTTP polling `/api/pipeline/health` fails                                   | R4         | OPEN        | —                                        | Environmental when API is running. Needs resiliency fix (retry/reconnect). |
+| ID        | Severity | Title                                                                                                                     | Workstream | Status      | Sprint                                   | Notes                                                                                                                                                                           |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DEFECT-19 | P1       | Picks HQ rendered synthetic defaults: `capper='Unknown Capper'`, `tier='C'`, `confidence=50`, `market_type='player_prop'` | R4         | ✅ RESOLVED | UTRP-R4-OPERATOR-SURFACE                 | Null-safe rendering completed in PicksTableCard.tsx: tier/ev_score/confidence show "—" when null. bet_type, home_team, away_team, posted_to_discord added to Pick Details cell. |
+| DEFECT-20 | P2       | Command Center footer shows `build:unknown`, `branch:unknown` when containers start without git identity                  | R4         | ✅ RESOLVED | SPRINT-POST-REM-OPERATOR-SURFACE-TRUST   | `ops/day.ps1` Step C0 added.                                                                                                                                                    |
+| DEFECT-21 | P1       | Capper display in Picks HQ always "—" — no username from users join                                                       | R4         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | `users!unified_picks_user_id_fkey (username)` join added.                                                                                                                       |
+| DEFECT-22 | P1       | Disconnected state in CC pipeline dashboard — HTTP polling `/api/pipeline/health` fails                                   | R4         | ✅ RESOLVED | UTRP-R4-OPERATOR-SURFACE                 | `usePipelineDashboard`: retry:0, consecutive-failure counting (≥3 cycles = Disconnected). `ConnectionStatus`: uses `isDisconnected`/`isChecking`, shows last-known-good time.   |
 
 ---
 
@@ -129,15 +129,15 @@
 | R1 — Canonical Data             | ✅ COMPLETE    | None (DB migration caveat)          |
 | R2 — Submission Contract        | ✅ COMPLETE    | None (DB migration caveat)          |
 | R3 — Lifecycle Auth             | ✅ COMPLETE    | None                                |
-| R4 — Operator Surface           | 🔓 UNLOCKED    | R2 ✅, R3 ✅                        |
-| R5 — Downstream Outcomes        | ⬜ NOT STARTED | Awaits R3 ✅, R4                    |
+| R4 — Operator Surface           | ✅ COMPLETE    | None                                |
+| R5 — Downstream Outcomes        | 🔓 UNLOCKED    | R3 ✅, R4 ✅                        |
 | R6 — Verification Control Plane | ⬜ NOT STARTED | Awaits R1–R5                        |
 | R7 — Closeout                   | ⬜ NOT STARTED | Awaits R0–R6 + 48h gate             |
 
-**Open P0 defects**: None **Open P1 defects**: DEFECT-22, DEFECT-24, DEFECT-25,
-DEFECT-26, DEFECT-27, DEFECT-28, DEFECT-30, DEFECT-31, DEFECT-33, DEFECT-35,
-DEFECT-36 **Resolved**: DEFECT-1 through DEFECT-13, DEFECT-14, DEFECT-15,
-DEFECT-17, DEFECT-18, DEFECT-19, DEFECT-20, DEFECT-21, DEFECT-23
+**Open P0 defects**: None **Open P1 defects**: DEFECT-24, DEFECT-25, DEFECT-26,
+DEFECT-27, DEFECT-28, DEFECT-30, DEFECT-31, DEFECT-33, DEFECT-35, DEFECT-36
+**Resolved**: DEFECT-1 through DEFECT-13, DEFECT-14, DEFECT-15, DEFECT-17,
+DEFECT-18, DEFECT-19, DEFECT-20, DEFECT-21, DEFECT-22, DEFECT-23
 
 ---
 
