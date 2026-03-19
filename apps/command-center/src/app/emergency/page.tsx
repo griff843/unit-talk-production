@@ -26,8 +26,8 @@ export default function EmergencyPage() {
             }}
           >
             <h2 style={{ color: '#4ecdc4' }}>System Status</h2>
-            <p>✅ Next.js Server: Running</p>
-            <p>✅ Basic Routing: Operational</p>
+            <p>✅ Next.js Server: Responding</p>
+            <p>⚠️ Platform Status: Unknown (health API not reachable from fallback page)</p>
             <p>⚠️ Full Command Center: Under Maintenance</p>
           </div>
 

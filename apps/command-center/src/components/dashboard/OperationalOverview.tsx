@@ -1,10 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import {
   Database,
   TrendingUp,
@@ -21,6 +16,12 @@ import {
   Gauge,
   BarChart3,
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/lib/supabase';
 
 interface DailyMetrics {
@@ -224,26 +225,63 @@ export function OperationalOverview() {
         topPerformers: topPerformers as any[],
       });
 
-      // Simulate system health data
-      setHealth({
-        overall: 'healthy',
-        database: {
-          status: 'connected',
-          responseTime: 45,
-          connections: 8,
-        },
-        agents: {
-          total: 5,
-          healthy: 5,
-          processing: 3,
-          errors: 0,
-        },
-        pipeline: {
-          status: 'active',
-          throughput: 23,
-          backlog: pendingProps,
-        },
-      });
+      // SPRINT-REM-003: Derive health from /api/health/summary (canonical authority).
+      // Fail closed — default to 'critical' if API unavailable.
+      let derivedHealth: SystemHealth = {
+        overall: 'critical',
+        database: { status: 'error', responseTime: 0, connections: 0 },
+        agents: { total: 0, healthy: 0, processing: 0, errors: 0 },
+        pipeline: { status: 'error', throughput: 0, backlog: pendingProps },
+      };
+
+      try {
+        const healthRes = await fetch('/api/health/summary');
+        if (healthRes.ok) {
+          const healthData = await healthRes.json();
+          const ps = healthData.platform_status;
+          const subsystems: Array<{ name: string; status: string }> = healthData.subsystems || [];
+
+          const dbSub = subsystems.find(s => s.name === 'database');
+          const agentSubs = subsystems.filter(s => s.name.startsWith('agent'));
+          const pipelineSub = subsystems.find(
+            s => s.name === 'pipeline' || s.name === 'promotion_pipeline'
+          );
+
+          derivedHealth = {
+            overall: ps === 'HEALTHY' ? 'healthy' : ps === 'DEGRADED' ? 'warning' : 'critical',
+            database: {
+              status:
+                dbSub?.status === 'UP'
+                  ? 'connected'
+                  : dbSub?.status === 'DEGRADED'
+                    ? 'degraded'
+                    : 'error',
+              responseTime: 0,
+              connections: 0,
+            },
+            agents: {
+              total: agentSubs.length || 0,
+              healthy: agentSubs.filter(a => a.status === 'UP').length,
+              processing: 0,
+              errors: agentSubs.filter(a => a.status === 'DOWN').length,
+            },
+            pipeline: {
+              status:
+                pipelineSub?.status === 'UP'
+                  ? 'active'
+                  : pipelineSub?.status === 'DEGRADED'
+                    ? 'idle'
+                    : 'error',
+              throughput: 0,
+              backlog: pendingProps,
+            },
+          };
+        }
+      } catch {
+        // Fail closed — derivedHealth already set to critical defaults
+      }
+
+      setHealth(derivedHealth);
 
       setLastUpdated(new Date());
     } catch (error) {
