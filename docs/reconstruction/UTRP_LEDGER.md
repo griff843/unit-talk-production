@@ -3,8 +3,8 @@
 > **Authority**: UTRP Charter §6 — Ledger is updated at every state transition.
 > This is the canonical source of program truth.
 >
-> **Last Updated**: 2026-03-19 | **Program Status**: R1 COMPLETE — R2 UNLOCKED —
-> R3 COMPLETE
+> **Last Updated**: 2026-03-19 | **Program Status**: R2 COMPLETE — R3 COMPLETE —
+> R4 UNLOCKED
 
 ---
 
@@ -36,8 +36,8 @@
 | DEFECT-8  | P0       | `chk_unified_picks_workflow_stage` only allows `pending_review`/`approved`                                                                  | R1         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | Migration `20260319120000_fix_workflow_stage_constraint.sql` applied. 9-value lifecycle set.                                        |
 | DEFECT-9  | P0       | `prop_settlements` schema mismatch: code legacy paths use `pick_id`/`outcome`, DB has `final_pick_id`/`settlement_result`                   | R1         | ✅ RESOLVED | UTRP-R1-CANONICAL-DATA                   | mcp-state adapter corrected: `pick_id` → `final_pick_id` in query, filter, and mapping. All other surfaces already correct.         |
 | DEFECT-10 | P1       | `atomic_submit_ticket` defaults `confidence` to `0` not `NULL` when form omits it                                                           | R1         | ✅ RESOLVED | UTRP-R1-CANONICAL-DATA                   | Migration `20260319150000`: COALESCE removed, NULL propagated. Caveat: requires DB application.                                     |
-| DEFECT-11 | P1       | `atomic_submit_ticket` has no `provider`/sportsbook param                                                                                   | R2         | OPEN        | —                                        | Provider is never written to `unified_picks`.                                                                                       |
-| DEFECT-12 | P1       | `matchup` column exists in `unified_picks` but is never written by RPC or BridgeWorker                                                      | R2         | OPEN        | —                                        | Column exists (from migration) but neither V1 RPC nor V3 BridgeWorker writes to it. Always NULL.                                    |
+| DEFECT-11 | P1       | `atomic_submit_ticket` has no `provider`/sportsbook param                                                                                   | R2         | ✅ RESOLVED | UTRP-R2-SUBMISSION-CONTRACT              | Migration `20260319160000`: `p_provider TEXT DEFAULT NULL` added, writes to `provider` column.                                      |
+| DEFECT-12 | P1       | `matchup` column exists in `unified_picks` but is never written by RPC or BridgeWorker                                                      | R2         | ✅ RESOLVED | UTRP-R2-SUBMISSION-CONTRACT              | Migration `20260319160000`: `p_matchup TEXT DEFAULT NULL` added, writes to `matchup` column with team-name derivation fallback.     |
 | DEFECT-13 | P2       | `unified_picks.confidence` column has no CHECK constraint for valid range (0–100)                                                           | R1         | ✅ RESOLVED | UTRP-R1-CANONICAL-DATA                   | Migration `20260319150001`: CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 100)). Caveat: requires DB application. |
 | DEFECT-36 | P1       | `SettlementAgent` writes `pickId` (unified_picks.id) to `settlement_log.prop_settlement_id` (FK to prop_settlements.id) — FK value mismatch | R5         | OPEN        | —                                        | Reclassified R1→R5: fix requires settlement logic changes (capture prop_settlements.id from insert), not canonical data definition. |
 
@@ -55,11 +55,11 @@
 
 ## Submission Pipeline Defects
 
-| ID        | Severity | Title                                                                                                                        | Workstream | Status      | Sprint                                   | Notes                                                                                                            |
-| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| DEFECT-17 | P1       | `home_team`/`away_team` only mapped for `source='manual'` in RPC — other sources lose team data                              | R2         | OPEN        | —                                        | Conditional mapping should be unconditional.                                                                     |
-| DEFECT-18 | P1       | `/api/picks` was missing `bet_type`, `home_team`, `away_team`, `posted_to_discord`, and users join                           | R4         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | 4 fields + join added.                                                                                           |
-| DEFECT-33 | P1       | BridgeWorker V3 maps only 10 of 26+ fields — drops provider, matchup, home_team, away_team, confidence, user_id, ticket_type | R2         | OPEN        | —                                        | `handleBridgeOutboxTicketSubmitted` lines 978-992. V1 RPC writes all 26; V3 path loses critical fields silently. |
+| ID        | Severity | Title                                                                                                                        | Workstream | Status      | Sprint                                   | Notes                                                                                                               |
+| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| DEFECT-17 | P1       | `home_team`/`away_team` only mapped for `source='manual'` in RPC — other sources lose team data                              | R2         | ✅ RESOLVED | UTRP-R2-SUBMISSION-CONTRACT              | Migration `20260319160000`: accepts `home_team`/`away_team` JSON keys, builds `manual_fields_blob` unconditionally. |
+| DEFECT-18 | P1       | `/api/picks` was missing `bet_type`, `home_team`, `away_team`, `posted_to_discord`, and users join                           | R4         | ✅ RESOLVED | SPRINT-UNIFIED-PICKS-CONTRACT-TRUTH-LOCK | 4 fields + join added.                                                                                              |
+| DEFECT-33 | P1       | BridgeWorker V3 maps only 10 of 26+ fields — drops provider, matchup, home_team, away_team, confidence, user_id, ticket_type | R2         | OPEN        | —                                        | `handleBridgeOutboxTicketSubmitted` lines 978-992. V1 RPC writes all 26; V3 path loses critical fields silently.    |
 
 ---
 
@@ -127,18 +127,17 @@
 | ------------------------------- | -------------- | ----------------------------------- |
 | R0 — Truth Reset                | ✅ COMPLETE    | None (DB caveat: migration-derived) |
 | R1 — Canonical Data             | ✅ COMPLETE    | None (DB migration caveat)          |
-| R2 — Submission Contract        | 🔓 UNLOCKED    | R1 complete                         |
+| R2 — Submission Contract        | ✅ COMPLETE    | None (DB migration caveat)          |
 | R3 — Lifecycle Auth             | ✅ COMPLETE    | None                                |
-| R4 — Operator Surface           | 🔓 UNLOCKED    | R2 must also complete (parallel)    |
+| R4 — Operator Surface           | 🔓 UNLOCKED    | R2 ✅, R3 ✅                        |
 | R5 — Downstream Outcomes        | ⬜ NOT STARTED | Awaits R3 ✅, R4                    |
 | R6 — Verification Control Plane | ⬜ NOT STARTED | Awaits R1–R5                        |
 | R7 — Closeout                   | ⬜ NOT STARTED | Awaits R0–R6 + 48h gate             |
 
-**Open P0 defects**: None (DEFECT-14, DEFECT-23 resolved in R3) **Open P1
-defects**: DEFECT-11, DEFECT-12, DEFECT-17, DEFECT-22, DEFECT-24, DEFECT-25,
+**Open P0 defects**: None **Open P1 defects**: DEFECT-22, DEFECT-24, DEFECT-25,
 DEFECT-26, DEFECT-27, DEFECT-28, DEFECT-30, DEFECT-31, DEFECT-33, DEFECT-35,
-DEFECT-36 **Resolved**: DEFECT-1 through DEFECT-10, DEFECT-13, DEFECT-18,
-DEFECT-19, DEFECT-20, DEFECT-21
+DEFECT-36 **Resolved**: DEFECT-1 through DEFECT-13, DEFECT-14, DEFECT-15,
+DEFECT-17, DEFECT-18, DEFECT-19, DEFECT-20, DEFECT-21, DEFECT-23
 
 ---
 
