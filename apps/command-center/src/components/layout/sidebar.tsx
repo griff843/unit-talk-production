@@ -69,6 +69,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'Risk Engine', href: '/dashboard/risk', icon: Shield },
       { name: 'Platform Health', href: '/dashboard/health', icon: Activity },
       { name: 'Alerts', href: '/dashboard/alerts', icon: Bell },
+      { name: 'Real-time', href: '/dashboard/real-time', icon: Wifi },
     ],
   },
   {
