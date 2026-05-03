@@ -207,15 +207,60 @@ These transitions must be enforced by PM sweep or Release Clerk automation:
 The following status transitions are safe for Release Clerk to execute without
 PM review, provided the stated conditions are met:
 
-| From | To | Condition |
-|---|---|---|
-| In Review | In PM Review | PR is open; PM comment is missing |
-| In Review | Ready to Close | PR is merged; proof is attached |
-| Needs Standard | Ready for Claude | Standard exists and is linked |
-| Needs Standard | Ready for Codex | Standard exists and is linked |
-| Ready to Close | Done | PR merged; VerificationLead PASS exists (if VL required) |
-| In Claude | In Proof | Claude agent has commented task complete |
-| In Codex | In PM Review | Codex PR is open and CI green |
+| From | To | Condition | Done Authority |
+|---|---|---|---|
+| In Review | In PM Review | PR is open; PM comment is missing | — |
+| In Review | Ready to Close | PR is merged; proof is attached | — |
+| Needs Standard | Ready for Claude | Standard exists and is linked | — |
+| Needs Standard | Ready for Codex | Standard exists and is linked | — |
+| Ready to Close | Done | PR merged; VerificationLead PASS exists (if VL required) | **yes** |
+| In Claude | In Proof | Claude agent has commented task complete | — |
+| In Codex | In PM Review | Codex PR is open and CI green | — |
 
 Any transition NOT in this table requires PM classification (PM_REQUIRED) or
 agent confirmation before automation may move the status.
+
+Only rows marked **Done Authority = yes** permit Release Clerk to set issue
+status to `done`. All other done transitions require PM action. See Section 6.
+
+---
+
+## 6. Release Clerk Done-Authority Rule
+
+**Rule ID:** `release-clerk-status-authority`
+
+This rule governs the boundary between Release Clerk mechanical automation and
+PM issue-state authority.
+
+### Policy
+
+1. Release Clerk **may** execute any status move listed as `AUTO_APPROVE` in
+   Section 5 and in `pm-decision-rules.json`.
+2. Release Clerk **may NOT** set issue status to `done` unless the matching
+   rule entry carries `"done-authority": true`.
+3. All done transitions not explicitly delegated in this document require PM
+   action.
+
+### Rationale
+
+PM is issue-state truth. Allowing RC to set `done` without explicit delegation
+would silently transfer PM authority to a mechanical agent, creating a bypass
+path that neither PM nor Governance can track.
+
+### Rules carrying done-authority: true
+
+| Rule ID | Permitted Done Transition | Conditions |
+|---|---|---|
+| `auto-status-move` (Ready to Close → Done row only) | Issue → done | PR merged; VerificationLead PASS exists (if required) |
+
+Any new AUTO_APPROVE rule that involves a done transition must explicitly set
+`"done-authority": true` in `pm-decision-rules.json` and document it in this
+table before Release Clerk may execute it.
+
+### Default
+
+`done-authority` defaults to `false`. Absence of the field means RC must not
+set done, even if the transition is otherwise AUTO_APPROVE.
+
+**Cross-references:** [UNI-263](/UNI/issues/UNI-263) (Release Clerk) consumes
+these delegated rules.
