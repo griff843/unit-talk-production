@@ -61,6 +61,29 @@ operational edge case.
 - Strategic, material, or irreversible decisions without CEO.
 - Marking a gate passed without VerificationLead PASS on VL-required work.
 - Approving NOT_APPROVED actions under any circumstances.
+- Issuing a T1 Codex exception approval without simultaneous CTO and
+  ClaudeGovernance sign-off (single-party approval is NOT_APPROVED).
+
+**T1 Codex Exception (PM Approval Leg)**
+
+T1 work may only reach Codex if PM, CTO, and ClaudeGovernance ALL approve
+simultaneously. PM's approval leg requires:
+
+1. PM has confirmed the lane is **bounded scope** with no production mutation.
+2. PM has issued a `PM_VERDICT` with flag `t1-codex-exception: true`.
+3. The PM packet includes all four required fields:
+   - `allowed_files` — explicit list of files Codex may touch
+   - `forbidden_files` — explicit list of files Codex must not touch
+   - `proof_commands` — commands that produce the required proof artifact
+   - `rollback_criteria` — conditions under which the change must be reverted
+
+If any of the three simultaneous approvals (PM, CTO, ClaudeGovernance) is
+missing, the default is **NOT_APPROVED**. T1 stays out of Codex.
+
+**Cross-references:**
+
+- [UNI-259](/UNI/issues/UNI-259) — CTO defines the technical safety leg
+- [UNI-261](/UNI/issues/UNI-261) — ClaudeGovernance defines the architecture/policy leg
 
 **Escalates To**
 
