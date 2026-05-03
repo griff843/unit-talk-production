@@ -1,0 +1,651 @@
+{
+  "$schema": "https://unit-talk.internal/schemas/pm-decision-rules/v1",
+  "version": "1.0",
+  "authority": "PM Layer",
+  "sourceDocument": "docs/05_operations/PM_DECISION_MATRIX.md",
+  "lastUpdated": "2026-05-03",
+  "issueRef": "UNI-260",
+
+  "decisionClasses": [
+    "AUTO_APPROVE",
+    "APPROVE_WITH_GUARDRAILS",
+    "PM_REQUIRED",
+    "VERIFICATION_REQUIRED",
+    "GOVERNANCE_REQUIRED",
+    "BLOCKED",
+    "NOT_APPROVED"
+  ],
+
+  "rules": [
+    {
+      "id": "gate-corruption-queue-drain",
+      "class": "NOT_APPROVED",
+      "priority": 100,
+      "description": "Queue drain to pass a readiness gate is never approved. Manufactures gate evidence.",
+      "regressionCase": "UTV2-433",
+      "matchConditions": {
+        "any": [
+          { "field": "actionType", "op": "eq", "value": "queue_drain" },
+          { "field": "description", "op": "contains", "value": "drain" },
+          { "field": "description", "op": "contains", "value": "awaiting_approval" }
+        ],
+        "all": [
+          { "field": "context", "op": "contains_any", "value": ["gate", "readiness", "CLV", "settlement"] }
+        ]
+      },
+      "reason": "Cannot mutate production pick lifecycle or drain approval backlog to manufacture gate evidence.",
+      "allowedAlternative": "Create a separate T1 queue-remediation issue with sample criteria, operator review plan, lifecycle impact, and proof artifacts."
+    },
+    {
+      "id": "gate-corruption-bulk-pick",
+      "class": "NOT_APPROVED",
+      "priority": 100,
+      "description": "Bulk awaiting_approval pick approval to manufacture settlement or CLV proof.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "bulk_approve" },
+          { "field": "context", "op": "contains_any", "value": ["settlement", "CLV", "proof", "gate"] }
+        ]
+      },
+      "reason": "Synthetic approval chain does not constitute valid proof."
+    },
+    {
+      "id": "gate-corruption-synthetic-evidence",
+      "class": "NOT_APPROVED",
+      "priority": 100,
+      "description": "Synthetic or backfill-only evidence used to mark a production gate passed.",
+      "matchConditions": {
+        "any": [
+          { "field": "evidenceType", "op": "eq", "value": "synthetic" },
+          { "field": "evidenceType", "op": "eq", "value": "backfill" }
+        ],
+        "all": [
+          { "field": "context", "op": "contains", "value": "gate" }
+        ]
+      },
+      "reason": "Evidence must be from a fresh, governed pipeline run post-fix."
+    },
+    {
+      "id": "not-approved-hidden-mutation",
+      "class": "NOT_APPROVED",
+      "priority": 99,
+      "description": "Production mutation hidden inside a proof lane.",
+      "matchConditions": {
+        "all": [
+          { "field": "laneType", "op": "eq", "value": "proof" },
+          { "field": "hasMutationCommands", "op": "eq", "value": true }
+        ]
+      },
+      "reason": "Proof lanes are read-only by definition."
+    },
+    {
+      "id": "not-approved-bypass-vl",
+      "class": "NOT_APPROVED",
+      "priority": 99,
+      "description": "Closing verification-required work without VerificationLead PASS.",
+      "matchConditions": {
+        "all": [
+          { "field": "verificationRequired", "op": "eq", "value": true },
+          { "field": "verificationLeadPass", "op": "eq", "value": false }
+        ]
+      },
+      "reason": "VerificationLead sign-off is non-negotiable on VL-required work."
+    },
+    {
+      "id": "not-approved-stale-gate",
+      "class": "NOT_APPROVED",
+      "priority": 99,
+      "description": "Marking gate passed without fresh post-fix governed pipeline evidence.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "mark_gate_passed" },
+          { "field": "evidenceFreshPostFix", "op": "eq", "value": false }
+        ]
+      },
+      "reason": "Gate evidence must post-date the fix and be from an unbroken pipeline run."
+    },
+    {
+      "id": "not-approved-agent-settings",
+      "class": "NOT_APPROVED",
+      "priority": 98,
+      "description": "Repo settings changes by an implementation agent.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "repo_settings_change" },
+          { "field": "agentClass", "op": "eq", "value": "implementation" }
+        ]
+      },
+      "reason": "Repo settings are human/PM-only authority."
+    },
+    {
+      "id": "not-approved-server-purchase",
+      "class": "NOT_APPROVED",
+      "priority": 98,
+      "description": "Server purchase without human PM or CEO decision.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "server_purchase" },
+          { "field": "humanApprovalExists", "op": "eq", "value": false }
+        ]
+      },
+      "reason": "Material cost decision; requires human sign-off."
+    },
+    {
+      "id": "not-approved-cutover-gates",
+      "class": "NOT_APPROVED",
+      "priority": 98,
+      "description": "Production cutover without all child gates green.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "production_cutover" },
+          { "field": "allChildGatesGreen", "op": "eq", "value": false }
+        ]
+      },
+      "reason": "Cutover requires complete gate evidence across all child issues."
+    },
+    {
+      "id": "pm-t1-general",
+      "class": "PM_REQUIRED",
+      "priority": 80,
+      "description": "Any T1 lane not covered by an approved GUARDRAILS rule.",
+      "matchConditions": {
+        "all": [
+          { "field": "tier", "op": "eq", "value": "T1" },
+          { "field": "hasApprovedGuardrailsRule", "op": "eq", "value": false }
+        ]
+      }
+    },
+    {
+      "id": "pm-cutover",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Production cutover always requires PM packet.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "production_cutover" }
+        ]
+      }
+    },
+    {
+      "id": "pm-server-purchase",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Server purchase or provisioning requires PM decision.",
+      "matchConditions": {
+        "any": [
+          { "field": "actionType", "op": "eq", "value": "server_purchase" },
+          { "field": "actionType", "op": "eq", "value": "server_provisioning" }
+        ]
+      }
+    },
+    {
+      "id": "pm-branch-protection",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Repo branch protection or ruleset change.",
+      "matchConditions": {
+        "any": [
+          { "field": "actionType", "op": "eq", "value": "branch_protection_change" },
+          { "field": "actionType", "op": "eq", "value": "ruleset_change" }
+        ]
+      }
+    },
+    {
+      "id": "pm-secrets",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Credential or secrets rotation; new production secret.",
+      "matchConditions": {
+        "any": [
+          { "field": "actionType", "op": "eq", "value": "secrets_rotation" },
+          { "field": "actionType", "op": "eq", "value": "new_production_secret" }
+        ]
+      }
+    },
+    {
+      "id": "pm-db-mutation",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Production DB mutation.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "db_mutation" },
+          { "field": "environment", "op": "eq", "value": "production" }
+        ]
+      }
+    },
+    {
+      "id": "pm-destructive",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Destructive cleanup: bulk delete, DROP TABLE, archive purge.",
+      "matchConditions": {
+        "any": [
+          { "field": "actionType", "op": "eq", "value": "bulk_delete" },
+          { "field": "actionType", "op": "eq", "value": "drop_table" },
+          { "field": "actionType", "op": "eq", "value": "archive_purge" }
+        ]
+      }
+    },
+    {
+      "id": "pm-bulk-pick",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Bulk pick approval requires PM packet.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "bulk_pick_approval" }
+        ]
+      }
+    },
+    {
+      "id": "pm-queue-drain",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Queue drain of any queue requires PM decision.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "queue_drain" }
+        ]
+      },
+      "note": "See also gate-corruption-queue-drain (NOT_APPROVED) when intent is to pass a gate."
+    },
+    {
+      "id": "pm-scoring-policy",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Scoring or promotion policy change.",
+      "matchConditions": {
+        "any": [
+          { "field": "actionType", "op": "eq", "value": "scoring_policy_change" },
+          { "field": "actionType", "op": "eq", "value": "promotion_policy_change" }
+        ]
+      }
+    },
+    {
+      "id": "pm-settlement",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Settlement or lifecycle authority change.",
+      "matchConditions": {
+        "any": [
+          { "field": "actionType", "op": "eq", "value": "settlement_authority_change" },
+          { "field": "actionType", "op": "eq", "value": "lifecycle_authority_change" }
+        ]
+      }
+    },
+    {
+      "id": "pm-discord-expand",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Discord distribution expansion.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "discord_distribution_expansion" }
+        ]
+      }
+    },
+    {
+      "id": "pm-gate-passed",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Marking a production-readiness gate as passed.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "mark_gate_passed" }
+        ]
+      }
+    },
+    {
+      "id": "pm-bypass-proof",
+      "class": "PM_REQUIRED",
+      "priority": 90,
+      "description": "Bypassing proof coverage.",
+      "matchConditions": {
+        "all": [
+          { "field": "bypassesProofCoverage", "op": "eq", "value": true }
+        ]
+      }
+    },
+    {
+      "id": "pm-verdict-risky",
+      "class": "PM_REQUIRED",
+      "priority": 85,
+      "description": "PM_VERDICT on any risky PR.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "pm_verdict" },
+          { "field": "riskClass", "op": "in", "value": ["T1", "HIGH_RISK"] }
+        ]
+      }
+    },
+    {
+      "id": "vl-t1",
+      "class": "VERIFICATION_REQUIRED",
+      "priority": 80,
+      "description": "Any T1 work must route to VerificationLead.",
+      "matchConditions": {
+        "all": [
+          { "field": "tier", "op": "eq", "value": "T1" }
+        ]
+      }
+    },
+    {
+      "id": "vl-truth-check",
+      "class": "VERIFICATION_REQUIRED",
+      "priority": 80,
+      "description": "Truth-check infrastructure change.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "truth_check_infrastructure_change" }
+        ]
+      }
+    },
+    {
+      "id": "vl-ci-gate",
+      "class": "VERIFICATION_REQUIRED",
+      "priority": 80,
+      "description": "CI or gate configuration change.",
+      "matchConditions": {
+        "any": [
+          { "field": "actionType", "op": "eq", "value": "ci_config_change" },
+          { "field": "actionType", "op": "eq", "value": "gate_config_change" }
+        ]
+      }
+    },
+    {
+      "id": "vl-readiness",
+      "class": "VERIFICATION_REQUIRED",
+      "priority": 80,
+      "description": "Proof-of-readiness work.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "proof_of_readiness" }
+        ]
+      }
+    },
+    {
+      "id": "vl-gate-claim",
+      "class": "VERIFICATION_REQUIRED",
+      "priority": 80,
+      "description": "Production-readiness gate claim.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "gate_claim" }
+        ]
+      }
+    },
+    {
+      "id": "vl-evidence-claim",
+      "class": "VERIFICATION_REQUIRED",
+      "priority": 80,
+      "description": "Any claim based on evidence, test, or proof artifacts.",
+      "matchConditions": {
+        "all": [
+          { "field": "evidenceBased", "op": "eq", "value": true }
+        ]
+      }
+    },
+    {
+      "id": "gov-scope-review",
+      "class": "GOVERNANCE_REQUIRED",
+      "priority": 75,
+      "description": "T1/T2 scope review.",
+      "matchConditions": {
+        "all": [
+          { "field": "tier", "op": "in", "value": ["T1", "T2"] },
+          { "field": "actionType", "op": "eq", "value": "scope_review" }
+        ]
+      }
+    },
+    {
+      "id": "gov-authority-boundary",
+      "class": "GOVERNANCE_REQUIRED",
+      "priority": 75,
+      "description": "DB, settlement, lifecycle, promotion, provider contract, or distribution change.",
+      "matchConditions": {
+        "any": [
+          { "field": "touchesDB", "op": "eq", "value": true },
+          { "field": "touchesSettlement", "op": "eq", "value": true },
+          { "field": "touchesLifecycle", "op": "eq", "value": true },
+          { "field": "touchesPromotion", "op": "eq", "value": true },
+          { "field": "touchesProviderContract", "op": "eq", "value": true },
+          { "field": "touchesDistribution", "op": "eq", "value": true }
+        ]
+      }
+    },
+    {
+      "id": "gov-architecture",
+      "class": "GOVERNANCE_REQUIRED",
+      "priority": 75,
+      "description": "Architecture authority boundary enforcement.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "architecture_change" }
+        ]
+      }
+    },
+    {
+      "id": "gov-forbidden-files",
+      "class": "GOVERNANCE_REQUIRED",
+      "priority": 75,
+      "description": "Forbidden file or import risk.",
+      "matchConditions": {
+        "all": [
+          { "field": "hasForbiddenFiles", "op": "eq", "value": true }
+        ]
+      }
+    },
+    {
+      "id": "gov-tier-mismatch",
+      "class": "GOVERNANCE_REQUIRED",
+      "priority": 75,
+      "description": "Mismatch between issue tier and actual changed files.",
+      "matchConditions": {
+        "all": [
+          { "field": "tierMatchesChangedFiles", "op": "eq", "value": false }
+        ]
+      }
+    },
+    {
+      "id": "gov-missing-lane-spec",
+      "class": "GOVERNANCE_REQUIRED",
+      "priority": 75,
+      "description": "Issue missing allowed_files, forbidden_files, proof commands, or rollback criteria.",
+      "matchConditions": {
+        "any": [
+          { "field": "hasAllowedFiles", "op": "eq", "value": false },
+          { "field": "hasForbiddenFiles", "op": "eq", "value": false },
+          { "field": "hasProofCommands", "op": "eq", "value": false },
+          { "field": "hasRollbackCriteria", "op": "eq", "value": false }
+        ],
+        "all": [
+          { "field": "tier", "op": "in", "value": ["T1", "T2"] }
+        ]
+      }
+    },
+    {
+      "id": "guardrails-t2-proof-script",
+      "class": "APPROVE_WITH_GUARDRAILS",
+      "priority": 50,
+      "description": "T2 read-only proof/reporting script.",
+      "matchConditions": {
+        "all": [
+          { "field": "tier", "op": "eq", "value": "T2" },
+          { "field": "actionType", "op": "eq", "value": "proof_script" },
+          { "field": "hasWritePath", "op": "eq", "value": false }
+        ]
+      },
+      "guardrails": [
+        "Proof artifact must be attached before close",
+        "Script must be read-only (no write path)"
+      ]
+    },
+    {
+      "id": "guardrails-t2-ci",
+      "class": "APPROVE_WITH_GUARDRAILS",
+      "priority": 50,
+      "description": "T2 CI/workflow improvement with no production mutation.",
+      "matchConditions": {
+        "all": [
+          { "field": "tier", "op": "eq", "value": "T2" },
+          { "field": "actionType", "op": "eq", "value": "ci_workflow_improvement" },
+          { "field": "mutatesProduction", "op": "eq", "value": false }
+        ]
+      },
+      "guardrails": [
+        "CI change scoped to build/test pipeline only",
+        "No deploy or migration triggers in changed files"
+      ]
+    },
+    {
+      "id": "guardrails-t2-qa-report",
+      "class": "APPROVE_WITH_GUARDRAILS",
+      "priority": 50,
+      "description": "T2 QA reporting automation.",
+      "matchConditions": {
+        "all": [
+          { "field": "tier", "op": "eq", "value": "T2" },
+          { "field": "actionType", "op": "eq", "value": "qa_report_automation" },
+          { "field": "drivesApprovalOrGateState", "op": "eq", "value": false }
+        ]
+      },
+      "guardrails": [
+        "Report is read-only",
+        "Does not drive any approval or gate state"
+      ]
+    },
+    {
+      "id": "guardrails-t1-docs",
+      "class": "APPROVE_WITH_GUARDRAILS",
+      "priority": 50,
+      "description": "T1 docs/proof/runbook lane with PM authorization and no production mutation.",
+      "matchConditions": {
+        "all": [
+          { "field": "tier", "op": "eq", "value": "T1" },
+          { "field": "laneType", "op": "in", "value": ["docs", "proof", "runbook"] },
+          { "field": "mutatesProduction", "op": "eq", "value": false },
+          { "field": "pmAuthorizationExists", "op": "eq", "value": true }
+        ]
+      },
+      "guardrails": [
+        "PM authorization must exist on parent issue",
+        "Lane must have no mutation commands"
+      ]
+    },
+    {
+      "id": "auto-docs-t3",
+      "class": "AUTO_APPROVE",
+      "priority": 20,
+      "description": "T3 docs-only PR with no runtime changes.",
+      "matchConditions": {
+        "all": [
+          { "field": "tier", "op": "eq", "value": "T3" },
+          { "field": "docsOnly", "op": "eq", "value": true },
+          { "field": "hasCodeChanges", "op": "eq", "value": false },
+          { "field": "mutatesEnvOrConfig", "op": "eq", "value": false },
+          { "field": "lintPassed", "op": "eq", "value": true }
+        ]
+      }
+    },
+    {
+      "id": "auto-tests-t3",
+      "class": "AUTO_APPROVE",
+      "priority": 20,
+      "description": "T3 test-only PR.",
+      "matchConditions": {
+        "all": [
+          { "field": "tier", "op": "eq", "value": "T3" },
+          { "field": "testOnly", "op": "eq", "value": true },
+          { "field": "changesProductionCodePaths", "op": "eq", "value": false },
+          { "field": "ciGreen", "op": "eq", "value": true }
+        ]
+      }
+    },
+    {
+      "id": "auto-tooling-t3",
+      "class": "AUTO_APPROVE",
+      "priority": 20,
+      "description": "T3 narrow tooling/script with no runtime authority.",
+      "matchConditions": {
+        "all": [
+          { "field": "tier", "op": "eq", "value": "T3" },
+          { "field": "actionType", "op": "in", "value": ["tooling_script", "dev_helper"] },
+          { "field": "mutatesDB", "op": "eq", "value": false },
+          { "field": "mutatesSecrets", "op": "eq", "value": false },
+          { "field": "mutatesProductionState", "op": "eq", "value": false }
+        ]
+      }
+    },
+    {
+      "id": "auto-metadata",
+      "class": "AUTO_APPROVE",
+      "priority": 20,
+      "description": "Non-runtime metadata fix.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "metadata_fix" },
+          { "field": "hasFunctionalChange", "op": "eq", "value": false }
+        ]
+      }
+    },
+    {
+      "id": "auto-verdict-comment",
+      "class": "AUTO_APPROVE",
+      "priority": 20,
+      "description": "PR comment generation restating a previously approved PM verdict.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "pm_verdict_comment" },
+          { "field": "pmVerdictExists", "op": "eq", "value": true },
+          { "field": "pmVerdictClass", "op": "eq", "value": "AUTO_APPROVE" }
+        ]
+      }
+    },
+    {
+      "id": "auto-close-superseded",
+      "class": "AUTO_APPROVE",
+      "priority": 20,
+      "description": "Closing superseded PR when supersedence is explicit.",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "close_pr" },
+          { "field": "supersededByMergedPr", "op": "eq", "value": true },
+          { "field": "hasOpenReviewThreads", "op": "eq", "value": false }
+        ]
+      }
+    },
+    {
+      "id": "auto-status-move",
+      "class": "AUTO_APPROVE",
+      "priority": 20,
+      "description": "Moving stale board status to next-owner state (no risk decision).",
+      "matchConditions": {
+        "all": [
+          { "field": "actionType", "op": "eq", "value": "status_move" },
+          { "field": "transitionInApprovedTable", "op": "eq", "value": true },
+          { "field": "impliesBusinessDecision", "op": "eq", "value": false }
+        ]
+      }
+    }
+  ],
+
+  "evaluationOrder": [
+    "NOT_APPROVED rules (priority >= 95) — evaluated first; first match stops processing",
+    "PM_REQUIRED rules (priority 85-94) — evaluated second",
+    "VERIFICATION_REQUIRED rules (priority 75-84) — evaluated third",
+    "GOVERNANCE_REQUIRED rules (priority 70-79) — evaluated fourth",
+    "APPROVE_WITH_GUARDRAILS rules (priority 40-69) — evaluated fifth",
+    "AUTO_APPROVE rules (priority < 40) — evaluated last; default if no other rule matches"
+  ],
+
+  "defaultClass": "PM_REQUIRED",
+
+  "notes": [
+    "Rules are evaluated in descending priority order. First match wins.",
+    "NOT_APPROVED rules always take precedence. A NOT_APPROVED match can never be overridden by a lower-priority rule.",
+    "If no rule matches, the default class is PM_REQUIRED (fail-safe to human review).",
+    "The gate-corruption-queue-drain rule (priority 100) is a canonical regression case from UTV2-433.",
+    "This file is machine-readable and consumed by classify-decision.ts."
+  ]
+}
